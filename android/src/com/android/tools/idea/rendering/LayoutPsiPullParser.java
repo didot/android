@@ -20,7 +20,6 @@ import com.android.ide.common.rendering.api.ILayoutPullParser;
 import com.android.ide.common.rendering.legacy.ILegacyPullParser;
 import com.android.ide.common.res2.ValueXmlHelper;
 import com.android.resources.Density;
-import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlFile;
@@ -34,8 +33,6 @@ import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static com.android.SdkConstants.*;
 
@@ -49,10 +46,7 @@ import static com.android.SdkConstants.*;
  * This pull parser generates {@link com.android.ide.common.rendering.api.ViewInfo}s whose keys
  * are of type {@link XmlTag}.
  */
-public class XmlTagPullParser implements ILegacyPullParser {
-  private final static Pattern FLOAT_PATTERN = Pattern.compile("(-?[0-9]+(?:\\.[0-9]+)?)(.*)"); //$NON-NLS-1$
-  private final static int PADDING_VALUE = 10;
-
+public class LayoutPsiPullParser implements ILegacyPullParser {
   private int myParsingState = START_DOCUMENT;
 
   @NotNull
@@ -62,56 +56,64 @@ public class XmlTagPullParser implements ILegacyPullParser {
   private final List<XmlTag> myNodeStack = new ArrayList<XmlTag>();
 
   @Nullable
-  private final XmlTag myRoot;
+  protected final XmlTag myRoot;
 
-  private boolean myZeroAttributeIsPadding = false;
-  private boolean myIncreaseExistingPadding = false;
-
-  @NotNull
-  private final Density myDensity;
-
-  /**
-   * Number of pixels to pad views with in exploded-rendering mode.
-   */
-  private static final String DEFAULT_PADDING_VALUE = PADDING_VALUE + UNIT_PX;
-
-  /**
-   * Number of pixels to pad exploded individual views with. (This is HALF the width of the
-   * rectangle since padding is repeated on both sides of the empty content.)
-   */
-  private static final String FIXED_PADDING_VALUE = "20px"; //$NON-NLS-1$
-
-  /**
-   * Set of nodes that we want to auto-pad using {@link #FIXED_PADDING_VALUE} as the padding
-   * attribute value. Can be null, which is the case when we don't want to perform any
-   * <b>individual</b> node exploding.
-   */
   @Nullable
-  private final Set<XmlTag> myExplodeNodes;
+  private String myToolsPrefix;
+
+  @Nullable
+  private String myAndroidPrefix;
 
   /**
-   * Constructs a new {@link XmlTagPullParser}, a parser dedicated to the special case of
+   * Constructs a new {@link LayoutPsiPullParser}, a parser dedicated to the special case of
+   * parsing a layout resource files.
+   *
+   * @param file         The {@link XmlTag} for the root node.
+   * @param logger       The logger to emit warnings too, such as missing fragment associations
+   */
+  @NotNull
+  public static LayoutPsiPullParser create(@NotNull XmlFile file, @NotNull RenderLogger logger) {
+    return new LayoutPsiPullParser(file, logger);
+  }
+
+  /**
+   * Constructs a new {@link LayoutPsiPullParser}, a parser dedicated to the special case of
    * parsing a layout resource files, and handling "exploded rendering" - adding padding on views
    * to make them easier to see and operate on.
    *
-   * @param file         The {@link XmlTag} for the root node.
+   * @param file         The {@link com.intellij.psi.xml.XmlTag} for the root node.
+   * @param logger       The logger to emit warnings too, such as missing fragment associations
    * @param explodeNodes A set of individual nodes that should be assigned a fixed amount of
-   *                     padding ({@link #FIXED_PADDING_VALUE}). This is intended for use with nodes that
-   *                     (without padding) would be invisible. This parameter can be null, in which case
-   *                     nodes are not individually exploded (but they may all be exploded with the
-   *                     explodeRendering parameter.
+ *                       padding ({@link com.android.tools.idea.rendering.PaddingLayoutPsiPullParser#FIXED_PADDING_VALUE}).
+ *                       This is intended for use with nodes that (without padding) would be
+ *                       invisible.
    * @param density      the density factor for the screen.
    */
-  public XmlTagPullParser(@NotNull XmlFile file, @Nullable Set<XmlTag> explodeNodes, @NotNull Density density,
-                          @NotNull RenderLogger logger) {
+  @NotNull
+  public static LayoutPsiPullParser create(@NotNull XmlFile file,
+                                           @NotNull RenderLogger logger,
+                                           @Nullable Set<XmlTag> explodeNodes,
+                                           @NotNull Density density) {
+    if (explodeNodes != null && !explodeNodes.isEmpty()) {
+      return new PaddingLayoutPsiPullParser(file, logger, explodeNodes, density);
+    } else {
+      return new LayoutPsiPullParser(file, logger);
+    }
+  }
+
+  /** Use one of the {@link #create} factory methods instead */
+  protected LayoutPsiPullParser(@NotNull XmlFile file, @NotNull RenderLogger logger) {
     myRoot = file.getRootTag();
-    myExplodeNodes = explodeNodes;
-    myDensity = density;
     myLogger = logger;
+
+    if (myRoot != null) {
+      myAndroidPrefix = myRoot.getPrefixByNamespace(ANDROID_URI);
+      myToolsPrefix = myRoot.getPrefixByNamespace(TOOLS_URI);
+    }
   }
 
   @Nullable
-  protected XmlTag getCurrentNode() {
+  protected final XmlTag getCurrentNode() {
     if (myNodeStack.size() > 0) {
       return myNodeStack.get(myNodeStack.size() - 1);
     }
@@ -120,7 +122,7 @@ public class XmlTagPullParser implements ILegacyPullParser {
   }
 
   @Nullable
-  private XmlAttribute getAttribute(int i) {
+  protected final XmlAttribute getAttribute(int i) {
     if (myParsingState != START_TAG) {
       throw new IndexOutOfBoundsException();
     }
@@ -134,15 +136,12 @@ public class XmlTagPullParser implements ILegacyPullParser {
     return null;
   }
 
-  private void push(@NotNull XmlTag node) {
+  protected void push(@NotNull XmlTag node) {
     myNodeStack.add(node);
-
-    myZeroAttributeIsPadding = false;
-    myIncreaseExistingPadding = false;
   }
 
   @NotNull
-  private XmlTag pop() {
+  protected XmlTag pop() {
     return myNodeStack.remove(myNodeStack.size() - 1);
   }
 
@@ -197,8 +196,7 @@ public class XmlTagPullParser implements ILegacyPullParser {
     XmlTag node = getCurrentNode();
 
     if (node != null) {
-      int count = node.getAttributes().length;
-      return count + (myZeroAttributeIsPadding ? 1 : 0);
+      return node.getAttributes().length;
     }
 
     return 0;
@@ -211,15 +209,6 @@ public class XmlTagPullParser implements ILegacyPullParser {
   @Nullable
   @Override
   public String getAttributeName(int i) {
-    if (myZeroAttributeIsPadding) {
-      if (i == 0) {
-        return ATTR_PADDING;
-      }
-      else {
-        i--;
-      }
-    }
-
     XmlAttribute attribute = getAttribute(i);
     if (attribute != null) {
       return attribute.getLocalName();
@@ -234,15 +223,6 @@ public class XmlTagPullParser implements ILegacyPullParser {
    */
   @Override
   public String getAttributeNamespace(int i) {
-    if (myZeroAttributeIsPadding) {
-      if (i == 0) {
-        return ANDROID_URI;
-      }
-      else {
-        i--;
-      }
-    }
-
     XmlAttribute attribute = getAttribute(i);
     if (attribute != null) {
       return attribute.getNamespace();
@@ -257,16 +237,6 @@ public class XmlTagPullParser implements ILegacyPullParser {
   @Nullable
   @Override
   public String getAttributePrefix(int i) {
-    if (myZeroAttributeIsPadding) {
-      if (i == 0) {
-        assert myRoot != null;
-        return myRoot.getPrefixByNamespace(ANDROID_URI);
-      }
-      else {
-        i--;
-      }
-    }
-
     XmlAttribute attribute = getAttribute(i);
     if (attribute != null) {
       return attribute.getNamespacePrefix();
@@ -281,24 +251,9 @@ public class XmlTagPullParser implements ILegacyPullParser {
   @Nullable
   @Override
   public String getAttributeValue(int i) {
-    if (myZeroAttributeIsPadding) {
-      if (i == 0) {
-        return DEFAULT_PADDING_VALUE;
-      }
-      else {
-        i--;
-      }
-    }
-
     XmlAttribute attribute = getAttribute(i);
     if (attribute != null) {
-      String value = attribute.getValue();
-      if (value != null && myIncreaseExistingPadding && ATTR_PADDING.equals(attribute.getLocalName()) &&
-          ANDROID_URI.equals(attribute.getNamespace())) {
-        // add the padding and return the value
-        return addPaddingToValue(value);
-      }
-      return value;
+      return attribute.getValue();
     }
 
     return null;
@@ -310,120 +265,76 @@ public class XmlTagPullParser implements ILegacyPullParser {
   @Nullable
   @Override
   public String getAttributeValue(String namespace, String localName) {
-    if (myExplodeNodes != null && ATTR_PADDING.equals(localName) &&
-        ANDROID_URI.equals(namespace)) {
-      XmlTag node = getCurrentNode();
-      if (node != null && myExplodeNodes.contains(node)) {
-        return FIXED_PADDING_VALUE;
-      }
-    }
-
-    if (myZeroAttributeIsPadding && ATTR_PADDING.equals(localName) &&
-        ANDROID_URI.equals(namespace)) {
-      return DEFAULT_PADDING_VALUE;
-    }
-
     // get the current uiNode
-    XmlTag uiNode = getCurrentNode();
-    if (uiNode != null) {
-      if (ATTR_LAYOUT.equals(localName) && VIEW_FRAGMENT.equals(uiNode.getName())) {
-        String layout = LayoutMetadata.getFragmentLayout(uiNode);
+    XmlTag tag = getCurrentNode();
+    if (tag != null) {
+      if (ATTR_LAYOUT.equals(localName) && VIEW_FRAGMENT.equals(tag.getName())) {
+        String layout = LayoutMetadata.getFragmentLayout(tag);
         if (layout != null) {
           return layout;
         }
       }
 
-      XmlAttribute attribute = uiNode.getAttribute(localName, namespace);
-
-      // Auto-convert http://schemas.android.com/apk/res-auto resources. The lookup
-      // will be for the current application's resource package, e.g.
-      // http://schemas.android.com/apk/res/foo.bar, but the XML document will
-      // be using http://schemas.android.com/apk/res-auto in library projects:
-      if (attribute == null && namespace != null && !namespace.equals(ANDROID_URI)) {
-        attribute = uiNode.getAttribute(localName, AUTO_URI);
-      }
-
-      if (attribute != null) {
-        String value = attribute.getValue();
-        if (value != null) {
-          if (value.isEmpty()) {
-            return null;
-          }
-
-          if (myIncreaseExistingPadding && ATTR_PADDING.equals(localName) &&
-              ANDROID_URI.equals(namespace)) {
-            // add the padding and return the value
-            return addPaddingToValue(value);
-          }
-
-          // on the fly convert match_parent to fill_parent for compatibility with older
-          // platforms.
-          if (VALUE_MATCH_PARENT.equals(value) &&
-              (ATTR_LAYOUT_WIDTH.equals(localName) || ATTR_LAYOUT_HEIGHT.equals(localName)) &&
-              ANDROID_URI.equals(namespace)) {
-            return VALUE_FILL_PARENT;
-          }
-
-          // Handle unicode and XML escapes
-          for (int i = 0, n = value.length(); i < n; i++) {
-            char c = value.charAt(i);
-            if (c == '&' || c == '\\') {
-              value = ValueXmlHelper.unescapeResourceString(value, true, false);
-              break;
+      String value = null;
+      if (namespace == null) {
+        value = tag.getAttributeValue(localName);
+      } else if (namespace.equals(ANDROID_URI)) {
+        if (myAndroidPrefix != null) {
+          // The PSI implementation of XmlTag#getAttributeValue(name, namespace)
+          // just turns around and looks up the prefix, then concatenates the prefix
+          // and the name and turns around and calls getAttributeValue(name) anyway.
+          // Here we pre-compute the prefix once, and if we know that the document
+          // also has a tools prefix, we allow the tools attribute to win at designtime.
+          if (myToolsPrefix != null) {
+            value = tag.getAttributeValue(myToolsPrefix + ':' + localName);
+            if (value != null) {
+              if (value.isEmpty()) {
+                // Empty when there is a runtime attribute set means unset the runtime attribute
+                return tag.getAttributeValue(myAndroidPrefix + ':' + localName) != null ? null : value;
+              }
             }
           }
+          if (value == null) {
+            value = tag.getAttributeValue(myAndroidPrefix + ':' + localName);
+          }
+        } else {
+          value = tag.getAttributeValue(localName, namespace);
+        }
+      } else {
+        value = tag.getAttributeValue(localName, namespace);
+
+        // Auto-convert http://schemas.android.com/apk/res-auto resources. The lookup
+        // will be for the current application's resource package, e.g.
+        // http://schemas.android.com/apk/res/foo.bar, but the XML document will
+        // be using http://schemas.android.com/apk/res-auto in library projects:
+        if (value == null) {
+          value = tag.getAttributeValue(localName, AUTO_URI);
+        }
+      }
+
+      if (value != null) {
+        // on the fly convert match_parent to fill_parent for compatibility with older
+        // platforms.
+        if (VALUE_MATCH_PARENT.equals(value) &&
+            (ATTR_LAYOUT_WIDTH.equals(localName) || ATTR_LAYOUT_HEIGHT.equals(localName)) &&
+            ANDROID_URI.equals(namespace)) {
+          return VALUE_FILL_PARENT;
         }
 
-        return value;
+        // Handle unicode and XML escapes
+        for (int i = 0, n = value.length(); i < n; i++) {
+          char c = value.charAt(i);
+          if (c == '&' || c == '\\') {
+            value = ValueXmlHelper.unescapeResourceString(value, true, false);
+            break;
+          }
+        }
       }
+
+      return value;
     }
 
     return null;
-  }
-
-  /**
-   * Replaces any {@code \\uNNNN} references in the given string with the corresponding
-   * unicode characters.
-   *
-   * @param s the string to perform replacements in
-   * @return the string with unicode escapes replaced with actual characters
-   */
-  @SuppressWarnings("AssignmentToForLoopParameter")
-  @NotNull
-  public static String replaceUnicodeEscapes(@NotNull String s) {
-    // Handle unicode escapes
-    if (s.contains("\\u")) { //$NON-NLS-1$
-      StringBuilder sb = new StringBuilder(s.length());
-      for (int i = 0, n = s.length(); i < n; i++) {
-        char c = s.charAt(i);
-        if (c == '\\' && i < n - 1) {
-          char next = s.charAt(i + 1);
-          if (next == 'u' && i < n - 5) { // case sensitive
-            String hex = s.substring(i + 2, i + 6);
-            try {
-              int unicodeValue = Integer.parseInt(hex, 16);
-              sb.append((char)unicodeValue);
-              i += 5;
-            }
-            catch (NumberFormatException nufe) {
-              // Invalid escape: Just proceed to literally transcribe it
-              sb.append(c);
-            }
-          }
-          else {
-            sb.append(c);
-            sb.append(next);
-            i++;
-          }
-        }
-        else {
-          sb.append(c);
-        }
-      }
-      s = sb.toString();
-    }
-
-    return s;
   }
 
   @Override
@@ -559,169 +470,6 @@ public class XmlTagPullParser implements ILegacyPullParser {
         myParsingState = END_TAG;
       }
     }
-  }
-
-  // ------- TypedValue stuff
-  // This is adapted from com.android.layoutlib.bridge.ResourceHelper
-  // (but modified to directly take the parsed value and convert it into pixel instead of
-  // storing it into a TypedValue)
-  // this was originally taken from platform/frameworks/base/libs/utils/ResourceTypes.cpp
-
-  private static final class DimensionEntry {
-    final String name;
-    final int type;
-
-    DimensionEntry(String name, int unit) {
-      this.name = name;
-      this.type = unit;
-    }
-  }
-
-  /**
-   * {@link DimensionEntry} complex unit: Value is raw pixels.
-   */
-  private static final int COMPLEX_UNIT_PX = 0;
-  /**
-   * {@link DimensionEntry} complex unit: Value is Device Independent
-   * Pixels.
-   */
-  private static final int COMPLEX_UNIT_DIP = 1;
-  /**
-   * {@link DimensionEntry} complex unit: Value is a scaled pixel.
-   */
-  private static final int COMPLEX_UNIT_SP = 2;
-  /**
-   * {@link DimensionEntry} complex unit: Value is in points.
-   */
-  private static final int COMPLEX_UNIT_PT = 3;
-  /**
-   * {@link DimensionEntry} complex unit: Value is in inches.
-   */
-  private static final int COMPLEX_UNIT_IN = 4;
-  /**
-   * {@link DimensionEntry} complex unit: Value is in millimeters.
-   */
-  private static final int COMPLEX_UNIT_MM = 5;
-
-  private final static DimensionEntry[] DIMENSIONS =
-    new DimensionEntry[]{new DimensionEntry(UNIT_PX, COMPLEX_UNIT_PX), new DimensionEntry(UNIT_DIP, COMPLEX_UNIT_DIP),
-      new DimensionEntry(UNIT_DP, COMPLEX_UNIT_DIP), new DimensionEntry(UNIT_SP, COMPLEX_UNIT_SP),
-      new DimensionEntry(UNIT_PT, COMPLEX_UNIT_PT), new DimensionEntry(UNIT_IN, COMPLEX_UNIT_IN),
-      new DimensionEntry(UNIT_MM, COMPLEX_UNIT_MM),};
-
-  /**
-   * Adds padding to an existing dimension.
-   * <p/>This will resolve the attribute value (which can be px, dip, dp, sp, pt, in, mm) to
-   * a pixel value, add the padding value ({@link #PADDING_VALUE}),
-   * and then return a string with the new value as a px string ("42px");
-   * If the conversion fails, only the special padding is returned.
-   */
-  private String addPaddingToValue(@Nullable String s) {
-    if (s == null) {
-      return DEFAULT_PADDING_VALUE;
-    }
-    int padding = PADDING_VALUE;
-    if (stringToPixel(s)) {
-      padding += myLastPixel;
-    }
-
-    return padding + UNIT_PX;
-  }
-
-  /** Out value from {@link #stringToPixel(String)}: the integer pixel value */
-  private int myLastPixel;
-
-  /**
-   * Convert the string into a pixel value, and puts it in {@link #myLastPixel}
-   *
-   * @param s the dimension value from an XML attribute
-   * @return true if success.
-   */
-  private boolean stringToPixel(String s) {
-    // remove the space before and after
-    s = s.trim();
-    int len = s.length();
-
-    if (len <= 0) {
-      return false;
-    }
-
-    // check that there's no non ASCII characters.
-    char[] buf = s.toCharArray();
-    for (int i = 0; i < len; i++) {
-      if (buf[i] > 255) {
-        return false;
-      }
-    }
-
-    // check the first character
-    if (buf[0] < '0' && buf[0] > '9' && buf[0] != '.') {
-      return false;
-    }
-
-    // now look for the string that is after the float...
-    Matcher m = FLOAT_PATTERN.matcher(s);
-    if (m.matches()) {
-      String f_str = m.group(1);
-      String end = m.group(2);
-
-      float f;
-      try {
-        f = Float.parseFloat(f_str);
-      }
-      catch (NumberFormatException e) {
-        // this shouldn't happen with the regexp above.
-        return false;
-      }
-
-      if (end.length() > 0 && end.charAt(0) != ' ') {
-        // We only support dimension-type values, so try to parse the unit for dimension
-        DimensionEntry dimension = parseDimension(end);
-        if (dimension != null) {
-          // convert the value into pixel based on the dimension type
-          // This is similar to TypedValue.applyDimension()
-          switch (dimension.type) {
-            case COMPLEX_UNIT_PX:
-              // do nothing, value is already in px
-              break;
-            case COMPLEX_UNIT_DIP:
-            case COMPLEX_UNIT_SP: // intended fall-through since we don't
-              // adjust for font size
-              f *= (float)myDensity.getDpiValue() / Density.DEFAULT_DENSITY;
-              break;
-            case COMPLEX_UNIT_PT:
-              f *= myDensity.getDpiValue() * (1.0f / 72);
-              break;
-            case COMPLEX_UNIT_IN:
-              f *= myDensity.getDpiValue();
-              break;
-            case COMPLEX_UNIT_MM:
-              f *= myDensity.getDpiValue() * (1.0f / 25.4f);
-              break;
-          }
-
-          // store result (converted to int)
-          myLastPixel = (int)(f + 0.5);
-
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  @Nullable
-  private static DimensionEntry parseDimension(String str) {
-    str = str.trim();
-
-    for (DimensionEntry d : DIMENSIONS) {
-      if (d.name.equals(str)) {
-        return d;
-      }
-    }
-
-    return null;
   }
 
   // --- basic implementation of IXmlPullParser ---
@@ -918,7 +666,8 @@ public class XmlTagPullParser implements ILegacyPullParser {
 
   @Override
   public void require(int type, String namespace, String name) throws XmlPullParserException {
-    if (type != getEventType() || (namespace != null && !namespace.equals(getNamespace())) || (name != null && !name.equals(getName()))) {
+    if (type != getEventType() || (namespace != null &&
+                                   !namespace.equals(getNamespace())) || (name != null && !name.equals(getName()))) {
       throw new XmlPullParserException("expected " + TYPES[type] + getPositionDescription());
     }
   }

@@ -15,14 +15,21 @@
  */
 package com.android.tools.idea.rendering;
 
-import com.android.SdkConstants;
 import com.android.ide.common.rendering.api.ILayoutPullParser;
 import com.android.ide.common.rendering.api.IProjectCallback;
+import com.android.ide.common.res2.ValueXmlHelper;
+import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
-import com.intellij.openapi.util.text.StringUtil;
+import com.google.common.io.Files;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kxml2.io.KXmlParser;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.Map;
 
 import static com.android.SdkConstants.*;
@@ -35,7 +42,7 @@ import static com.android.SdkConstants.*;
  * It will return a given parser when queried for one through
  * {@link com.android.ide.common.rendering.api.ILayoutPullParser#getParser(String)} for a given name.
  */
-public class ContextPullParser extends KXmlParser implements ILayoutPullParser {
+public class LayoutFilePullParser extends KXmlParser implements ILayoutPullParser {
   /**
    * The callback to request parsers from
    */
@@ -46,15 +53,26 @@ public class ContextPullParser extends KXmlParser implements ILayoutPullParser {
   private String myFragmentLayout = null;
 
   /**
-   * Creates a new {@link ContextPullParser}
+   * Crates a new {@link LayoutFilePullParser
+   */
+  public static LayoutFilePullParser create(@NotNull IProjectCallback projectCallback,
+                                            @NotNull File xml) throws XmlPullParserException, IOException {
+    LayoutFilePullParser parser = new LayoutFilePullParser(projectCallback);
+    parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
+    String xmlText = Files.toString(xml, Charsets.UTF_8);
+    parser.setInput(new StringReader(xmlText));
+    return parser;
+  }
+
+  /**
+   * Creates a new {@link LayoutFilePullParser}
    *
    * @param projectCallback the associated callback
    */
-  public ContextPullParser(IProjectCallback projectCallback) {
+  private LayoutFilePullParser(IProjectCallback projectCallback) {
     super();
     myProjectCallback = projectCallback;
   }
-
   // --- Layout lib API methods
 
   @SuppressWarnings("deprecation") // Required to support older layoutlib versions
@@ -135,18 +153,39 @@ public class ContextPullParser extends KXmlParser implements ILayoutPullParser {
     // platforms.
     if (VALUE_MATCH_PARENT.equals(value) &&
         (ATTR_LAYOUT_WIDTH.equals(localName) || ATTR_LAYOUT_HEIGHT.equals(localName)) &&
-        SdkConstants.NS_RESOURCES.equals(namespace)) {
+        ANDROID_URI.equals(namespace)) {
       return VALUE_FILL_PARENT;
     }
 
-    if (value != null) {
-      if (value.indexOf('&') != -1) {
-        value = StringUtil.unescapeXml(value);
+    if (namespace != null) {
+      if (namespace.equals(ANDROID_URI)) {
+        // Allow the tools namespace to override the framework attributes at designtime
+        String designValue = super.getAttributeValue(TOOLS_URI, localName);
+        if (designValue != null) {
+          if (value != null && designValue.isEmpty()) {
+            // Empty when there is a runtime attribute set means unset the runtime attribute
+            value = null;
+          } else {
+            value = designValue;
+          }
+        }
+      } else if (value == null) {
+        // Auto-convert http://schemas.android.com/apk/res-auto resources. The lookup
+        // will be for the current application's resource package, e.g.
+        // http://schemas.android.com/apk/res/foo.bar, but the XML document will
+        // be using http://schemas.android.com/apk/res-auto in library projects:
+        value = super.getAttributeValue(AUTO_URI, localName);
       }
+    }
 
-      // Handle unicode escapes
-      if (value.indexOf('\\') != -1) {
-        value = XmlTagPullParser.replaceUnicodeEscapes(value);
+    if (value != null) {
+      // Handle unicode and XML escapes
+      for (int i = 0, n = value.length(); i < n; i++) {
+        char c = value.charAt(i);
+        if (c == '&' || c == '\\') {
+          value = ValueXmlHelper.unescapeResourceString(value, true, false);
+          break;
+        }
       }
     }
 
