@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.gradle.customizer;
+package com.android.tools.idea.gradle.customizer.android;
 
 import com.android.tools.idea.gradle.IdeaAndroidProject;
 import com.android.tools.idea.gradle.project.AndroidContentRoot;
@@ -26,7 +26,6 @@ import com.intellij.openapi.roots.ContentEntry;
 import com.intellij.openapi.roots.ModifiableRootModel;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.roots.SourceFolder;
-import com.intellij.openapi.roots.impl.SourceFolderImpl;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -44,30 +43,30 @@ import java.io.File;
 /**
  * Sets the content roots of an IDEA module imported from an {@link com.android.builder.model.AndroidProject}.
  */
-public class ContentRootModuleCustomizer implements ModuleCustomizer {
+public class ContentRootModuleCustomizer implements AndroidModuleCustomizer {
   /**
    * Sets the content roots of the given IDEA module based on the settings of the given Android-Gradle project.
    *
    * @param module             module to customize.
    * @param project            project that owns the module to customize.
-   * @param ideaAndroidProject the imported Android-Gradle project.
+   * @param androidProject the imported Android-Gradle project.
    */
   @Override
-  public void customizeModule(@NotNull Module module, @NotNull Project project, @Nullable IdeaAndroidProject ideaAndroidProject) {
-    if (ideaAndroidProject == null) {
+  public void customizeModule(@NotNull Module module, @NotNull Project project, @Nullable IdeaAndroidProject androidProject) {
+    if (androidProject == null) {
       return;
     }
     ModuleRootManager moduleRootManager = ModuleRootManager.getInstance(module);
     ModifiableRootModel model = moduleRootManager.getModifiableModel();
 
-    final ContentEntry contentEntry = findMatchingContentEntry(model, ideaAndroidProject);
+    final ContentEntry contentEntry = findMatchingContentEntry(model, androidProject);
     if (contentEntry == null) {
       model.dispose();
       return;
     }
     try {
       contentEntry.clearSourceFolders();
-      storePaths(contentEntry, ideaAndroidProject);
+      storePaths(contentEntry, androidProject);
     }
     finally {
       model.commit();
@@ -120,7 +119,7 @@ public class ContentRootModuleCustomizer implements ModuleCustomizer {
           storePath(url, JavaSourceRootType.TEST_SOURCE, false);
         }
         else if (sourceType.equals(ExternalSystemSourceType.TEST_GENERATED)) {
-          storePath(url, JavaSourceRootType.TEST_SOURCE, false);
+          storePath(url, JavaSourceRootType.TEST_SOURCE, true);
         }
         else if (sourceType.equals(ExternalSystemSourceType.TEST_RESOURCE)) {
           storePath(url, JavaResourceRootType.TEST_RESOURCE, false);
@@ -130,8 +129,8 @@ public class ContentRootModuleCustomizer implements ModuleCustomizer {
       private void storePath(@NotNull String url, @NotNull JpsModuleSourceRootType sourceRootType, boolean isGenerated) {
         SourceFolder sourceFolder = contentEntry.addSourceFolder(url, sourceRootType);
 
-        if (isGenerated && sourceFolder instanceof SourceFolderImpl) {
-          JpsModuleSourceRoot sourceRoot = ((SourceFolderImpl)sourceFolder).getJpsElement();
+        if (isGenerated) {
+          JpsModuleSourceRoot sourceRoot = sourceFolder.getJpsElement();
           JpsElement properties = sourceRoot.getProperties();
           if (properties instanceof JavaSourceRootProperties) {
             ((JavaSourceRootProperties)properties).setForGeneratedSources(true);

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.gradle;
+package com.android.tools.idea.model;
 
-import com.android.tools.idea.rendering.ManifestInfo;
+import com.android.tools.idea.gradle.IdeaAndroidProject;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.progress.Task;
+import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidPlatform;
 import org.jetbrains.annotations.NotNull;
@@ -26,8 +28,23 @@ import org.jetbrains.annotations.Nullable;
  * Android information about a module, such as its application package, its minSdkVersion, and so on. This
  * is derived from a combination of gradle files and manifest files.
  * <p>
- * TODO: Handle the case where gradle files are not specifying attributes, and they are specified
- * in non-default manifest files (e.g. flavor-specific manifest files)
+ * NOTE: The build process allows for specifying and overriding different components in either the Gradle build scripts,
+ * the main manifest file, or a variant specific manifest file. These values should always be obtained from the final
+ * merged manifest file for a particular variant. However, there are two issues:
+ * <ol>
+ *   <li>The merged manifest file may not always be available, since it is present within the build folder
+ * and that might have been cleaned.</li>
+ *   <li>Reading/Parsing a file is higher overhead that simply querying the Gradle model.</li>
+ * </ol>
+ * As a result, the code below uses the following sequence to obtain required information:
+ * <ol>
+ *   <li>Query the gradle model for the current variant. If the value is specified/overridden in
+ *   gradle build scripts, then this should be sufficient.</li>
+ *   <li>The model won't have information if it is not specified in a build script. In such a case,
+ *   the merged manifest file should be parsed for the information</li>
+ *   <li>If the merged manifest file is not available, then the final fallback is to parse the main manifest.</li>
+ * </ol>
+ * <p>
  */
 public class AndroidModuleInfo {
   private final @NotNull AndroidFacet myFacet;
@@ -52,21 +69,36 @@ public class AndroidModuleInfo {
     return facet != null ? facet.getAndroidModuleInfo() : null;
   }
 
+  /** @deprecated Use {@link #getPackage(boolean)} which is explicit about whether the merged manifest should be used. */
   @Nullable
   public String getPackage() {
-    String manifestPackage = ManifestInfo.get(myFacet.getModule()).getPackage();
-
-    IdeaAndroidProject project = myFacet.getIdeaAndroidProject();
-    if (project != null) {
-      return project.computePackageName(manifestPackage);
-    }
-
-    // Read from the manifest: Not overridden in the configuration
-    // TODO: there could be more than one manifest file; I need to look at the merged view!
-    return manifestPackage;
+    return getPackage(false);
   }
 
   public int getMinSdkVersion() {
+    return getMinSdkVersion(false);
+  }
+
+  public String getMinSdkName() {
+    return getMinSdkName(false);
+  }
+
+  public int getTargetSdkVersion() {
+    return getTargetSdkVersion(false);
+  }
+
+  @Nullable
+  public String getPackage(boolean preferMergedManifest) {
+    IdeaAndroidProject project = myFacet.getIdeaAndroidProject();
+    if (project != null) {
+      return project.computePackageName();
+    }
+
+    // Read from the manifest: Not overridden in the configuration
+    return ManifestInfo.get(myFacet.getModule(), preferMergedManifest).getPackage();
+  }
+
+  public int getMinSdkVersion(boolean preferMergedManifest) {
     IdeaAndroidProject project = myFacet.getIdeaAndroidProject();
     if (project != null) {
       int minSdkVersion = project.getSelectedVariant().getMergedFlavor().getMinSdkVersion();
@@ -76,20 +108,19 @@ public class AndroidModuleInfo {
       // Else: not specified in gradle files; fall back to manifest
     }
 
-    // TODO: there could be more than one manifest file; I need to look at the merged view!
-    return ManifestInfo.get(myFacet.getModule()).getMinSdkVersion();
+    return ManifestInfo.get(myFacet.getModule(), preferMergedManifest).getMinSdkVersion();
   }
 
-  public String getMinSdkName() {
-    String codeName = ManifestInfo.get(myFacet.getModule()).getMinSdkCodeName();
+  public String getMinSdkName(boolean preferMergedManifest) {
+    String codeName = ManifestInfo.get(myFacet.getModule(), preferMergedManifest).getMinSdkCodeName();
     if (codeName != null) {
       return codeName;
     }
 
-    return Integer.toString(getMinSdkVersion());
+    return Integer.toString(getMinSdkVersion(preferMergedManifest));
   }
 
-  public int getTargetSdkVersion() {
+  public int getTargetSdkVersion(boolean preferMergedManifest) {
     IdeaAndroidProject project = myFacet.getIdeaAndroidProject();
     if (project != null) {
       int targetSdkVersion = project.getSelectedVariant().getMergedFlavor().getTargetSdkVersion();
@@ -99,8 +130,12 @@ public class AndroidModuleInfo {
       // Else: not specified in gradle files; fall back to manifest
     }
 
-    // TODO: there could be more than one manifest file; I need to look at the merged view!
-    return ManifestInfo.get(myFacet.getModule()).getTargetSdkVersion();
+    return ManifestInfo.get(myFacet.getModule(), preferMergedManifest).getTargetSdkVersion();
+  }
+
+  @Nullable
+  public Manifest getManifest(boolean preferMergedManifest) {
+    return ManifestInfo.get(myFacet.getModule(), preferMergedManifest).getManifest();
   }
 
   public int getBuildSdkVersion() {
@@ -154,5 +189,20 @@ public class AndroidModuleInfo {
     }
 
     return -1;
+  }
+
+  @Nullable
+  public static Manifest getManifest(@Nullable Module module, boolean preferMergedManifest) {
+    if (module == null) {
+      return null;
+    }
+
+    AndroidFacet facet = AndroidFacet.getInstance(module);
+    if (facet == null) {
+      return null;
+    }
+
+    AndroidModuleInfo moduleInfo = get(facet.getModule());
+    return moduleInfo == null ? null : moduleInfo.getManifest(preferMergedManifest);
   }
 }
