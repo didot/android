@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,33 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.uibuilder.property.inspector;
+package com.android.tools.idea.naveditor.property.inspector;
 
-import com.android.tools.idea.uibuilder.handlers.constraint.ConstraintSetInspectorProvider;
+import com.android.tools.idea.uibuilder.property.inspector.InspectorProvider;
+import org.jetbrains.android.dom.navigation.NavigationSchema;
 import com.android.tools.idea.uibuilder.property.NlPropertiesManager;
+import com.android.tools.idea.uibuilder.property.inspector.InspectorProviders;
 import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-public class NlInspectorProviders extends InspectorProviders {
+/**
+ * Creates the {@link InspectorProvider}s for navigation editor elements.
+ */
+public class NavInspectorProviders extends InspectorProviders {
   protected List<InspectorProvider> myProviders;
   protected InspectorProvider myNullProvider;
 
-  public NlInspectorProviders(@NotNull NlPropertiesManager propertiesManager, @NotNull Disposable parentDisposable) {
+  public NavInspectorProviders(@NotNull NlPropertiesManager propertiesManager, @NotNull Disposable parentDisposable) {
     super(propertiesManager, parentDisposable);
-    myNullProvider = new IdInspectorProvider();
-    Project project = myPropertiesManager.getProject();
-    myProviders = ImmutableList.of(myNullProvider,
-                                   new ViewInspectorProvider(project),
-                                   new ConstraintSetInspectorProvider(),
-                                   new ProgressBarInspectorProvider(),
-                                   new TextInspectorProvider(),
-                                   new MockupInspectorProvider(),
-                                   new FavoritesInspectorProvider(),
-                                   new LayoutInspectorProvider(project));
+    NavigationSchema schema = NavigationSchema.getOrCreateSchema(propertiesManager.getFacet());
+    NavigationInspectorProvider provider = new NavigationInspectorProvider();
+    myNullProvider = provider;
+    myProviders = ImmutableList.of(provider, new ActionInspectorProvider());
   }
 
   @NotNull
