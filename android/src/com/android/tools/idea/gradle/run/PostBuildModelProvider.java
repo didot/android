@@ -19,8 +19,9 @@ import com.android.builder.model.ProjectBuildOutput;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Provides a {@link ProjectBuildOutput}.
+ * Provides a {@link PostBuildModel} containing the {@link ProjectBuildOutput} models.
  */
-public interface ProjectBuildOutputProvider {
-  @Nullable ProjectBuildOutput getOutputModel();
+public interface PostBuildModelProvider {
+  @Nullable
+  PostBuildModel getPostBuildModel();
 }
