@@ -20,11 +20,11 @@ import com.intellij.testFramework.ProjectRule
 import org.jetbrains.android.AndroidTestBase
 import org.junit.Rule
 import org.junit.Test
+import java.awt.Color
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class ParserTest {
-
+class PagesParserTest {
   @get:Rule
   val projectRule = ProjectRule()
 
@@ -78,10 +78,7 @@ class ParserTest {
     assertEquals(0, slice.rotation)
     assertEquals(false, slice.shouldBreakMaskChain())
 
-    assertEquals(255, slice.backgroundColor.alpha)
-    assertEquals(255, slice.backgroundColor.blue)
-    assertEquals(255, slice.backgroundColor.green)
-    assertEquals(255, slice.backgroundColor.red)
+    assertEquals(Color(255, 255, 255, 255), slice.backgroundColor)
     assertEquals(false, slice.hasBackgroundColor())
 
     assertEquals("ffffffff", Integer.toHexString(slice.backgroundColor.rgb))
@@ -127,19 +124,13 @@ class ParserTest {
     assertEquals(0, style.borderOptions?.lineJoinStyle)
 
     assertEquals(true, style.borders?.get(0)?.isEnabled)
-    assertEquals(255, style.borders?.get(0)?.color?.alpha)
-    assertEquals(151, style.borders?.get(0)?.color?.blue)
-    assertEquals(151, style.borders?.get(0)?.color?.green)
-    assertEquals(151, style.borders?.get(0)?.color?.red)
+    assertEquals(Color(151, 151, 151, 255), style.borders?.get(0)?.color)
     assertEquals(0, style.borders?.get(0)?.fillType)
     assertEquals(0, style.borders?.get(0)?.position)
     assertEquals(1, style.borders?.get(0)?.thickness)
 
     assertEquals(false, style.fills?.get(0)?.isEnabled)
-    assertEquals(255, style.fills?.get(0)?.color?.alpha)
-    assertEquals(216, style.fills?.get(0)?.color?.blue)
-    assertEquals(216, style.fills?.get(0)?.color?.green)
-    assertEquals(216, style.fills?.get(0)?.color?.red)
+    assertEquals(Color(216, 216, 216, 255), style.fills?.get(0)?.color)
     assertEquals(0, style.fills?.get(0)?.fillType)
   }
 
