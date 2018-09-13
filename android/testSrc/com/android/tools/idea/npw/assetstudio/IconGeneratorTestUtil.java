@@ -15,80 +15,97 @@
  */
 package com.android.tools.idea.npw.assetstudio;
 
-import com.android.ide.common.util.AssetUtil;
-import com.google.common.base.Charsets;
-import com.google.common.io.CharStreams;
-import com.google.common.util.concurrent.Futures;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.*;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import static com.google.common.truth.Truth.assertThat;
 import static org.jetbrains.android.AndroidTestBase.getTestDataPath;
 import static org.junit.Assert.fail;
 
+import com.android.ide.common.util.AssetUtil;
+import com.android.ide.common.util.PathString;
+import com.android.ide.common.vectordrawable.VdIcon;
+import com.android.resources.Density;
+import com.android.tools.idea.npw.assetstudio.assets.ImageAsset;
+import com.google.common.base.Charsets;
+import com.google.common.io.CharStreams;
+import com.google.common.io.Files;
+import com.intellij.openapi.util.io.FileUtil;
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import javax.imageio.ImageIO;
+import org.jetbrains.annotations.NotNull;
+
 /**
  * Shared test infrastructure for bitmap generator.
  */
-public final class BitmapGeneratorTests {
+public final class IconGeneratorTestUtil {
+  public enum SourceType { PNG, SVG }
 
-  private BitmapGeneratorTests() {}
-
-  static void checkGraphic(int expectedFileCount, String folderName, String baseName, IconGenerator generator,
-                           IconGenerator.Options options) throws IOException {
-    checkGraphic(expectedFileCount, folderName, baseName, generator, options, 1.0f);
+  static void checkGraphic(@NotNull IconGenerator generator,
+                           @NotNull SourceType sourceType,
+                           @NotNull String baseName,
+                           int paddingPercent,
+                           @NotNull List<String> expectedFolders,
+                           @NotNull String golderFileFolderName) throws IOException {
+    File sourceFile = getSourceFile(sourceType);
+    try {
+      checkGraphic(generator, sourceFile, baseName, paddingPercent, expectedFolders, golderFileFolderName);
+    } finally {
+      if (sourceType == SourceType.PNG) {
+        // Delete the temporary PNG file created by the test.
+        //noinspection ResultOfMethodCallIgnored
+        sourceFile.delete();
+      }
+    }
   }
 
-  private static void checkGraphic(int expectedFileCount, String folderName, String baseName, IconGenerator generator,
-                                   IconGenerator.Options options, float sourceAssetScale) throws IOException {
-    BufferedImage sourceImage = BuiltInImages.getClipartImage("android.png");
-    if (sourceAssetScale != 1.0f) {
-      int width = sourceImage.getWidth();
-      int height = sourceImage.getHeight();
-      BufferedImage scaledImage =
-          AssetUtil.scaledImage(sourceImage, Math.round(width * sourceAssetScale), Math.round(height * sourceAssetScale));
-      BufferedImage newSource = AssetUtil.newArgbBufferedImage(width, height);
-      Graphics2D g = (Graphics2D) newSource.getGraphics();
-      AssetUtil.drawCentered(g, scaledImage, new Rectangle(0, 0, width, height));
-      g.dispose();
-      sourceImage = newSource;
-    }
-    options.sourceImageFuture = Futures.immediateFuture(sourceImage);
-
-    Collection<GeneratedIcon> icons = generator.generateIcons(GRAPHIC_GENERATOR_CONTEXT, options, baseName);
+  private static void checkGraphic(@NotNull IconGenerator generator,
+                                   @NotNull File sourceFile,
+                                   @NotNull String baseName,
+                                   int paddingPercent,
+                                   @NotNull List<String> expectedFolders,
+                                   @NotNull String golderFileFolderName) throws IOException {
+    ImageAsset imageAsset = new ImageAsset();
+    imageAsset.imagePath().setValue(sourceFile);
+    imageAsset.paddingPercent().set(paddingPercent);
+    generator.sourceAsset().setValue(imageAsset);
+    generator.outputName().set(baseName);
+    IconGenerator.Options options = generator.createOptions(false);
+    Collection<GeneratedIcon> icons = generator.generateIcons(options).getIcons();
 
     List<String> errors = new ArrayList<>();
-    int fileCount = 0;
+    List<String> actualFolders = new ArrayList<>(icons.size());
     for (GeneratedIcon generatedIcon : icons) {
-      Path relativePath = generatedIcon.getOutputPath();
-      if (relativePath == null) {
-        relativePath = Paths.get("extra").resolve(generatedIcon.getName() + ".png");
-      }
+      PathString relativePath = generatedIcon.getOutputPath();
+      PathString folder = relativePath.getParent();
+      actualFolders.add(folder == null ? "" : folder.getFileName());
 
       String testDataDir = getTestDataPath();
-      String path = "images" + File.separator + folderName + File.separator + relativePath;
-      File goldenFile = new File(testDataDir, path);
+      File goldenFile = Paths.get(testDataDir,"images", golderFileFolderName, relativePath.getNativePath()).toFile();
       try (InputStream is = new FileInputStream(goldenFile)) {
         if (generatedIcon instanceof GeneratedImageIcon) {
           BufferedImage image = ((GeneratedImageIcon)generatedIcon).getImage();
           BufferedImage goldenImage = ImageIO.read(is);
-          assertImageSimilar(relativePath.toString(), goldenImage, image, 5.0f);
-          fileCount++;
+          Density density = ((GeneratedImageIcon)generatedIcon).getDensity();
+          double maxDiffPercent = density == Density.NODPI ? 0.5 : 2.5 * Density.XXXHIGH.getDpiValue() / density.getDpiValue();
+          assertImageSimilar(relativePath, goldenImage, image, maxDiffPercent);
         }
         else if (generatedIcon instanceof GeneratedXmlResource) {
           String text = ((GeneratedXmlResource)generatedIcon).getXmlText();
           String goldenText = CharStreams.toString(new InputStreamReader(is, Charsets.UTF_8));
           assertThat(text.replace("\r\n", "\n")).isEqualTo(goldenText.replace("\r\n", "\n"));
         }
+
       } catch (FileNotFoundException e) {
         if (generatedIcon instanceof GeneratedImageIcon) {
           BufferedImage image = ((GeneratedImageIcon)generatedIcon).getImage();
@@ -104,28 +121,25 @@ public final class BitmapGeneratorTests {
     }
     assertThat(errors).isEmpty();
 
-    assertThat(fileCount).named("number of generated files").isEqualTo(expectedFileCount);
+    assertThat(actualFolders).containsAllIn(expectedFolders);
   }
 
-  private static final GraphicGeneratorContext GRAPHIC_GENERATOR_CONTEXT = new GraphicGeneratorContext(0) {
-    @Override
-    @Nullable
-    public BufferedImage loadImageResource(@NotNull String path) {
-      try {
-        try (InputStream is = BitmapGeneratorTests.class.getResourceAsStream(path)) {
-          return (is == null) ? null : ImageIO.read(is);
-        }
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  };
+  @NotNull
+  private static File getSourceFile(@NotNull SourceType sourceType) throws IOException {
+    switch (sourceType) {
+      case PNG:
+        VdIcon androidIcon = new VdIcon(MaterialDesignIcons.getDefaultIcon());
+        BufferedImage sourceImage = androidIcon.renderIcon(512, 512);
+        File pngFile = FileUtil.createTempFile("android", ".png");
+        ImageIO.write(sourceImage, "PNG", pngFile);
+        return pngFile;
 
-  /**
-   * Returns the directory containing the golden files.
-   */
-  private static File getTestDataDir() {
-    return new File(getTestDataPath());
+      case SVG:
+        return new File(getTestDataPath(), "images/svg/android.svg");
+
+      default:
+        throw new IllegalArgumentException("Unrecognized source type: " + sourceType.toString());
+    }
   }
 
   private static void generateGoldenImage(@NotNull BufferedImage goldenImage, @NotNull File goldenFile) throws IOException {
@@ -139,17 +153,17 @@ public final class BitmapGeneratorTests {
     assert !goldenFile.exists();
     //noinspection ResultOfMethodCallIgnored
     goldenFile.getParentFile().mkdirs();
-    com.google.common.io.Files.write(goldenText, goldenFile, Charsets.UTF_8);
+    Files.write(goldenText, goldenFile, StandardCharsets.UTF_8);
   }
 
   @SuppressWarnings("SameParameterValue")
-  private static void assertImageSimilar(String imageName, BufferedImage goldenImage, BufferedImage image, float maxPercentDifferent)
+  private static void assertImageSimilar(PathString imagePath, BufferedImage goldenImage, BufferedImage image, double maxPercentDifferent)
       throws IOException {
     assertThat(Math.abs(goldenImage.getWidth() - image.getWidth()))
-        .named("difference in " + imageName + " width")
+        .named("difference in " + imagePath + " width")
         .isLessThan(2);
     assertThat(Math.abs(goldenImage.getHeight() - image.getHeight()))
-        .named("difference in " + imageName + " height")
+        .named("difference in " + imagePath + " height")
         .isLessThan(2);
 
     assertThat(image.getType()).isEqualTo(BufferedImage.TYPE_INT_ARGB);
@@ -164,9 +178,8 @@ public final class BitmapGeneratorTests {
     int imageWidth = Math.min(goldenImage.getWidth(), image.getWidth());
     int imageHeight = Math.min(goldenImage.getHeight(), image.getHeight());
 
-    // Blur the images to account for the scenarios where there are pixel
-    // differences
-    // in where a sharp edge occurs
+    // Blur the images to account for the scenarios where there are pixel differences
+    // in where a sharp edge occurs.
     // goldenImage = blur(goldenImage, 6);
     // image = blur(image, 6);
 
@@ -184,7 +197,7 @@ public final class BitmapGeneratorTests {
           continue;
         }
 
-        // If the pixels have no opacity, don't delta colors at all
+        // If the pixels have no opacity, don't delta colors at all.
         if (((goldenRgb & 0xFF000000) == 0) && (rgb & 0xFF000000) == 0) {
           deltaImage.setRGB(imageWidth + x, y, 0x00808080);
           continue;
@@ -225,7 +238,7 @@ public final class BitmapGeneratorTests {
         g.drawString("Actual", 2 * imageWidth + 10, 20);
       }
 
-      File output = new File(getTempDir(), "delta-" + imageName.replace(File.separatorChar, '_'));
+      File output = new File(getTempDir(), "delta-" + imagePath.getRawPath().replace(File.separatorChar, '_'));
       if (output.exists()) {
         //noinspection ResultOfMethodCallIgnored
         output.delete();
@@ -245,4 +258,6 @@ public final class BitmapGeneratorTests {
 
     return new File(System.getProperty("java.io.tmpdir")); //$NON-NLS-1$
   }
+
+  private IconGeneratorTestUtil() {}
 }
