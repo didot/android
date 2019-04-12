@@ -16,33 +16,34 @@
 package com.android.tools.idea.gradle.structure.quickfix
 
 import com.android.tools.idea.gradle.structure.configurables.PsContext
-import com.android.tools.idea.gradle.structure.model.PsArtifactDependencySpec
 import com.android.tools.idea.gradle.structure.model.PsLibraryDependency
 import com.android.tools.idea.gradle.structure.model.PsQuickFix
 import java.io.Serializable
 
-data class PsLibraryDependencyScopeQuickFixPath(
-  val moduleName: String,
-  val dependency: String,
-  val oldConfigurationName: String,
-  val newConfigurationName: String
+data class PsLibraryDependencyPlusQuickFixPath(
+  val moduleName : String,
+  val dependencyGroup : String?,
+  val dependencyName : String,
+  val configurationName : String
 ) : PsQuickFix, Serializable {
-  override val text = "Update $oldConfigurationName to $newConfigurationName"
+  override val text: String = "View Declaration"
 
-  constructor(
-    dependency: PsLibraryDependency,
-    newConfigurationName: String
-  ): this(
-    dependency.parent.name, dependency.spec.compactNotation(), dependency.joinedConfigurationNames, newConfigurationName
+  constructor(dependency : PsLibraryDependency) : this(
+    dependency.parent.name,
+    dependency.spec.group,
+    dependency.spec.name,
+    dependency.spec.compactNotation()
   )
 
   override fun execute(context: PsContext) {
-    val module = context.project.findModuleByName(moduleName)
-    val spec = PsArtifactDependencySpec.create(dependency)
-    if (module != null && spec != null) {
-      module.setLibraryDependencyConfiguration(spec, oldConfigurationName, newConfigurationName)
-    }
+    val module = context.project.findModuleByName(moduleName) ?: return
+    val dependency = module.dependencies.findLibraryDependencies(dependencyGroup, dependencyName).firstOrNull() ?: return
+
+    context.mainConfigurable.navigateTo(
+      dependency.path.getPlaceDestination(context),
+      true
+    )
   }
 
-  override fun toString(): String = "$dependency ($oldConfigurationName)"
+  override fun toString(): String = "View declaration of ${dependencyGroup}:${dependencyName}"
 }
