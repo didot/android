@@ -41,6 +41,7 @@ import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
 import com.intellij.facet.Facet;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.extensions.ExtensionPoint;
 import com.intellij.openapi.extensions.ExtensionsArea;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.DumbService;
@@ -51,8 +52,10 @@ import com.intellij.util.ArrayUtil;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -71,8 +74,6 @@ public class ViewLoader {
   private static final Logger LOG = Logger.getInstance(ViewLoader.class);
   /** Number of instances of a custom view that are allowed to nest inside itself. */
   private static final int ALLOWED_NESTED_VIEWS = 100;
-
-  private static final ViewLoaderExtension[] EMPTY_EXTENSION_LIST = new ViewLoaderExtension[0];
 
   @NotNull private final Module myModule;
   @NotNull private final Map<String, Class<?>> myLoadedClasses = new HashMap<>();
@@ -235,12 +236,10 @@ public class ViewLoader {
   }
 
   @NotNull
-  private ViewLoaderExtension[] getExtensions() {
+  private List<ViewLoaderExtension> getExtensions() {
     ExtensionsArea area = myModule.getProject().getExtensionArea();
-    if (!area.hasExtensionPoint(ViewLoaderExtension.EP_NAME.getName())) {
-      return EMPTY_EXTENSION_LIST;
-    }
-    return area.getExtensionPoint(ViewLoaderExtension.EP_NAME).getExtensions();
+    ExtensionPoint<ViewLoaderExtension> point = area.getExtensionPointIfRegistered(ViewLoaderExtension.EP_NAME.getName());
+    return point == null ? Collections.emptyList() : point.getExtensionList();
   }
 
   @NotNull
