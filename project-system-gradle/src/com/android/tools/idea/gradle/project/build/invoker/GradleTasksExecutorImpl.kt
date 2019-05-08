@@ -93,6 +93,7 @@ import org.gradle.tooling.GradleConnector
 import org.gradle.tooling.LongRunningOperation
 import org.gradle.tooling.ProjectConnection
 import org.gradle.tooling.events.OperationType
+import org.gradle.tooling.model.build.BuildEnvironment
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.plugins.gradle.service.GradleFileModificationTracker
 import org.jetbrains.plugins.gradle.service.execution.GradleExecutionHelper
@@ -358,9 +359,11 @@ internal class GradleTasksExecutorImpl : GradleTasksExecutor {
               buildState.buildFinished(BuildStatus.CANCELED)
               taskListener.onCancel(id)
             } else {
+              val buildEnvironment: BuildEnvironment = GradleExecutionHelper.getBuildEnvironment(connection, id, taskListener,
+                                                                                                 cancellationTokenSource)
               buildState.buildFinished(BuildStatus.FAILED)
               val projectResolverChain = GradleProjectResolver.createProjectResolverChain()
-              val userFriendlyError = projectResolverChain.getUserFriendlyError(null, buildError, gradleRootProjectPath, null)
+              val userFriendlyError = projectResolverChain.getUserFriendlyError(buildEnvironment, buildError, gradleRootProjectPath, null)
               taskListener.onFailure(id, userFriendlyError)
             }
           }
