@@ -118,6 +118,7 @@ import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.LongRunningOperation;
 import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.events.OperationType;
+import org.gradle.tooling.model.build.BuildEnvironment;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -442,10 +443,12 @@ class GradleTasksExecutorImpl implements GradleTasksExecutor {
               taskListener.onCancel(id);
             }
             else {
+              BuildEnvironment buildEnvironment =
+                GradleExecutionHelper.getBuildEnvironment(connection, id, taskListener, cancellationTokenSource);
               buildState.buildFinished(FAILED);
               GradleProjectResolverExtension projectResolverChain = GradleProjectResolver.createProjectResolverChain();
               ExternalSystemException userFriendlyError =
-                projectResolverChain.getUserFriendlyError(null, buildError, gradleRootProjectPath, null);
+                projectResolverChain.getUserFriendlyError(buildEnvironment, buildError, gradleRootProjectPath, null);
               taskListener.onFailure(id, userFriendlyError);
             }
           }
