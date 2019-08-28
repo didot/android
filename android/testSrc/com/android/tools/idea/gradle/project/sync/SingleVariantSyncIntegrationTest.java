@@ -33,7 +33,7 @@ public class SingleVariantSyncIntegrationTest extends GradleSyncIntegrationTestC
 
   public void testSyncIssueWithNonMatchingVariantAttributes() throws Exception {
     Project project = getProject();
-    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
+    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, getTestRootDisposable());
 
     // DEPENDENT_MODULES project has two modules, app and lib, app module has dependency on lib module.
     loadProject(DEPENDENT_MODULES);

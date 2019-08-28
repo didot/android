@@ -78,7 +78,7 @@ class EncodingValidationStrategyTest : AndroidGradleTestCase() {
   }
 
   fun testFixAndReportFoundIssues() {
-    val syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project)
+    val syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, testRootDisposable)
     val mismatchingEncoding = "UTF-8"
     myStrategy!!.mismatchingEncoding = mismatchingEncoding
     myStrategy!!.fixAndReportFoundIssues()
@@ -91,7 +91,7 @@ class EncodingValidationStrategyTest : AndroidGradleTestCase() {
   }
 
   fun testFixAndReportFoundIssuesWithNoMismatch() {
-    val syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project)
+    val syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, testRootDisposable)
     myStrategy!!.mismatchingEncoding = null
     myStrategy!!.fixAndReportFoundIssues()
     val message = syncMessages.firstReportedMessage
