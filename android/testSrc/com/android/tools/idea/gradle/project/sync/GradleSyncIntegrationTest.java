@@ -154,7 +154,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
     super.setUp();
     Project project = getProject();
 
-    myIdeComponents = new IdeComponents(project);
+    myIdeComponents = new IdeComponents(project, getTestRootDisposable());
 
     GradleProjectSettings projectSettings = new GradleProjectSettings();
     projectSettings.setDistributionType(DEFAULT_WRAPPED);
@@ -290,7 +290,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
   public void testWithAndroidProjectWithoutVariants() throws Exception {
     Project project = getProject();
 
-    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
+    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, getTestRootDisposable());
 
     loadSimpleApplication();
     File appBuildFile = getBuildFilePath("app");
@@ -324,7 +324,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
   // See b/64213214.
   public void testSyncIssueWithNonMatchingVariantAttributes() throws Exception {
     Project project = getProject();
-    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
+    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, getTestRootDisposable());
 
     // DEPENDENT_MODULES project has two modules, app and lib, app module has dependency on lib module.
     prepareProjectForImport(DEPENDENT_MODULES, null, null, null, null, null);
@@ -372,7 +372,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
     loadSimpleApplication();
 
     Project project = getProject();
-    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
+    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, getTestRootDisposable());
     SyncMessage oldSyncMessage = new SyncMessage(SyncMessage.DEFAULT_GROUP, MessageType.ERROR,
                                                  "A quick blown fix bumps over the lazy bug");
     syncMessages.report(oldSyncMessage);
@@ -746,7 +746,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
 
   public void testUnresolvedDependency() throws Exception {
     prepareProjectForImport(SIMPLE_APPLICATION_UNRESOLVED_DEPENDENCY, null, null, null, null, null);
-    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(getProject());
+    GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(getProject(), getTestRootDisposable());
 
     Project project = getProject();
     TestGradleSyncListener syncListener = EdtTestUtil.runInEdtAndGet(() -> {

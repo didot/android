@@ -15,14 +15,13 @@
  */
 package com.android.tools.idea.project;
 
-import static org.junit.Assert.assertSame;
-
 import com.android.tools.idea.project.hyperlink.NotificationHyperlink;
-import com.android.tools.idea.testing.IdeComponents;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationGroup;
 import com.intellij.notification.NotificationType;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
+import com.intellij.testFramework.ServiceContainerUtil;
 import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
@@ -36,10 +35,9 @@ public class AndroidNotificationStub extends AndroidNotification {
   }
 
   @NotNull
-  public static AndroidNotificationStub replaceSyncMessagesService(@NotNull Project project) {
+  public static AndroidNotificationStub replaceSyncMessagesService(@NotNull Project project, @NotNull Disposable parentDisposable) {
     AndroidNotificationStub notification = new AndroidNotificationStub(project);
-    new IdeComponents(project).replaceProjectService(AndroidNotification.class, notification);
-    assertSame(notification, AndroidNotification.getInstance(project));
+    ServiceContainerUtil.replaceService(project, AndroidNotification.class, notification, parentDisposable);
     return notification;
   }
 
