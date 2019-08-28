@@ -57,7 +57,7 @@ public class ExternalNdkBuildIssuesReporterTest extends AndroidGradleTestCase {
   public void setUp() throws Exception {
     super.setUp();
     mySyncIssue = mock(IdeSyncIssue.class);
-    mySyncMessagesStub = GradleSyncMessagesStub.replaceSyncMessagesService(getProject());
+    mySyncMessagesStub = GradleSyncMessagesStub.replaceSyncMessagesService(getProject(), getTestRootDisposable());
     myOutputParser = mock(BuildOutputParser.class);
     myReporter = new ExternalNdkBuildIssuesReporter(myOutputParser);
     myUsageReporter = new TestSyncIssueUsageReporter();

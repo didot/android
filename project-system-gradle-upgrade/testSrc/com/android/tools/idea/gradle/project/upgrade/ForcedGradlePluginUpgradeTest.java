@@ -59,7 +59,7 @@ public class ForcedGradlePluginUpgradeTest extends PlatformTestCase {
     ServiceContainerUtil.replaceService(project, DumbService.class, new MockDumbService(project), project);
     ServiceContainerUtil.replaceService(project, RefactoringProcessorInstantiator.class, myRefactoringProcessorInstantiator, project);
     when(myRefactoringProcessorInstantiator.createProcessor(same(project), any(), any())).thenReturn(myProcessor);
-    mySyncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
+    mySyncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, getTestRootDisposable());
   }
 
   @Override
