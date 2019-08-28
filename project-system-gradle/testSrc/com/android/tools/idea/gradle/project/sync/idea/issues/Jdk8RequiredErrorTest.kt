@@ -33,7 +33,7 @@ class Jdk8RequiredErrorTest : AndroidGradleTestCase() {
     val ideSdks = spy(IdeSdks.getInstance())
     IdeComponents(project).replaceApplicationService<IdeSdks>(IdeSdks::class.java, ideSdks)
     whenever(ideSdks.isUsingJavaHomeJdk).thenReturn(false)
-    val usageReporter = replaceSyncMessagesService(project)
+    val usageReporter = replaceSyncMessagesService(project, testRootDisposable)
     SimulatedSyncErrors.registerSyncErrorToSimulate(
       "com/android/jack/api/ConfigNotSupportedException : Unsupported major.minor version 52.0")
     val message: String = requestSyncAndGetExpectedFailure()
