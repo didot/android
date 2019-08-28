@@ -40,7 +40,7 @@ class DeprecatedConfigurationReporterTest : HeavyPlatformTestCase() {
 
   override fun setUp() {
     super.setUp()
-    messageStub = GradleSyncMessagesStub.replaceSyncMessagesService(project)
+    messageStub = GradleSyncMessagesStub.replaceSyncMessagesService(project, testRootDisposable)
     messageStub.removeAllMessages()
     reporter = DeprecatedConfigurationReporter()
     syncIssue1 = mock(IdeSyncIssue::class.java)
