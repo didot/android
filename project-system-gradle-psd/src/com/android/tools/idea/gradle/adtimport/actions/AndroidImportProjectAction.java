@@ -101,7 +101,7 @@ public class AndroidImportProjectAction extends AnAction {
           if (!wizard.showAndGet()) {
             return;
           }
-          createFromWizard(wizard, null);
+          createFromWizard(wizard);
         }
       }
     }
