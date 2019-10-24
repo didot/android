@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.uibuilder.editor
+package com.android.tools.idea.customview.preview
 
 import com.android.ide.common.resources.configuration.FolderConfiguration
 import com.android.tools.adtui.actions.DropDownAction
@@ -32,6 +32,7 @@ import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.common.type.DesignerEditorFileType
 import com.android.tools.idea.common.type.DesignerTypeRegistrar
+import com.android.tools.idea.compose.preview.ComposeFileEditorProvider
 import com.android.tools.idea.configurations.Configuration
 import com.android.tools.idea.configurations.ConfigurationListener
 import com.android.tools.idea.configurations.ConfigurationManager
@@ -46,7 +47,6 @@ import com.android.tools.idea.uibuilder.surface.NlDesignSurface
 import com.android.tools.idea.uibuilder.surface.SceneMode
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.ide.util.PropertiesComponent
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
@@ -177,8 +177,9 @@ class CustomViewEditorProvider : FileEditorProvider, DumbAware {
     })
   }
 
+  // TODO(b/143067434): remove ComposeFileEditorProvider check and rework it so that Compose and custom View previews work together
   override fun accept(project: Project, file: VirtualFile) =
-    StudioFlags.NELE_CUSTOM_VIEW_PREVIEW.get() && file.hasSourceFileExtension()
+    !ComposeFileEditorProvider().accept(project, file) && StudioFlags.NELE_CUSTOM_VIEW_PREVIEW.get() && file.hasSourceFileExtension()
 
   override fun createEditor(project: Project, file: VirtualFile): FileEditor {
     val psiFile = PsiManager.getInstance(project).findFile(file)!!
