@@ -32,6 +32,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
@@ -226,9 +227,11 @@ public class GradleFiles {
    */
   @Nullable
   private static Integer computeHash(@NotNull VirtualFile file) {
-    if (!file.isValid()) return null;
-    Document document = FileDocumentManager.getInstance().getDocument(file);
-    return document == null ? null : document.getText().hashCode();
+    return ReadAction.compute(() -> {
+      if (!file.isValid()) return null;
+      Document document = FileDocumentManager.getInstance().getDocument(file);
+      return document == null ? null : document.getText().hashCode();
+    });
   }
 
   private boolean areHashesEqual(@NotNull VirtualFile file) {
