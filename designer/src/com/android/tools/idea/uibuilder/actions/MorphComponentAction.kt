@@ -22,7 +22,6 @@ import com.android.tools.idea.common.util.XmlTagUtil
 import com.android.tools.idea.uibuilder.model.NlComponentRegistrar
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.application.TransactionGuard
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
@@ -62,10 +61,8 @@ class MorphComponentAction(component: NlComponent)
     DumbService.getInstance(myProject).runWhenSmart {
       NlWriteCommandActionUtil.run(myNlComponent, "Convert " + myNlComponent.tagName + " to ${newTagName.split(".").last()}") {
         myNlComponent.tagDeprecated.name = newTagName
-        TransactionGuard.getInstance().submitTransactionAndWait {
-          myNlComponent.removeObsoleteAttributes()
-          myNlComponent.children.forEach(NlComponent::removeObsoleteAttributes)
-        }
+        myNlComponent.removeObsoleteAttributes()
+        myNlComponent.children.forEach(NlComponent::removeObsoleteAttributes)
       }
     }
   }
