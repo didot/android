@@ -89,6 +89,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -377,6 +378,8 @@ public class MigrateToAppCompatProcessor extends BaseRefactoringProcessor {
             ClassMigrationEntry classMigrationEntry = (ClassMigrationEntry)entry;
             List<UsageInfo> usages =
               MigrateToAppCompatUtil.findClassUsages(myProject, classMigrationEntry.myOldName);
+            // ReferencesSearch.search (internally used by findClassUsages) does not return results is any particular order. Sort them.
+            usages.sort(Comparator.comparingInt(u -> u.getSmartPointer().getRange() == null ? 0 : u.getSmartPointer().getRange().getStartOffset()));
             boolean isActivity = classMigrationEntry.myOldName.equals(CLASS_ACTIVITY);
             boolean isFragmentActivity = classMigrationEntry.myOldName.equals(CLASS_SUPPORT_FRAGMENT_ACTIVITY);
 
