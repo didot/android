@@ -70,7 +70,7 @@ public class TimeFormatter {
    */
   public static String getSimplifiedClockString(long micro) {
     String result = getFullClockString(micro);
-    int index = result.startsWith("00:") ? (result.substring(3, 6).equals("00:") ? 6 : 3) : 0;
+    int index = result.startsWith("00:") ? (result.startsWith("00:", 3) ? 6 : 3) : 0;
     return result.substring(index);
   }
 
