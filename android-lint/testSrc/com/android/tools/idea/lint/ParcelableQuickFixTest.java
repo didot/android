@@ -85,9 +85,9 @@ public class ParcelableQuickFixTest extends AndroidTestCase {
     diff.append("\n");
     for (LineFragment fragment : fragments) {
       diff.append(String.format("Expected in line: %s >>>\n", fragment.getStartLine2()));
-      diff.append(expected.substring(fragment.getStartOffset2(), fragment.getEndOffset2()));
+      diff.append(expected, fragment.getStartOffset2(), fragment.getEndOffset2());
       diff.append("Actual: >>>\n");
-      diff.append(actual.substring(fragment.getStartOffset1(), fragment.getEndOffset1()));
+      diff.append(actual, fragment.getStartOffset1(), fragment.getEndOffset1());
       diff.append(">>>\n\n");
     }
     return diff.toString();
