@@ -25,15 +25,14 @@ import com.intellij.notification.NotificationAction;
 import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
 import com.intellij.notification.Notifications;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.components.ApplicationComponent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.LowMemoryWatcher;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jetbrains.annotations.NotNull;
 
-public class AndroidLowMemoryNotifier implements ApplicationComponent {
-
+final class AndroidLowMemoryNotifier implements Disposable {
   private LowMemoryWatcher myWatcher = LowMemoryWatcher.register(this::onLowMemorySignalReceived, ONLY_AFTER_GC);
   private final AtomicBoolean myNotificationShown = new AtomicBoolean();
 
@@ -62,7 +61,7 @@ public class AndroidLowMemoryNotifier implements ApplicationComponent {
   }
 
   @Override
-  public void disposeComponent() {
+  public void dispose() {
     myWatcher.stop();
     myWatcher = null;
   }
