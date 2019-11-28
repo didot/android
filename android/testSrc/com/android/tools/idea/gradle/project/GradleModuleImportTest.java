@@ -40,7 +40,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ex.ProjectEx;
 import com.intellij.openapi.project.ex.ProjectManagerEx;
 import com.intellij.openapi.project.impl.ProjectManagerImpl;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.ThrowableComputable;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.PlatformTestUtil;
@@ -386,10 +385,9 @@ b/145809317 */
         ApplicationManager.getApplication().runWriteAction(new Runnable() {
           @Override
           public void run() {
-            Disposer.dispose(project);
             ProjectManagerEx projectManager = ProjectManagerEx.getInstanceEx();
+            projectManager.forceCloseProject(project);
             if (projectManager instanceof ProjectManagerImpl) {
-              projectManager.forceCloseProject(project);
               Collection<Project> projectsStillOpen = Arrays.asList(projectManager.getOpenProjects());
               if (!projectsStillOpen.isEmpty()) {
                 Project project = projectsStillOpen.iterator().next();
