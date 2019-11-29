@@ -288,7 +288,7 @@ public class StudioProfilersView extends AspectObserver implements Disposable {
               myProfiler.getIdeServices().getFeatureTracker().trackSessionsPanelResized();
             }
           }
-        }, mySplitter);
+        }, StudioProfilersView.this);
       }
     });
   }
@@ -607,8 +607,7 @@ public class StudioProfilersView extends AspectObserver implements Disposable {
 
   @VisibleForTesting
   public static class StageComboBoxRenderer extends ColoredListCellRenderer<Class> {
-
-    private static ImmutableMap<Class<? extends Stage>, String> CLASS_TO_NAME = ImmutableMap.of(
+    private static final ImmutableMap<Class<? extends Stage>, String> CLASS_TO_NAME = ImmutableMap.of(
       CpuProfilerStage.class, "CPU",
       MainMemoryProfilerStage.class, "MEMORY",
       EnergyProfilerStage.class, "ENERGY",
