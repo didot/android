@@ -53,7 +53,11 @@
 
     <group id="Android.InstantRunActions">
       <action id="android.deploy.ApplyChanges" class="com.android.tools.idea.run.ui.ApplyChangesAction"/>
-      <action id="android.deploy.CodeSwap" class="com.android.tools.idea.run.ui.CodeSwapAction"/>
+      <action id="android.deploy.CodeSwap" class="com.android.tools.idea.run.ui.CodeSwapAction">
+        <keyboard-shortcut first-keystroke="control alt F10" keymap="$default"/>
+        <keyboard-shortcut first-keystroke="control meta shift E" keymap="Mac OS X"/>
+        <keyboard-shortcut first-keystroke="control meta shift E" keymap="Mac OS X 10.5+"/>
+      </action>
       <add-to-group group-id="RunnerActions" anchor="after" relative-to-action="Run"/>
     </group>
 
@@ -692,6 +696,8 @@
     <iw.actionProvider implementation="com.android.tools.idea.editors.liveedit.ui.LiveEditActionProvider"/>
 
     <notificationGroup id="Fast Preview Notification" displayType="NONE"/>
+
+    <runningApplicationUpdaterProvider implementation="com.android.tools.idea.run.ui.ApplyChangesAction$UpdaterProvider"/>
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij.properties">
