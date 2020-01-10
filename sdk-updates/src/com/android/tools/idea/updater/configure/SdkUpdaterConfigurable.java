@@ -76,6 +76,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.event.AncestorEvent;
+import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -108,7 +109,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
   @Nls
   @Override
   public String getDisplayName() {
-    return "Android SDK Updater";
+    return AndroidBundle.message("configurable.SdkUpdaterConfigurable.display.name");
   }
 
   @Nullable
