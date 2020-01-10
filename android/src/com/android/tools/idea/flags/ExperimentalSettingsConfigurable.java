@@ -33,7 +33,6 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ApplicationNamesInfo;
 import com.intellij.openapi.application.ex.ApplicationEx;
 import com.intellij.openapi.externalSystem.util.ExternalSystemUiUtil;
-import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.project.Project;
@@ -55,7 +54,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
 
-public class ExperimentalSettingsConfigurable implements SearchableConfigurable, Configurable.NoScroll {
+public class ExperimentalSettingsConfigurable implements SearchableConfigurable {
   @NotNull private final GradleExperimentalSettings mySettings;
   @NotNull private final RenderSettings myRenderSettings;
 
@@ -119,7 +118,7 @@ public class ExperimentalSettingsConfigurable implements SearchableConfigurable,
   @Override
   @Nls
   public String getDisplayName() {
-    return "Experimental";
+    return AndroidBundle.message("configurable.ExperimentalSettingsConfigurable.display.name");
   }
 
   @Override
