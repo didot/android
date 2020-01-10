@@ -312,7 +312,7 @@ public class AndroidFacetEditorTab extends FacetEditorTab {
   @Override
   @Nls
   public String getDisplayName() {
-    return "Android SDK Settings";
+    return AndroidBundle.message("configurable.AndroidFacetEditorTab.display.name");
   }
 
   @NotNull
