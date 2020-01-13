@@ -111,6 +111,6 @@ public class AndroidTreeStructureProvider implements TreeStructureProvider {
 
   @VisibleForTesting
   public interface ChangeListener extends EventListener {
-    void nodeChanged(@NotNull AbstractTreeNode parent, @NotNull Collection<AbstractTreeNode<?>> newChildren);
+    void nodeChanged(@NotNull AbstractTreeNode<?> parent, @NotNull Collection<AbstractTreeNode<?>> newChildren);
   }
 }
