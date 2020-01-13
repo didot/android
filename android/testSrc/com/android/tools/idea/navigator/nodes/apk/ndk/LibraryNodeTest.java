@@ -61,7 +61,7 @@ public class LibraryNodeTest extends PlatformTestCase {
     };
 
     LibraryNode libraryNode = new LibraryNode(getProject(), library, mock(ViewSettings.class));
-    List<? extends AbstractTreeNode> children = new ArrayList<>(libraryNode.getChildren());
+    List<? extends AbstractTreeNode<?>> children = new ArrayList<>(libraryNode.getChildren());
     assertThat(children).hasSize(2);
 
     assertThat(children.get(0)).isInstanceOf(LibraryFileNode.class);
@@ -94,7 +94,7 @@ public class LibraryNodeTest extends PlatformTestCase {
     };
 
     LibraryNode libraryNode = new LibraryNode(getProject(), library, mock(ViewSettings.class));
-    List<? extends AbstractTreeNode> children = new ArrayList<>(libraryNode.getChildren());
+    List<? extends AbstractTreeNode<?>> children = new ArrayList<>(libraryNode.getChildren());
     assertThat(children).hasSize(3);
 
     assertThat(children.get(0)).isInstanceOf(LibraryFileNode.class);
@@ -103,7 +103,7 @@ public class LibraryNodeTest extends PlatformTestCase {
     assertThat(node).isInstanceOf(NdkSourceNode.class);
 
     NdkSourceNode ndkSourceNode = (NdkSourceNode)node;
-    List<? extends AbstractTreeNode> ndkChildren = new ArrayList<>(ndkSourceNode.getChildren());
+    List<? extends AbstractTreeNode<?>> ndkChildren = new ArrayList<>(ndkSourceNode.getChildren());
     assertThat(ndkChildren).hasSize(1);
 
     VirtualFile folder = getFolderFrom(ndkChildren.get(0));
@@ -137,7 +137,7 @@ public class LibraryNodeTest extends PlatformTestCase {
     };
 
     LibraryNode libraryNode = new LibraryNode(getProject(), library, mock(ViewSettings.class));
-    List<? extends AbstractTreeNode> children = new ArrayList<>(libraryNode.getChildren());
+    List<? extends AbstractTreeNode<?>> children = new ArrayList<>(libraryNode.getChildren());
     assertThat(children).hasSize(3);
 
     assertThat(children.get(0)).isInstanceOf(LibraryFileNode.class);
@@ -146,7 +146,7 @@ public class LibraryNodeTest extends PlatformTestCase {
     assertThat(node).isInstanceOf(NdkSourceNode.class);
 
     NdkSourceNode ndkSourceNode = (NdkSourceNode)node;
-    List<? extends AbstractTreeNode> ndkChildren = new ArrayList<>(ndkSourceNode.getChildren());
+    List<? extends AbstractTreeNode<?>> ndkChildren = new ArrayList<>(ndkSourceNode.getChildren());
     assertThat(ndkChildren).hasSize(1);
 
     VirtualFile folder = getFolderFrom(ndkChildren.get(0));
