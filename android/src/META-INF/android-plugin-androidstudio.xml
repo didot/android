@@ -178,7 +178,8 @@
                      implementationClass="org.jetbrains.android.inspections.AndroidDeprecationInspection"/>
 
     <applicationConfigurable parentId="preferences.general"
-                             displayName="Memory Settings"
+                             bundle="messages.AndroidBundle"
+                             key="configurable.MemorySettingsConfigurable.display.name"
                              provider="com.android.tools.idea.memorysettings.MemorySettingsConfigurableProvider"
                              id="memory.settings"/>
 
