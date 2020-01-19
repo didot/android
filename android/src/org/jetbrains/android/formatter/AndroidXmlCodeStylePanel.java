@@ -21,6 +21,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,7 +37,7 @@ public class AndroidXmlCodeStylePanel extends CodeStyleAbstractPanel {
     myPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
     JPanel centerPanel = new JPanel(new VerticalFlowLayout(VerticalFlowLayout.TOP, 0, 0, true, false));
     myPanel.add(centerPanel, BorderLayout.CENTER);
-    myUseCustomSettings = new JBCheckBox("Use custom formatting settings for Android XML files");
+    myUseCustomSettings = new JBCheckBox(AndroidBundle.message("checkbox.use.custom.formatting.settings.for.android.xml.files"));
     myPanel.add(myUseCustomSettings, BorderLayout.NORTH);
 
     myCodeStylePanels = new ArrayList<MyFileSpecificPanel>();
@@ -266,7 +267,7 @@ public class AndroidXmlCodeStylePanel extends CodeStyleAbstractPanel {
       super("AndroidManifest.xml", ContextSpecificSettingsProviders.MANIFEST);
 
       myPanel = new JPanel(new VerticalFlowLayout(VerticalFlowLayout.TOP, 0, 0, true, false));
-      myGroupTagsCheckBox = new JBCheckBox("Group tags with the same name");
+      myGroupTagsCheckBox = new JBCheckBox(AndroidBundle.message("checkbox.group.tags.with.the.same.name"));
       myPanel.add(myGroupTagsCheckBox);
 
       init();
@@ -306,7 +307,7 @@ public class AndroidXmlCodeStylePanel extends CodeStyleAbstractPanel {
     public ValueResourcesCodeStylePanel() {
       super("Value Resource Files and Selectors", ContextSpecificSettingsProviders.VALUE_RESOURCE_FILE);
       myPanel = new JPanel(new VerticalFlowLayout(VerticalFlowLayout.TOP, 0, 0, true, false));
-      myInsertLineBreaksAroundStyleCheckBox = new JBCheckBox("Insert line breaks around style declaration");
+      myInsertLineBreaksAroundStyleCheckBox = new JBCheckBox(AndroidBundle.message("checkbox.insert.line.breaks.around.style.declaration"));
       myPanel.add(myInsertLineBreaksAroundStyleCheckBox);
 
       init();
