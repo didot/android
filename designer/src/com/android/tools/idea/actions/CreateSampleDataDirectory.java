@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.actions;
 
+import static com.intellij.openapi.actionSystem.LangDataKeys.MODULE;
 import static com.intellij.openapi.actionSystem.LangDataKeys.MODULE_CONTEXT_ARRAY;
 
 import com.android.ide.common.util.PathString;
@@ -40,9 +41,9 @@ import org.jetbrains.annotations.Nullable;
 public class CreateSampleDataDirectory extends AnAction {
   private static final Logger LOG = Logger.getInstance(CreateSampleDataDirectory.class);
 
-  @SuppressWarnings("UnusedDeclaration")
   public CreateSampleDataDirectory() {
-    super(AndroidBundle.message("new.sampledata.dir.action.title"), AndroidBundle.message("new.sampledata.dir.action.description"),
+    super(() -> AndroidBundle.message("new.sampledata.dir.action.title"),
+          () -> AndroidBundle.message("new.sampledata.dir.action.description"),
           PlatformIcons.FOLDER_ICON);
   }
 
