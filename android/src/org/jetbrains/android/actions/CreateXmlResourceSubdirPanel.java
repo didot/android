@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import javax.swing.JCheckBox;
 import javax.swing.JPanel;
+import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -79,7 +80,7 @@ public class CreateXmlResourceSubdirPanel {
 
     decorator.setRemoveAction(button -> doDeleteDirectory());
 
-    final AnActionButton selectAll = new AnActionButton("Select All", null, PlatformIcons.SELECT_ALL_ICON) {
+    final AnActionButton selectAll = new AnActionButton(() -> AndroidBundle.message("action.AnActionButton.text.select.all"), PlatformIcons.SELECT_ALL_ICON) {
       @Override
       public void actionPerformed(@NotNull AnActionEvent e) {
         doSelectAllDirs();
@@ -87,7 +88,7 @@ public class CreateXmlResourceSubdirPanel {
     };
     decorator.addExtraAction(selectAll);
 
-    final AnActionButton unselectAll = new AnActionButton("Unselect All", null, PlatformIcons.UNSELECT_ALL_ICON) {
+    final AnActionButton unselectAll = new AnActionButton(() -> AndroidBundle.message("action.AnActionButton.text.unselect.all"), PlatformIcons.UNSELECT_ALL_ICON) {
       @Override
       public void actionPerformed(@NotNull AnActionEvent e) {
         doUnselectAllDirs();
