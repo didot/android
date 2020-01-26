@@ -33,6 +33,7 @@ import com.intellij.ui.table.TableView;
 import com.intellij.util.ui.AsyncProcessIcon;
 import javax.swing.JCheckBox;
 import javax.swing.JPanel;
+import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -97,7 +98,7 @@ public class UpdateSitesPanel {
       public boolean isEnabled(@NotNull AnActionEvent e) {
         return mySourcesTableModel.isEditable();
       }
-    }).addExtraAction(new AnActionButton("Select All", AllIcons.Actions.Selectall) {
+    }).addExtraAction(new AnActionButton(() -> AndroidBundle.message("action.AnActionButton.update.sites.text.select.all"), AllIcons.Actions.Selectall) {
       @Override
       public void actionPerformed(@NotNull AnActionEvent e) {
         mySourcesTableModel.setAllEnabled(true);
@@ -107,7 +108,7 @@ public class UpdateSitesPanel {
       public boolean isEnabled() {
         return mySourcesTableModel.hasEditableRows();
       }
-    }).addExtraAction(new AnActionButton("Deselect All", AllIcons.Actions.Unselectall) {
+    }).addExtraAction(new AnActionButton(() -> AndroidBundle.message("action.AnActionButton.update.sites.text.deselect.all"), AllIcons.Actions.Unselectall) {
       @Override
       public void actionPerformed(@NotNull AnActionEvent e) {
         mySourcesTableModel.setAllEnabled(false);
