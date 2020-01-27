@@ -38,11 +38,9 @@ import org.jetbrains.annotations.Nullable;
 public class GeneratedFileNotificationProvider extends EditorNotifications.Provider<EditorNotificationPanel> {
   private static final Key<EditorNotificationPanel> KEY = Key.create("android.generated.file.ro");
 
-  @NotNull private final GeneratedSourceFileChangeTracker myGeneratedSourceFileChangeTracker;
   @NotNull private final Project myProject;
 
   public GeneratedFileNotificationProvider(@NotNull Project project) {
-    myGeneratedSourceFileChangeTracker = GeneratedSourceFileChangeTracker.getInstance(project);
     myProject = project;
   }
 
@@ -77,7 +75,7 @@ public class GeneratedFileNotificationProvider extends EditorNotifications.Provi
       return null;
     }
     if (isAncestor(buildFolder, file, false /* not strict */)) {
-      if (myGeneratedSourceFileChangeTracker.isEditedGeneratedFile(file)) {
+      if (GeneratedSourceFileChangeTracker.getInstance(myProject).isEditedGeneratedFile(file)) {
         // A warning is already being displayed by GeneratedFileEditingNotificationProvider
         return null;
       }
