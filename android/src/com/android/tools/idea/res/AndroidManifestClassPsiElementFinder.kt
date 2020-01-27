@@ -39,7 +39,7 @@ import org.jetbrains.android.facet.AndroidFacet
  * This class is a project service, but it's not declared as [PsiElementFinder.EP] extension. The reason for that is that it's up to
  * the project system to decide whether to use this logic (see [ProjectSystemPsiElementFinder]).
  */
-class AndroidManifestClassPsiElementFinder(val project: Project) : PsiElementFinder() {
+class AndroidManifestClassPsiElementFinder(private val project: Project) : PsiElementFinder() {
 
   companion object {
     private const val SUFFIX = "." + SdkConstants.FN_MANIFEST_BASE
@@ -47,7 +47,6 @@ class AndroidManifestClassPsiElementFinder(val project: Project) : PsiElementFin
 
     @JvmStatic
     fun getInstance(project: Project) = project.getService(AndroidManifestClassPsiElementFinder::class.java)!!
-
   }
 
   override fun findClass(qualifiedName: String, scope: GlobalSearchScope) = findClasses(qualifiedName, scope).firstOrNull()

@@ -57,8 +57,7 @@ public class SmaliFileNotificationProviderTest extends PlatformTestCase {
   protected void setUp() throws Exception {
     super.setUp();
     initMocks(this);
-    Project project = getProject();
-    myNotificationProvider = new SmaliFileNotificationProvider(project);
+    myNotificationProvider = new SmaliFileNotificationProvider();
   }
 
   @Override
@@ -77,7 +76,7 @@ public class SmaliFileNotificationProviderTest extends PlatformTestCase {
     VirtualFile rSmaliFile = findFileByIoFile(rSmaliFilePath, true);
     assertNotNull(rSmaliFile);
 
-    EditorNotificationPanel notificationPanel = myNotificationProvider.createNotificationPanel(rSmaliFile, myFileEditor);
+    EditorNotificationPanel notificationPanel = myNotificationProvider.createNotificationPanel(rSmaliFile, myFileEditor, getProject());
     assertNotNull(notificationPanel);
   }
 
