@@ -41,14 +41,6 @@ import org.jetbrains.annotations.Nullable;
 public class SmaliFileNotificationProvider extends EditorNotifications.Provider<EditorNotificationPanel> {
   private static final Key<EditorNotificationPanel> KEY = Key.create("apk.smali.file");
 
-  @NotNull private final Project myProject;
-  @NotNull private final DexSourceFiles myDexSourceFiles;
-
-  public SmaliFileNotificationProvider(@NotNull Project project) {
-    myProject = project;
-    myDexSourceFiles = DexSourceFiles.getInstance(project);
-  }
-
   @Override
   @NotNull
   public Key<EditorNotificationPanel> getKey() {
@@ -57,26 +49,27 @@ public class SmaliFileNotificationProvider extends EditorNotifications.Provider<
 
   @Override
   @Nullable
-  public EditorNotificationPanel createNotificationPanel(@NotNull VirtualFile file, @NotNull FileEditor fileEditor) {
-    Module module = ProjectFileIndex.getInstance(myProject).getModuleForFile(file);
-    if (module != null && ApkFacet.getInstance(module) != null && myDexSourceFiles.isSmaliFile(file)) {
-      File outputFolderPath = myDexSourceFiles.getDefaultSmaliOutputFolderPath();
+  public EditorNotificationPanel createNotificationPanel(@NotNull VirtualFile file, @NotNull FileEditor fileEditor, @NotNull Project project) {
+    Module module = ProjectFileIndex.getInstance(project).getModuleForFile(file);
+    DexSourceFiles dexSourceFiles = DexSourceFiles.getInstance(project);
+    if (module != null && ApkFacet.getInstance(module) != null && dexSourceFiles.isSmaliFile(file)) {
+      File outputFolderPath = dexSourceFiles.getDefaultSmaliOutputFolderPath();
       File filePath = virtualToIoFile(file);
       if (isAncestor(outputFolderPath, filePath, false)) {
         // The smali file is inside the folder where baksmali generated the smali files by disassembling classes.dex.
         EditorNotificationPanel panel = new EditorNotificationPanel(fileEditor);
         panel.setText("Disassembled classes.dex file. To set up breakpoints for debugging, please attach Kotlin/Java source files.");
 
-        PsiFile psiFile = PsiManager.getInstance(myProject).findFile(file);
+        PsiFile psiFile = PsiManager.getInstance(project).findFile(file);
         if (psiFile instanceof SmaliFile) {
-          String classFqn = myDexSourceFiles.findJavaClassName((SmaliFile)psiFile);
+          String classFqn = dexSourceFiles.findJavaClassName((SmaliFile)psiFile);
           if (isNotEmpty(classFqn)) {
-            PsiClass javaPsiClass = myDexSourceFiles.findJavaPsiClass(classFqn);
+            PsiClass javaPsiClass = dexSourceFiles.findJavaPsiClass(classFqn);
             if (javaPsiClass != null) {
               panel.createActionLabel("Open Kotlin/Java file", () -> openFileWithPsiElement(javaPsiClass, true, true));
             }
             else {
-              panel.createActionLabel("Attach Kotlin/Java Sources...", new ChooseAndAttachJavaSourcesTask(classFqn, module, myDexSourceFiles));
+              panel.createActionLabel("Attach Kotlin/Java Sources...", new ChooseAndAttachJavaSourcesTask(classFqn, module, dexSourceFiles));
             }
           }
         }
