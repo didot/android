@@ -148,7 +148,7 @@ class ExtractStyleDialog extends DialogWrapper {
     decorator.setEditAction(null);
     decorator.disableUpDownActions();
 
-    AnActionButton selectAll = new AnActionButton(() -> AndroidBundle.message("action.AnActionButton.extract.style.text.select.all"), PlatformIcons.SELECT_ALL_ICON) {
+    AnActionButton selectAll = new AnActionButton(AndroidBundle.lazyMessage("action.AnActionButton.extract.style.text.select.all"), PlatformIcons.SELECT_ALL_ICON) {
       @Override
       public void actionPerformed(@NotNull AnActionEvent e) {
         setChecked(true);
@@ -156,7 +156,7 @@ class ExtractStyleDialog extends DialogWrapper {
     };
     decorator.addExtraAction(selectAll);
 
-    AnActionButton unselectAll = new AnActionButton(() -> AndroidBundle.message("action.AnActionButton.extract.style.text.unselect.all"), PlatformIcons.UNSELECT_ALL_ICON) {
+    AnActionButton unselectAll = new AnActionButton(AndroidBundle.lazyMessage("action.AnActionButton.extract.style.text.unselect.all"), PlatformIcons.UNSELECT_ALL_ICON) {
       @Override
       public void actionPerformed(@NotNull AnActionEvent e) {
         setChecked(false);
