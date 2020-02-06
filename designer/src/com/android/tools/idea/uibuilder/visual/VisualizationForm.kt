@@ -49,6 +49,7 @@ import com.android.tools.idea.uibuilder.visual.analytics.trackOpenConfigSet
 import com.android.tools.idea.uibuilder.visual.analytics.VisualLintUsageTracker
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableSet
+import com.intellij.CommonBundle
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
@@ -187,7 +188,7 @@ class VisualizationForm(private val project: Project, parentDisposable: Disposab
     updateScreenMode()
     surface.name = VISUALIZATION_DESIGN_SURFACE_NAME
     myWorkBench = WorkBench(project, "Visualization", null, this)
-    myWorkBench.setLoadingText("Loading...")
+    myWorkBench.setLoadingText(CommonBundle.getLoadingTreeNodeText())
     myWorkBench.setToolContext(surface)
     val mainComponent: JComponent = if (StudioFlags.NELE_VISUAL_LINT.get()) {
       IssuePanelSplitter(null, surface, myWorkBench)
