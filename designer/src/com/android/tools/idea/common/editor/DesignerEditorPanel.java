@@ -43,6 +43,7 @@ import com.android.tools.idea.uibuilder.surface.NlScreenViewProvider;
 import com.android.tools.idea.uibuilder.surface.ScreenViewProvider;
 import com.android.tools.idea.uibuilder.type.FileTypeUtilsKt;
 import com.android.tools.idea.util.SyncUtil;
+import com.intellij.CommonBundle;
 import com.intellij.ProjectTopics;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.Disposable;
@@ -185,7 +186,7 @@ public class DesignerEditorPanel extends JPanel implements Disposable {
     toolbarAndNotification.add(myNotificationPanel, BorderLayout.SOUTH);
     myContentPanel.add(toolbarAndNotification, BorderLayout.NORTH);
 
-    myWorkBench.setLoadingText("Loading...");
+    myWorkBench.setLoadingText(CommonBundle.getLoadingTreeNodeText());
 
     myState = defaultEditorPanelState;
     mySurface.getAnalyticsManager().setEditorModeWithoutTracking(myState);

@@ -18,6 +18,7 @@ package com.android.tools.idea.updater.configure;
 import com.android.repository.api.RepositorySource;
 import com.android.repository.api.SettingsController;
 import com.android.tools.idea.sdk.StudioSettingsController;
+import com.intellij.CommonBundle;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.DataManager;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -61,7 +62,7 @@ public class UpdateSitesPanel {
   }
 
   private void createUIComponents() {
-    mySourcesLoadingIcon = new AsyncProcessIcon("Loading...");
+    mySourcesLoadingIcon = new AsyncProcessIcon(CommonBundle.getLoadingTreeNodeText());
     Runnable finishLoadingCallback = () -> {
       mySourcesLoadingPanel.setVisible(false);
 
