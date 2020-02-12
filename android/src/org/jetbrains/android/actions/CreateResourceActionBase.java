@@ -28,6 +28,7 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
+import java.util.function.Supplier;
 import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 
@@ -46,7 +47,7 @@ public abstract class CreateResourceActionBase extends AnAction {
   protected CreateResourceActionBase() {
   }
 
-  protected CreateResourceActionBase(String text, String description, Icon icon) {
+  protected CreateResourceActionBase(@NotNull Supplier<String> text, @NotNull Supplier<String> description, Icon icon) {
     super(text, description, icon);
   }
 
