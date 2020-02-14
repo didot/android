@@ -35,8 +35,10 @@ import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.jetbrains.android.download.AndroidLayoutlibDownloader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -107,6 +109,7 @@ public class StudioEmbeddedRenderTarget implements IAndroidTarget {
       path = StudioPathManager.resolvePathFromSourcesRoot("prebuilts/studio/layoutlib/").toString();
     }
 
+    List<String> notFoundPaths = new ArrayList<>();
     VirtualFile root = LocalFileSystem.getInstance().findFileByPath(FileUtil.toSystemIndependentName(path));
     if (root != null) {
       File rootFile = VfsUtilCore.virtualToIoFile(root);
@@ -115,8 +118,18 @@ public class StudioEmbeddedRenderTarget implements IAndroidTarget {
         return rootFile.getAbsolutePath() + File.separator;
       }
     }
+    notFoundPaths.add(path);
 
-    LOG.error("Unable to find embedded layoutlib in path: " + path);
+    AndroidLayoutlibDownloader.getInstance().makeSureComponentIsInPlace();
+    File dir = AndroidLayoutlibDownloader.getInstance().getHostDir("plugins/android/lib/layoutlib/");
+    if (dir.exists()) {
+      return dir.getAbsolutePath() + File.separator;
+    }
+    else {
+      notFoundPaths.add(dir.getAbsolutePath());
+    }
+
+    LOG.error("Unable to find embedded layoutlib in paths:\n" + notFoundPaths);
     return null;
   }
 
@@ -271,5 +284,9 @@ public class StudioEmbeddedRenderTarget implements IAndroidTarget {
   @Override
   public int compareTo(IAndroidTarget o) {
     throw new UnsupportedOperationException(ONLY_FOR_RENDERING_ERROR);
+  }
+
+  public static void resetInstance() {
+    ourStudioEmbeddedTarget = null;
   }
 }
