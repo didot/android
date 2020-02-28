@@ -21,4 +21,10 @@
       <add-to-group group-id="AndroidToolsGroup" anchor="first"/>
     </group>
   </actions>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <projectConfigurable groupId="build" groupWeight="120"
+                         instance="com.android.tools.idea.structure.dialog.AndroidProjectStructureConfigurableForIdea"
+                         order="last"/>
+  </extensions>
 </idea-plugin>
