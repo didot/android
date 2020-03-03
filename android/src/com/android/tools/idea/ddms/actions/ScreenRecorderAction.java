@@ -90,14 +90,14 @@ public final class ScreenRecorderAction extends AbstractDeviceAction implements 
 
     if (!isEnabled()) {
       presentation.setEnabled(false);
-      presentation.setText(AndroidBundle.lazyMessage("android.ddms.actions.screenrecord"));
+      presentation.setText(AndroidBundle.messagePointer("android.ddms.actions.screenrecord"));
       return;
     }
 
     IDevice device = myDeviceContext.getSelectedDevice();
 
     presentation.setEnabled(myFeatures.screenRecord(device));
-    presentation.setText(AndroidBundle.lazyMessage("android.ddms.actions.screenrecord"));
+    presentation.setText(AndroidBundle.messagePointer("android.ddms.actions.screenrecord"));
   }
 
   protected boolean isEnabled() {
