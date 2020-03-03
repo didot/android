@@ -36,7 +36,7 @@ import org.jetbrains.annotations.VisibleForTesting;
 
 public class GenerateSignedApkAction extends AnAction {
   public GenerateSignedApkAction() {
-    super(AndroidBundle.message(StudioFlags.RUNDEBUG_ANDROID_BUILD_BUNDLE_ENABLED.get() ? "android.generate.signed.apk.action.bundle.text" : "android.generate.signed.apk.action.text"));
+    super(AndroidBundle.messagePointer(StudioFlags.RUNDEBUG_ANDROID_BUILD_BUNDLE_ENABLED.get() ? "android.generate.signed.apk.action.bundle.text" : "android.generate.signed.apk.action.text"));
   }
 
   @VisibleForTesting
