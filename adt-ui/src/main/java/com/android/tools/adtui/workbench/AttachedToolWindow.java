@@ -673,7 +673,7 @@ class AttachedToolWindow<T> implements ToolWindowCallback, Disposable {
 
   private class HideAction extends DumbAwareAction {
     private HideAction() {
-      super(UIBundle.lazyMessage("tool.window.hide.action.name"), AllIcons.General.HideToolWindow);
+      super(UIBundle.messagePointer("tool.window.hide.action.name"), AllIcons.General.HideToolWindow);
     }
 
     @Override
