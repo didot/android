@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,13 @@
  */
 package com.android.tools.idea.mlkit;
 
-import com.android.testutils.JarTestSuiteRunner;
-import com.android.tools.tests.IdeaTestSuiteBase;
-import org.junit.runner.RunWith;
+import com.android.testutils.TestUtils;
 
-@SuppressWarnings({"JUnitTestCaseWithNoTests", "NewClassNamingConvention"})
-@RunWith(JarTestSuiteRunner.class)
-@JarTestSuiteRunner.ExcludeClasses(MlkitTestSuite.class)  // a suite mustn't contain itself
-public class MlkitTestSuite extends IdeaTestSuiteBase {
-  static {
-    unzipIntoOfflineMavenRepo("tools/base/build-system/studio_repo.zip");
-    unzipIntoOfflineMavenRepo("tools/adt/idea/android/test_deps.zip");
-  }
+/**
+ * Constants for ml model binding test data locations.
+ */
+public class TestDataPaths {
+  public static final String TEST_DATA_ROOT = TestUtils.getWorkspaceFile("tools/adt/idea/mlkit/testData").getPath();
+
+  public static final String PROJECT_WITH_TWO_MODULES_BUT_ONLY_ONE_ENABLED = "projects/projectWithTwoModulesButOnlyOneEnabled";
 }
