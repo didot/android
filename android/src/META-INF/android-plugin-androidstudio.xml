@@ -183,6 +183,10 @@
                              provider="com.android.tools.idea.memorysettings.MemorySettingsConfigurableProvider"
                              id="memory.settings"/>
 
+    <!-- Note: in Idea this configurable has different groupId: build.android -->
+    <applicationConfigurable groupId="build" id="instant.run"
+                             provider="com.android.tools.idea.deploy.DeploymentConfigurableProvider"/>
+
     <statistic.eventLog.eventLoggerProvider implementation="com.android.tools.idea.stats.AndroidStudioStatisticsEventLoggerProvider"/>
     <projectService serviceInterface="com.intellij.codeInsight.NullableNotNullManager"
                     serviceImplementation="com.android.tools.idea.lang.AndroidNullableNotNullManagerImpl"
