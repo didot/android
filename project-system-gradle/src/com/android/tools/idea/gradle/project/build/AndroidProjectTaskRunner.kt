@@ -13,11 +13,13 @@ import com.google.common.util.concurrent.MoreExecutors.directExecutor
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.task.ModuleBuildTask
 import com.intellij.task.ProjectTask
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskRunner
 import com.intellij.task.TaskRunnerResults
+import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.concurrency.AsyncPromise
 import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.resolvedPromise
@@ -31,9 +33,15 @@ class AndroidProjectTaskRunner : ProjectTaskRunner() {
   }
 
   override fun canRun(projectTask: ProjectTask): Boolean {
-    return projectTask is ModuleBuildTask &&
-      (isAndroidStudio || projectTask.module.project.isAndroidProject) &&
-      ExternalSystemApiUtil.isExternalSystemAwareModule(GradleConstants.SYSTEM_ID, projectTask.module)
+    if (Registry.`is`("android.task.runner.restricted")) {
+      assert(!IdeInfo.getInstance().isAndroidStudio) { "This code is not expected to be executed in Android Studio" }
+      return projectTask is ModuleBuildTask && AndroidFacet.getInstance(projectTask.module) != null
+    }
+    else {
+      return projectTask is ModuleBuildTask &&
+             (isAndroidStudio || projectTask.module.project.isAndroidProject) &&
+             ExternalSystemApiUtil.isExternalSystemAwareModule(GradleConstants.SYSTEM_ID, projectTask.module)
+    }
   }
 
   @Suppress("UnstableApiUsage")
