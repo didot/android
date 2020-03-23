@@ -236,6 +236,11 @@
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
+    <registryKey key="android.task.runner.restricted"
+                 description="Forbid android-plugin to handle run/debug actions on modules with no Android facet."
+                 defaultValue="false"
+                 restartRequired="false"/>
+
     <registryKey key="android.gradle.importer.enabled"
                  description="Use Android-Gradle importer. If disabled, platform gradle importer will be used."
                  defaultValue="false"
