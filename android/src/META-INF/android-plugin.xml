@@ -231,6 +231,11 @@
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
+    <registryKey key="android.gradle.importer.enabled"
+                 description="Use Android-Gradle importer. If disabled, platform gradle importer will be used."
+                 defaultValue="false"
+                 restartRequired="false"/>
+
     <projectService serviceImplementation="com.android.tools.idea.res.AndroidFileChangeListener" />
     <postStartupActivity implementation="com.android.tools.idea.res.AndroidFileChangeListener$MyStartupActivity"/>
     <projectService serviceImplementation="com.android.tools.idea.ddms.screenshot.ScreenshotViewer$PersistentState" />
