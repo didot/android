@@ -281,7 +281,11 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
   }
 
   @Nullable
-  private static String selectVersion(@NotNull ExternalLibraryDescriptor descriptor) {
+  static String selectVersion(@NotNull ExternalLibraryDescriptor descriptor) {
+    if (descriptor.getPreferredVersion() != null) {
+      return descriptor.getPreferredVersion();
+    }
+
     String libraryArtifactId = descriptor.getLibraryArtifactId();
     String libraryGroupId = descriptor.getLibraryGroupId();
     String groupAndId = libraryGroupId + ":" + libraryArtifactId;
