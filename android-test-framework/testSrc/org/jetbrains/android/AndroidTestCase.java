@@ -17,6 +17,7 @@ import com.android.tools.idea.testing.ThreadingCheckerHookTestImpl;
 import com.android.tools.instrumentation.threading.agent.callback.ThreadingCheckerTrampoline;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
+import com.intellij.application.options.CodeStyle;
 import com.intellij.facet.Facet;
 import com.intellij.facet.FacetConfiguration;
 import com.intellij.facet.FacetManager;
@@ -162,7 +163,7 @@ public abstract class AndroidTestCase extends AndroidTestBase {
     ArrayList<String> allowedRoots = new ArrayList<>();
     collectAllowedRoots(allowedRoots);
     registerAllowedRoots(allowedRoots, getTestRootDisposable());
-    mySettings = CodeStyleSettingsManager.getSettings(getProject()).clone();
+    mySettings = CodeStyle.createTestSettings(CodeStyleSettingsManager.getSettings(getProject()));
     // Note: we apply the Android Studio code style so that tests running as the Android plugin in IDEA behave the same.
     applyAndroidCodeStyleSettings(mySettings);
     CodeStyleSettingsManager.getInstance(getProject()).setTemporarySettings(mySettings);
