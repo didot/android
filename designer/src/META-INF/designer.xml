@@ -75,6 +75,7 @@
                              provider="com.android.tools.idea.uibuilder.options.NlOptionsConfigurableProvider"/>
     <search.optionContributor
         implementation="com.android.tools.idea.uibuilder.options.NlOptionConfigurableSearchableOptionContributor"/>
+    <moduleService serviceImplementation="com.android.tools.idea.uibuilder.palette.NlPaletteModel" />
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
@@ -90,12 +91,6 @@
   <extensions defaultExtensionNs="com.intellij">
     <trafficLightRendererContributor implementation="com.android.tools.idea.uibuilder.editor.ResourceFileTrafficLightRendererContributor"/>
   </extensions>
-
-  <module-components>
-    <component>
-      <implementation-class>com.android.tools.idea.uibuilder.palette.NlPaletteModel</implementation-class>
-    </component>
-  </module-components>
 
   <!-- The design tool actions which the shortcuts are configurable. -->
   <!-- The action ids should be listed in com.android.tools.idea.actions.DesignerActions.kt file  -->
