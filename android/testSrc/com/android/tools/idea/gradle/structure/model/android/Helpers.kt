@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.gradle.structure.model.android
 
+import com.android.tools.idea.concurrency.addCallback
 import com.android.tools.idea.gradle.structure.model.PsModel
 import com.android.tools.idea.gradle.structure.model.PsModelDescriptor
 import com.android.tools.idea.gradle.structure.model.meta.Annotated
@@ -25,6 +26,11 @@ import com.android.tools.idea.gradle.structure.model.meta.ParsedValue
 import com.android.tools.idea.gradle.structure.model.meta.PropertyValue
 import com.android.tools.idea.gradle.structure.model.meta.ResolvedValue
 import com.android.tools.idea.gradle.structure.model.meta.maybeValue
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
+import com.intellij.testFramework.PlatformTestUtil
+import org.jetbrains.concurrency.AsyncPromise
+import java.util.concurrent.TimeUnit
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty
 import kotlin.reflect.KTypeProjection
@@ -39,6 +45,19 @@ internal fun <T : Any> Annotated<ParsedValue<T>>.asUnparsedValue(): String? =
   ((value as? ParsedValue.Set.Parsed<T>)?.dslText as? DslText.OtherUnparsedDslText)?.text
 internal val <T : Any> Annotated<PropertyValue<T>>.resolved get() = value.resolved
 internal val <T : Any> Annotated<PropertyValue<T>>.parsedValue get() = value.parsedValue
+
+fun <R> waitForFuture(future: ListenableFuture<R>, timeout: Long, timeUnit: TimeUnit): R? {
+  val asyncPromise = AsyncPromise<R?>()
+  future.addCallback(
+    success = { asyncPromise.setResult(it) },
+    failure = { when (it) {
+      null -> asyncPromise.setError("Undefined error. See logs for details")
+      else -> asyncPromise.setError(it)
+    } },
+    executor = MoreExecutors.directExecutor()
+  )
+  return PlatformTestUtil.waitForPromise(asyncPromise, timeUnit.toMillis(timeout))
+}
 
 fun PsModelDescriptor.testEnumerateProperties(): Set<ModelProperty<*, *, *, *>> {
   val result = mutableSetOf<ModelProperty<*, *, *, *>>()
