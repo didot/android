@@ -35,7 +35,6 @@ import com.intellij.openapi.fileEditor.TextEditorWithPreview
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 import com.intellij.openapi.keymap.KeymapUtil
 import com.intellij.openapi.project.DumbAware
-import com.intellij.pom.Navigatable
 import javax.swing.Icon
 import javax.swing.JComponent
 
@@ -49,7 +48,7 @@ abstract class SplitEditor<P : FileEditor>(textEditor: TextEditor,
                                            designEditor: P,
                                            editorName: String,
                                            defaultLayout: Layout = Layout.SHOW_EDITOR_AND_PREVIEW)
-  : TextEditorWithPreview(textEditor, designEditor, editorName, defaultLayout), TextEditor, DataProvider {
+  : TextEditorWithPreview(textEditor, designEditor, editorName, defaultLayout), DataProvider {
 
   private val textViewAction = SplitEditorAction("Code", AllIcons.General.LayoutEditorOnly, super.getShowEditorAction(), true)
 
@@ -80,14 +79,6 @@ abstract class SplitEditor<P : FileEditor>(textEditor: TextEditor,
     }
     return thisComponent
   }
-
-  override fun getFile() = myEditor.file
-
-  override fun getEditor() = myEditor.editor
-
-  override fun canNavigateTo(navigatable: Navigatable) = myEditor.canNavigateTo(navigatable)
-
-  override fun navigateTo(navigatable: Navigatable) = myEditor.navigateTo(navigatable)
 
   override fun getShowEditorAction() = textViewAction
 
