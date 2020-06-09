@@ -31,7 +31,6 @@ import com.intellij.facet.FacetType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
-import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.module.Module
@@ -283,7 +282,7 @@ class AndroidProjectRule private constructor(
         println("Tests: Replacing Android SDK from ${IdeSdks.getInstance().androidSdkPath} to ${TestUtils.getSdk()}")
         AndroidGradleTests.setUpSdks(fixture, TestUtils.getSdk().toFile())
       }
-      invokeAndWaitIfNeeded {
+      ApplicationManager.getApplication().invokeAndWait {
         // Similarly to AndroidGradleTestCase, sync (fake sync here) requires SDKs to be set up and cleaned after the test to behave
         // properly.
         val basePath = File(fixture.tempDirPath)
