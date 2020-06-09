@@ -25,11 +25,11 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.ListenableFuture
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
-import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.project.DumbServiceImpl
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.PlatformTestUtil
+import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.util.ThrowableRunnable
 import org.junit.Before
 import org.junit.Rule
@@ -182,7 +182,7 @@ class SyncUtilTest {
     startThreadLatch.await(1, TimeUnit.SECONDS)
     assertThat(callCount.get()).isEqualTo(0)
     latch.countDown()
-    invokeAndWaitIfNeeded { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
+    runInEdtAndWait { PlatformTestUtil.dispatchAllEventsInIdeEventQueue() }
     assertThat(callCount.get()).isEqualTo(1)
 
     val latch2 = CountDownLatch(1)
