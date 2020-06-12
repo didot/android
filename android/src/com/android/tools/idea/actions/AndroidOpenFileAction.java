@@ -46,6 +46,7 @@ import com.intellij.openapi.wm.impl.welcomeScreen.NewWelcomeScreen;
 import com.intellij.platform.PlatformProjectOpenProcessor;
 import com.intellij.projectImport.ProjectAttachProcessor;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
 import org.jetbrains.android.util.AndroidBundle;
@@ -143,17 +144,17 @@ public class AndroidOpenFileAction extends DumbAwareAction {
         }
         if (ProjectAttachProcessor.canAttachToProject()) {
           Project openedProject = PlatformProjectOpenProcessor.doOpenProject(file, project, -1, null, EnumSet.noneOf(PlatformProjectOpenProcessor.Option.class));
-          setLastOpenedFile(openedProject, file);
+          setLastOpenedFile(openedProject, file.toNioPath());
         }
         else {
-          openOrImportProject(file, project);
+          openOrImportProject(file.toNioPath(), project);
         }
         continue;
       }
 
       // try to open as a project - unless the file is an .ipr of the current one
       if ((project == null || !file.equals(project.getProjectFile())) && OpenProjectFileChooserDescriptor.isProjectFile(file)) {
-        if (openOrImportProject(file, project)) {
+        if (openOrImportProject(file.toNioPath(), project)) {
           continue;
         }
       }
@@ -175,8 +176,8 @@ public class AndroidOpenFileAction extends DumbAwareAction {
     }
   }
 
-  private static boolean openOrImportProject(@NotNull VirtualFile file, @Nullable Project project) {
-    Project opened = openOrImport(file.getPath(), project, false);
+  private static boolean openOrImportProject(@NotNull Path file, @Nullable Project project) {
+    Project opened = openOrImport(file, project, false);
     if (opened != null) {
       setLastOpenedFile(opened, file);
       return true;
