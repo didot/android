@@ -36,7 +36,7 @@ import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.application.ex.PathManagerEx;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.project.impl.ProjectImpl;
+import com.intellij.openapi.project.ex.ProjectEx;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.util.Segment;
@@ -131,7 +131,7 @@ public abstract class AndroidTestBase extends UsefulTestCase {
     DisposerExplorer.visitTree(disposable -> {
       if (allLeakedDisposables.contains(disposable) ||
           disposable.getClass().getName().startsWith("com.android.tools.analytics.HighlightingStats") ||
-          (disposable instanceof ProjectImpl && (((ProjectImpl)disposable).isDefault() || ((ProjectImpl)disposable).isLight())) ||
+          (disposable instanceof ProjectEx && (((ProjectEx)disposable).isDefault() || ((ProjectEx)disposable).isLight())) ||
           disposable.toString().startsWith("services of ") || // See ComponentManagerImpl.serviceParentDisposable.
           (disposable instanceof Module && ((Module)disposable).getName().equals(LightProjectDescriptor.TEST_MODULE_NAME)) ||
           disposable instanceof PsiReferenceContributor) {
