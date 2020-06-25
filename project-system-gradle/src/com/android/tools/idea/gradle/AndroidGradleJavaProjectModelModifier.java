@@ -43,12 +43,12 @@ import com.android.tools.idea.gradle.model.IdeDependencies;
 import com.android.tools.idea.gradle.model.IdeJavaLibrary;
 import com.android.tools.idea.gradle.model.IdeJavaLibraryDependency;
 import com.android.tools.idea.gradle.model.IdeVariant;
-import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet;
 import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.project.sync.GradleSyncListener;
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes;
 import com.android.tools.idea.projectsystem.gradle.GradleProjectPath;
 import com.google.common.collect.ImmutableList;
@@ -56,11 +56,18 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.wireless.android.sdk.stats.GradleSyncStats;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.Result;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.command.undo.BasicUndoableAction;
 import com.intellij.openapi.command.undo.UndoManager;
 import com.intellij.openapi.command.undo.UnexpectedUndoException;
+import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager;
+import com.intellij.openapi.externalSystem.importing.ImportSpecBuilder;
+import com.intellij.openapi.externalSystem.model.DataNode;
+import com.intellij.openapi.externalSystem.model.project.ProjectData;
+import com.intellij.openapi.externalSystem.service.project.ExternalProjectRefreshCallback;
+import com.intellij.openapi.externalSystem.util.ExternalSystemUtil;
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
@@ -85,6 +92,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.concurrency.AsyncPromise;
 import org.jetbrains.concurrency.Promise;
 import org.jetbrains.concurrency.Promises;
+import org.jetbrains.plugins.gradle.util.GradleConstants;
 
 public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModifier {
   @NotNull
@@ -103,9 +111,38 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
   @NotNull
   private static final Set<String> JAVA_PLUGIN_IDENTIFIERS = ImmutableSet.of("java", "java-library");
 
+  private static boolean isAndroidGradleProject(@NotNull Project project) {
+    return ProjectSystemUtil.requiresAndroidModel(project);
+  }
+
+  @Nullable
+  // returns single external project path if it is the same for all the modules, or null
+  private static String getSingleExternalProjectPathOrNull(Collection<? extends Module> modules) {
+    String projectPath = null;
+    for (Module module : modules) {
+      String rootProjectPathForModule = getSingleExternalProjectPathOrNull(module);
+      if (rootProjectPathForModule == null) return null;
+      if (projectPath == null) {
+        projectPath = rootProjectPathForModule;
+      }
+      else if (!projectPath.equals(rootProjectPathForModule)) {
+        return null;
+      }
+    }
+    return projectPath;
+  }
+
+  @Nullable
+  private static String getSingleExternalProjectPathOrNull(Module module) {
+    return ExternalSystemModulePropertyManager.getInstance(module).getRootProjectPath();
+  }
+
   @Nullable
   @Override
   public Promise<Void> addModuleDependency(@NotNull Module from, @NotNull Module to, @NotNull DependencyScope scope, boolean exported) {
+    @Nullable String externalProjectPath = getSingleExternalProjectPathOrNull(from);
+    if (externalProjectPath == null) return null;
+
     Project project = from.getProject();
     VirtualFile openedFile = FileEditorManagerEx.getInstanceEx(from.getProject()).getCurrentFile();
     GradleProjectPath gradlePath = getGradleProjectPath(to);
@@ -120,10 +157,10 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
         @Override
         protected void run(@NotNull Result result) throws Throwable {
           buildModel.applyChanges();
-          registerUndoAction(project);
+          registerUndoAction(project, externalProjectPath);
         }
       }.execute();
-      return requestProjectSync(project, TRIGGER_MODIFIER_ADD_MODULE_DEPENDENCY);
+      return requestProjectSync(project, externalProjectPath, TRIGGER_MODIFIER_ADD_MODULE_DEPENDENCY);
     }
 
     if ((buildModel == null) ^ (gradlePath == null)) {
@@ -138,6 +175,9 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
   public Promise<Void> addExternalLibraryDependency(@NotNull Collection<? extends Module> modules,
                                                     @NotNull ExternalLibraryDescriptor descriptor,
                                                     @NotNull DependencyScope scope) {
+    @Nullable String externalProjectPath = getSingleExternalProjectPathOrNull(modules);
+    if (externalProjectPath == null) return null;
+
     ArtifactDependencySpec dependencySpec =
       ArtifactDependencySpec.create(descriptor.getLibraryArtifactId(), descriptor.getLibraryGroupId(), selectVersion(descriptor));
     return addExternalLibraryDependency(modules, dependencySpec, scope);
@@ -146,9 +186,9 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
   @Nullable
   @Override
   public Promise<Void> addLibraryDependency(@NotNull Module from, @NotNull Library library, @NotNull DependencyScope scope, boolean exported) {
-    if (!GradleFacet.isAppliedTo(from)) {
-      return null;
-    }
+    @Nullable String externalProjectPath = getSingleExternalProjectPathOrNull(from);
+    if (externalProjectPath == null) return null;
+
     ArtifactDependencySpec dependencySpec = findNewExternalDependency(from.getProject(), library);
     if (dependencySpec == null) {
       return Promises.rejectedPromise();
@@ -160,6 +200,9 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
   private static Promise<Void> addExternalLibraryDependency(@NotNull Collection<? extends Module> modules,
                                                             @NotNull ArtifactDependencySpec dependencySpec,
                                                             @NotNull DependencyScope scope) {
+    @Nullable String externalProjectPath = getSingleExternalProjectPathOrNull(modules);
+    if (externalProjectPath == null) return null;
+
     Module firstModule = Iterables.getFirst(modules, null);
     if (firstModule == null) {
       return null;
@@ -186,21 +229,20 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
         for (GradleBuildModel buildModel : buildModelsToUpdate) {
           buildModel.applyChanges();
         }
-        registerUndoAction(project);
+        registerUndoAction(project, externalProjectPath);
       }
     }.execute();
 
-    return requestProjectSync(project, TRIGGER_MODIFIER_ADD_LIBRARY_DEPENDENCY);
+    return requestProjectSync(project, externalProjectPath, TRIGGER_MODIFIER_ADD_LIBRARY_DEPENDENCY);
   }
 
   @Nullable
   @Override
   public Promise<Void> changeLanguageLevel(@NotNull Module module, @NotNull LanguageLevel level) {
-    Project project = module.getProject();
-    if (!GradleFacet.isAppliedTo(module)) {
-      return null;
-    }
+    @Nullable String externalProjectPath = getSingleExternalProjectPathOrNull(module);
+    if (externalProjectPath == null) return null;
 
+    Project project = module.getProject();
     GradleBuildModel buildModel = GradleBuildModel.get(module);
     if (buildModel == null) {
       return null;
@@ -228,11 +270,11 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
       @Override
       protected void run(@NotNull Result result) throws Throwable {
         buildModel.applyChanges();
-        registerUndoAction(project);
+        registerUndoAction(project, externalProjectPath);
       }
     }.execute();
 
-    return requestProjectSync(project, TRIGGER_MODIFIER_LANGUAGE_LEVEL_CHANGED);
+    return requestProjectSync(project, externalProjectPath, TRIGGER_MODIFIER_LANGUAGE_LEVEL_CHANGED);
   }
 
   @NotNull
@@ -276,7 +318,19 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
   }
 
   @NotNull
-  private static Promise<Void> requestProjectSync(@NotNull Project project, @NotNull GradleSyncStats.Trigger trigger) {
+  private static Promise<Void> requestProjectSync(@NotNull Project project,
+                                                  @NotNull String externalProjectPath,
+                                                  @NotNull GradleSyncStats.Trigger trigger) {
+    if (isAndroidGradleProject(project)) {
+      return doAndroidGradleSync(project, trigger);
+    }
+    else {
+      return doIdeaGradleSync(project, externalProjectPath);
+    }
+  }
+
+  @NotNull
+  private static AsyncPromise<Void> doAndroidGradleSync(@NotNull Project project, @NotNull GradleSyncStats.Trigger trigger) {
     AsyncPromise<Void> promise = new AsyncPromise<>();
     GradleSyncInvoker.Request request = new GradleSyncInvoker.Request(trigger);
 
@@ -295,16 +349,42 @@ public class AndroidGradleJavaProjectModelModifier extends JavaProjectModelModif
     return promise;
   }
 
-  private static void registerUndoAction(@NotNull Project project) {
+  @NotNull
+  private static AsyncPromise<Void> doIdeaGradleSync(@NotNull Project project,
+                                                     @NotNull String externalProjectPath) {
+    AsyncPromise<Void> promise = new AsyncPromise<>();
+    ImportSpecBuilder importSpecBuilder = new ImportSpecBuilder(project, GradleConstants.SYSTEM_ID);
+    importSpecBuilder.callback(new ExternalProjectRefreshCallback() {
+      private final ImportSpecBuilder.DefaultProjectRefreshCallback
+        defaultCallback = new ImportSpecBuilder.DefaultProjectRefreshCallback(importSpecBuilder.build());
+
+      @Override
+      public void onSuccess(@Nullable DataNode<ProjectData> externalProject) {
+        defaultCallback.onSuccess(externalProject);
+        // defaultCallback may defer some tasks with `invokeLater`. We should trigger promise after all the EDT events are finished
+        ApplicationManager.getApplication().invokeLater(() -> promise.setResult(null));
+      }
+
+      @Override
+      public void onFailure(@NotNull String errorMessage, @Nullable String errorDetails) {
+        defaultCallback.onFailure(errorMessage, errorDetails);
+        promise.setError(errorMessage);
+      }
+    });
+    ExternalSystemUtil.refreshProject(externalProjectPath, importSpecBuilder);
+    return promise;
+  }
+
+  private static void registerUndoAction(@NotNull Project project, @NotNull String externalProjectPath) {
     UndoManager.getInstance(project).undoableActionPerformed(new BasicUndoableAction() {
       @Override
       public void undo() throws UnexpectedUndoException {
-        requestProjectSync(project, TRIGGER_MODIFIER_ACTION_UNDONE);
+        requestProjectSync(project, externalProjectPath, TRIGGER_MODIFIER_ACTION_UNDONE);
       }
 
       @Override
       public void redo() throws UnexpectedUndoException {
-        requestProjectSync(project, TRIGGER_MODIFIER_ACTION_REDONE);
+        requestProjectSync(project, externalProjectPath, TRIGGER_MODIFIER_ACTION_REDONE);
       }
     });
   }
