@@ -1,7 +1,6 @@
 package org.jetbrains.android.exportSignedPackage;
 
-import com.android.jarutils.DebugKeyProvider;
-import com.android.jarutils.KeystoreHelper;
+import com.android.ide.common.signing.KeystoreHelper;
 import com.intellij.ide.wizard.CommitStepException;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -132,6 +131,7 @@ public abstract class NewKeyForm {
     }
   }
 
+  @NotNull
   private String getDName() {
     StringBuilder builder = new StringBuilder();
     buildDName(builder, "CN", myFirstAndLastNameField);
@@ -151,7 +151,6 @@ public abstract class NewKeyForm {
     String keyPassword = new String(getKeyPassword());
     String keyAlias = getKeyAlias();
     String dname = getDName();
-    assert dname != null;
 
     if (keystorePassword.indexOf('"') >= 0 || keyPassword.indexOf('"') >= 0) {
       throw new CommitStepException(AndroidBundle.message("android.export.package.passwords.cannot.contain.quote.character"));
@@ -162,20 +161,7 @@ public abstract class NewKeyForm {
     final StringBuilder outBuilder = new StringBuilder();
     try {
       createdStore = KeystoreHelper
-        .createNewStore(keystoreLocation, null, keystorePassword, keyAlias, keyPassword, dname, getValidity(),
-                        new DebugKeyProvider.IKeyGenOutput() {
-                          @Override
-                          public void err(String message) {
-                            errorBuilder.append(message).append('\n');
-                            LOG.info("Error: " + message);
-                          }
-
-                          @Override
-                          public void out(String message) {
-                            outBuilder.append(message).append('\n');
-                            LOG.info(message);
-                          }
-                        });
+        .createNewStore(null, new File(keystoreLocation), keystorePassword, keyPassword, keyAlias, dname, getValidity());
     }
     catch (Exception e) {
       LOG.info(e);
