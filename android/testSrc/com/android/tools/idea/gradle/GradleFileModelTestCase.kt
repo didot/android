@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.gradle.structure
+package com.android.tools.idea.gradle
 
 import com.android.SdkConstants
 import com.android.tools.idea.flags.StudioFlags
@@ -22,6 +22,7 @@ import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
 import com.android.tools.idea.testing.AndroidProjectRule.Companion.onDisk
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VfsUtilCore
@@ -44,18 +45,10 @@ import java.io.IOException
 
 @Ignore // Needs to be ignored so bazel doesn't try to run this class as a test and fail with "No tests found".
 @RunWith(Parameterized::class)
-abstract class GradleFileModelTestCase {
-
-  data class TestFileName(val path: String) {
-    fun toFile(testDataPath: String, testDataExtension: String): File {
-      val path = FileUtil.toSystemDependentName(testDataPath) + File.separator + FileUtil.toSystemDependentName(path) + testDataExtension
-      return File(path)
-    }
-  }
-
+open class GradleFileModelTestCase {
   @get:Rule
   val nameRule = TestName()
-  private val projectRule = onDisk()
+  protected val projectRule = onDisk()
 
   @get:Rule
   val ruleChain = RuleChain.outerRule(projectRule).around(EdtRule())
@@ -67,12 +60,25 @@ abstract class GradleFileModelTestCase {
   @Parameterized.Parameter(1)
   @JvmField
   var languageName: String? = null
-
   protected lateinit var buildFile: VirtualFile
-  private lateinit var testDataPath: String
-
-  private val isGroovy: Boolean get() = languageName == GROOVY_LANGUAGE
+  protected lateinit var testDataPath: String
+  private val isGroovy: Boolean get() = languageName == GradleFileModelTestCase.GROOVY_LANGUAGE
   private val buildFileName: String get() = if (isGroovy) SdkConstants.FN_BUILD_GRADLE else SdkConstants.FN_BUILD_GRADLE_KTS
+  protected val gradleBuildModel: GradleBuildModel
+    get() {
+      val projectBuildModel = ProjectBuildModel.get(projectRule.project)
+      val buildModel = projectBuildModel.getModuleBuildModel(projectRule.module)
+      Assert.assertNotNull(buildModel)
+      return buildModel!!
+    }
+  protected val project: Project get() = projectRule.project
+
+  data class TestFileName(val path: String) {
+    fun toFile(testDataPath: String, testDataExtension: String): File {
+      val path = FileUtil.toSystemDependentName(testDataPath) + File.separator + FileUtil.toSystemDependentName(path) + testDataExtension
+      return File(path)
+    }
+  }
 
   @Before
   fun setUp() {
@@ -81,7 +87,6 @@ abstract class GradleFileModelTestCase {
       buildFile = projectRule.fixture.tempDirFixture.createFile(buildFileName)
       assertTrue(buildFile.isWritable)
     }
-    testDataPath = AndroidTestBase.getTestDataPath() + "/psd"
   }
 
   @After
@@ -89,20 +94,12 @@ abstract class GradleFileModelTestCase {
     StudioFlags.KOTLIN_DSL_PARSING.clearOverride()
   }
 
-  protected fun writeToBuildFile(fileName: TestFileName) {
+  protected fun writeToBuildFile(fileName: GradleFileModelTestCase.TestFileName) {
     val testFile = fileName.toFile(testDataPath, testDataExtension!!)
     assertTrue(testFile.exists())
     val virtualTestFile = VfsUtil.findFileByIoFile(testFile, true)
     runWriteAction { VfsUtil.saveText(buildFile, VfsUtilCore.loadText(virtualTestFile!!)) }
   }
-
-  protected val gradleBuildModel: GradleBuildModel
-    get() {
-      val projectBuildModel = ProjectBuildModel.get(projectRule.project)
-      val buildModel = projectBuildModel.getModuleBuildModel(projectRule.module)
-      Assert.assertNotNull(buildModel)
-      return buildModel!!
-    }
 
   protected fun applyChanges(buildModel: GradleBuildModel) {
     WriteCommandAction.runWriteCommandAction(projectRule.project) { buildModel.applyChanges() }
@@ -115,7 +112,7 @@ abstract class GradleFileModelTestCase {
   }
 
   @Throws(IOException::class)
-  protected fun verifyFileContents(file: VirtualFile, expected: TestFileName) {
+  protected fun verifyFileContents(file: VirtualFile, expected: GradleFileModelTestCase.TestFileName) {
     fun String.normalize() = replace("[ \\t]+".toRegex(), "").trim { it <= ' ' }
 
     val expectedText = FileUtil.loadFile(expected.toFile(testDataPath, testDataExtension!!)).normalize()
