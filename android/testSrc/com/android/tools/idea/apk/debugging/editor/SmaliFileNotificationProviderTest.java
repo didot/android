@@ -83,7 +83,7 @@ public class SmaliFileNotificationProviderTest extends PlatformTestCase {
   public void testCreateNotificationPanelWithNonSmaliFile() throws Exception {
     loadProject(APK_SAN_ANGELES);
     EditorNotificationPanel notificationPanel = myNotificationProvider.createNotificationPanel(
-      PlatformTestUtil.getOrCreateProjectBaseDir(getProject()), myFileEditor);
+      PlatformTestUtil.getOrCreateProjectBaseDir(getProject()), myFileEditor, myProject);
     assertNull(notificationPanel);
   }
 
