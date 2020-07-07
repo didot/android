@@ -1246,10 +1246,10 @@ fun findStyleableAttrFieldsForStyleable(facet: AndroidFacet, styleableName: Stri
  * are dropped after the repository is updated.
  */
 fun scheduleNewResolutionAndHighlighting(psiManager: PsiManager) {
-  ApplicationManager.getApplication().invokeLater {
+  ApplicationManager.getApplication().invokeLater({
     psiManager.dropResolveCaches()
     psiManager.dropPsiCaches()
-  }
+  }, psiManager.project.disposed)
 }
 
 private fun findResourceFieldsFromClass(
