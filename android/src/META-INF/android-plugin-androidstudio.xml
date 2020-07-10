@@ -145,6 +145,11 @@
             class="com.android.tools.idea.testartifacts.instrumented.testsuite.actions.ImportTestsFromFileAction"
             icon="AllIcons.ToolbarDecorator.Import"
             overrides="true"/>
+
+    <group id="Android.SyncProject.ActionGroup">
+      <reference id="Android.SyncProject" />
+      <add-to-group group-id="FileMenu" anchor="after" relative-to-action="SaveAll"/>
+    </group>
   </actions>
 
   <extensions defaultExtensionNs="com.intellij">
