@@ -22,6 +22,7 @@ import com.intellij.ide.util.projectWizard.WizardContext;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.options.ConfigurationException;
+import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.TextBrowseFolderListener;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
@@ -157,8 +158,7 @@ class AdtImportLocationStep extends ProjectImportWizardStep {
       if (files != null && files.length > 0) {
         String message = String.format("%1$s folder already exists and is not empty.\nIts content may be overwritten.\nContinue?",
                                        projectFile.getAbsolutePath());
-        int answer = Messages.showYesNoDialog(message, title, Messages.getQuestionIcon());
-        shouldContinue = answer == 0;
+        shouldContinue = MessageDialogBuilder.yesNo(title, message).show() == Messages.YES;
       }
     }
     return shouldContinue;
