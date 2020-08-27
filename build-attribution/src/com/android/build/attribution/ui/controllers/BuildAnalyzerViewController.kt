@@ -116,16 +116,18 @@ class BuildAnalyzerViewController(
 
   override fun applyTasksFilter(filter: TasksFilter) {
     model.tasksPageModel.applyFilter(filter)
-    //TODO (b/150297440): Add analytics reporting.
+    analytics.tasksFilterApplied(filter)
   }
 
   override fun applyWarningsFilter(filter: WarningsFilter) {
     model.warningsPageModel.filter = filter
-    //TODO (b/150297387): Add analytics reporting.
+    analytics.warningsFilterApplied(filter)
   }
 
   override fun warningsGroupingSelectionUpdated(groupByPlugin: Boolean) {
+    val currentAnalyticsPage = analytics.getStateFromModel(model)
     model.warningsPageModel.groupByPlugin = groupByPlugin
-    //TODO (b/150295612): Add analytics reporting.
+    val newAnalyticsPage = analytics.getStateFromModel(model)
+    analytics.pageChange(currentAnalyticsPage, newAnalyticsPage, BuildAttributionUiEvent.EventType.GROUPING_CHANGED)
   }
 }
