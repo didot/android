@@ -29,6 +29,8 @@ import org.jetbrains.annotations.Nullable;
  * Implements {@link INativeFileType} to support opening traces from Device File Manager.
  */
 public abstract class AndroidProfilerCaptureFileType implements INativeFileType {
+  AndroidProfilerCaptureFileType() {
+  }
 
   @Override
   public boolean isBinary() {
