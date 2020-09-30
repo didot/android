@@ -72,7 +72,7 @@ fun parse(lineText: String, reader: OutputLineReader, messages: MutableList<Mess
     return false
 }
 
-private val COLON = ":"
+private const val COLON = ":"
 private val KOTLIN_POSITION_PATTERN = Pattern.compile("\\(([0-9]*), ([0-9]*)\\)")
 private val JAVAC_POSITION_PATTERN = Pattern.compile("([0-9]+)")
 
