@@ -31,12 +31,14 @@ import com.google.common.util.concurrent.Futures
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.testFramework.LightPlatformTestCase
+import com.intellij.util.concurrency.EdtExecutorService
+import kotlinx.coroutines.asCoroutineDispatcher
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.facet.AndroidFacetConfiguration
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.verify
 
-class OfflineDatabaseManagerTest : LightPlatformTestCase() {
+class FileDatabaseManagerTest : LightPlatformTestCase() {
 
   private lateinit var deviceFileDownloaderService: DeviceFileDownloaderService
 
@@ -44,7 +46,9 @@ class OfflineDatabaseManagerTest : LightPlatformTestCase() {
   private lateinit var liveDatabaseId: SqliteDatabaseId.LiveSqliteDatabaseId
   private lateinit var fileDatabaseId: SqliteDatabaseId.FileSqliteDatabaseId
 
-  private lateinit var offlineDatabaseManager: OfflineDatabaseManager
+  private lateinit var fileDatabaseManager: FileDatabaseManager
+
+  private val edtDispatcher = EdtExecutorService.getInstance().asCoroutineDispatcher()
 
   override fun setUp() {
     super.setUp()
@@ -68,8 +72,9 @@ class OfflineDatabaseManagerTest : LightPlatformTestCase() {
 
     deviceFileDownloaderService = mock()
 
-    offlineDatabaseManager = OfflineDatabaseManagerImpl(
+    fileDatabaseManager = FileDatabaseManagerImpl(
       project,
+      edtDispatcher,
       deviceFileDownloaderService
     )
   }
@@ -93,7 +98,7 @@ class OfflineDatabaseManagerTest : LightPlatformTestCase() {
     )
 
     // Act
-    val offlineDatabaseData = runDispatching { offlineDatabaseManager.loadDatabaseFileData("processName", processDescriptor, liveDatabaseId) }
+    val offlineDatabaseData = runDispatching { fileDatabaseManager.loadDatabaseFileData("processName", processDescriptor, liveDatabaseId) }
 
     // Assert
     verify(deviceFileDownloaderService).downloadFiles(
@@ -128,10 +133,10 @@ class OfflineDatabaseManagerTest : LightPlatformTestCase() {
     // Act
     runDispatching {
       try {
-        offlineDatabaseManager.loadDatabaseFileData("processName", processDescriptor, liveDatabaseId)
+        fileDatabaseManager.loadDatabaseFileData("processName", processDescriptor, liveDatabaseId)
         fail()
       }
-      catch (e: OfflineDatabaseException) { }
+      catch (e: FileDatabaseException) { }
       catch (e: Throwable) {
         fail("Expected IOException, but got Throwable")
       }
@@ -159,10 +164,10 @@ class OfflineDatabaseManagerTest : LightPlatformTestCase() {
     // Act
     runDispatching {
       try {
-        offlineDatabaseManager.loadDatabaseFileData("processName", processDescriptor, liveDatabaseId)
+        fileDatabaseManager.loadDatabaseFileData("processName", processDescriptor, liveDatabaseId)
         fail()
       }
-      catch (e: OfflineDatabaseException) { }
+      catch (e: FileDatabaseException) { }
       catch (e: Throwable) {
         fail("Expected IOException, but got Throwable")
       }

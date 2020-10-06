@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.emulator.actions
+package com.android.tools.idea.emulator.actions.dialogs
 
 import com.android.annotations.concurrency.Slow
 import com.android.emulator.control.SnapshotList
@@ -83,7 +83,7 @@ class SnapshotManager(val emulatorController: EmulatorController) {
 
       validSnapshotsReady.await()
       for (snapshot in snapshots) {
-        snapshot.isValid = validSnapshotIds.contains(snapshot.snapshotId)
+        snapshot.isValid = validSnapshotIds.contains(snapshot.snapshotId) || snapshot.isQuickBoot && !snapshot.isCreated
       }
       return snapshots
     }

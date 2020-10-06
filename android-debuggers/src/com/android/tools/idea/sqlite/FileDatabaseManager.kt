@@ -23,16 +23,21 @@ import com.android.tools.idea.projectsystem.ProjectSystemService
 import com.android.tools.idea.sqlite.model.DatabaseFileData
 import com.android.tools.idea.sqlite.model.SqliteDatabaseId
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.project.DumbService
+import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.psi.search.GlobalSearchScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.withContext
 import java.io.FileNotFoundException
 import java.io.IOException
 import kotlin.coroutines.coroutineContext
 
-interface OfflineDatabaseManager {
+/** Class responsible for downloading and deleting file database data */
+interface FileDatabaseManager {
   /**
    * Downloads a local copy of the database passed as argument, from the device.
    * @throws IOException if the device corresponding to [processDescriptor] is not found
@@ -45,15 +50,16 @@ interface OfflineDatabaseManager {
   ): DatabaseFileData
 
   /**
-   * Deletes the files associated to [databaseId] from the host machine.
+   * Deletes the files associated to [databaseFileData].
    */
-  suspend fun cleanUp(databaseId: SqliteDatabaseId.FileSqliteDatabaseId)
+  suspend fun cleanUp(databaseFileData: DatabaseFileData)
 }
 
-class OfflineDatabaseManagerImpl(
+class FileDatabaseManagerImpl(
   private val project: Project,
-  private val deviceFileDownloaderService: DeviceFileDownloaderService = DeviceFileDownloaderService.getInstance(project)
-) : OfflineDatabaseManager {
+  private val edtDispatcher: CoroutineDispatcher,
+  private val deviceFileDownloaderService: DeviceFileDownloaderService = DeviceFileDownloaderService.getInstance(project),
+) : FileDatabaseManager {
 
   override suspend fun loadDatabaseFileData(
     packageName: String,
@@ -61,7 +67,7 @@ class OfflineDatabaseManagerImpl(
     databaseToDownload: SqliteDatabaseId.LiveSqliteDatabaseId
   ): DatabaseFileData {
     if (!isFileDownloadAllowed(packageName)) {
-      throw OfflineDatabaseException(
+      throw FileDatabaseException(
         """For security reasons offline mode is disabled when 
         the process being inspected does not correspond to the project open in studio 
         or when the project has been generated from a prebuilt apk."""
@@ -78,10 +84,10 @@ class OfflineDatabaseManagerImpl(
     val files = try {
       deviceFileDownloaderService.downloadFiles(processDescriptor.serial, pathsToDownload, disposableDownloadProgress).await()
     } catch (e: IllegalArgumentException) {
-      throw OfflineDatabaseException("Device '${processDescriptor.model} ${processDescriptor.serial}' not found.", e)
+      throw DeviceNotFoundException("Device '${processDescriptor.model} ${processDescriptor.serial}' not found.", e)
     }
 
-    val mainFile = files[path] ?: throw OfflineDatabaseException("Can't download database '${databaseToDownload.path}'")
+    val mainFile = files[path] ?: throw FileDatabaseException("Can't download database '${databaseToDownload.path}'")
     val shmFile = files["$path-shm"]
     val walFile = files["$path-wal"]
 
@@ -89,8 +95,8 @@ class OfflineDatabaseManagerImpl(
     return DatabaseFileData(mainFile, additionalFiles)
   }
 
-  override suspend fun cleanUp(databaseId: SqliteDatabaseId.FileSqliteDatabaseId) {
-    val filesToClose = listOf(databaseId.databaseFileData.mainFile) + databaseId.databaseFileData.walFiles
+  override suspend fun cleanUp(databaseFileData: DatabaseFileData) {
+    val filesToClose = listOf(databaseFileData.mainFile) + databaseFileData.walFiles
     deviceFileDownloaderService
       .deleteFiles(filesToClose)
       .await()
@@ -101,7 +107,11 @@ class OfflineDatabaseManagerImpl(
    * 1. the file belongs to an app different from the one open in the studio project
    * 2. the project comes from a prebuilt apk
    */
-  private fun isFileDownloadAllowed(packageName: String): Boolean {
+  private suspend fun isFileDownloadAllowed(packageName: String): Boolean = withContext(edtDispatcher) {
+    if (DumbService.isDumb(project)) {
+      throw DownloadNotAllowedWhileIndexing("It's not possible to download files while indexing is in progress.")
+    }
+
     val androidFacetsForInspectedProcess = ProjectSystemService.getInstance(project).projectSystem.getAndroidFacetsWithPackageName(
       project,
       packageName,
@@ -109,8 +119,7 @@ class OfflineDatabaseManagerImpl(
     )
 
     val hasApkFacet = androidFacetsForInspectedProcess.any { ApkFacetChecker.hasApkFacet(it.module) }
-
-    return androidFacetsForInspectedProcess.isNotEmpty() && !hasApkFacet
+    androidFacetsForInspectedProcess.isNotEmpty() && !hasApkFacet
   }
 
   private class DisposableDownloadProgress(private val coroutineJob: Job) : DownloadProgress, Disposable {
@@ -126,4 +135,6 @@ class OfflineDatabaseManagerImpl(
   }
 }
 
-class OfflineDatabaseException(override val message: String?, override val cause: Throwable? = null) : RuntimeException()
+class FileDatabaseException(override val message: String?, override val cause: Throwable? = null) : RuntimeException()
+class DeviceNotFoundException(override val message: String?, override val cause: Throwable? = null) : RuntimeException()
+data class DownloadNotAllowedWhileIndexing(override val message: String?, override val cause: Throwable? = null) : RuntimeException()

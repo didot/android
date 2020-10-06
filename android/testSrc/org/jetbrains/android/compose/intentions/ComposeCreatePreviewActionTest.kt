@@ -19,37 +19,20 @@ import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.loadNewFile
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.command.WriteCommandAction
+
 import com.intellij.testFramework.fixtures.JavaCodeInsightFixtureTestCase
 import org.jetbrains.android.compose.stubComposableAnnotation
+import org.jetbrains.android.compose.stubPreviewAnnotation
 
 /**
- * Test for [ComposeSurroundWithWidgetActionGroup] and [ComposeSurroundWithWidgetAction]
+ * Test for [ComposeCreatePreviewAction]
  */
-class ComposeSurroundWithWidgetActionTest : JavaCodeInsightFixtureTestCase() {
-  public override fun setUp() {
+class ComposeCreatePreviewActionTest : JavaCodeInsightFixtureTestCase() {
+  override fun setUp() {
     super.setUp()
-    myFixture.stubComposableAnnotation()
     StudioFlags.COMPOSE_EDITOR_SUPPORT.override(true)
-    myFixture.addFileToProject(
-      "src/androidx/ui/layout/Container.kt",
-      // language=kotlin
-      """
-    package androidx.ui.layout
-
-    class Container
-    """.trimIndent()
-    )
-
-    myFixture.addFileToProject(
-      "src/androidx/compose/foundation/layout/ColumnAndRow.kt",
-      // language=kotlin
-      """
-    package androidx.compose.foundation.layout
-
-    class Row
-    class Column
-    """.trimIndent()
-    )
+    myFixture.stubComposableAnnotation()
+    myFixture.stubPreviewAnnotation()
   }
 
   public override fun tearDown() {
@@ -57,7 +40,7 @@ class ComposeSurroundWithWidgetActionTest : JavaCodeInsightFixtureTestCase() {
     super.tearDown()
   }
 
-  fun testSurroundWithAction() {
+  fun testCursorAtAnnotation() {
     myFixture.loadNewFile(
       "src/com/example/Test.kt",
       // language=kotlin
@@ -66,16 +49,16 @@ class ComposeSurroundWithWidgetActionTest : JavaCodeInsightFixtureTestCase() {
 
       import androidx.compose.Composable
 
-      @Composable
+      <caret>@Composable
       fun NewsStory() {
-          <selection>Text("A day in Shark Fin Cove")
+          Text("A day in Shark Fin Cove")
           Text("Davenport, California")
-          Text("December 2018")</selection><caret>
+          Text("December 2018")
       }
       """.trimIndent()
     )
 
-    val action = myFixture.availableIntentions.find { it.text == "Surround with widget" }
+    val action = myFixture.availableIntentions.find { it.text == "Create Preview" }
     assertThat(action).isNotNull()
 
     WriteCommandAction.runWriteCommandAction(myFixture.project, Runnable {
@@ -90,22 +73,20 @@ class ComposeSurroundWithWidgetActionTest : JavaCodeInsightFixtureTestCase() {
       package com.example
 
       import androidx.compose.Composable
-      import androidx.ui.layout.Container
+      import androidx.ui.tooling.preview.Preview
 
+      @Preview
       @Composable
       fun NewsStory() {
-          Container {
-              Text("A day in Shark Fin Cove")
-              Text("Davenport, California")
-              Text("December 2018")
-          }
+          Text("A day in Shark Fin Cove")
+          Text("Davenport, California")
+          Text("December 2018")
       }
     """.trimIndent()
     )
   }
 
-  fun testSurroundWithContainer() {
-
+  fun testSelection() {
     myFixture.loadNewFile(
       "src/com/example/Test.kt",
       // language=kotlin
@@ -113,18 +94,25 @@ class ComposeSurroundWithWidgetActionTest : JavaCodeInsightFixtureTestCase() {
       package com.example
 
       import androidx.compose.Composable
-
+      <caret><selection>
       @Composable
       fun NewsStory() {
-          <selection>Text("A day in Shark Fin Cove")
+          Text("A day in Shark Fin Cove")
           Text("Davenport, California")
-          Text("December 2018")</selection><caret>
+          Text("December 2018")
       }
+
+      </selection>
       """.trimIndent()
     )
 
+    var action = myFixture.availableIntentions.find { it.text == "Create Preview" }
+    assertThat(action).isNotNull()
+
     WriteCommandAction.runWriteCommandAction(myFixture.project, Runnable {
-      ComposeSurroundWithContainerAction().invoke(myFixture.project, myFixture.editor, myFixture.file)
+      // Within unit tests ListPopupImpl.showInBestPositionFor doesn't open popup and acts like fist item was selected.
+      // In our case wrap in Container will be selected.
+      action!!.invoke(myFixture.project, myFixture.editor, myFixture.file)
     })
 
     myFixture.checkResult(
@@ -133,83 +121,49 @@ class ComposeSurroundWithWidgetActionTest : JavaCodeInsightFixtureTestCase() {
       package com.example
 
       import androidx.compose.Composable
-      import androidx.ui.layout.Container
+      import androidx.ui.tooling.preview.Preview
 
+      @Preview
       @Composable
       fun NewsStory() {
-          Container {
-              Text("A day in Shark Fin Cove")
-              Text("Davenport, California")
-              Text("December 2018")
-          }
+          Text("A day in Shark Fin Cove")
+          Text("Davenport, California")
+          Text("December 2018")
       }
+
+
     """.trimIndent()
     )
-  }
 
-  fun testSurroundWithRow() {
 
     myFixture.loadNewFile(
-      "src/com/example/Test.kt",
+      "src/com/example/Test2.kt",
       // language=kotlin
       """
       package com.example
 
       import androidx.compose.Composable
+      <caret>
 
+      <selection>
       @Composable
-      fun NewsStory() {
-          <selection>Text("A day in Shark Fin Cove")
+      fun NewsStory2() {
+          Text("A day in Shark Fin Cove")
           Text("Davenport, California")
-          Text("December 2018")</selection><caret>
+          Text("December 2018")
       }
+
+      </selection>
       """.trimIndent()
     )
 
-    WriteCommandAction.runWriteCommandAction(myFixture.project, Runnable {
-      ComposeSurroundWithRowAction().invoke(myFixture.project, myFixture.editor, myFixture.file)
-    })
-    myFixture.checkResult(
-      // language=kotlin
-      """
-      package com.example
-
-      import androidx.compose.Composable
-      import androidx.compose.foundation.layout.Row
-
-      @Composable
-      fun NewsStory() {
-          Row {
-              Text("A day in Shark Fin Cove")
-              Text("Davenport, California")
-              Text("December 2018")
-          }
-      }
-    """.trimIndent()
-    )
-  }
-
-  fun testSurroundWithColumn() {
-
-    myFixture.loadNewFile(
-      "src/com/example/Test.kt",
-      // language=kotlin
-      """
-      package com.example
-
-      import androidx.compose.Composable
-
-      @Composable
-      fun NewsStory() {
-          <selection>Text("A day in Shark Fin Cove")
-          Text("Davenport, California")
-          Text("December 2018")</selection><caret>
-      }
-      """.trimIndent()
-    )
+    action = myFixture.availableIntentions.find { it.text == "Create Preview" }
+    assertThat(action).isNotNull()
 
     WriteCommandAction.runWriteCommandAction(myFixture.project, Runnable {
-      ComposeSurroundWithColumnAction().invoke(myFixture.project, myFixture.editor, myFixture.file)
+      // Within unit tests ListPopupImpl.showInBestPositionFor doesn't open popup and acts like fist item was selected.
+      // In our case wrap in Container will be selected.
+      action!!.invoke(myFixture.project, myFixture.editor, myFixture.file)
     })
 
     myFixture.checkResult(
@@ -218,16 +172,18 @@ class ComposeSurroundWithWidgetActionTest : JavaCodeInsightFixtureTestCase() {
       package com.example
 
       import androidx.compose.Composable
-      import androidx.compose.foundation.layout.Column
+      import androidx.ui.tooling.preview.Preview
 
+
+      @Preview
       @Composable
-      fun NewsStory() {
-          Column {
-              Text("A day in Shark Fin Cove")
-              Text("Davenport, California")
-              Text("December 2018")
-          }
+      fun NewsStory2() {
+          Text("A day in Shark Fin Cove")
+          Text("Davenport, California")
+          Text("December 2018")
       }
+
+
     """.trimIndent()
     )
   }

@@ -13,20 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.emulator
+package com.android.tools.idea.emulator.actions.dialogs
 
 import com.android.testutils.TestUtils
 import com.android.tools.adtui.imagediff.ImageDiffUtil
 import com.android.tools.adtui.swing.FakeUi
 import com.android.tools.adtui.swing.createDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
-import com.android.tools.adtui.swing.interactWithModalDialog
 import com.android.tools.adtui.swing.setPortableUiFont
 import com.android.tools.adtui.ui.ImagePanel
 import com.android.tools.idea.concurrency.waitForCondition
+import com.android.tools.idea.emulator.DEFAULT_SNAPSHOT_AUTO_DELETION_POLICY
+import com.android.tools.idea.emulator.EmulatorController
+import com.android.tools.idea.emulator.EmulatorSettings
 import com.android.tools.idea.emulator.EmulatorSettings.SnapshotAutoDeletionPolicy
-import com.android.tools.idea.emulator.actions.SnapshotInfo
-import com.android.tools.idea.emulator.actions.dialogs.ManageSnapshotsDialog
+import com.android.tools.idea.emulator.FakeEmulator
+import com.android.tools.idea.emulator.FakeEmulatorRule
+import com.android.tools.idea.emulator.RunningEmulatorCatalog
 import com.android.tools.idea.protobuf.TextFormat
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
@@ -37,7 +40,6 @@ import com.intellij.testFramework.TestActionEvent
 import com.intellij.ui.AnActionButton
 import com.intellij.ui.CommonActionsPanel
 import com.intellij.ui.table.TableView
-import org.jetbrains.kotlin.idea.util.application.invokeLater
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -256,6 +258,8 @@ class ManageSnapshotsDialogTest {
       assertThat(closeButton.text).isEqualTo("Close")
       ui.clickOn(closeButton)
     }
+
+    PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
   }
 
   @Test
@@ -263,6 +267,7 @@ class ManageSnapshotsDialogTest {
     emulator.createSnapshot("valid_snapshot")
     emulator.createInvalidSnapshot("invalid_snapshot1")
     emulator.createInvalidSnapshot("invalid_snapshot2")
+    emulator.pauseGrpc() // Pause emulator's gRPC to prevent the nested dialog from opening immediately.
 
     val dialogPanel = ManageSnapshotsDialog(emulatorController, emulatorView = null)
 
@@ -271,28 +276,28 @@ class ManageSnapshotsDialogTest {
       val rootPane1 = dlg1.rootPane
       val ui1 = FakeUi(rootPane1)
       val table = ui1.getComponent<TableView<SnapshotInfo>>()
-      // Wait for the snapshot list to be populated.
-      waitForCondition(2, TimeUnit.SECONDS) { table.items.isNotEmpty() }
-      assertThat(table.items).hasSize(4) // 1 QuickBoot + 1 valid + 2 invalid.
-      /** The "Delete incompatible snapshots?" dialog opens automatically. */
-      interactWithModalDialog(2) { dlg2 ->
+      /** The "Delete incompatible snapshots?" dialog opens when gRPC is resumed. */
+      createDialogAndInteractWithIt({ emulator.resumeGrpc() }) { dlg2 ->
+        assertThat(table.items).hasSize(4) // 1 QuickBoot + 1 valid + 2 invalid.
         val rootPane2 = dlg2.rootPane
         val ui2 = FakeUi(rootPane2)
-        val dontAskCheckBox = ui2.getComponent<JCheckBox>()
-        assertThat(dontAskCheckBox.isSelected).isFalse()
-        dontAskCheckBox.isSelected = true
+        val doNotAskCheckBox = ui2.getComponent<JCheckBox>()
+        assertThat(doNotAskCheckBox.isSelected).isFalse()
+        doNotAskCheckBox.isSelected = true
         val deleteButton = ui2.getComponent<JButton> { it.text == "Delete" }
         ui2.clickOn(deleteButton)
       }
-
-      // Use invokeLater to get out of the event loop of the "Delete incompatible snapshots?" dialog.
-      invokeLater {
-        assertThat(table.items).hasSize(2) // The two invalid snapshots have been deleted.
-        assertThat(EmulatorSettings.getInstance().snapshotAutoDeletionPolicy).isEqualTo(SnapshotAutoDeletionPolicy.DELETE_AUTOMATICALLY)
-        // Close the "Manage Snapshots" dialog.
-        ui1.clickOn(rootPane1.defaultButton)
-      }
+      assertThat(table.items).hasSize(2) // 1 QuickBoot + 1 valid.
+      assertThat(table.items.count { !it.isValid }).isEqualTo(0) // The two invalid snapshots were deleted.
+      // Close the "Manage Snapshots" dialog.
+      ui1.clickOn(rootPane1.defaultButton)
     }
+
+    PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+
+    val snapshots = SnapshotManager(emulatorController).fetchSnapshotList()
+    assertThat(snapshots.count { !it.isValid }).isEqualTo(0) // The two invalid snapshots were physically deleted.
+    assertThat(EmulatorSettings.getInstance().snapshotAutoDeletionPolicy).isEqualTo(SnapshotAutoDeletionPolicy.DELETE_AUTOMATICALLY)
   }
 
   @Test
@@ -300,6 +305,7 @@ class ManageSnapshotsDialogTest {
     emulator.createSnapshot("valid_snapshot")
     emulator.createInvalidSnapshot("invalid_snapshot1")
     emulator.createInvalidSnapshot("invalid_snapshot2")
+    emulator.pauseGrpc() // Pause emulator's gRPC to prevent the nested dialog from opening immediately.
 
     val dialogPanel = ManageSnapshotsDialog(emulatorController, emulatorView = null)
 
@@ -308,28 +314,24 @@ class ManageSnapshotsDialogTest {
       val rootPane1 = dlg1.rootPane
       val ui1 = FakeUi(rootPane1)
       val table = ui1.getComponent<TableView<SnapshotInfo>>()
-      // Wait for the snapshot list to be populated.
-      waitForCondition(2, TimeUnit.SECONDS) { table.items.isNotEmpty() }
-      assertThat(table.items).hasSize(4) // 1 QuickBoot + 1 valid + 2 invalid.
-      /** The "Delete incompatible snapshots?" dialog opens automatically. */
-      interactWithModalDialog(2) { dlg2 ->
+      /** The "Delete incompatible snapshots?" dialog opens when gRPC is resumed. */
+      createDialogAndInteractWithIt({ emulator.resumeGrpc() }) { dlg2 ->
+        assertThat(table.items).hasSize(4) // 1 QuickBoot + 1 valid + 2 invalid.
         val rootPane2 = dlg2.rootPane
         val ui2 = FakeUi(rootPane2)
-        val dontAskCheckBox = ui2.getComponent<JCheckBox>()
-        assertThat(dontAskCheckBox.isSelected).isFalse()
-        dontAskCheckBox.isSelected = true
+        val doNotAskCheckBox = ui2.getComponent<JCheckBox>()
+        assertThat(doNotAskCheckBox.isSelected).isFalse()
+        doNotAskCheckBox.isSelected = true
         val keepButton = ui2.getComponent<JButton> { it.text == "Keep" }
         ui2.clickOn(keepButton)
       }
-
-      // Use invokeLater to get out of the event loop of the "Delete incompatible snapshots?" dialog.
-      invokeLater {
-        assertThat(table.items).hasSize(4) // The two invalid snapshots were not deleted.
-        assertThat(EmulatorSettings.getInstance().snapshotAutoDeletionPolicy).isEqualTo(SnapshotAutoDeletionPolicy.DO_NOT_DELETE)
-        // Close the "Manage Snapshots" dialog.
-        ui1.clickOn(rootPane1.defaultButton)
-      }
+      assertThat(table.items).hasSize(4) // 1 QuickBoot + 1 valid + 2 invalid.
+      assertThat(table.items.count { !it.isValid }).isEqualTo(2) // The two invalid snapshots were preserved.
+      // Close the "Manage Snapshots" dialog.
+      ui1.clickOn(rootPane1.defaultButton)
     }
+
+    PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
   }
 
   @Test
@@ -352,10 +354,12 @@ class ManageSnapshotsDialogTest {
       // Close the "Manage Snapshots" dialog.
       ui1.clickOn(rootPane1.defaultButton)
     }
+
+    PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
   }
 
   @Test
-  fun testInvalidSnapshotsPreservation() {
+  fun testInvalidSnapshotsNoDeletion() {
     EmulatorSettings.getInstance().snapshotAutoDeletionPolicy = SnapshotAutoDeletionPolicy.DO_NOT_DELETE
     emulator.createSnapshot("valid_snapshot")
     emulator.createInvalidSnapshot("invalid_snapshot1")
@@ -374,6 +378,8 @@ class ManageSnapshotsDialogTest {
       // Close the "Manage Snapshots" dialog.
       ui1.clickOn(rootPane1.defaultButton)
     }
+
+    PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
   }
 
   private fun findPreviewImagePanel(ui: FakeUi) = ui.findComponent<ImagePanel>()
@@ -443,7 +449,7 @@ class ManageSnapshotsDialogTest {
 
   @Suppress("SameParameterValue")
   private fun getGoldenFile(name: String): File {
-    return TestUtils.getWorkspaceRoot().toPath().resolve("${GOLDEN_FILE_PATH}/${name}.png").toFile()
+    return TestUtils.getWorkspaceRoot().toPath().resolve("$GOLDEN_FILE_PATH/${name}.png").toFile()
   }
 }
 
