@@ -14,6 +14,13 @@
 Please note that in order for this Path Variable to take full effect, you need to close and reopen the project
 ***
 
+* Set a [*Path Variable*](https://www.jetbrains.com/help/idea/settings-path-variables.html) named `TEST_TEMP`:
+  * Linux and Mac: `/tmp/idea-test`
+  * Windows: `%TEMP%\idea-test` where `%TEMP%` is the value of the TEMP environment variable.
+
+* If you are using IntelliJ 2020.2 or earlier, create a template JUnit configuration as described in
+  [*Running tests using IntelliJ*](http://goto.corp.google.com/adtsetup#heading=h.31alixxsfo00)
+
 # Updating the platform prebuilts
 
 ## From `go/ab`
@@ -36,7 +43,7 @@ say your main checkout is at `$SRC/studio-master-dev`, and we create a new `$SRC
 
 ```
 cd $SRC/studio-sdk
-repo init -u sso://googleplex-android.git.corp.google.com/platform/manifest -b studio-master-dev -m studio-sdk
+repo init -u sso://googleplex-android.git.corp.google.com/platform/manifest -b studio-master-dev -m studio-sdk.xml
 repo sync -j10
 ```
 

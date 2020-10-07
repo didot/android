@@ -122,6 +122,11 @@ class DdmlibTestRunListenerAdapter(device: IDevice,
   private lateinit var myTestSuite: AndroidTestSuite
   private val myTestCases = mutableMapOf<TestIdentifier, AndroidTestCase>()
 
+  // This map keeps track of number of rerun of the same test method.
+  // This value is used to create a unique identifier for each test case
+  // yet to be able to group them together across multiple devices.
+  private val myTestCaseRunCount: MutableMap<String, Int> = mutableMapOf()
+
   init {
     listener.onTestSuiteScheduled(myDevice)
   }
@@ -132,7 +137,11 @@ class DdmlibTestRunListenerAdapter(device: IDevice,
   }
 
   override fun testStarted(testId: TestIdentifier) {
-    val testCase = AndroidTestCase(testId.toString(),
+    val fullyQualifiedTestMethodName = "${testId.className}#${testId.testName}"
+    val testCaseRunCount = myTestCaseRunCount.compute(fullyQualifiedTestMethodName) { _, currentValue ->
+      currentValue?.plus(1) ?: 0
+    }
+    val testCase = AndroidTestCase("${testId} - ${testCaseRunCount}",
                                    testId.testName,
                                    ClassUtil.extractClassName(testId.className),
                                    ClassUtil.extractPackageName(testId.className),
@@ -183,10 +192,11 @@ class DdmlibTestRunListenerAdapter(device: IDevice,
     // Ddmlib calls testRunEnded() callback if the target app process has crashed or
     // killed manually. (For example, if you click "stop" run button from Android Studio,
     // it kills the app process. Thus, we update test results to cancelled for all
-    // pending tests.
+    // pending tests.)
     for (testCase in myTestCases.values) {
       if (!testCase.result.isTerminalState) {
         testCase.result = AndroidTestCaseResult.CANCELLED
+        testCase.endTimestampMillis = System.currentTimeMillis()
         myTestSuite.result = myTestSuite.result ?: AndroidTestSuiteResult.CANCELLED
       }
     }
