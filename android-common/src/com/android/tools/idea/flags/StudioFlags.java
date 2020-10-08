@@ -86,7 +86,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> NPW_NEW_NATIVE_MODULE = Flag.create(
     NPW, "new.native.module", "New Android Native Module",
     "Show template to create a new Android Native module in the new module wizard.",
-    false);
+    true);
   //endregion
 
   //region Profiler
@@ -322,7 +322,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> NELE_LAYOUT_SCANNER_IN_EDITOR = Flag.create(
     NELE, "toggle.layout.editor.validator.a11y", "Toggle layout validator for layout editor.",
     "When the model changes, layout editor will run the series of layout validations and update lint output",
-    true);
+    false);
 
   public static final Flag<Boolean> NELE_TRANSFORM_PANEL = Flag.create(
     NELE, "toggle.layout.editor.transform.panel", "Toggle transform panel in layout editor and motion editor.",
@@ -804,7 +804,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> UTP_TEST_RESULT_SUPPORT = Flag.create(
     TESTING, "utp.instrumentation.tests", "Allow importing UTP test results.",
     "If enabled, you can import UTP test results and display them in test result panel.",
-    false
+    true
   );
   //endregion
 
