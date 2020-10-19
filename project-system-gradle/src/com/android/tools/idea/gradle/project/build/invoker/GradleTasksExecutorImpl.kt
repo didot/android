@@ -359,9 +359,9 @@ internal class GradleTasksExecutorImpl : GradleTasksExecutor {
               buildState.buildFinished(BuildStatus.CANCELED)
               taskListener.onCancel(id)
             } else {
-              val buildEnvironment: BuildEnvironment = GradleExecutionHelper.getBuildEnvironment(connection, id, taskListener,
-                                                                                                 cancellationTokenSource)
               buildState.buildFinished(BuildStatus.FAILED)
+              val buildEnvironment: BuildEnvironment? = GradleExecutionHelper.getBuildEnvironment(connection, id, taskListener,
+                                                                                                 cancellationTokenSource, executionSettings)
               val projectResolverChain = GradleProjectResolver.createProjectResolverChain()
               val userFriendlyError = projectResolverChain.getUserFriendlyError(buildEnvironment, buildError, gradleRootProjectPath, null)
               taskListener.onFailure(id, userFriendlyError)
