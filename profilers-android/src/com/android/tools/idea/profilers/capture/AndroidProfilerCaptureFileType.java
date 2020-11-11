@@ -48,12 +48,6 @@ public abstract class AndroidProfilerCaptureFileType implements INativeFileType 
     return StudioIcons.Profiler.Files.PROFILER_CAPTURE;
   }
 
-  @Nullable
-  @Override
-  public String getCharset(@NotNull VirtualFile file, byte @NotNull [] content) {
-    return null;
-  }
-
   @Override
   public boolean openFileInAssociatedApplication(Project project,
                                                  @NotNull VirtualFile file) {
