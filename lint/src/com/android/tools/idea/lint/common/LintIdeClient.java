@@ -121,7 +121,7 @@ public class LintIdeClient extends LintClient implements Disposable {
    * this might need some work before we enable it.
    */
   public static final boolean SUPPORT_CLASS_FILES = false;
-  protected static final Logger LOG = Logger.getInstance("#com.android.tools.idea.lint.common.LintIdeClient");
+  protected static final Logger LOG = Logger.getInstance(LintIdeClient.class);
 
   @NonNull protected Project myProject;
   @Nullable protected Map<com.android.tools.lint.detector.api.Project, Module> myModuleMap;
