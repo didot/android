@@ -36,6 +36,7 @@
                        key="android.emulator.notification.title"/>
 
     <projectService serviceImplementation="com.android.tools.idea.emulator.EmulatorToolWindowPanel$MultiDisplayStateStorage" />
+    <notificationGroup id="Android Emulator" displayType="BALLOON"/>
   </extensions>
 
   <actions>
