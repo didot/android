@@ -84,7 +84,7 @@ public class SmaliParserDefinition implements ParserDefinition {
 
   @NotNull
   @Override
-  public PsiFile createFile(FileViewProvider viewProvider) {
+  public PsiFile createFile(@NotNull FileViewProvider viewProvider) {
     return new SmaliFile(viewProvider);
   }
 
