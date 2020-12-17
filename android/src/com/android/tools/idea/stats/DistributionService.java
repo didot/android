@@ -29,6 +29,7 @@ import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.util.ResourceUtil;
 import com.intellij.util.download.FileDownloader;
+import com.intellij.util.io.URLUtil;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -121,7 +122,7 @@ public class DistributionService extends DownloadService {
   @Override
   public void loadFromFile(@NotNull URL url) {
     try {
-      String jsonString = ResourceUtil.loadText(url);
+      String jsonString = ResourceUtil.loadText(URLUtil.openStream(url));
       List<Distribution> distributions = loadDistributionsFromJson(jsonString);
       myDistributions = distributions != null ? ImmutableList.copyOf(distributions) : null;
     }
