@@ -361,9 +361,7 @@ public class AppBarConfigurationDialog extends JDialog {
   private PsiFile generateXml(boolean collapsed) {
     DumbService.getInstance(getProject()).waitForSmartMode();
     StringBuilder text = new StringBuilder(SAMPLE_REPETITION * SAMPLE_TEXT.length());
-    for (int i = 0; i < SAMPLE_REPETITION; i++) {
-      text.append(SAMPLE_TEXT);
-    }
+    text.append(SAMPLE_TEXT.repeat(SAMPLE_REPETITION));
     Map<String, String> namespaces = getNameSpaces(null, collapsed);
     String content = Templates.getTextView(namespaces.get(ANDROID_URI), text.toString());
     String xml = getXml(content, collapsed, namespaces);
