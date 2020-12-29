@@ -129,7 +129,7 @@ public class AndroidDataSourceConfigurable extends AbstractDataSourceConfigurabl
     private final DeviceNamePropertiesProvider deviceNamePropertiesProvider;
 
     DeviceCellRenderer(Disposable parent) {
-      deviceNamePropertiesProvider = new DeviceNamePropertiesFetcher(new FutureCallback<DeviceNameProperties>() {
+      deviceNamePropertiesProvider = new DeviceNamePropertiesFetcher(parent, new FutureCallback<DeviceNameProperties>() {
         @Override
         public void onSuccess(DeviceNameProperties result) {
           myDeviceComboBox.repaint();
@@ -139,7 +139,7 @@ public class AndroidDataSourceConfigurable extends AbstractDataSourceConfigurabl
         public void onFailure(@NotNull Throwable t) {
 
         }
-      }, parent);
+      });
     }
 
     @Override
