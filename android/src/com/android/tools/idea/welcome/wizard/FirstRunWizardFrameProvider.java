@@ -33,7 +33,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public class FirstRunWizardFrameProvider implements WelcomeFrameProvider {
   @Override
-  public IdeFrame createFrame() {
+  public @Nullable IdeFrame createFrame() {
     WelcomeFrame frame = WelcomeScreenProvider.EP_NAME.computeSafeIfAny(provider -> {
       if (provider instanceof AndroidStudioWelcomeScreenProvider && provider.isAvailable()) {
         // If we need to show the first run wizard, return a normal WelcomeFrame (which will initialize the wizard via the
@@ -53,8 +53,7 @@ public class FirstRunWizardFrameProvider implements WelcomeFrameProvider {
    * too big on low resolution screen with HiDPI. See
    * <a href="https://issuetracker.google.com/issues/68295805">bug 68295805</a>.
    */
-  @Nullable
-  private IdeFrame customizeFlatWelcomeFrame() {
+  private @Nullable IdeFrame customizeFlatWelcomeFrame() {
     return WelcomeFrame.EP.computeSafeIfAny(provider -> {
       if (provider == this) {
         // Avoid infinite recursion, since we are one of the providers.
