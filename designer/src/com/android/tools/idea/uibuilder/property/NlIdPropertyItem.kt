@@ -105,14 +105,12 @@ open class NlIdPropertyItem(
     }
 
     val action = RenameElementAction()
-    val simpleContext = SimpleDataContext.getSimpleContext(
-      mapOf(
-        NEW_NAME_RESOURCE.name to newId,
-        CommonDataKeys.PSI_FILE.name to value.containingFile,
-        CommonDataKeys.PSI_ELEMENT.name to value,
-        CommonDataKeys.PROJECT.name to value.project),
-      null
-    )
+    val simpleContext = SimpleDataContext.builder()
+        .add(NEW_NAME_RESOURCE, newId)
+        .add(CommonDataKeys.PSI_FILE, value.containingFile)
+        .add(CommonDataKeys.PSI_ELEMENT, value)
+        .add(CommonDataKeys.PROJECT, value.project)
+      .build()
     ActionUtil.invokeAction(action, simpleContext, ActionPlaces.UNKNOWN, null, null)
 
     // The RenameProcessor will change the value of the ID here (may happen later if previewing first).

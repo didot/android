@@ -91,7 +91,7 @@ class HelpActionsTest {
     @Suppress("DEPRECATION")
     val tag = util.components[0].tagDeprecated
     util.loadProperties()
-    val context = SimpleDataContext.getSimpleContext(HelpSupport.PROPERTY_ITEM.name, util.properties[ANDROID_URI, ATTR_TEXT])
+    val context = SimpleDataContext.getSimpleContext(HelpSupport.PROPERTY_ITEM, util.properties[ANDROID_URI, ATTR_TEXT])
     val event = AnActionEvent.createFromDataContext("", null, context)
     HelpActions.help.actionPerformed(event)
     verify(manager).showJavaDocInfo(eq(tag), eq(tag), eq(true), isNull(), eq(EXPECTED_TEXT_TOOLTIP), eq(true))
