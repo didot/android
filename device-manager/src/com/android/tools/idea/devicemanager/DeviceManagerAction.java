@@ -15,7 +15,9 @@
  */
 package com.android.tools.idea.devicemanager;
 
+import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.avdmanager.HardwareAccelerationCheck;
+import com.intellij.facet.ProjectFacetManager;
 import com.intellij.openapi.actionSystem.ActionPlaces;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
@@ -24,8 +26,10 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import icons.StudioIcons;
+import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 final class DeviceManagerAction extends DumbAwareAction {
   @Override
@@ -58,6 +62,12 @@ final class DeviceManagerAction extends DumbAwareAction {
     if (HardwareAccelerationCheck.isChromeOSAndIsNotHWAccelerated()) {
       presentation.setVisible(false);
       return;
+    }
+
+    if (ActionPlaces.MAIN_TOOLBAR.equals(event.getPlace()) && !IdeInfo.getInstance().isAndroidStudio()) {
+      @Nullable Project project = event.getProject();
+      boolean hasAndroidFacets = project != null && ProjectFacetManager.getInstance(project).hasFacets(AndroidFacet.ID);
+      presentation.setVisible(hasAndroidFacets);
     }
 
     presentation.setEnabled(AndroidSdkUtils.isAndroidSdkAvailable());
