@@ -698,6 +698,8 @@
     <iw.actionProvider implementation="com.android.tools.idea.editors.liveedit.ui.LiveEditActionProvider"/>
 
     <notificationGroup id="Fast Preview Notification" displayType="NONE"/>
+
+    <projectFacetListener facet-type="android" implementation="org.jetbrains.android.facet.AndroidModuleAutogenerationListener"/>
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij.properties">
