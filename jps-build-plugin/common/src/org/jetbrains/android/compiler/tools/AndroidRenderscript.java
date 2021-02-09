@@ -20,16 +20,17 @@ import com.android.sdklib.IAndroidTarget;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.util.ArrayUtilRt;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import org.jetbrains.android.util.AndroidBuildCommonUtils;
 import org.jetbrains.android.util.AndroidCompilerMessageKind;
 import org.jetbrains.android.util.AndroidExecutionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 public class AndroidRenderscript {
   private static final Logger LOG = Logger.getInstance("#org.jetbrains.android.compiler.AndroidRenderscriptCompiler");
