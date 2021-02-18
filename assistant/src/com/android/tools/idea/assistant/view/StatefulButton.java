@@ -25,12 +25,13 @@ import com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.ui.JBColor;
 import com.intellij.util.messages.MessageBusConnection;
 import com.intellij.util.ui.AsyncProcessIcon;
+import com.intellij.util.ui.EdtInvocationManager;
 import com.intellij.util.ui.JBUI;
-import com.intellij.util.ui.UIUtil;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
@@ -165,7 +166,7 @@ public class StatefulButton extends JPanel {
   public void removeNotify() {
     assert SwingUtilities.isEventDispatchThread();
 
-    myMessageBusConnections.forEach(MessageBusConnection::disconnect);
+    myMessageBusConnections.forEach(connection -> Disposer.dispose(connection));
     myMessageBusConnections.clear();
 
     super.removeNotify();
@@ -183,7 +184,7 @@ public class StatefulButton extends JPanel {
    * TODO: Determine how to update the state on card view change at minimum.
    */
   public void updateButtonState() {
-    UIUtil.invokeLaterIfNeeded(() -> {
+    EdtInvocationManager.invokeLaterIfNeeded(() -> {
       // There may be cases where the action is not stateful such as triggering a debug event which can occur any number of times.
       if (myStateManager == null) {
         myButton.setEnabled(true);

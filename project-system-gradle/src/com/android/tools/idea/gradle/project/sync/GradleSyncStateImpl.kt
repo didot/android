@@ -110,7 +110,8 @@ class GradleSyncStateImpl constructor(project: Project) : GradleSyncState {
 }
 
 @VisibleForTesting
-val GRADLE_SYNC_TOPIC = Topic("Project sync with Gradle", GradleSyncListenerWithRoot::class.java)
+@Topic.AppLevel
+val GRADLE_SYNC_TOPIC = Topic("Project sync with Gradle", GradleSyncListenerWithRoot::class.java, Topic.BroadcastDirection.NONE)
 
 /**
  * A real implementation of [GradleSyncStateImpl] service which, unlike [GradleSyncStateImpl], can be accessed by various listeners in this

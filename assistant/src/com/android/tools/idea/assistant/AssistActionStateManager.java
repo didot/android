@@ -32,8 +32,8 @@ import org.jetbrains.annotations.Nullable;
  * Extension point to add state to action buttons. State should generally be based off of data available from a from an independent source.
  */
 public abstract class AssistActionStateManager {
-  public static ExtensionPointName<AssistActionStateManager> EP_NAME =
-    ExtensionPointName.create("com.android.tools.idea.assistant.actionStateManager");
+  public static final ExtensionPointName<AssistActionStateManager> EP_NAME =
+    new ExtensionPointName<>("com.android.tools.idea.assistant.actionStateManager");
 
   /**
    * Gets the opaque id for a state manager. Corresponds to the stateManager field in {@code TutorialBundle.Action} and is used to identify
