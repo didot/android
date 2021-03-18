@@ -17,7 +17,6 @@ package com.android.tools.idea.gradle.project.common;
 
 import static com.android.SdkConstants.DOT_GRADLE;
 import static com.android.tools.idea.gradle.util.ImportUtil.escapeGroovyStringLiteral;
-import static com.intellij.openapi.application.PathManager.getJarPathForClass;
 import static com.intellij.openapi.util.io.FileUtil.createTempFile;
 import static com.intellij.openapi.util.io.FileUtil.writeToFile;
 import static org.jetbrains.plugins.gradle.util.GradleConstants.INIT_SCRIPT_CMD_OPTION;
@@ -30,7 +29,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.serviceContainer.NonInjectable;
 import java.io.File;
 import java.io.IOException;
@@ -221,8 +222,8 @@ public class GradleInitScripts {
       classpath.append("classpath files([");
       int pathCount = paths.size();
       for (int i = 0; i < pathCount; i++) {
-        String jarPath = escapeGroovyStringLiteral(paths.get(i));
-        classpath.append("'").append(jarPath).append("'");
+        String jarPath = paths.get(i);
+        classpath.append("mapPath('").append(jarPath).append("')");
         if (i < pathCount - 1) {
           classpath.append(", ");
         }
@@ -240,6 +241,10 @@ public class GradleInitScripts {
         getJarPathForClass(GradlePluginModel.class), getJarPathForClass(AndroidStudioToolingPlugin.class), getJarPathForClass(KType.class))
         .filter(Objects::nonNull)
         .collect(Collectors.toList());
+    }
+
+    private static String getJarPathForClass(@NotNull Class<?> aClass) {
+      return FileUtil.toCanonicalPath(PathManager.getJarPathForClass(aClass));
     }
   }
 }
