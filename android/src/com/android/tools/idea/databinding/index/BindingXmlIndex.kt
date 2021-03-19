@@ -28,10 +28,8 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFile
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.util.indexing.DataIndexer
 import com.intellij.util.indexing.DefaultFileTypeSpecificInputFilter
 import com.intellij.util.indexing.FileBasedIndex
-import com.intellij.util.indexing.FileBasedIndexExtension
 import com.intellij.util.indexing.FileContent
 import com.intellij.util.indexing.ID
 import com.intellij.util.indexing.SingleEntryFileBasedIndexExtension
@@ -78,7 +76,7 @@ class BindingXmlIndex : SingleEntryFileBasedIndexExtension<BindingXmlData>() {
      */
     private fun getEntriesForLayout(project: Project, layoutName: String, scope: GlobalSearchScope): Collection<Entry> {
       val entries = mutableListOf<Entry>()
-      FilenameIndex.getVirtualFilesByName(project, "$layoutName.xml", scope).forEach { file ->
+      FilenameIndex.getVirtualFilesByName("$layoutName.xml", scope).forEach { file ->
         getDataForFile(file, project)?.let { data -> entries.add(Entry(file, data)) }
       }
       return entries
