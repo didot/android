@@ -33,8 +33,6 @@ import static com.android.tools.idea.gradle.adtimport.ImportSummary.MSG_REPLACED
 import static com.android.tools.idea.gradle.adtimport.ImportSummary.MSG_RISKY_PROJECT_LOCATION;
 import static com.android.tools.idea.gradle.adtimport.ImportSummary.MSG_UNHANDLED;
 import static com.android.tools.idea.gradle.adtimport.ImportSummary.MSG_USER_HOME_PROGUARD;
-import static com.android.tools.idea.testing.FileSubject.file;
-import static com.google.common.truth.Truth.assertAbout;
 import static java.io.File.separator;
 import static java.io.File.separatorChar;
 import static org.junit.Assert.assertNotEquals;
@@ -47,7 +45,6 @@ import com.android.repository.testframework.FakeProgressIndicator;
 import com.android.sdklib.BuildToolInfo;
 import com.android.sdklib.repository.AndroidSdkHandler;
 import com.android.tools.idea.gradle.util.EmbeddedDistributionPaths;
-import com.android.tools.idea.gradle.util.GradleWrapper;
 import com.android.tools.idea.gradle.util.ImportUtil;
 import com.android.tools.idea.gradle.util.PropertiesFiles;
 import com.android.tools.idea.testing.AndroidGradleTests;
@@ -3328,7 +3325,7 @@ public class GradleImportTest extends AndroidTestCase {
     }
     else {
       importer.exportProject(destDir, false);
-      updateGradle(destDir);
+      AndroidGradleTests.createGradleWrapper(destDir, GRADLE_LATEST_VERSION);
     }
     String summary = Files.asCharSource(new File(gradleProjectDir, ImportUtil.IMPORT_SUMMARY_TXT), StandardCharsets.UTF_8).read();
     summary = summary.replace("\r", "");
@@ -3363,13 +3360,6 @@ public class GradleImportTest extends AndroidTestCase {
     return summary.substring(0, index) + "$DESTDIR" +
            summary.substring(index + path.length(), nextLineIndex) +
            "        " + summary.substring(nextLineIndex + path.length());
-  }
-
-  protected static void updateGradle(File projectRoot) throws IOException {
-    GradleWrapper wrapper = GradleWrapper.create(projectRoot, null);
-    File path = EmbeddedDistributionPaths.getInstance().findEmbeddedGradleDistributionFile(GRADLE_LATEST_VERSION);
-    assertAbout(file()).that(path).named("Gradle distribution path").isFile();
-    wrapper.updateDistributionUrl(path);
   }
 
   private static boolean isWindows() {
