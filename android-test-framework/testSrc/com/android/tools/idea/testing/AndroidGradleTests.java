@@ -78,6 +78,7 @@ import com.intellij.testFramework.EdtTestUtil;
 import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture;
 import com.intellij.util.ThrowableConsumer;
+import com.intellij.util.ThrowableRunnable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -112,6 +113,7 @@ public class AndroidGradleTests {
   private static final String ADDITIONAL_REPOSITORY_PROPERTY = "idea.test.gradle.additional.repositories";
   private static final long DEFAULT_TIMEOUT_MILLIS = 1000;
   private static final String NDK_VERSION_PLACEHOLDER = "// ndkVersion \"{placeholder}\"";
+  @Nullable private static Boolean useRemoteRepositories = null;
 
   public static void waitForSourceFolderManagerToProcessUpdates(@NotNull Project project) throws Exception {
     waitForSourceFolderManagerToProcessUpdates(project, null);
@@ -406,7 +408,7 @@ public class AndroidGradleTests {
   public static String getLocalRepositoriesForGroovy(File... localRepos) {
     // Add metadataSources to work around http://b/144088459. Wrap it in try-catch because
     // we are also using older Gradle versions that do not have this method.
-    return StringUtil.join(
+    String localRepositoriesStr = StringUtil.join(
       Iterables.concat(getLocalRepositoryDirectories(), Lists.newArrayList(localRepos)),
       file -> "maven {\n" +
               "  url \"" + file.toURI() + "\"\n" +
@@ -417,12 +419,14 @@ public class AndroidGradleTests {
               "    }\n" +
               "  } catch (Throwable ignored) { /* In case this Gradle version does not support this. */}\n" +
               "}", "\n");
+
+    return appendRemoteRepositoriesIfNeeded(localRepositoriesStr);
   }
 
   @NotNull
   public static String getLocalRepositoriesForKotlin(File... localRepos) {
     // Add metadataSources to work around http://b/144088459.
-    return StringUtil.join(
+    String localRepositoriesStr = StringUtil.join(
       Iterables.concat(getLocalRepositoryDirectories(), Lists.newArrayList(localRepos)),
       file -> "maven {\n" +
               "  setUrl(\"" + file.toURI() + "\")\n" +
@@ -431,18 +435,53 @@ public class AndroidGradleTests {
               "    artifact()\n" +
               "  }\n" +
               "}", "\n");
+
+    return appendRemoteRepositoriesIfNeeded(localRepositoriesStr);
+  }
+
+  private static String appendRemoteRepositoriesIfNeeded(@NotNull String localRepositories) {
+    if (shouldUseRemoteRepositories()) {
+      assert !IdeInfo.getInstance().isAndroidStudio() : "In Android Studio all the tests are hermetic. Remote repositories never needed.";
+      return localRepositories + "\n" +
+             "maven { setUrl(\"https://cache-redirector.jetbrains.com/jcenter/\") } // jcenter(_)\n" +
+             "maven { setUrl(\"https://cache-redirector.jetbrains.com/dl.google.com.android.maven2/\") } // google(_)\n";
+    }
+    else {
+      return localRepositories;
+    }
+  }
+
+  public static boolean shouldUseRemoteRepositories() {
+    if (useRemoteRepositories != null){
+      return useRemoteRepositories;
+    }
+    return !IdeInfo.getInstance().isAndroidStudio();
+  }
+
+  public static <T extends Throwable> void disableRemoteRepositoriesDuring(ThrowableRunnable<T> r) throws T {
+    useRemoteRepositories = false;
+    try {
+      r.run();
+    } finally {
+      useRemoteRepositories = null;
+    }
   }
 
   @NotNull
   public static Collection<File> getLocalRepositoryDirectories() {
     List<File> repositories = new ArrayList<>();
-    repositories.add(TestUtils.getPrebuiltOfflineMavenRepo().toFile());
 
-    if (!TestUtils.runningFromBazel()) {
-      Path repo = TestUtils.resolveWorkspacePath("out/repo");
-      if (Files.exists(repo)) {
-        repositories.add(repo.toFile());
+    if (IdeInfo.getInstance().isAndroidStudio()) {
+      repositories.add(TestUtils.getPrebuiltOfflineMavenRepo().toFile());
+
+      if (!TestUtils.runningFromBazel()) {
+        Path repo = TestUtils.resolveWorkspacePath("out/repo");
+        if (Files.exists(repo)) {
+          repositories.add(repo.toFile());
+        }
       }
+    } else {
+      assert shouldUseRemoteRepositories(): "IDEA should use real remote repositories";
     }
 
     // Read optional repositories passed as JVM property (see ADDITIONAL_REPOSITORY_PROPERTY)
@@ -503,7 +542,13 @@ public class AndroidGradleTests {
    */
   public static void createGradleWrapper(@NotNull File projectRoot, @NotNull String gradleVersion) throws IOException {
     GradleWrapper wrapper = GradleWrapper.create(projectRoot, null);
+    if (shouldUseRemoteRepositories()) {
+      assert !IdeInfo.getInstance().isAndroidStudio(): "Android Studio should use local gradle distribution.";
+      return; // download gradle distribution if needed in IDEA tests
+    }
+
     File path = EmbeddedDistributionPaths.getInstance().findEmbeddedGradleDistributionFile(gradleVersion);
+    TestCase.assertNotNull("Gradle version not found in EmbeddedDistributionPaths. Version = " + gradleVersion, path);
     assertAbout(file()).that(path).named("Gradle distribution path").isFile();
     wrapper.updateDistributionUrl(path);
   }

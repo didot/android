@@ -23,6 +23,7 @@ import static com.android.SdkConstants.GRADLE_LATEST_VERSION;
 import static com.android.tools.idea.Projects.getBaseDirPath;
 import static com.android.tools.idea.gradle.util.LastBuildOrSyncServiceKt.emulateStartupActivityForTest;
 import static com.android.tools.idea.testing.AndroidGradleTestUtilsKt.prepareGradleProject;
+import static com.android.tools.idea.testing.AndroidGradleTests.shouldUseRemoteRepositories;
 import static com.android.tools.idea.testing.AndroidGradleTests.waitForSourceFolderManagerToProcessUpdates;
 import static com.android.tools.idea.testing.FileSubject.file;
 import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION;
@@ -42,7 +43,6 @@ import com.android.tools.idea.project.AndroidProjectInfo;
 import com.android.tools.idea.testing.AndroidGradleTests.SyncIssuesPresentError;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -76,6 +76,7 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -374,7 +375,7 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
     return invokeGradle(project, gradleInvoker ->
       gradleInvoker.executeTasks(
         GradleBuildInvoker.Request.builder(project, projectDir, tasks)
-          .setCommandLineArguments(Lists.newArrayList("--offline"))
+          .setCommandLineArguments(shouldUseRemoteRepositories() ? Collections.emptyList() : Collections.singletonList("--offline"))
           .build()
       ), timeoutMillis);
   }
