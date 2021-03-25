@@ -20,6 +20,7 @@ import com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
 import com.android.Version.ANDROID_TOOLS_BASE_VERSION
 import com.android.sdklib.SdkVersionInfo
 import com.android.sdklib.devices.Abi
+import com.android.tools.idea.IdeInfo
 import com.android.tools.idea.gradle.util.EmbeddedDistributionPaths
 import com.android.tools.idea.sdk.IdeSdks
 import com.android.tools.idea.util.StudioPathManager
@@ -27,6 +28,7 @@ import com.android.utils.FileUtils
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.util.io.FileUtil
 import org.jetbrains.android.facet.AndroidFacetProperties
+import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.idea.artifacts.KotlinArtifacts
 import java.io.File
@@ -134,9 +136,23 @@ class ProjectDumper(
         val (filePath, suffix) = splitPathAndSuffix()
         val file = File(filePath)
         val existenceSuffix = if (!file.exists()) " [-]" else ""
-        (if (file.isRooted) filePath.replaceKnownPaths() else filePath) + suffix + existenceSuffix
+        val maskedPath = (if (file.isRooted) filePath.replaceKnownPaths() else filePath) + suffix + existenceSuffix
+        if (IdeInfo.getInstance().isAndroidStudio) maskedPath else convertToMaskedMavenPath(maskedPath)
       }
     }
+  }
+
+  @VisibleForTesting
+  fun convertToMaskedMavenPath(maskedPath: String): String {
+    var res = maskedPath
+    val gradleFilesPrefix = "<GRADLE>/caches/modules-2/files-2.1/"
+    if (res.startsWith(gradleFilesPrefix)) {
+      val pkgEndIndex = res.indexOf('/', gradleFilesPrefix.length)
+      val pkg = res.substring(gradleFilesPrefix.length, pkgEndIndex)
+      val remaining = res.substring(pkgEndIndex).replace("/$gradleLongHashStub/", "/")
+      res = "<M2>/" + pkg.replace('.', '/') + remaining
+    }
+    return res
   }
 
   fun String.toPrintableString(): String = if (this == SdkConstants.CURRENT_BUILD_TOOLS_VERSION) "<CURRENT_BUILD_TOOLS_VERSION>"

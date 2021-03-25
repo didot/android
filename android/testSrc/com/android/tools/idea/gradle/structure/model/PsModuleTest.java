@@ -28,6 +28,7 @@ import static org.junit.Assume.assumeThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.api.repositories.MavenRepositoryModel;
 import com.android.tools.idea.gradle.dsl.api.repositories.RepositoryModel;
@@ -74,6 +75,11 @@ public class PsModuleTest extends AndroidGradleTestCase {
   }
 
   public void testLocalRepositories() throws Exception {
+    if (AndroidGradleTests.shouldUseRemoteRepositories()) {
+      assert !IdeInfo.getInstance().isAndroidStudio();
+      return; // IDEA does not use local repositories during testing
+    }
+
     loadProject(TestProjectPaths.SIMPLE_APPLICATION);
     PsProject psProject = new PsProjectImpl(getProject(), new CachingRepositorySearchFactory());
     PsAndroidModule psAppModule = (PsAndroidModule)psProject.findModuleByName("app");
