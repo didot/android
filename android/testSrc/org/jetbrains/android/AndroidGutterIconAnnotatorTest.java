@@ -63,7 +63,6 @@ import org.jetbrains.annotations.Nullable;
  */
 @SuppressWarnings("UseJBColor")
 public class AndroidGutterIconAnnotatorTest extends AndroidTestCase {
-
   @Override
   protected void setUp() throws Exception {
     super.setUp();
