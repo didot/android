@@ -34,7 +34,7 @@ import com.intellij.openapi.fileChooser.FileChooserDialog;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.PlatformTestCase;
+import com.intellij.testFramework.HeavyPlatformTestCase;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +45,7 @@ import org.mockito.Mock;
 /**
  * Tests for {@link ImportApkAction}.
  */
-public class ImportApkActionTest extends PlatformTestCase {
+public class ImportApkActionTest extends HeavyPlatformTestCase {
   @Mock private ImportApkAction.FileChooserDialogFactory myFileChooserDialogFactory;
   @Mock private FileChooserDialog myFileChooserDialog;
   @Mock private ExternalSystemManager<?, ?, ?, ?, ?> myExternalSystemManager;
@@ -134,8 +134,7 @@ public class ImportApkActionTest extends PlatformTestCase {
     }
 
     @Override
-    @Nullable
-    public String getLastProjectCreationLocation() {
+    public @NotNull String getLastProjectCreationLocation() {
       return myLastProjectLocation;
     }
 
@@ -152,9 +151,8 @@ public class ImportApkActionTest extends PlatformTestCase {
     public void removePath(@Nullable String path) {
     }
 
-    @NotNull
     @Override
-    public AnAction[] getRecentProjectsActions(boolean addClearListItem) {
+    public AnAction @NotNull [] getRecentProjectsActions(boolean addClearListItem) {
       return AnAction.EMPTY_ARRAY;
     }
 
