@@ -28,6 +28,7 @@
   <depends optional="true" config-file="android-plugin-androidstudio.xml">com.intellij.modules.androidstudio</depends>
   <depends optional="true" config-file="android-plugin-idea.xml">com.intellij.modules.idea</depends>
   <depends optional="true" config-file="database-support.xml">com.intellij.database</depends>
+  <depends optional="true" config-file="android-webp.xml">intellij.webp</depends>
 
   <xi:include href="android-kotlin.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/org/jetbrains/android/dom/android-xml.xml" xpointer="xpointer(/idea-plugin/*)"/>
@@ -204,14 +205,6 @@
         overrides="true"
         text="Submit _Feedback"
         description="Submit feedback to the Android Studio team"/>
-    <action class="com.android.tools.idea.rendering.webp.ConvertToWebpAction" id="ConvertToWebp" text="Convert to WebP...">
-      <add-to-group group-id="ProjectViewPopupMenu"/>
-      <add-to-group group-id="Images.EditorPopupMenu" relative-to-action="RefactoringMenu" anchor="after"/>
-    </action>
-    <action class="com.android.tools.idea.rendering.webp.ConvertFromWebpAction" id="ConvertFromWebp" text="Convert to PNG...">
-      <add-to-group group-id="ProjectViewPopupMenu"/>
-      <add-to-group group-id="Images.EditorPopupMenu" relative-to-action="RefactoringMenu" anchor="after"/>
-    </action>
     <action
       id="LayoutEditor.AddSampleData"
       class="com.android.tools.idea.sampledata.AddSampleDataFileAction"
@@ -741,7 +734,8 @@
     <extensionPoint qualifiedName="com.android.tools.idea.ui.designer.overlays.overlayProvider"
                     interface="com.android.tools.idea.ui.designer.overlays.OverlayProvider" />
     <extensionPoint qualifiedName="com.android.rendering.renderSecurityManagerOverrides"
-                    interface="com.android.tools.idea.rendering.RenderSecurityManagerOverrides"/>
+                    interface="com.android.tools.idea.rendering.RenderSecurityManagerOverrides"
+                    dynamic="true"/>
     <extensionPoint qualifiedName="com.android.tools.idea.lang.databinding.dataBindingCompletionSupport"
                     interface="com.android.tools.idea.lang.databinding.DataBindingCompletionSupport"/>
     <extensionPoint qualifiedName="com.android.tools.idea.lang.databinding.dataBindingExpressionSupport"
