@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 JetBrains s.r.o.
+ * Copyright 2010-2021 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,14 +28,15 @@ import org.jetbrains.kotlin.idea.intentions.SelfTargetingIntention
 import org.jetbrains.kotlin.psi.KtClass
 
 
-class RemoveParcelableAction :
-        SelfTargetingIntention<KtClass>(KtClass::class.java, AndroidBundle.message("remove.parcelable.intention.text")),
-        HighPriorityAction {
+class RemoveParcelableAction : SelfTargetingIntention<KtClass>(
+    KtClass::class.java,
+    { AndroidBundle.message("remove.parcelable.intention.text") },
+), HighPriorityAction {
     override fun isApplicableTo(element: KtClass, caretOffset: Int): Boolean =
-            AndroidFacet.getInstance(element) != null &&
-            !element.insideBody(caretOffset) &&
-            !element.isParcelize() &&
-            element.canRemoveParcelable()
+        AndroidFacet.getInstance(element) != null &&
+        !element.insideBody(caretOffset) &&
+        !element.isParcelize() &&
+        element.canRemoveParcelable()
 
     override fun applyTo(element: KtClass, editor: Editor?) {
         element.removeParcelableImplementation()
