@@ -22,6 +22,7 @@ import com.android.tools.idea.res.SampleDataResourceRepository.SampleDataReposit
 import com.android.tools.idea.util.LazyFileListenerSubscriber
 import com.android.tools.idea.util.PoliteAndroidVirtualFileListener
 import com.android.tools.idea.util.toPathString
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
@@ -61,12 +62,15 @@ internal class SampleDataListener(project: Project) : PoliteAndroidVirtualFileLi
   }
 
   /** Project service responsible for subscribing a new [SampleDataListener] to listen for both VFS and PSI changes. */
-  private class Subscriber(val project: Project) :
-    LazyFileListenerSubscriber<SampleDataListener>(SampleDataListener(project), project) {
-
+  private class Subscriber(val project: Project) : LazyFileListenerSubscriber<SampleDataListener>(SampleDataListener(project)),
+                                                   Disposable {
     override fun subscribe() {
-      VirtualFileManager.getInstance().addVirtualFileListener(listener, parent)
+      // Never use Application or Project as parents for disposables, as they will be leaked on plugin unload.
+      VirtualFileManager.getInstance().addVirtualFileListener(listener, this)
       AndroidFileChangeListener.getInstance(project).setSampleDataListener(listener)
+    }
+
+    override fun dispose() {
     }
   }
 
