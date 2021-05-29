@@ -39,5 +39,6 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="module" module-name="kotlin.idea" scope="TEST" />
   </component>
 </module>
