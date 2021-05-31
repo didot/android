@@ -25,7 +25,6 @@ import static com.android.SdkConstants.FN_SETTINGS_GRADLE_KTS;
 import static com.android.SdkConstants.GRADLE_LATEST_VERSION;
 import static com.android.testutils.TestUtils.KOTLIN_VERSION_FOR_TESTS;
 import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getProjectSystem;
-import static com.android.tools.idea.sdk.IdeSdks.MAC_JDK_CONTENT_PATH;
 import static com.android.tools.idea.testing.FileSubject.file;
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.common.truth.Truth.assertThat;
@@ -36,7 +35,6 @@ import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAct
 import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_1_8;
 import static com.intellij.openapi.util.io.FileUtil.copyDir;
 import static com.intellij.openapi.util.io.FileUtil.notNullize;
-import static com.intellij.openapi.util.io.FileUtil.toCanonicalPath;
 import static com.intellij.openapi.util.text.StringUtil.isEmpty;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 import static org.junit.Assert.assertNotNull;
@@ -73,8 +71,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.projectRoots.ProjectJdkTable;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.roots.ProjectRootManager;
-import com.intellij.openapi.util.SystemInfo;
-import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.testFramework.EdtTestUtil;
@@ -741,21 +737,7 @@ public class AndroidGradleTests {
   }
 
   public static String getEmbeddedJdk8Path() throws IOException {
-    String jdkDevPath = System.getProperty("studio.dev.jdk", StudioPathManager.resolvePathFromSourcesRoot("prebuilts/studio/jdk").toString());
-    String relativePath = FileUtilRt.toSystemDependentName(jdkDevPath);
-    File jdkRootPath = new File(toCanonicalPath(relativePath));
-    if (SystemInfo.isWindows) {
-      // For JDK8 we have 32 and 64 bits versions on Windows
-      jdkRootPath = new File(jdkRootPath, "win64");
-    }
-    else if (SystemInfo.isLinux) {
-      jdkRootPath = new File(jdkRootPath, "linux");
-    }
-    else if (SystemInfo.isMac) {
-      jdkRootPath = new File(jdkRootPath, "mac");
-      jdkRootPath = new File(jdkRootPath, MAC_JDK_CONTENT_PATH);
-    }
-    return jdkRootPath.getCanonicalPath();
+    return TestUtils.getEmbeddedJdk8Path();
   }
 
 
