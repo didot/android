@@ -65,7 +65,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import org.apache.commons.compress.utils.FileNameUtils
-import org.apache.commons.lang.StringEscapeUtils
+import org.apache.commons.lang3.StringEscapeUtils
 import java.awt.Image
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
@@ -580,7 +580,7 @@ class RetentionView(private val androidSdkHandler: AndroidSdkHandler
 
 private fun Long.formatTime() = DateFormat.getDateTimeInstance().format(Date(this))
 
-private fun String.escapeHtml() = StringEscapeUtils.escapeHtml(this)
+private fun String.escapeHtml() = StringEscapeUtils.escapeHtml3(this)
 
 private sealed class RetentionViewState(val isValidating: Boolean,
                                         val loadable: Boolean,
