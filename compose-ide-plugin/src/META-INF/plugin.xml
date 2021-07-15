@@ -101,6 +101,9 @@
 
     <automaticRenamerFactory implementation="com.android.tools.compose.ComposableElementAutomaticRenamerFactory"/>
 
+    <debugger.positionManagerFactory implementation="com.android.tools.compose.debug.ComposePositionManagerFactory"/>
+    <debuggerClassFilterProvider implementation="com.android.tools.compose.debug.ComposeDebuggerClassesFilterProvider"/>
+    <xdebugger.settings implementation="com.android.tools.compose.debug.ComposeDebuggerSettings"/>
   </extensions>
 
   <extensions defaultExtensionNs="org.jetbrains.kotlin.extensions.internal">
