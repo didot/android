@@ -41,7 +41,7 @@ final class ProjectStub extends UserDataHolderBase implements Project {
   }
 
   @NotNull
-  public static Project getInstance() {
+  static Project getInstance() {
     return ProjectStubHolder.ourInstance;
   }
 
@@ -100,7 +100,7 @@ final class ProjectStub extends UserDataHolderBase implements Project {
   }
 
   @Override
-  public <T> T [] getComponents(@NotNull Class<T> baseClass) {
+  public <T> T @NotNull [] getComponents(@NotNull Class<T> baseClass) {
     throw new UnsupportedOperationException();
   }
 
@@ -185,6 +185,7 @@ final class ProjectStub extends UserDataHolderBase implements Project {
   @Override
   public @NotNull
   RuntimeException createError(@NotNull @NonNls String message,
+                               @Nullable Throwable cause,
                                @NotNull PluginId pluginId,
                                @Nullable Map<String, String> attachments) {
     return new RuntimeException(message);

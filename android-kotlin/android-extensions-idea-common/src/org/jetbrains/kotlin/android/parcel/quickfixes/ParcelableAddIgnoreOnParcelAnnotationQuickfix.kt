@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.android.parcel.quickfixes
 
+import kotlinx.parcelize.IgnoredOnParcel
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory
 
@@ -24,6 +25,6 @@ class ParcelableAddIgnoreOnParcelAnnotationQuickfix(property: KtProperty) : Abst
     override fun getText() = "Add ''@IgnoredOnParcel'' annotation"
 
     override fun invoke(ktPsiFactory: KtPsiFactory, element: KtProperty) {
-        element.addAnnotationEntry(ktPsiFactory.createAnnotationEntry("@kotlinx.parcelize.IgnoredOnParcel")).shortenReferences()
+        element.addAnnotationEntry(ktPsiFactory.createAnnotationEntry("@" + IgnoredOnParcel::class.java.name)).shortenReferences()
     }
 }
