@@ -862,6 +862,32 @@ class GradlePropertyModelTest : GradleFileModelTestCase() {
   }
 
   @Test
+  fun testInvalidInjection() {
+    writeToBuildFile(TestFile.INVALID_INJECTION)
+
+    val propertyModel = when {
+      isGroovy -> gradleBuildModel.ext().findProperty("prop3")
+      else -> gradleBuildModel.declaredProperties.find { it.name == "prop3" }!!
+    }
+    //assertEquals(INTERPOLATED, propertyModel.valueType) // this enum value does not exist in 4.2 yet
+    assertEquals(VARIABLE, propertyModel.propertyType)
+    assertEquals("${'$'}{prop2[\"key2\"]prop2[\"key1\"]}", propertyModel.getRawValue(STRING_TYPE))
+  }
+
+  @Test
+  fun testInvalidBlockName() {
+    writeToBuildFile(TestFile.INVALID_BLOCK_NAME)
+
+    val propertyModel = when {
+      isGroovy -> gradleBuildModel.ext().findProperty("prop")
+      else -> gradleBuildModel.declaredProperties.find { it.name == "prop" }!!
+    }
+
+    assertEquals(LIST, propertyModel.valueType)
+    assertSize(1, propertyModel.getValue(LIST_TYPE))
+  }
+
+  @Test
   fun testListDependency() {
     writeToBuildFile(TestFile.LIST_DEPENDENCY)
 
@@ -3745,6 +3771,8 @@ verifyPropertyModel(depModel, STRING_TYPE, "goodbye", STRING, DERIVED, 0)*/
     MULTIPLE_TYPE_DEPENDENCIES_WITH_FULLY_QUALIFIED_NAME("multipleTypeDependenciesWithFullyQualifiedName"),
     NESTED_LIST_PROPERTY_INJECTION("nestedListPropertyInjection"),
     NESTED_MAP_VARIABLE_INJECTION("nestedMapVariableInjection"),
+    INVALID_INJECTION("invalidInjection"),
+    INVALID_BLOCK_NAME("invalidBlockName"),
     LIST_DEPENDENCY("listDependency"),
     MAP_DEPENDENCY("mapDependency"),
     OUT_OF_SCOPE_MAP_AND_LIST_DEPENDENCIES("outOfScopeMapAndListDependencies"),

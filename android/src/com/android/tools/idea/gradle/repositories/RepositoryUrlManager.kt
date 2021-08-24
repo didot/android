@@ -36,7 +36,7 @@ import com.google.common.collect.Multimap
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.serviceContainer.NonInjectable
-import org.jetbrains.kotlin.util.firstNotNullResult
+import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Predicate

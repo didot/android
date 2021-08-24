@@ -356,6 +356,7 @@ private fun ProjectDumper.dump(compilerArguments: CommonCompilerArguments) {
     compilerArguments.disablePhases?.forEach { prop("- disablePhases") { it } }
     prop("dumpPerf") { compilerArguments.dumpPerf }
     prop("effectSystem") { compilerArguments.effectSystem.takeIf { it }?.toString() }
+    compilerArguments.experimental?.forEach { prop("- experimental") { it } }
     prop("intellijPluginRoot") { compilerArguments.intellijPluginRoot }
     prop("kotlinHome") { compilerArguments.kotlinHome }
     prop("languageVersion") { compilerArguments.languageVersion }

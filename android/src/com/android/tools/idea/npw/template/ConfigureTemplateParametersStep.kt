@@ -95,7 +95,7 @@ import com.intellij.uiDesigner.core.GridConstraints.FILL_NONE
 import com.intellij.uiDesigner.core.GridLayoutManager
 import com.intellij.util.ui.JBUI
 import org.jetbrains.android.util.AndroidBundle.message
-import org.jetbrains.kotlin.util.firstNotNullResult
+import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
