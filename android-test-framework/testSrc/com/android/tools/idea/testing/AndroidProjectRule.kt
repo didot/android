@@ -49,6 +49,7 @@ import com.intellij.testFramework.fixtures.JavaTestFixtureFactory
 import com.intellij.testFramework.fixtures.impl.LightTempDirTestFixtureImpl
 import com.intellij.testFramework.registerExtension
 import com.intellij.testFramework.runInEdtAndWait
+import com.intellij.util.PlatformUtils
 import org.jetbrains.android.AndroidTempDirTestFixture
 import org.jetbrains.android.AndroidTestBase
 import org.jetbrains.android.AndroidTestCase
@@ -60,8 +61,11 @@ import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.time.Clock
 import java.util.concurrent.TimeoutException
+import kotlin.io.path.writeText
 
 /**
  * Rule that provides access to a [Project] containing one module configured
@@ -256,7 +260,23 @@ class AndroidProjectRule private constructor(
     userHome = System.getProperty("user.home")
     val testSpecificName = UsefulTestCase.TEMP_DIR_MARKER + description.testClass.simpleName.substringAfterLast('$')
     // Reset user home directory.
-    System.setProperty("user.home", FileUtils.join(FileUtil.getTempDirectory(), testSpecificName, "nonexistent_user_home"))
+    val newUserHome = FileUtils.join(FileUtil.getTempDirectory(), testSpecificName, "nonexistent_user_home")
+    System.setProperty("user.home", newUserHome)
+
+    if ("AndroidStudio" != PlatformUtils.getPlatformPrefix() && System.getenv ("M2_HOME") == null) {
+      // When running in IDEA from sources, some files in kotlin plugin are obtained from the local M2 repository.
+      // E.g. kotlin-dist-for-ide-1.5.10-release-941.jar
+      // (see also org.jetbrains.kotlin.idea.artifacts.UtilKt#substitutePathVariables)
+      val settings = Paths.get(newUserHome, ".m2/settings.xml")
+      Files.createDirectories(settings.parent)
+      settings.writeText("""
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <localRepository>${userHome}/.m2/repository</localRepository>
+        </settings>
+        """.trimIndent())
+    }
+
 
     // Disable antivirus checks on Windows.
     StudioFlags.ANTIVIRUS_METRICS_ENABLED.override(false, testRootDisposable)
