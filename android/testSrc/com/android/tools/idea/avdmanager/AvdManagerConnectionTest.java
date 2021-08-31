@@ -38,12 +38,15 @@ import com.android.sdklib.repository.targets.SystemImageManager;
 import com.android.testutils.MockLog;
 import com.android.testutils.NoErrorsOrWarningsLogger;
 import com.android.testutils.file.InMemoryFileSystems;
+import com.android.tools.idea.avdmanager.emulatorcommand.EmulatorCommandBuilder;
 import com.android.utils.NullLogger;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.openapi.util.SystemInfo;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -335,6 +338,29 @@ public class AvdManagerConnectionTest extends AndroidTestCase {
     catch (ExecutionException expected) {
       assertTrue(expected.getCause().getMessage().contains("No emulator installed"));
     }
+  }
+
+  public void testNewEmulatorCommandHasWorkingDirectory() {
+    AvdInfo avd = mAvdManager.createAvd(
+      mAvdFolder,
+      getName(),
+      mSystemImage,
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      false);
+    assertNotNull("Could not create AVD", avd);
+    Path emulator = Paths.get("sdk/emulator/emulator.exe");
+
+    EmulatorCommandBuilder builder = new EmulatorCommandBuilder(emulator, avd);
+    GeneralCommandLine command = builder.build();
+
+    assertEquals(emulator.toString(), command.getExePath());
+    assertEquals("Emulator command should have a working directory. See IDEA-231313.", emulator.getParent().toFile(), command.getWorkDirectory());
   }
 
   private static void recordGoogleApisSysImg23(Path sdkRoot) {
