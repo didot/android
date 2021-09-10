@@ -87,6 +87,7 @@ import com.intellij.openapi.project.VetoableProjectManagerListener;
 import com.intellij.openapi.ui.MessageType;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Pair;
+import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.wm.IdeFrame;
 import com.intellij.openapi.wm.ex.ProgressIndicatorEx;
 import com.intellij.openapi.wm.ex.StatusBarEx;
@@ -120,6 +121,7 @@ import org.gradle.tooling.events.OperationType;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.plugins.gradle.service.GradleFileModificationTracker;
 import org.jetbrains.plugins.gradle.service.execution.GradleExecutionHelper;
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolver;
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolverExtension;
@@ -396,6 +398,11 @@ class GradleTasksExecutorImpl implements GradleTasksExecutor {
 
           operation.withCancellationToken(cancellationTokenSource.token());
 
+          if (Registry.is("gradle.report.recently.saved.paths")) {
+            ApplicationManager.getApplication()
+              .getService(GradleFileModificationTracker.class)
+              .notifyConnectionAboutChangedPaths(connection);
+          }
           if (isRunBuildAction) {
             model.set(((BuildActionExecuter<?>)operation).run());
           }
