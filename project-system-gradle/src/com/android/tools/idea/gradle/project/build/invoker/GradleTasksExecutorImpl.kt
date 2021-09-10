@@ -71,6 +71,7 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.project.VetoableProjectManagerListener
 import com.intellij.openapi.ui.MessageType
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.openapi.wm.ex.ProgressIndicatorEx
@@ -93,6 +94,7 @@ import org.gradle.tooling.LongRunningOperation
 import org.gradle.tooling.ProjectConnection
 import org.gradle.tooling.events.OperationType
 import org.jetbrains.annotations.NonNls
+import org.jetbrains.plugins.gradle.service.GradleFileModificationTracker
 import org.jetbrains.plugins.gradle.service.execution.GradleExecutionHelper
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolver
 import java.io.IOException
@@ -326,6 +328,11 @@ internal class GradleTasksExecutorImpl : GradleTasksExecutor {
             (operation as BuildLauncher).forTasks(*ArrayUtil.toStringArray(gradleTasks))
           }
           operation.withCancellationToken(cancellationTokenSource.token())
+          if (Registry.`is`("gradle.report.recently.saved.paths")) {
+            ApplicationManager.getApplication()
+              .getService(GradleFileModificationTracker::class.java)
+              .notifyConnectionAboutChangedPaths(connection)
+          }
           if (isRunBuildAction) {
             model.set((operation as BuildActionExecuter<*>).run())
           } else {
