@@ -86,28 +86,7 @@ class GradleProjectImporter @NonInjectable @VisibleForTesting internal construct
       importProjectNoSync(Request(newProject))
       return ProjectManagerEx.getInstanceEx().openProject(
         projectFolderPath.toPath(),
-        OpenProjectTask(
-          forceOpenInNewFrame = forceOpenInNewFrame,
-          projectToClose = projectToClose,
-          isNewProject = false,
-          useDefaultProjectAsTemplate = false,
-          project = newProject,
-          projectName = null,
-          showWelcomeScreen = true,
-          callback = null,
-          line = -1,
-          column = -1,
-          isRefreshVfsNeeded = true,
-          runConfigurators = false,
-          runConversionBeforeOpen = true,
-          projectWorkspaceId = null,
-          isProjectCreatedWithWizard = false,
-          beforeInit = null,
-          // Note that `beforeOpen` does not work with already created projects (i.e. project = newProject) and thus it cannot be used
-          // to replace `beforeOpen(project)` inside `createProject` method.
-          beforeOpen = null,
-          preparedToOpen = null
-        )
+        OpenProjectTask.withProjectToClose(newProject, projectToClose, forceOpenInNewFrame)
       )
     }
     catch (e: Throwable) {
