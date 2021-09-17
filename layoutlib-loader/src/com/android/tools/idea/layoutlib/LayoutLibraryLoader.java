@@ -36,6 +36,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
+import com.intellij.util.system.CpuArch;
 import org.jetbrains.annotations.NotNull;
 
 /**
