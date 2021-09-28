@@ -345,7 +345,7 @@ private class HeadlessDialogWrapperPeer(
     return rootPane.preferredSize
   }
 
-  override fun isResizable() {}
+  override fun isResizable() = false
 
   override fun setResizable(resizable: Boolean) {}
 
@@ -438,7 +438,7 @@ private class HeadlessDialogWrapperPeer(
     try {
       val eventQueue = IdeEventQueue.getInstance()
       while (latch.count > 0) {
-        if (PlatformTestUtil.dispatchNextEventIfAny(eventQueue) == null) {
+        if (PlatformTestUtil.dispatchNextEventIfAny() == null) {
           latch.await(10, TimeUnit.MILLISECONDS)
         }
       }

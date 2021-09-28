@@ -238,19 +238,6 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
     )
   }
 
-  // TODO(b/188413335): we shouldn't be looking for patterns in the path. Rework classesFolder on IDE side.
-  fun classFolderFrom(classesFolders: Set<File>): File {
-    return classesFolders.first { FileUtils.toSystemIndependentPath(it.absolutePath).contains("/javac/") }
-  }
-
-  // TODO(b/188413335): we shouldn't be looking for patterns in the path. Rework classesFolder on IDE side.
-  fun additionalClassesFoldersFrom(classesFolders: Set<File>): List<File> {
-    return classesFolders.filter {
-      val path = FileUtils.toSystemIndependentPath(it.absolutePath)
-      !path.contains("/javac/") && !path.contains("/java_res/")
-    }.distinct()
-  }
-
   fun productFlavorFrom(flavor: ProductFlavor): IdeProductFlavorImpl {
     return IdeProductFlavorImpl(
       name = flavor.name,
@@ -543,51 +530,54 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
       }
     }
 
+    class LibrariesByType(
+      val androidLibraries: List<Library>,
+      val javaLibraries: List<Library>,
+      val projectLibraries: List<Library>
+    )
+
     fun getTypedLibraries(
-      dependencies: List<GraphItem>,
-      libraries: Map<String, Library>,
-      androidLibraries: MutableList<Library>,
-      javaLibraries: MutableList<Library>,
-      projectLibraries: MutableList<Library>
-    ) {
-      for (dependency in dependencies) {
-        val library = libraries[dependency.key] ?: continue
-        if (library.type == LibraryType.ANDROID_LIBRARY && !androidLibraries.contains(library)) androidLibraries.add(
-          library)  // Can we check by Library object here ?
-        if (library.type == LibraryType.JAVA_LIBRARY && !javaLibraries.contains(library)) javaLibraries.add(library)
-        if (library.type == LibraryType.PROJECT && !projectLibraries.contains(library)) projectLibraries.add(library)
-        // Get transitive dependencies as well.
-        getTypedLibraries(dependency.dependencies, libraries, androidLibraries, javaLibraries, projectLibraries)
+      dependencies: List<Library>
+    ) : LibrariesByType {
+      return dependencies.groupBy { it.type }.let {
+        LibrariesByType(
+          androidLibraries = it[LibraryType.ANDROID_LIBRARY] ?: emptyList(),
+          javaLibraries = it[LibraryType.JAVA_LIBRARY] ?: emptyList(),
+          projectLibraries = it[LibraryType.PROJECT] ?: emptyList()
+        )
       }
-      return
     }
 
-    fun List<GraphItem>.toFlatLibraryList(): Sequence<Library> = sequence {
-      val seen = HashSet<String>()
-      val queue = ArrayDeque(this@toFlatLibraryList)
-
+    /*
+    Flattens a direct acyclic graph of dependencies into a list that includes each node only once and is the result of traversal in the
+    depth-first pre-order order.
+     */
+    fun List<GraphItem>.toFlatLibraryList(): List<Library> {
+      val result = mutableListOf<Library>()
+      // We process items in the order that the recursive depth-first pre-order traversal would achieve. This is for compatibility
+      // with v1 models and will change soon when we start exposing graphs to the IDE.
+      val seenGraphItemLibraryKeys = HashSet<String>()
+      val queue = ArrayDeque(this@toFlatLibraryList.asReversed())
       while (queue.isNotEmpty()) {
-        val item = queue.removeFirst()
-        queue.addAll(item.dependencies)
-        if (seen.add(item.key)) {
+        val item = queue.removeLast()
+        if (seenGraphItemLibraryKeys.add(item.key)) {
+          queue.addAll(item.dependencies.asReversed().asSequence().filter { !seenGraphItemLibraryKeys.contains(it.key) })
           val library = libraries[item.key]
           if (library != null) {
-            yield(library)
+            result.add(library)
           }
         }
       }
+      return result
     }
 
     fun getRuntimeLibraries(
-      runtimeDependencies: List<GraphItem>?,
-      compileDependencies: List<GraphItem>
+      runtimeDependencies: List<Library>,
+      compileDependencies: List<Library>
     ): List<File> {
-      val compileLibraries = compileDependencies.toFlatLibraryList()
-      val runtimeLibraries = runtimeDependencies.orEmpty().toFlatLibraryList()
+      val compileLibraryIdentities = compileDependencies.mapNotNull { it.libraryInfo?.toIdentity() }.toSet()
 
-      val compileLibraryIdentities = compileLibraries.mapNotNull { it.libraryInfo?.toIdentity() }.toSet()
-
-      return runtimeLibraries
+      return runtimeDependencies
         .filter {
           val id = it.libraryInfo?.toIdentity() ?: return@filter false
           id !in compileLibraryIdentities
@@ -611,11 +601,11 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
     }
 
     fun getProvidedLibraries(
-      compileDependencies: List<GraphItem>,
-      runtimeDependencies: List<GraphItem>?
+      compileDependencies: List<Library>,
+      runtimeDependencies: List<Library>
     ): Set<LibraryIdentity> =
-      compileDependencies.toFlatLibraryList().mapNotNull { it.libraryInfo?.toIdentity() }.toSet() -
-      runtimeDependencies.orEmpty().toFlatLibraryList().mapNotNull { it.libraryInfo?.toIdentity() }.toSet()
+      compileDependencies.mapNotNull { it.libraryInfo?.toIdentity() }.toSet() -
+      runtimeDependencies.mapNotNull { it.libraryInfo?.toIdentity() }.toSet()
 
     fun createIdeDependencies(
       artifactAddresses: Collection<String>,
@@ -641,15 +631,14 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
 
     fun createIdeDependenciesInstance(): IdeDependencies {
       val visited = mutableSetOf<String>()
-      val androidLibraries = mutableListOf<Library>()
-      val javaLibraries = mutableListOf<Library>()
-      val projectLibraries = mutableListOf<Library>()
-      getTypedLibraries(dependencies.compileDependencies, libraries, androidLibraries, javaLibraries, projectLibraries)
-      val providedLibraries = getProvidedLibraries(dependencies.compileDependencies, dependencies.runtimeDependencies)
-      populateAndroidLibraries(androidLibraries, providedLibraries, visited)
-      populateJavaLibraries(javaLibraries, providedLibraries, visited)
-      populateProjectDependencies(projectLibraries, visited)
-      val runtimeLibraries = getRuntimeLibraries(dependencies.runtimeDependencies, dependencies.compileDependencies)
+      val compileDependencies = dependencies.compileDependencies.toFlatLibraryList()
+      val runtimeDependencies = dependencies.runtimeDependencies.toFlatLibraryList()
+      val typedLibraries = getTypedLibraries(compileDependencies)
+      val providedLibraries = getProvidedLibraries(compileDependencies, runtimeDependencies)
+      populateAndroidLibraries(typedLibraries.androidLibraries, providedLibraries, visited)
+      populateJavaLibraries(typedLibraries.javaLibraries, providedLibraries, visited)
+      populateProjectDependencies(typedLibraries.projectLibraries, visited)
+      val runtimeLibraries = getRuntimeLibraries(runtimeDependencies, compileDependencies)
       return createIdeDependencies(visited, runtimeLibraries)
     }
     return createIdeDependenciesInstance()
@@ -713,13 +702,13 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
       name = convertV2ArtifactName(name),
       compileTaskName = artifact.compileTaskName,
       assembleTaskName = artifact.assembleTaskName,
-      classesFolder = classFolderFrom(artifact.classesFolders),
+      classesFolder = artifact.classesFolders.single(),
       javaResourcesFolder = null,
       ideSetupTaskNames = copy(artifact::ideSetupTaskNames).toList(),
       mutableGeneratedSourceFolders = copy(artifact::generatedSourceFolders, ::deduplicateFile).distinct().toMutableList(),
       variantSourceProvider = copyNewModel(artifact::variantSourceProvider, ::sourceProviderFrom),
       multiFlavorSourceProvider = copyNewModel(artifact::multiFlavorSourceProvider, ::sourceProviderFrom),
-      additionalClassesFolders = additionalClassesFoldersFrom(artifact.classesFolders),
+      additionalClassesFolders = artifact.additionalClassesFolders,
       level2Dependencies = dependenciesFrom(artifactDependencies, libraries, buildNameMap),
       applicationId = "",
       generatedResourceFolders = copy(artifact::generatedResourceFolders, ::deduplicateFile).distinct(),
@@ -759,13 +748,13 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
       name = convertV2ArtifactName(name),
       compileTaskName = artifact.compileTaskName,
       assembleTaskName = artifact.assembleTaskName,
-      classesFolder = classFolderFrom(artifact.classesFolders),
+      classesFolder = artifact.classesFolders.single(),
       javaResourcesFolder = null,
       ideSetupTaskNames = copy(artifact::ideSetupTaskNames, ::deduplicateString).toList(),
       mutableGeneratedSourceFolders = copy(artifact::generatedSourceFolders, ::deduplicateFile).distinct().toMutableList(),
       variantSourceProvider = copyNewModel(artifact::variantSourceProvider, ::sourceProviderFrom),
       multiFlavorSourceProvider = copyNewModel(artifact::multiFlavorSourceProvider, ::sourceProviderFrom),
-      additionalClassesFolders = additionalClassesFoldersFrom(artifact.classesFolders).toList(),
+      additionalClassesFolders = artifact.additionalClassesFolders,
       level2Dependencies = dependenciesFrom(variantDependencies, libraries, buildNameMap),
       mockablePlatformJar = copy(artifact::mockablePlatformJar),
       isTestArtifact = name == "_unit_test_"
