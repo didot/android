@@ -119,7 +119,7 @@ public class MemoryClassSetViewTest {
     assertNotNull(myClassifierSetTree);
     Object classifierRoot = myClassifierSetTree.getModel().getRoot();
     assertThat(classifierRoot).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)classifierRoot).getAdapter()).isInstanceOf(HeapSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)classifierRoot).getAdapter()).isInstanceOf(HeapSet.class);
     //noinspection unchecked
     myClassifierSetHeapNode = (MemoryObjectTreeNode<HeapSet>)classifierRoot;
 
@@ -132,7 +132,7 @@ public class MemoryClassSetViewTest {
     assertNotNull(myClassSetTree);
     Object classSetRoot = myClassSetTree.getModel().getRoot();
     assertThat(classSetRoot).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)classSetRoot).getAdapter()).isInstanceOf(ClassSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)classSetRoot).getAdapter()).isInstanceOf(ClassSet.class);
     //noinspection unchecked
     myClassSetRootNode = (MemoryObjectTreeNode<MemoryObject>)classSetRoot;
   }
@@ -154,7 +154,7 @@ public class MemoryClassSetViewTest {
     myStage.getCaptureSelection().selectInstanceObject(myInstanceObjects.get(0));
     assertThat(myClassSetTree.getSelectionCount()).isEqualTo(1);
     assertThat(myClassSetTree.getLastSelectedPathComponent()).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)myClassSetTree.getLastSelectedPathComponent()).getAdapter()).isEqualTo(myInstanceObjects.get(0));
+    assertThat(((MemoryObjectTreeNode<?>)myClassSetTree.getLastSelectedPathComponent()).getAdapter()).isEqualTo(myInstanceObjects.get(0));
   }
 
   @Test
@@ -162,7 +162,7 @@ public class MemoryClassSetViewTest {
     MemoryAspectObserver observer = new MemoryAspectObserver(myStage.getAspect(),  myStage.getCaptureSelection().getAspect());
 
     // Selects the first instance object.
-    MemoryObjectTreeNode firstNode = (MemoryObjectTreeNode)((MemoryObjectTreeNode)myClassSetTree.getModel().getRoot()).getChildAt(0);
+    MemoryObjectTreeNode firstNode = (MemoryObjectTreeNode)((MemoryObjectTreeNode<?>)myClassSetTree.getModel().getRoot()).getChildAt(0);
     // Verify the ordering is based on retain size.
     assertThat(firstNode.getAdapter()).isEqualTo(myInstanceObjects.get(2));
     myClassSetTree.setSelectionPath(new TreePath(firstNode));
@@ -278,7 +278,7 @@ public class MemoryClassSetViewTest {
     assertThat(myClassSetTree).isNotNull();
     Object classSetRoot = myClassSetTree.getModel().getRoot();
     assertThat(classSetRoot).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)classSetRoot).getAdapter()).isInstanceOf(ClassSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)classSetRoot).getAdapter()).isInstanceOf(ClassSet.class);
     //noinspection unchecked
     myClassSetRootNode = (MemoryObjectTreeNode<MemoryObject>)classSetRoot;
     findChildWithPredicate(myClassSetRootNode, instance -> instance == instanceFoo);
@@ -351,7 +351,7 @@ public class MemoryClassSetViewTest {
     assertThat(myClassifierSetTree).isNotNull();
     Object classifierRoot = myClassifierSetTree.getModel().getRoot();
     assertThat(classifierRoot).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)classifierRoot).getAdapter()).isInstanceOf(HeapSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)classifierRoot).getAdapter()).isInstanceOf(HeapSet.class);
     //noinspection unchecked
     myClassifierSetHeapNode = (MemoryObjectTreeNode<HeapSet>)classifierRoot;
 
@@ -363,7 +363,7 @@ public class MemoryClassSetViewTest {
     assertThat(myClassSetTree).isNotNull();
     Object classSetRoot = myClassSetTree.getModel().getRoot();
     assertThat(classSetRoot).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)classSetRoot).getAdapter()).isInstanceOf(ClassSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)classSetRoot).getAdapter()).isInstanceOf(ClassSet.class);
     //noinspection unchecked
     myClassSetRootNode = (MemoryObjectTreeNode<MemoryObject>)classSetRoot;
 
