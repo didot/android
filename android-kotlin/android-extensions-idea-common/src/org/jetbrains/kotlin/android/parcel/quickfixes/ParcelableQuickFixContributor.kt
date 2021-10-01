@@ -5,13 +5,13 @@ package org.jetbrains.kotlin.android.parcel.quickfixes
 import org.jetbrains.kotlin.android.synthetic.diagnostic.ErrorsAndroid
 import org.jetbrains.kotlin.idea.quickfix.QuickFixContributor
 import org.jetbrains.kotlin.idea.quickfix.QuickFixes
-import org.jetbrains.kotlin.idea.quickfix.RemoveModifierFix.Companion.createRemoveModifierFromListOwnerPsiBasedFactory
+import org.jetbrains.kotlin.idea.quickfix.RemoveModifierFix
 import org.jetbrains.kotlin.lexer.KtTokens
 
 class ParcelableQuickFixContributor : QuickFixContributor {
     override fun registerQuickFixes(quickFixes: QuickFixes) {
         quickFixes.register(ErrorsAndroid.PARCELABLE_CANT_BE_INNER_CLASS,
-                            createRemoveModifierFromListOwnerPsiBasedFactory(KtTokens.INNER_KEYWORD, false))
+                            RemoveModifierFix.createRemoveModifierFromListOwnerFactory(KtTokens.INNER_KEYWORD, false))
 
         quickFixes.register(ErrorsAndroid.NO_PARCELABLE_SUPERTYPE, ParcelableAddSupertypeQuickfix.Factory)
         quickFixes.register(ErrorsAndroid.PARCELABLE_SHOULD_HAVE_PRIMARY_CONSTRUCTOR, ParcelableAddPrimaryConstructorQuickfix.Factory)
