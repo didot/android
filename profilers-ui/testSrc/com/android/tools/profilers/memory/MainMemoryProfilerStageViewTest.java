@@ -990,7 +990,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
     Object selectedClassNode = classifierTree.getLastSelectedPathComponent();
     assertThat(selectedClassNode).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)selectedClassNode).getAdapter()).isInstanceOf(ClassSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)selectedClassNode).getAdapter()).isInstanceOf(ClassSet.class);
     //noinspection unchecked
     MemoryObjectTreeNode<ClassSet> selectedClassObject = (MemoryObjectTreeNode<ClassSet>)selectedClassNode;
     assertThat(selectedClassObject.getAdapter()).isEqualTo(expectedClassSet);
@@ -1007,7 +1007,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
     Object selectedInstanceNode = classSetTree.getLastSelectedPathComponent();
     assertThat(selectedInstanceNode).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)selectedInstanceNode).getAdapter()).isInstanceOf(InstanceObject.class);
+    assertThat(((MemoryObjectTreeNode<?>)selectedInstanceNode).getAdapter()).isInstanceOf(InstanceObject.class);
     //noinspection unchecked
     MemoryObjectTreeNode<InstanceObject> selectedInstanceObject = (MemoryObjectTreeNode<InstanceObject>)selectedInstanceNode;
     assertThat(selectedInstanceObject.getAdapter()).isEqualTo(expectedInstanceObject);
@@ -1065,7 +1065,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
     Object selectedClassNode = classifierTree.getLastSelectedPathComponent();
     assertThat(selectedClassNode).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)selectedClassNode).getAdapter()).isInstanceOf(ClassSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)selectedClassNode).getAdapter()).isInstanceOf(ClassSet.class);
     //noinspection unchecked
     MemoryObjectTreeNode<ClassSet> selectedClassObject = (MemoryObjectTreeNode<ClassSet>)selectedClassNode;
     assertThat(selectedClassObject.getAdapter()).isEqualTo(expectedClassSet);
@@ -1082,7 +1082,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
     Object selectedInstanceNode = classSetTree.getLastSelectedPathComponent();
     assertThat(selectedInstanceNode).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)selectedInstanceNode).getAdapter()).isInstanceOf(InstanceObject.class);
+    assertThat(((MemoryObjectTreeNode<?>)selectedInstanceNode).getAdapter()).isInstanceOf(InstanceObject.class);
     //noinspection unchecked
     MemoryObjectTreeNode<InstanceObject> selectedInstanceObject = (MemoryObjectTreeNode<InstanceObject>)selectedInstanceNode;
     assertThat(selectedInstanceObject.getAdapter()).isEqualTo(expectedInstanceObject);
