@@ -46,6 +46,8 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JTree
 import javax.swing.SwingConstants
+import javax.swing.event.TreeExpansionEvent
+import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeModelEvent
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreePath
@@ -88,6 +90,7 @@ class BackgroundTaskTreeTableView(tab: BackgroundTaskInspectorTab,
                                   uiDispatcher: CoroutineDispatcher) {
   val component: JComponent
   val treeModel = BackgroundTaskTreeModel(client, scope, uiDispatcher)
+  val expandedPaths = mutableSetOf<TreePath>()
 
   init {
     val tree = JTree(treeModel)
@@ -103,6 +106,20 @@ class BackgroundTaskTreeTableView(tab: BackgroundTaskInspectorTab,
       }
     })
 
+    tree.addTreeExpansionListener(object : TreeExpansionListener {
+      override fun treeExpanded(event: TreeExpansionEvent) {
+        expandedPaths.add(event.path)
+      }
+
+      override fun treeCollapsed(event: TreeExpansionEvent) {
+        expandedPaths.remove(event.path)
+      }
+    })
+
+    treeModel.addOnFilteredListener {
+      restoreExpandedPaths(tree)
+    }
+
     tree.addMouseListener(object : MouseAdapter() {
       override fun mouseClicked(e: MouseEvent) {
         val tree = e.source as JTree
@@ -110,7 +127,10 @@ class BackgroundTaskTreeTableView(tab: BackgroundTaskInspectorTab,
         val bounds = tree.getRowBounds(row)
         val tableBounds = Rectangle(0, bounds.y, bounds.width + bounds.x, bounds.height)
         if (tableBounds.contains(e.point)) {
-          tab.isDetailsViewVisible = true
+          val path = tree.getPathForRow(row)
+          if ((path.lastPathComponent as? DefaultMutableTreeNode)?.userObject is BackgroundTaskEntry) {
+            tab.isDetailsViewVisible = true
+          }
         }
       }
     })
@@ -151,6 +171,7 @@ class BackgroundTaskTreeTableView(tab: BackgroundTaskInspectorTab,
       else {
         val node = treeModel.getTreeNode(entry.id) ?: return@registerEntrySelectionListener
         tree.selectionModel.selectionPath = TreePath(node.path)
+        tree.scrollPathToVisible(tree.selectionModel.selectionPath)
       }
     }
 
@@ -269,5 +290,11 @@ class BackgroundTaskTreeTableView(tab: BackgroundTaskInspectorTab,
     )
 
     component = builder.build()
+  }
+
+  private fun restoreExpandedPaths(tree: JTree) {
+    for (path in expandedPaths) {
+      tree.expandPath(path)
+    }
   }
 }

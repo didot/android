@@ -59,6 +59,7 @@ import javax.swing.JPanel
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
 
+private const val MINIMUM_DETAILS_VIEW_WIDTH = 400
 private const val BUTTON_SIZE = 24 // Icon is 16x16. This gives it some padding, so it doesn't touch the border.
 private val BUTTON_DIMENS = Dimension(JBUI.scale(BUTTON_SIZE), JBUI.scale(BUTTON_SIZE))
 
@@ -87,6 +88,7 @@ class EntryDetailsView(
   init {
     layout = TabularLayout("*", "28px,*")
     border = BorderFactory.createEmptyBorder()
+    minimumSize = Dimension(MINIMUM_DETAILS_VIEW_WIDTH, minimumSize.height)
     val headingPanel = JPanel(BorderLayout())
     val instanceViewLabel = JLabel("Task Details")
     instanceViewLabel.border = BorderFactory.createEmptyBorder(0, 6, 0, 0)
@@ -102,24 +104,24 @@ class EntryDetailsView(
         tab.isDetailsViewVisible = false
       }
       else {
-        updateSelectedTask()
+        updateSelectedTask(true)
       }
     }
     client.addEntryUpdateEventListener { type, _ ->
       scope.launch(uiDispatcher) {
         if (type == EntryUpdateEventType.UPDATE) {
-          updateSelectedTask()
+          updateSelectedTask(false)
         }
       }
     }
     entriesView.addContentModeChangedListener {
       if (selectionModel.selectedEntry is WorkEntry) {
-        updateSelectedTask()
+        updateSelectedTask(false)
       }
     }
   }
 
-  private fun updateSelectedTask() {
+  private fun updateSelectedTask(isSelectionChanged: Boolean) {
     val detailsPanel = object : ScrollablePanel(VerticalLayout(18)) {
       override fun getScrollableTracksViewportWidth(): Boolean {
         val parent = SwingUtilities.getUnwrappedParent(this)
@@ -138,7 +140,11 @@ class EntryDetailsView(
 
     TreeWalker(detailsPanel).descendantStream().forEach { it.background = null }
     detailsPanel.background = primaryContentBackground
+    val scrollBarPosition = scrollPane.verticalScrollBar.value
     scrollPane.setViewportView(detailsPanel)
+    if (!isSelectionChanged) {
+      scrollPane.verticalScrollBar.value = scrollBarPosition
+    }
     revalidate()
     repaint()
   }
