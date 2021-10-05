@@ -120,7 +120,7 @@ class VisualLintAtfAnalysis(
       result = validatorResult
     } finally {
       renderMetric.renderMs = renderResult.stats.renderDurationMs
-      renderMetric.scanMs = validatorResult.metric.mElapsedMs
+      renderMetric.scanMs = validatorResult.metric.mHierarchyCreationMs
       renderMetric.componentCount = layoutParser.componentCount
       renderMetric.isRenderResultSuccess = renderResult.renderResult.isSuccess
 
@@ -140,7 +140,7 @@ class VisualLintAtfIssue(
   private val sourceModel: NlModel) :
   NlAtfIssue(result, IssueSource.fromNlComponent(component), sourceModel), VisualLintHighlightingIssue {
 
-  private val visualLintIssueSource = VisualLintIssueProvider.VisualLintIssueSource(sourceModel, listOf(component))
+  private val visualLintIssueSource = VisualLintIssueProvider.VisualLintIssueSource(setOf(sourceModel), listOf(component))
   override val source: IssueSource
     get() = visualLintIssueSource
 

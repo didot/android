@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.welcome.wizard
 
+import com.android.annotations.concurrency.WorkerThread
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.sdk.IdeSdks
 import com.android.tools.idea.ui.GuiTestingService
@@ -22,7 +23,7 @@ import com.android.tools.idea.welcome.config.AndroidFirstRunPersistentData
 import com.android.tools.idea.welcome.config.FirstRunWizardMode
 import com.android.tools.idea.welcome.config.installerData
 import com.android.tools.idea.welcome.wizard.deprecated.FirstRunWizardHost
-import com.google.common.util.concurrent.Atomics
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.ui.Messages
@@ -40,7 +41,9 @@ val log = logger<AndroidStudioWelcomeScreenProvider>()
  */
 class AndroidStudioWelcomeScreenProvider : WelcomeScreenProvider {
   override fun createWelcomeScreen(rootPane: JRootPane): WelcomeScreen {
-    checkInternetConnection()
+    ApplicationManager.getApplication().executeOnPooledThread {
+      checkInternetConnection()
+    }
     val wizardMode = wizardMode!!
     // This means isAvailable was false! Why are we even called?
 
@@ -51,10 +54,6 @@ class AndroidStudioWelcomeScreenProvider : WelcomeScreenProvider {
   override fun isAvailable(): Boolean {
     val isWizardDisabled = GuiTestingService.getInstance().isGuiTestingMode || java.lang.Boolean.getBoolean(SYSTEM_PROPERTY_DISABLE_WIZARD)
     return !ourWasShown && !isWizardDisabled && wizardMode != null
-  }
-
-  private enum class ConnectionState {
-    OK, NO_CONNECTION
   }
 
   companion object {
@@ -92,59 +91,56 @@ class AndroidStudioWelcomeScreenProvider : WelcomeScreenProvider {
       return (!persistentData.isSdkUpToDate || !persistentData.isSameTimestamp(data.timestamp)) && data.isCurrentVersion
     }
 
-    private fun checkInternetConnection(): ConnectionState {
+    @WorkerThread
+    private fun checkInternetConnection() {
+      ApplicationManager.getApplication().assertIsNonDispatchThread()
       CommonProxy.isInstalledAssertion()
-      var result: ConnectionState? = null
-      while (result == null) {
+
+      do {
+        var retryConnection: Boolean
         try {
           val connection = HttpConfigurable.getInstance().openHttpConnection("http://developer.android.com")
           connection.connect()
           connection.disconnect()
-          result = ConnectionState.OK
+          retryConnection = false
         }
         catch (e: IOException) {
-          result = promptToRetryFailedConnection()
+          retryConnection = promptToRetryFailedConnection()
         }
         catch (e: RuntimeException) {
-          result = promptToRetryFailedConnection()
+          retryConnection = promptToRetryFailedConnection()
         }
         catch (e: Throwable) {
           // Some other unexpected error related to JRE setup, e.g.
           // java.lang.NoClassDefFoundError: Could not initialize class javax.crypto.SunJCE_b
           //     at javax.crypto.KeyGenerator.a(DashoA13*..)
           //     ....
-          // See http://b.android.com/149270 for more.
+          // See b/37021138 for more.
           // This shouldn't cause a crash at startup which prevents starting the IDE!
-          result = ConnectionState.NO_CONNECTION
+          retryConnection = false
           var message = "Couldn't check internet connection"
           if (e.toString().contains("crypto")) {
             message += "; check your JDK/JRE installation / consider running on a newer version."
           }
           log.warn(message, e)
         }
-
-      }
-      return result
+      } while (retryConnection)
     }
 
-    private fun promptToRetryFailedConnection(): ConnectionState? {
-      val atomicBoolean = Atomics.newReference<ConnectionState>()
-      invokeAndWaitIfNeeded {  atomicBoolean.set(promptUserForProxy()) }
-      return atomicBoolean.get()
+    private fun promptToRetryFailedConnection(): Boolean {
+      return invokeAndWaitIfNeeded {  promptUserForProxy() }
     }
 
-    private fun promptUserForProxy(): ConnectionState? {
+    private fun promptUserForProxy(): Boolean {
       val selection = Messages.showIdeaMessageDialog(
         null, "Unable to access Android SDK add-on list", "Android Studio First Run",
         arrayOf("Setup Proxy", "Cancel"), 1, Messages.getErrorIcon(), null
       )
-      return if (selection == 0) {
+      val showSetupProxy = selection == 0
+      if (showSetupProxy) {
         HttpConfigurable.editConfigurable(null)
-        null
       }
-      else {
-        ConnectionState.NO_CONNECTION
-      }
+      return showSetupProxy
     }
   }
 }

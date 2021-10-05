@@ -22,11 +22,11 @@ import com.android.tools.idea.appinspection.ide.ui.SelectProcessAction
 import com.android.tools.idea.layoutinspector.common.showViewContextMenu
 import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model.AndroidWindow
-import com.android.tools.idea.layoutinspector.model.DRAW_NODE_LABEL_HEIGHT
-import com.android.tools.idea.layoutinspector.model.EMPHASIZED_BORDER_OUTLINE_THICKNESS
 import com.android.tools.idea.layoutinspector.model.InspectorModel
-import com.android.tools.idea.layoutinspector.model.LABEL_FONT_SIZE
 import com.android.tools.idea.layoutinspector.model.SelectionOrigin
+import com.android.tools.idea.layoutinspector.model.getDrawNodeLabelHeight
+import com.android.tools.idea.layoutinspector.model.getEmphasizedBorderOutlineThickness
+import com.android.tools.idea.layoutinspector.model.getLabelFontSize
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
 import com.android.tools.idea.layoutinspector.tree.TreeSettings
 import com.intellij.icons.AllIcons
@@ -40,7 +40,6 @@ import com.intellij.openapi.ui.popup.Balloon
 import com.intellij.ui.GotItTooltip
 import com.intellij.ui.PopupHandler
 import com.intellij.ui.SimpleTextAttributes
-import com.intellij.ui.scale.JBUIScale
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.StatusText
 import com.intellij.util.ui.UIUtil
@@ -156,11 +155,12 @@ class DeviceViewContentPanel(
         else if ((e.x - x) + (e.y - y) > 50) {
           // Drag when rotation is disabled. Show tooltip.
           val dataContext = DataManager.getInstance().getDataContext(this@DeviceViewContentPanel)
-          val toggle3dButton = dataContext.getData(TOGGLE_3D_ACTION_BUTTON_KEY)!!
-          GotItTooltip("LayoutInspector.RotateViewTooltip", "Click to toggle 3D mode", disposableParent)
-            .withShowCount(FRAMES_BEFORE_RESET_TO_BITMAP)
-            .withPosition(Balloon.Position.atLeft)
-            .show(toggle3dButton, GotItTooltip.LEFT_MIDDLE)
+          dataContext.getData(TOGGLE_3D_ACTION_BUTTON_KEY)?.let { toggle3dButton ->
+            GotItTooltip("LayoutInspector.RotateViewTooltip", "Click to toggle 3D mode", disposableParent)
+              .withShowCount(FRAMES_BEFORE_RESET_TO_BITMAP)
+              .withPosition(Balloon.Position.atLeft)
+              .show(toggle3dButton, GotItTooltip.LEFT_MIDDLE)
+          }
         }
       }
 
@@ -259,11 +259,11 @@ class DeviceViewContentPanel(
       val bounds = Rectangle()
       hits.forEach { if (bounds.isEmpty) bounds.bounds = it.bounds.bounds else bounds.add(it.bounds.bounds) }
       if (!bounds.isEmpty) {
-        val font = UIUtil.getLabelFont().deriveFont(JBUIScale.scale(LABEL_FONT_SIZE))
+        val font = UIUtil.getLabelFont().deriveFont(getLabelFontSize(viewSettings.scaleFraction))
         val fontMetrics = getFontMetrics(font)
         val textWidth = fontMetrics.stringWidth(selection.unqualifiedName)
-        val labelHeight = JBUIScale.scale(DRAW_NODE_LABEL_HEIGHT).toInt()
-        val borderSize = EMPHASIZED_BORDER_OUTLINE_THICKNESS.toInt() / 2
+        val labelHeight = getDrawNodeLabelHeight(viewSettings.scaleFraction).toInt()
+        val borderSize = getEmphasizedBorderOutlineThickness(viewSettings.scaleFraction).toInt() / 2
         bounds.width = kotlin.math.max(bounds.width, textWidth)
         bounds.x -= borderSize
         bounds.y -= borderSize + labelHeight

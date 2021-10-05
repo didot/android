@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableCollection
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.util.TextRange
+import java.util.Objects
 import javax.swing.event.HyperlinkListener
 import kotlin.test.assertNotNull
 
@@ -44,27 +45,24 @@ class VisualLintIssueProvider : IssueProvider() {
 
   fun clear() = issues.clear()
 
-  data class VisualLintIssueSource(val model: NlModel, val components: List<NlComponent>) : IssueSource {
+  data class VisualLintIssueSource(val models: Set<NlModel>, val components: List<NlComponent>) : IssueSource {
     override val displayText = ""
   }
 }
 
 /** Lint issues that is generated from visual sources (e.g. Layout Validation) */
 class VisualLintRenderIssue private constructor(private val builder: Builder): Issue(), VisualLintHighlightingIssue {
-  val sourceModel: NlModel = builder.model!!
+  val models = builder.model?.let { mutableSetOf(it) } ?: mutableSetOf()
   val components = builder.components!!
-  override val source = VisualLintIssueProvider.VisualLintIssueSource(sourceModel, components)
+  override val source = VisualLintIssueProvider.VisualLintIssueSource(models, components)
   override val summary = builder.summary!!
   override val severity = builder.severity!!
   override val category = "Visual Lint Issue"
   override val hyperlinkListener = builder.hyperlinkListener
   override fun shouldHighlight(model: NlModel): Boolean {
-    return sourceModel == model || components.any { it.model == model }
+    return models.contains(model)
   }
-  override val description: String get() = builder.contentDescriptionProvider!!.invoke(count).stringBuilder.toString()
-
-  /** Number of times the same issue appears */
-  var count: Int = 1
+  override val description: String get() = builder.contentDescriptionProvider!!.invoke(models.size).stringBuilder.toString()
 
   /** Returns the text range of the issue. */
   private var range: TextRange? = null
@@ -85,15 +83,11 @@ class VisualLintRenderIssue private constructor(private val builder: Builder): I
   }
 
   /** Hash code that depends on xml range rather than component. */
-  fun rangeBasedHashCode(): Int {
-    var result = 13
-    result += 17 * severity.hashCode()
-    result += 19 * summary.hashCode()
-    result += 23 * description.hashCode()
-    result += 29 * category.hashCode()
-    result += 31 * range.hashCode()
-    return result
-  }
+  fun rangeBasedHashCode() = Objects.hash(severity, summary, category, range)
+
+  override fun equals(other: Any?) = other === this
+
+  override fun hashCode() = Objects.hash(severity, summary, category)
 
   /** Builder for [VisualLintRenderIssue] */
   data class Builder(

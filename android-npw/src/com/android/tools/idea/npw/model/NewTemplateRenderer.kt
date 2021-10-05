@@ -178,6 +178,7 @@ fun titleToTemplateRenderer(title: String, formFactor: FormFactor): TemplateRend
   message("android.wizard.module.new.wear") -> TemplateRenderer.ANDROID_WEAR_MODULE
 
   "Basic Activity" -> TemplateRenderer.BASIC_ACTIVITIY
+  "Basic Activity (Material3)" -> TemplateRenderer.BASIC_ACTIVITIY
   "Empty Activity" -> TemplateRenderer.EMPTY_ACTIVITY
   "Blank Activity" -> if (formFactor == FormFactor.Wear) TemplateRenderer.BLANK_WEAR_ACTIVITY else TemplateRenderer.BLANK_ACTIVITY
   "Login Activity" -> TemplateRenderer.LOGIN_ACTIVITY
@@ -188,6 +189,7 @@ fun titleToTemplateRenderer(title: String, formFactor: FormFactor): TemplateRend
   "Android TV Blank Activity" -> TemplateRenderer.ANDROID_TV_ACTIVITY
   "Fullscreen Activity" -> TemplateRenderer.FULLSCREEN_ACTIVITY
   "Empty Compose Activity" -> TemplateRenderer.COMPOSE_EMPTY_ACTIVITY
+  "Empty Compose Activity (Material3)" -> TemplateRenderer.COMPOSE_EMPTY_ACTIVITY
   "Google Maps Activity" ->
     if (formFactor == FormFactor.Wear) TemplateRenderer.WATCH_GOOGLE_MAPS_ACTIVITY else TemplateRenderer.GOOGLE_MAPS_ACTIVITY
   "Navigation Drawer Activity" -> TemplateRenderer.NAVIGATION_DRAWER_ACTIVITY

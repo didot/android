@@ -19,6 +19,7 @@ import com.android.testutils.TestUtils
 import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.repositories.IdeGoogleMavenRepository
 import com.android.tools.idea.gradle.repositories.OfflineIdeGoogleMavenRepository
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager
@@ -160,6 +161,16 @@ class TemplateTest(private val runTemplateCoverageOnly: Boolean = false) : Andro
   }
 
   @TemplateCheck
+  fun testNewBasicActivityMaterial3() {
+    StudioFlags.NPW_MATERIAL3_ENABLED.override(true)
+    try {
+      checkCreateTemplate("Basic Activity (Material3)", withKotlin)
+    } finally {
+      StudioFlags.NPW_MATERIAL3_ENABLED.clearOverride()
+    }
+  }
+
+  @TemplateCheck
   fun testNewEmptyActivity() {
     checkCreateTemplate("Empty Activity")
   }
@@ -297,6 +308,19 @@ class TemplateTest(private val runTemplateCoverageOnly: Boolean = false) : Andro
       moduleData.category = Category.Compose
     }
     checkCreateTemplate("Empty Compose Activity", withSpecificKotlin) // Compose is always Kotlin
+  }
+
+  @TemplateCheck
+  fun testComposeActivityMaterial3() {
+    // We temporarily are not setting the StudioFlags.NPW_MATERIAL3_ENABLED so detect if it's enabled accidentally.
+    // See comment in TemplateTestUtils.isBroken.
+
+    val withSpecificKotlin: ProjectStateCustomizer = { moduleData: ModuleTemplateDataBuilder, projectData: ProjectTemplateDataBuilder ->
+      projectData.language = Language.Kotlin
+      projectData.kotlinVersion = "1.5.31"
+      moduleData.category = Category.Compose
+    }
+    checkCreateTemplate("Empty Compose Activity (Material3)", withSpecificKotlin) // Compose is always Kotlin
   }
 
   @TemplateCheck
