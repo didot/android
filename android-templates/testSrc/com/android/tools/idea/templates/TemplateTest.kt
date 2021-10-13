@@ -23,7 +23,6 @@ import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.repositories.IdeGoogleMavenRepository
 import com.android.tools.idea.gradle.repositories.OfflineIdeGoogleMavenRepository
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager
-import com.android.tools.idea.npw.model.RenderTemplateModel
 import com.android.tools.idea.npw.template.ModuleTemplateDataBuilder
 import com.android.tools.idea.npw.template.ProjectTemplateDataBuilder
 import com.android.tools.idea.npw.template.TemplateResolver
@@ -305,8 +304,7 @@ class TemplateTest(private val runTemplateCoverageOnly: Boolean = false) : Andro
   fun testComposeActivity() {
     val withSpecificKotlin: ProjectStateCustomizer = { moduleData: ModuleTemplateDataBuilder, projectData: ProjectTemplateDataBuilder ->
       projectData.language = Language.Kotlin
-      projectData.kotlinVersion = RenderTemplateModel.getComposeKotlinVersion(isMaterial3 = false)
-      RenderTemplateModel.Companion.toString()
+      projectData.kotlinVersion = "1.5.21"
       moduleData.category = Category.Compose
     }
     checkCreateTemplate("Empty Compose Activity", withSpecificKotlin) // Compose is always Kotlin
@@ -319,7 +317,7 @@ class TemplateTest(private val runTemplateCoverageOnly: Boolean = false) : Andro
 
     val withSpecificKotlin: ProjectStateCustomizer = { moduleData: ModuleTemplateDataBuilder, projectData: ProjectTemplateDataBuilder ->
       projectData.language = Language.Kotlin
-      projectData.kotlinVersion = RenderTemplateModel.getComposeKotlinVersion(isMaterial3 = true)
+      projectData.kotlinVersion = "1.5.31"
       moduleData.category = Category.Compose
     }
     checkCreateTemplate("Empty Compose Activity (Material3)", withSpecificKotlin) // Compose is always Kotlin
