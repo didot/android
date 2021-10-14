@@ -52,7 +52,7 @@ class ComponentGroupingRuleProvider : UsageGroupingRuleProvider {
 }
 
 class ComponentGroupingRule : SingleParentUsageGroupingRule() {
-  override fun getParentGroupFor(usage: Usage, targets: Array<out UsageTarget>?): UsageGroup? {
+  override fun getParentGroupFor(usage: Usage, targets: Array<out UsageTarget>): UsageGroup? {
     // TODO(xof): arguably we should have AgpComponentUsageInfo here
     val usageInfo = (usage as? UsageInfo2UsageAdapter)?.usageInfo as? GradleBuildModelUsageInfo ?: return null
     val wrappedElement = (usageInfo as? GradleBuildModelUsageInfo)?.element as? WrappedPsiElement ?: return null
@@ -61,23 +61,23 @@ class ComponentGroupingRule : SingleParentUsageGroupingRule() {
 
   // The rank for this grouping rule is somewhat arbitrary.  It affects how the rule composes with other rules, but the
   // other rules that we expect to be applicable to our usages are the built-in ones (e.g. groups by module, by file, by
-  // usage type), and the built-in ones all have an effective rank of Integer.MAX_VALUE, so as long as the rank we return
-  // here is less than that, we will get the desired behaviour of the component groups being closer to the tree root than
-  // built-in ones.  -42 is whimsically defensive against some other grouping rule coming along with a rank of 0, while
-  // allowing smaller and larger ranks if necessary.
+  // usage type).  As of platform version 2021.2 the built-in ones have effective rank between 0 and some hundreds, so as
+  // long as the rank we return here is less than that, we will get the desired behaviour of the component groups being
+  // closer to the tree root than built-in ones.  -42 is whimsically defensive against some other grouping rule coming along
+  // with a rank of 0 or -1, while allowing smaller and larger ranks if necessary.
   override fun getRank(): Int = -42
 }
 
 data class ComponentUsageGroup(val usageName: String) : UsageGroup {
   override fun navigate(requestFocus: Boolean) {}
-  override fun getIcon(isOpen: Boolean): Icon? = null
+  override fun getIcon(): Icon? = null
   override fun getFileStatus(): FileStatus? = null
   override fun update() {}
   override fun canNavigate(): Boolean = false
   override fun canNavigateToSource(): Boolean = false
   override fun isValid(): Boolean = true
 
-  override fun getText(view: UsageView?): String = usageName
+  override fun getPresentableGroupText(): String = usageName
 
   override fun compareTo(other: UsageGroup?): Int = when (other) {
     is ComponentUsageGroup -> usageName.compareTo(other.usageName)

@@ -518,9 +518,8 @@ class EmulatorView(
     val project = CommonDataKeys.PROJECT.getData(DataManager.getInstance().getDataContext(this)) ?: return
     val title = "Emulator is out of date"
     val message = "Please update the Android Emulator"
-    val notification =
-        EMULATOR_NOTIFICATION_GROUP.createNotification(title, XmlStringUtil.wrapInHtml(message), NotificationType.WARNING, null)
-    notification.collapseActionsDirection = Notification.CollapseActionsDirection.KEEP_LEFTMOST
+    val notification = EMULATOR_NOTIFICATION_GROUP.createNotification(title, XmlStringUtil.wrapInHtml(message), NotificationType.WARNING)
+    notification.collapseDirection = Notification.CollapseActionsDirection.KEEP_LEFTMOST
     notification.addAction(object : NotificationAction("Check for updates") {
       override fun actionPerformed(event: AnActionEvent, notification: Notification) {
         notification.expire()
@@ -1085,6 +1084,11 @@ class EmulatorView(
       if (imageFormat.width == 0 || imageFormat.height == 0) {
         expectedFrameNumber++
         return // Ignore empty screenshot.
+      }
+
+      if (response.image.size() != imageFormat.width * imageFormat.height * 3) {
+        LOG.error("Inconsistent ImageMessage: ${imageFormat.width}x${imageFormat.width} image contains ${response.image.size()} bytes")
+        return
       }
 
       // It is possible that the snapshot feed was requested assuming an out of date device rotation.

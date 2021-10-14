@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.android.sdk.AndroidSdkUtils
 import org.jetbrains.android.util.AndroidBundle.message
+import org.jetbrains.annotations.TestOnly
 import java.util.concurrent.TimeUnit
 
 private val LOG get() = logger<WearPairingManager>()
@@ -65,6 +66,8 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   private var runningJob: Job? = null
   private var model = WearDevicePairingModel()
   private var wizardAction: WizardAction? = null
+  private var virtualDevicesProvider: () -> List<AvdInfo> = { AvdManagerConnection.getDefaultAvdManagerConnection().getAvds(false) }
+  private var connectedDevicesProvider: () -> List<IDevice> = { findAdb()?.devices?.toList() ?: emptyList() }
 
   data class PhoneWearPair(
     val phone: PairingDevice,
@@ -75,8 +78,11 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
 
   private val pairedDevicesTable = hashMapOf<String, PhoneWearPair>()
 
-  private fun isTestMode(): Boolean =
-    ApplicationManager.getApplication()?.isUnitTestMode != false
+  @TestOnly
+  internal fun setDataProviders(virtualDevices: () -> List<AvdInfo>, connectedDevices: () -> List<IDevice>) {
+    virtualDevicesProvider = virtualDevices
+    connectedDevicesProvider = connectedDevices
+  }
 
   @UiThread
   override fun runActivity(project: Project, disposable: Disposable) {
@@ -91,7 +97,6 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
 
   @WorkerThread
   private fun loadSettings() {
-    if (isTestMode()) return
     ApplicationManager.getApplication().assertIsNonDispatchThread()
 
     WearPairingSettings.getInstance().apply {
@@ -128,7 +133,6 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   }
 
   private fun saveSettings() {
-    if (isTestMode()) return
     val pairedDevicesState = mutableListOf<PairingDeviceState>()
     val pairedDeviceConnectionsState = ArrayList<PairingConnectionsState>()
 
@@ -177,14 +181,21 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   @Synchronized
   fun getPairedDevices(deviceID: String): PhoneWearPair? = pairedDevicesTable[deviceID]
 
-  suspend fun createPairedDeviceBridge(phone: PairingDevice, phoneDevice: IDevice, wear: PairingDevice, wearDevice: IDevice, connect: Boolean = true) {
+  @Synchronized
+  fun isPaired(deviceID: String): Boolean = pairedDevicesTable.containsKey(deviceID)
+
+  suspend fun createPairedDeviceBridge(phone: PairingDevice,
+                                       phoneDevice: IDevice,
+                                       wear: PairingDevice,
+                                       wearDevice: IDevice,
+                                       connect: Boolean = true) {
     LOG.warn("Starting device bridge {connect = $connect}")
     removePairedDevices(wear.deviceID, restartWearGmsCore = false)
 
     val hostPort = NetUtils.tryToFindAvailableSocketPort(5602)
     val phoneWearPair = PhoneWearPair(
-      phone = phone.disconnectedCopy(isPaired = true),
-      wear = wear.disconnectedCopy(isPaired = true),
+      phone = phone.disconnectedCopy(),
+      wear = wear.disconnectedCopy(),
       allDevicesOnline = true,
       hostPort = hostPort
     )
@@ -267,9 +278,9 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
     val deviceTable = hashMapOf<String, PairingDevice>()
 
     // Collect list of all available AVDs
-    AvdManagerConnection.getDefaultAvdManagerConnection().getAvds(false).filter { it.isWearOrPhone() }.forEach { avdInfo ->
+    virtualDevicesProvider().filter { it.isWearOrPhone() }.forEach { avdInfo ->
       val deviceID = avdInfo.name
-      deviceTable[deviceID] = avdInfo.toPairingDevice(deviceID, isPaired(deviceID))
+      deviceTable[deviceID] = avdInfo.toPairingDevice(deviceID)
     }
 
     // Collect list of all connected devices. Enrich data with previous collected AVDs.
@@ -323,8 +334,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   }
 
   private fun getConnectedDevices(): Map<String, IDevice> {
-    val connectedDevices = findAdb()?.devices ?: return emptyMap()
-    return connectedDevices
+    return connectedDevicesProvider()
       .filter { it.isEmulator || it.arePropertiesSet() } // Ignore un-populated physical devices (still loading properties)
       .filter { it.isOnline }
       .associateBy { it.getDeviceID() }
@@ -352,8 +362,6 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
 
     phoneWearPair.allDevicesOnline = bothDeviceOnline
   }
-
-  private fun isPaired(deviceID: String): Boolean = pairedDevicesTable.containsKey(deviceID)
 
   private suspend fun addDisconnectedPairedDeviceIfMissing(device: PairingDevice, deviceTable: HashMap<String, PairingDevice>) {
     val deviceID = device.deviceID
@@ -416,13 +424,12 @@ private fun IDevice.toPairingDevice(deviceID: String, isPared: Boolean, avdDevic
     isWearDevice = avdDevice?.isWearDevice ?: supportsFeature(HardwareFeature.WATCH),
     state = if (isOnline) ConnectionState.ONLINE else ConnectionState.OFFLINE,
     hasPlayStore = avdDevice?.hasPlayStore ?: false,
-    isPaired = isPared
   ).apply {
     launch = { Futures.immediateFuture(this@toPairingDevice) }
   }
 }
 
-private fun AvdInfo.toPairingDevice(deviceID: String, isPared: Boolean): PairingDevice {
+private fun AvdInfo.toPairingDevice(deviceID: String): PairingDevice {
   return PairingDevice(
     deviceID = deviceID,
     displayName = displayName,
@@ -431,7 +438,6 @@ private fun AvdInfo.toPairingDevice(deviceID: String, isPared: Boolean): Pairing
     isWearDevice = SystemImage.WEAR_TAG == tag,
     state = ConnectionState.OFFLINE,
     hasPlayStore = hasPlayStore(),
-    isPaired = isPared
   ).apply {
     launch = { project -> AvdManagerConnection.getDefaultAvdManagerConnection().startAvd(project, this@toPairingDevice) }
   }

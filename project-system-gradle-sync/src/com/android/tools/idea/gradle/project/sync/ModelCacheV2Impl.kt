@@ -48,6 +48,7 @@ import com.android.builder.model.v2.ide.SourceProvider
 import com.android.builder.model.v2.ide.SourceSetContainer
 import com.android.builder.model.v2.ide.TestInfo
 import com.android.builder.model.v2.ide.TestedTargetVariant
+import com.android.builder.model.v2.ide.UnresolvedDependency
 import com.android.builder.model.v2.ide.Variant
 import com.android.builder.model.v2.ide.VectorDrawablesOptions
 import com.android.builder.model.v2.ide.ViewBindingOptions
@@ -82,6 +83,7 @@ import com.android.tools.idea.gradle.model.IdeProductFlavor
 import com.android.tools.idea.gradle.model.IdeProductFlavorContainer
 import com.android.tools.idea.gradle.model.IdeSigningConfig
 import com.android.tools.idea.gradle.model.IdeTestOptions
+import com.android.tools.idea.gradle.model.IdeUnresolvedDependencies
 import com.android.tools.idea.gradle.model.IdeVariantBuildInformation
 import com.android.tools.idea.gradle.model.IdeViewBindingOptions
 import com.android.tools.idea.gradle.model.impl.IdeAaptOptionsImpl
@@ -112,6 +114,7 @@ import com.android.tools.idea.gradle.model.impl.IdeSourceProviderContainerImpl
 import com.android.tools.idea.gradle.model.impl.IdeSourceProviderImpl
 import com.android.tools.idea.gradle.model.impl.IdeTestOptionsImpl
 import com.android.tools.idea.gradle.model.impl.IdeTestedTargetVariantImpl
+import com.android.tools.idea.gradle.model.impl.IdeUnresolvedDependenciesImpl
 import com.android.tools.idea.gradle.model.impl.IdeVariantBuildInformationImpl
 import com.android.tools.idea.gradle.model.impl.IdeVariantImpl
 import com.android.tools.idea.gradle.model.impl.IdeVectorDrawablesOptionsImpl
@@ -655,6 +658,9 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
   ): IdeDependencies {
     return createFromDependencies(artifactDependencies, libraries, buildNameMap)
   }
+  fun unresolvedDependenciesFrom(unresolvedDependencies: List<UnresolvedDependency>): List<IdeUnresolvedDependencies> {
+    return unresolvedDependencies.map { IdeUnresolvedDependenciesImpl(it.name, it.cause) }
+  }
 
   fun convertV2Execution(execution: TestInfo.Execution?): IdeTestOptions.Execution? {
     return if (execution == null) null
@@ -712,6 +718,7 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
       multiFlavorSourceProvider = copyNewModel(basicArtifact::multiFlavorSourceProvider, ::sourceProviderFrom),
       additionalClassesFolders = artifact.additionalClassesFolders,
       level2Dependencies = dependenciesFrom(artifactDependencies, libraries, buildNameMap),
+      unresolvedDependencies = copyNewModel(artifactDependencies::unresolvedDependencies, ::unresolvedDependenciesFrom) ?: emptyList(),
       applicationId = "",
       generatedResourceFolders = copy(artifact::generatedResourceFolders, ::deduplicateFile).distinct(),
       signingConfigName = artifact.signingConfigName,
@@ -759,6 +766,7 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
       multiFlavorSourceProvider = copyNewModel(basicArtifact::multiFlavorSourceProvider, ::sourceProviderFrom),
       additionalClassesFolders = artifact.additionalClassesFolders,
       level2Dependencies = dependenciesFrom(variantDependencies, libraries, buildNameMap),
+      unresolvedDependencies = copyNewModel(variantDependencies::unresolvedDependencies, ::unresolvedDependenciesFrom) ?: emptyList(),
       mockablePlatformJar = copy(artifact::mockablePlatformJar),
       isTestArtifact = name == "_unit_test_"
     )
@@ -1052,38 +1060,16 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
     includeInBundle = model.includeInBundle
   )
 
-  fun Map<AndroidGradlePluginProjectFlags.BooleanFlag, Boolean>.getV2BooleanFlag(
-    flag: AndroidGradlePluginProjectFlags.BooleanFlag
-  ): Boolean = this[flag] ?: flag.legacyDefault
-
-  fun createV2IdeAndroidGradlePluginProjectFlagsImpl(
-    booleanFlagMap: Map<AndroidGradlePluginProjectFlags.BooleanFlag, Boolean>?
-  ): IdeAndroidGradlePluginProjectFlagsImpl {
-    return if (booleanFlagMap != null) {
-      IdeAndroidGradlePluginProjectFlagsImpl(
-        applicationRClassConstantIds =
-        booleanFlagMap.getV2BooleanFlag(AndroidGradlePluginProjectFlags.BooleanFlag.APPLICATION_R_CLASS_CONSTANT_IDS),
-        testRClassConstantIds = booleanFlagMap.getV2BooleanFlag(AndroidGradlePluginProjectFlags.BooleanFlag.TEST_R_CLASS_CONSTANT_IDS),
-        transitiveRClasses = booleanFlagMap.getV2BooleanFlag(AndroidGradlePluginProjectFlags.BooleanFlag.TRANSITIVE_R_CLASS),
-        usesCompose = booleanFlagMap.getV2BooleanFlag(AndroidGradlePluginProjectFlags.BooleanFlag.JETPACK_COMPOSE),
-        mlModelBindingEnabled = booleanFlagMap.getV2BooleanFlag(AndroidGradlePluginProjectFlags.BooleanFlag.ML_MODEL_BINDING),
-        unifiedTestPlatformEnabled = booleanFlagMap.getV2BooleanFlag(AndroidGradlePluginProjectFlags.BooleanFlag.UNIFIED_TEST_PLATFORM),
-      )
-    }
-    else {
-      IdeAndroidGradlePluginProjectFlagsImpl(
-        applicationRClassConstantIds = false,
-        testRClassConstantIds = false,
-        transitiveRClasses = false,
-        usesCompose = false,
-        mlModelBindingEnabled = false,
-        unifiedTestPlatformEnabled = false,
-      )
-    }
-  }
-
   fun androidGradlePluginProjectFlagsFrom(flags: AndroidGradlePluginProjectFlags): IdeAndroidGradlePluginProjectFlagsImpl =
-    createV2IdeAndroidGradlePluginProjectFlagsImpl(flags.booleanFlagMap)
+     IdeAndroidGradlePluginProjectFlagsImpl(
+        applicationRClassConstantIds =
+        AndroidGradlePluginProjectFlags.BooleanFlag.APPLICATION_R_CLASS_CONSTANT_IDS.getValue(flags),
+        testRClassConstantIds = AndroidGradlePluginProjectFlags.BooleanFlag.TEST_R_CLASS_CONSTANT_IDS.getValue(flags),
+        transitiveRClasses = AndroidGradlePluginProjectFlags.BooleanFlag.TRANSITIVE_R_CLASS.getValue(flags),
+        usesCompose = AndroidGradlePluginProjectFlags.BooleanFlag.JETPACK_COMPOSE.getValue(flags),
+        mlModelBindingEnabled = AndroidGradlePluginProjectFlags.BooleanFlag.ML_MODEL_BINDING.getValue(flags),
+        unifiedTestPlatformEnabled = AndroidGradlePluginProjectFlags.BooleanFlag.UNIFIED_TEST_PLATFORM.getValue(flags),
+      )
 
   fun copyProjectType(projectType: ProjectType): IdeAndroidProjectType = when (projectType) {
     // TODO(b/187504821): is the number of supported project type in V2 reduced ? this is a restricted list compared to V1.

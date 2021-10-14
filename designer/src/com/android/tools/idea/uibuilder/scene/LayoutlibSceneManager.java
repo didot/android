@@ -27,7 +27,6 @@ import com.android.ide.common.rendering.api.RenderSession;
 import com.android.ide.common.rendering.api.ResourceReference;
 import com.android.ide.common.rendering.api.ResourceValue;
 import com.android.ide.common.rendering.api.SessionParams;
-import com.android.ide.common.rendering.api.ViewInfo;
 import com.android.tools.idea.common.analytics.CommonUsageTracker;
 import com.android.tools.idea.common.diagnostics.NlDiagnosticsManager;
 import com.android.tools.idea.common.model.AndroidCoordinate;
@@ -97,6 +96,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -1091,7 +1091,6 @@ public class LayoutlibSceneManager extends SceneManager {
     RenderService.RenderTaskBuilder renderTaskBuilder = renderService.taskBuilder(facet, configuration)
       .withPsiFile(getModel().getFile())
       .withLayoutScanner(myLayoutScannerConfig.isLayoutScannerEnabled())
-      .withLayoutScannerOptimization(myLayoutScannerConfig.isScannerAlwaysOn())
       .withLogger(logger);
     return setupRenderTaskBuilder(renderTaskBuilder).build()
       .thenCompose(newTask -> {
@@ -1501,6 +1500,24 @@ public class LayoutlibSceneManager extends SceneManager {
         return CompletableFuture.completedFuture(ExecuteCallbacksResult.EMPTY);
       }
       return myRenderTask.executeCallbacks(currentTimeNanos());
+    }
+  }
+
+  /**
+   * Executes the given block under a {@link RenderSession}. This allows the given block to access resources since they are set up
+   * before executing it.
+   * @return A {@link CompletableFuture} that completes when the block finalizes.
+   * @see RenderTask#runAsyncRenderActionWithSession(Runnable) 
+   */
+  @NotNull
+  public CompletableFuture<Void> executeInRenderSession(@NotNull Runnable block) {
+    synchronized (myRenderingTaskLock) {
+      if (myRenderTask != null) {
+        return myRenderTask.runAsyncRenderActionWithSession(block);
+      }
+      else {
+        return CompletableFuture.completedFuture(null);
+      }
     }
   }
 

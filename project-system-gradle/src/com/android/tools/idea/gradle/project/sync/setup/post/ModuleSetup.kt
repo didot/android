@@ -19,7 +19,7 @@ package com.android.tools.idea.gradle.project.sync.setup.post
 import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel
 import com.android.tools.idea.project.AndroidRunConfigurations
-import com.android.tools.idea.projectsystem.isMainModule
+import com.android.tools.idea.projectsystem.isHolderModule
 import com.android.tools.idea.testartifacts.scopes.GradleTestArtifactSearchScopes
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
@@ -36,25 +36,12 @@ fun setUpModules(project: Project) {
   ModuleManager.getInstance(project).modules.forEach { module ->
     recordLastAgpVersion(module)
     setupAndroidRunConfiguration(module)
-    setupKotlinOptionsOnFacet(module)
   }
-}
-
-// Added due to KT-19958
-private fun setupKotlinOptionsOnFacet(module: Module) {
-  val facet = AndroidFacet.getInstance(module) ?: return
-  val androidModel = AndroidModuleModel.get(facet) ?: return
-  val sourceSetName = androidModel.selectedVariant.name
-  if (module.sourceSetName == sourceSetName) return
-  val argsInfo = module.compilerArgumentsBySourceSet?.get(sourceSetName) ?: return
-  val kotlinFacet = KotlinFacet.get(module) ?: return
-  module.sourceSetName = sourceSetName
-  configureFacetByCompilerArguments(kotlinFacet, argsInfo, null)
 }
 
 private fun setupAndroidRunConfiguration(module: Module) {
   // We only need to create one run configuration per Gradle app project
-  if (!module.isMainModule()) return
+  if (!module.isHolderModule()) return
   val facet = AndroidFacet.getInstance(module)
   if (facet != null && facet.configuration.isAppProject) {
     AndroidRunConfigurations.getInstance().createRunConfiguration(facet)

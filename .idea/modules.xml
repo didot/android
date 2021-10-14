@@ -43,6 +43,11 @@
       <module fileurl="file://$PROJECT_DIR$/../../base/lint/libs/lint-api/android.sdktools.lint-api.iml" filepath="$PROJECT_DIR$/../../base/lint/libs/lint-api/android.sdktools.lint-api.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/lint/libs/lint-checks/android.sdktools.lint-checks.iml" filepath="$PROJECT_DIR$/../../base/lint/libs/lint-checks/android.sdktools.lint-checks.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/lint/libs/lint-model/android.sdktools.lint-model.iml" filepath="$PROJECT_DIR$/../../base/lint/libs/lint-model/android.sdktools.lint-model.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../base/lint/cli/android.sdktools.lint.cli.iml" filepath="$PROJECT_DIR$/../../base/lint/cli/android.sdktools.lint.cli.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../base/lint/studio-checks/android.sdktools.lint.studio-checks.iml" filepath="$PROJECT_DIR$/../../base/lint/studio-checks/android.sdktools.lint.studio-checks.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../base/lint/studio-checks/android.sdktools.lint.studio-checks.tests.iml" filepath="$PROJECT_DIR$/../../base/lint/studio-checks/android.sdktools.lint.studio-checks.tests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../base/lint/libs/lint-tests/android.sdktools.lint.testinfrastructure.iml" filepath="$PROJECT_DIR$/../../base/lint/libs/lint-tests/android.sdktools.lint.testinfrastructure.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../base/lint/libs/lint-tests/android.sdktools.lint.tests.iml" filepath="$PROJECT_DIR$/../../base/lint/libs/lint-tests/android.sdktools.lint.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/build-system/manifest-merger/android.sdktools.manifest-merger.iml" filepath="$PROJECT_DIR$/../../base/build-system/manifest-merger/android.sdktools.manifest-merger.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/manifest-parser/android.sdktools.manifest-parser.iml" filepath="$PROJECT_DIR$/../../base/manifest-parser/android.sdktools.manifest-parser.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/mlkit-common/android.sdktools.mlkit-common.iml" filepath="$PROJECT_DIR$/../../base/mlkit-common/android.sdktools.mlkit-common.iml" />
@@ -174,6 +179,8 @@
       <module fileurl="file://$PROJECT_DIR$/layoutlib/intellij.android.layoutlib.iml" filepath="$PROJECT_DIR$/layoutlib/intellij.android.layoutlib.iml" />
       <module fileurl="file://$PROJECT_DIR$/layoutlib-loader/intellij.android.layoutlib-loader.iml" filepath="$PROJECT_DIR$/layoutlib-loader/intellij.android.layoutlib-loader.iml" />
       <module fileurl="file://$PROJECT_DIR$/layoutlib/intellij.android.layoutlib.tests.iml" filepath="$PROJECT_DIR$/layoutlib/intellij.android.layoutlib.tests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android-lint/intellij.android.lint.iml" filepath="$PROJECT_DIR$/android-lint/intellij.android.lint.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android-lint/intellij.android.lint.tests.iml" filepath="$PROJECT_DIR$/android-lint/intellij.android.lint.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/logcat/intellij.android.logcat.iml" filepath="$PROJECT_DIR$/logcat/intellij.android.logcat.iml" />
       <module fileurl="file://$PROJECT_DIR$/mlkit/intellij.android.mlkit.iml" filepath="$PROJECT_DIR$/mlkit/intellij.android.mlkit.iml" />
       <module fileurl="file://$PROJECT_DIR$/mlkit/intellij.android.mlkit.tests.iml" filepath="$PROJECT_DIR$/mlkit/intellij.android.mlkit.tests.iml" />
@@ -211,6 +218,7 @@
       <module fileurl="file://$PROJECT_DIR$/sdk-updates/intellij.android.sdkUpdates.tests.iml" filepath="$PROJECT_DIR$/sdk-updates/intellij.android.sdkUpdates.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/server-flags/intellij.android.server-flags.iml" filepath="$PROJECT_DIR$/server-flags/intellij.android.server-flags.iml" />
       <module fileurl="file://$PROJECT_DIR$/smali/intellij.android.smali.iml" filepath="$PROJECT_DIR$/smali/intellij.android.smali.iml" />
+      <module fileurl="file://$PROJECT_DIR$/studio/stamper/intellij.android.studio.stamper.iml" filepath="$PROJECT_DIR$/studio/stamper/intellij.android.studio.stamper.iml" />
       <module fileurl="file://$PROJECT_DIR$/studio/tests/intellij.android.studio.tests.iml" filepath="$PROJECT_DIR$/studio/tests/intellij.android.studio.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/sync-perf-tests/intellij.android.sync-perf-tests.iml" filepath="$PROJECT_DIR$/sync-perf-tests/intellij.android.sync-perf-tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-templates/intellij.android.templates.iml" filepath="$PROJECT_DIR$/android-templates/intellij.android.templates.iml" />

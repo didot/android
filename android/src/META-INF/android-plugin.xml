@@ -1,5 +1,5 @@
 <!--
-  ~ Copyright (C) 2019 The Android Open Source Project
+  ~ Copyright (C) 2021 The Android Open Source Project
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -29,12 +29,9 @@
 
   <xi:include href="android-kotlin.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/org/jetbrains/android/dom/android-xml.xml" xpointer="xpointer(/idea-plugin/*)"/>
-  <xi:include href="/com/android/tools/idea/lint/android-lint.xml" xpointer="xpointer(/idea-plugin/*)"/>
 
   <resource-bundle>messages.AndroidBundle</resource-bundle>
   <actions>
-    <action id="Project.CallGraph" internal="true" text="Contextual Call Paths" class="com.android.tools.idea.experimental.callgraph.CallGraphAction"/>
-    <action id="Project.InterproceduralThreadAnnotations" internal="true" text="Interprocedural Thread Annotation Checker" class="com.android.tools.idea.experimental.callgraph.WrongThreadInterproceduralAction"/>
     <group id="Library.Properties">
       <separator/>
       <action id="LibraryProperties" class="com.android.tools.idea.gradle.actions.LibraryPropertiesAction"/>
@@ -155,7 +152,7 @@
     </group>
     <group id="Android.Diagnostics">
       <separator/>
-      <action class="com.android.tools.idea.res.ToggleResourceUpdateTracingAction"/>
+      <action class="com.android.tools.idea.res.DumpResourceTraceAction"/>
       <add-to-group group-id="HelpDiagnosticTools" anchor="last"/>
     </group>
 
@@ -448,9 +445,8 @@
                               order="first"/>
     <configurationType implementation="com.android.tools.idea.run.AndroidRunConfigurationType"/>
     <configurationType implementation="com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfigurationType"/>
-    <!-- TODO: http://b/201545314 -->
-    <!--    <configurationType implementation="com.android.tools.idea.run.configuration.AndroidWatchFaceConfigurationType"/>-->
-    <!--    <configurationType implementation="com.android.tools.idea.run.configuration.AndroidTileConfigurationType"/>-->
+    <configurationType implementation="com.android.tools.idea.run.configuration.AndroidWatchFaceConfigurationType"/>
+    <configurationType implementation="com.android.tools.idea.run.configuration.AndroidTileConfigurationType"/>
     <programRunner implementation="com.android.tools.idea.run.configuration.AndroidWearProgramRunner"/>
     <programRunner implementation="com.android.tools.idea.run.DefaultStudioProgramRunner" order="first"/>
     <facetType implementation="org.jetbrains.android.facet.AndroidFacetType"/>
@@ -532,21 +528,6 @@
     </intentionAction>
 
     <intentionAction>
-      <className>org.jetbrains.android.intentions.ImplementParcelableAction</className>
-      <category>Android</category>
-    </intentionAction>
-
-    <intentionAction>
-      <className>org.jetbrains.android.intentions.RedoParcelableAction</className>
-      <category>Android</category>
-    </intentionAction>
-
-    <intentionAction>
-      <className>org.jetbrains.android.intentions.RemoveParcelableAction</className>
-      <category>Android</category>
-    </intentionAction>
-
-    <intentionAction>
       <className>org.jetbrains.android.intentions.AndroidCreateOnClickHandlerAction</className>
       <category>Android</category>
     </intentionAction>
@@ -567,8 +548,6 @@
                      key="android.inspections.non.constant.res.ids.in.switch.name" groupKey="android.inspections.group.name"
                      enabledByDefault="true" level="ERROR"
                      implementationClass="org.jetbrains.android.inspections.AndroidNonConstantResIdsInSwitchInspection"/>
-
-    <globalInspection hasStaticDescription="true" shortName="PermissionUsageInspection" displayName="Permission Check for Location APIs" bundle="messages.AndroidBundle" enabledByDefault="false" level="WARNING" implementationClass="com.android.tools.idea.experimental.PermissionUsageInspection"/>
 
     <predefinedCodeStyle implementation="org.jetbrains.android.formatter.AndroidJavaPredefinedCodeStyle"/>
 
@@ -1003,6 +982,9 @@
 
     <listener class="com.android.tools.idea.startup.ApkFacetCheckerInitializer"
               topic="com.intellij.openapi.project.ProjectManagerListener"/>
+    <listener class="com.android.tools.idea.startup.ProjectMetricsInitializer"
+              topic="com.intellij.openapi.project.ProjectManagerListener"/>
+
   </applicationListeners>
 
   <projectListeners>

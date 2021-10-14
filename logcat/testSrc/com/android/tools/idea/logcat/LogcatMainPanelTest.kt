@@ -19,20 +19,38 @@ import com.android.ddmlib.Log.LogLevel.INFO
 import com.android.ddmlib.Log.LogLevel.WARN
 import com.android.ddmlib.logcat.LogCatHeader
 import com.android.ddmlib.logcat.LogCatMessage
+import com.android.testutils.MockitoKt.any
+import com.android.testutils.MockitoKt.capture
+import com.android.testutils.MockitoKt.eq
 import com.android.testutils.MockitoKt.mock
 import com.android.tools.adtui.swing.FakeUi
+import com.android.tools.idea.concurrency.AndroidExecutors
+import com.android.tools.idea.logcat.actions.ClearLogcatAction
+import com.android.tools.idea.logcat.actions.HeaderFormatOptionsAction
+import com.android.tools.idea.logcat.folding.FoldingDetector
+import com.android.tools.idea.logcat.folding.FoldingDetectorImpl
 import com.android.tools.idea.logcat.messages.LogcatColors
 import com.android.tools.idea.testing.AndroidExecutorsRule
 import com.google.common.truth.Truth.assertThat
+import com.intellij.execution.filters.CompositeFilter
+import com.intellij.execution.filters.Filter
+import com.intellij.execution.impl.ConsoleViewUtil
+import com.intellij.execution.impl.EditorHyperlinkSupport
 import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionGroup.EMPTY_GROUP
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPopupMenu
+import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.actions.ScrollToTheEndToolbarAction
+import com.intellij.openapi.editor.actions.ToggleUseSoftWrapsToolbarAction
 import com.intellij.openapi.editor.impl.DocumentImpl
 import com.intellij.openapi.util.Disposer
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.ProjectRule
 import com.intellij.testFramework.RuleChain
@@ -40,20 +58,28 @@ import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.replaceService
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.tools.SimpleActionGroup
+import com.intellij.util.ConcurrencyUtil
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.`when`
+import org.mockito.Mockito.spy
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
 import java.awt.BorderLayout
 import java.awt.BorderLayout.CENTER
 import java.awt.BorderLayout.NORTH
+import java.awt.BorderLayout.WEST
 import java.awt.Dimension
 import java.time.Instant
 import java.time.ZoneId
 import java.util.concurrent.Executors
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import javax.swing.JComponent
 import javax.swing.JPopupMenu
 
@@ -63,8 +89,12 @@ import javax.swing.JPopupMenu
 class LogcatMainPanelTest {
   private val projectRule = ProjectRule()
 
+  private val executor = Executors.newCachedThreadPool()
+
   @get:Rule
-  val rule = RuleChain(projectRule, EdtRule(), AndroidExecutorsRule(Executors.newCachedThreadPool()))
+  val rule = RuleChain(projectRule, EdtRule(), AndroidExecutorsRule(workerThreadExecutor = executor, ioThreadExecutor = executor))
+  private val mockHyperlinkHighlighter = mock<HyperlinkHighlighter>()
+  private val mockFoldingDetector = mock<FoldingDetector>()
 
   private lateinit var logcatMainPanel: LogcatMainPanel
 
@@ -76,19 +106,28 @@ class LogcatMainPanelTest {
   @RunsInEdt
   @Test
   fun createsComponents() {
-    logcatMainPanel = LogcatMainPanel(projectRule.project, EMPTY_GROUP, LogcatColors(), state = null)
+    logcatMainPanel = logcatMainPanel()
 
     val borderLayout = logcatMainPanel.layout as BorderLayout
 
-    assertThat(logcatMainPanel.componentCount).isEqualTo(2)
+    assertThat(logcatMainPanel.componentCount).isEqualTo(3)
     assertThat(borderLayout.getLayoutComponent(NORTH)).isInstanceOf(LogcatHeaderPanel::class.java)
     assertThat(borderLayout.getLayoutComponent(CENTER)).isSameAs(logcatMainPanel.editor.component)
+    assertThat(borderLayout.getLayoutComponent(WEST)).isInstanceOf(ActionToolbar::class.java)
+    val toolbar = borderLayout.getLayoutComponent(WEST) as ActionToolbar
+    assertThat(toolbar.actions.map { it::class }).containsExactly(
+      ClearLogcatAction::class,
+      ScrollToTheEndToolbarAction::class,
+      ToggleUseSoftWrapsToolbarAction::class,
+      HeaderFormatOptionsAction::class,
+      Separator::class,
+    ).inOrder()
   }
 
   @RunsInEdt
   @Test
   fun setsUpEditor() {
-    logcatMainPanel = LogcatMainPanel(projectRule.project, EMPTY_GROUP, LogcatColors(), state = null)
+    logcatMainPanel = logcatMainPanel()
 
     assertThat(logcatMainPanel.editor.gutterComponentEx.isPaintBackground).isFalse()
     val editorSettings = logcatMainPanel.editor.settings
@@ -110,7 +149,7 @@ class LogcatMainPanelTest {
   fun setsDocumentCyclicBuffer() {
     // Set a buffer of 1k
     System.setProperty("idea.cycle.buffer.size", "1")
-    logcatMainPanel = LogcatMainPanel(projectRule.project, EMPTY_GROUP, LogcatColors(), state = null)
+    logcatMainPanel = logcatMainPanel()
     val document = logcatMainPanel.editor.document as DocumentImpl
 
     // Insert 2000 chars
@@ -128,7 +167,7 @@ class LogcatMainPanelTest {
   @Test
   fun appendMessages() = runBlocking {
     runInEdtAndWait {
-      logcatMainPanel = LogcatMainPanel(projectRule.project, EMPTY_GROUP, LogcatColors(), state = null, ZoneId.of("Asia/Yerevan"))
+      logcatMainPanel = logcatMainPanel(zoneId = ZoneId.of("Asia/Yerevan"))
     }
 
     logcatMainPanel.messageProcessor.appendMessages(listOf(
@@ -148,13 +187,46 @@ class LogcatMainPanelTest {
   @Test
   fun appendMessages_disposedEditor() = runBlocking {
     runInEdtAndWait {
-      logcatMainPanel = LogcatMainPanel(projectRule.project, EMPTY_GROUP, LogcatColors(), state = null, ZoneId.of("Asia/Yerevan"))
+      logcatMainPanel = logcatMainPanel()
       Disposer.dispose(logcatMainPanel)
     }
 
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+  }
+
+  @Test
+  fun appendMessages_scrollToEnd() = runBlocking {
+    runInEdtAndWait {
+      logcatMainPanel = logcatMainPanel()
+    }
+
     logcatMainPanel.messageProcessor.appendMessages(listOf(
-      LogCatMessage(LogCatHeader(WARN, 1, 2, "app1", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      logCatMessage(),
+      logCatMessage(),
     ))
+
+    logcatMainPanel.messageProcessor.onIdle {
+      @Suppress("ConvertLambdaToReference")
+      assertThat(logcatMainPanel.editor.isCaretAtBottom()).isTrue()
+    }
+  }
+
+  @Test
+  fun appendMessages_notAtBottom_doesNotScrollToEnd() = runBlocking {
+    runInEdtAndWait {
+      logcatMainPanel = logcatMainPanel()
+    }
+
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.onIdle {
+      logcatMainPanel.editor.caretModel.moveToOffset(0)
+    }
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+
+    logcatMainPanel.messageProcessor.onIdle {
+      @Suppress("ConvertLambdaToReference")
+      assertThat(logcatMainPanel.editor.isCaretAtBottom()).isFalse()
+    }
   }
 
   @RunsInEdt
@@ -166,25 +238,180 @@ class LogcatMainPanelTest {
       })
     }
     var latestPopup: ActionPopupMenu? = null
-    val actionManager = mock<ActionManager>()
-    ApplicationManager.getApplication().replaceService(ActionManager::class.java, actionManager, projectRule.project)
-    `when`(actionManager.getAction(anyString())).thenReturn(
-      object : AnAction("An FakeAction") {
-        override fun actionPerformed(e: AnActionEvent) {}
-      })
-    `when`(actionManager.createActionPopupMenu(anyString(), any(ActionGroup::class.java))).thenAnswer {
-      latestPopup = FakeActionPopupMenu(it.getArgument(1))
-      latestPopup
-    }
-    logcatMainPanel = LogcatMainPanel(projectRule.project, popupActionGroup, LogcatColors(), state = null).apply {
-      size = Dimension(100, 100)
-    }
-    val fakeUi = FakeUi(logcatMainPanel)
+    val actionManager = ApplicationManager.getApplication().getService(ActionManager::class.java)
+    val mockActionManager = spy(actionManager)
+    try {
+      ApplicationManager.getApplication().replaceService(ActionManager::class.java, mockActionManager, projectRule.project)
+      `when`(mockActionManager.createActionPopupMenu(anyString(), any(ActionGroup::class.java))).thenAnswer {
+        latestPopup = FakeActionPopupMenu(it.getArgument(1))
+        latestPopup
+      }
+      logcatMainPanel = logcatMainPanel(popupActionGroup = popupActionGroup).apply {
+        size = Dimension(100, 100)
+      }
+      val fakeUi = FakeUi(logcatMainPanel)
 
-    fakeUi.rightClickOn(logcatMainPanel)
+      fakeUi.rightClickOn(logcatMainPanel)
 
-    assertThat(latestPopup!!.actionGroup).isSameAs(popupActionGroup)
+      assertThat(latestPopup!!.actionGroup).isSameAs(popupActionGroup)
+    }
+    finally {
+      ApplicationManager.getApplication().replaceService(ActionManager::class.java, actionManager, projectRule.project)
+    }
   }
+
+  @RunsInEdt
+  @Test
+  fun isMessageViewEmpty_emptyDocument() {
+    logcatMainPanel = logcatMainPanel()
+    logcatMainPanel.editor.document.setText("")
+
+    assertThat(logcatMainPanel.isMessageViewEmpty()).isTrue()
+  }
+
+  @RunsInEdt
+  @Test
+  fun isMessageViewEmpty_notEmptyDocument() {
+    logcatMainPanel = logcatMainPanel()
+    logcatMainPanel.editor.document.setText("not-empty")
+
+    assertThat(logcatMainPanel.isMessageViewEmpty()).isFalse()
+  }
+
+  @Test
+  fun clearMessageView() {
+    runInEdtAndWait {
+      logcatMainPanel = logcatMainPanel()
+      logcatMainPanel.editor.document.setText("not-empty")
+    }
+
+    logcatMainPanel.clearMessageView()
+
+    ConcurrencyUtil.awaitQuiescence(AndroidExecutors.getInstance().ioThreadExecutor as ThreadPoolExecutor, 5, TimeUnit.SECONDS)
+    runInEdtAndWait { }
+    assertThat(logcatMainPanel.editor.document.text).isEmpty()
+    assertThat(logcatMainPanel.messageBacklog.messages).isEmpty()
+    // TODO(aalbert): Test the 'logcat -c' functionality if new adb lib allows for it.
+  }
+
+  @Test
+  fun hyperlinks_usesCorrectFilters() = runBlocking {
+    runInEdtAndWait {
+      logcatMainPanel = logcatMainPanel(hyperlinkHighlighter = mockHyperlinkHighlighter)
+    }
+    val filterCaptor: ArgumentCaptor<Filter> = ArgumentCaptor.forClass(Filter::class.java)
+
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+
+    val expectedFilters = ConsoleViewUtil.computeConsoleFilters(projectRule.project, null, GlobalSearchScope.allScope(projectRule.project))
+    logcatMainPanel.messageProcessor.onIdle {
+      verify(mockHyperlinkHighlighter).highlightHyperlinks(capture(filterCaptor), anyInt(), anyInt())
+      val compositeFilter = filterCaptor.value as CompositeFilter
+      assertThat(compositeFilter.filters.map { it::class }).containsExactlyElementsIn(expectedFilters.map { it::class })
+    }
+  }
+
+  /**
+   *  The purpose this test is to ensure that we are calling the HyperlinkHighlighter with the correct line range. It does not test user on
+   *  any visible effect.
+   */
+  @Test
+  fun hyperlinks_range() = runBlocking {
+    runInEdtAndWait {
+      logcatMainPanel = logcatMainPanel(hyperlinkHighlighter = mockHyperlinkHighlighter)
+    }
+
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.onIdle {}
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+
+    logcatMainPanel.messageProcessor.onIdle {
+      verify(mockHyperlinkHighlighter).highlightHyperlinks(any(Filter::class.java), eq(0), eq(1))
+      verify(mockHyperlinkHighlighter).highlightHyperlinks(any(Filter::class.java), eq(1), eq(2))
+    }
+  }
+
+  /**
+   *  The purpose this test is to ensure that we are calling the HyperlinkHighlighter with the correct line range. It does not test user on
+   *  any visible effect.
+   */
+  @Test
+  fun hyperlinks_rangeWithCyclicBuffer() = runBlocking {
+    System.setProperty("idea.cycle.buffer.size", "1")
+    runInEdtAndWait {
+      logcatMainPanel = logcatMainPanel(hyperlinkHighlighter = mockHyperlinkHighlighter)
+    }
+    val longMessage = "message".padStart(1000, '-')
+
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage(message = longMessage)))
+    logcatMainPanel.messageProcessor.onIdle {} // force flush
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage(message = longMessage)))
+
+    logcatMainPanel.messageProcessor.onIdle {
+      verify(mockHyperlinkHighlighter, times(2)).highlightHyperlinks(any(Filter::class.java), eq(0), eq(1))
+    }
+  }
+
+  @Test
+  fun hyperlinks_areHighlighted() = runBlocking {
+    runInEdtAndWait {
+      logcatMainPanel = LogcatMainPanel(projectRule.project, EMPTY_GROUP, LogcatColors(), null)
+    }
+
+    logcatMainPanel.messageProcessor.appendMessages(listOf(
+      logCatMessage(message = "http://www.google.com"),
+    ))
+
+    logcatMainPanel.messageProcessor.onIdle {
+      val hyperlinkSupport = EditorHyperlinkSupport.get(logcatMainPanel.editor)
+      hyperlinkSupport.waitForPendingFilters(/* timeoutMs= */ 5000)
+      assertThat(hyperlinkSupport.findAllHyperlinksOnLine(0).map {
+        logcatMainPanel.editor.document.text.substring(it.startOffset, it.endOffset)
+      }).containsExactly("http://www.google.com")
+    }
+  }
+
+  /**
+   *  The purpose this test is to ensure that we are calling the FoldingDetector with the correct line range. It does not test user on any
+   *  visible effect.
+   */
+  @Test
+  fun foldings_range() = runBlocking {
+    runInEdtAndWait {
+      logcatMainPanel = logcatMainPanel(foldingDetectorFactory = { mockFoldingDetector })
+    }
+
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.onIdle {}
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+
+    logcatMainPanel.messageProcessor.onIdle {
+      verify(mockFoldingDetector).detectFoldings(eq(0), eq(1))
+      verify(mockFoldingDetector).detectFoldings(eq(1), eq(2))
+    }
+  }
+
+  /**
+   *  The purpose this test is to ensure that we are calling the FoldingDetector with the correct line range. It does not test user on any
+   *  visible effect.
+   */
+  @Test
+  fun foldings_rangeWithCyclicBuffer() = runBlocking {
+    System.setProperty("idea.cycle.buffer.size", "1")
+    runInEdtAndWait {
+      logcatMainPanel = logcatMainPanel(foldingDetectorFactory = { mockFoldingDetector })
+    }
+    val longMessage = "message".padStart(1000, '-')
+
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage(message = longMessage)))
+    logcatMainPanel.messageProcessor.onIdle {} // force flush
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage(message = longMessage)))
+
+    logcatMainPanel.messageProcessor.onIdle {
+      verify(mockFoldingDetector, times(2)).detectFoldings(eq(0), eq(1))
+    }
+  }
+
 
   private class FakeActionPopupMenu(private val actionGroup: ActionGroup) : ActionPopupMenu {
     override fun getComponent(): JPopupMenu {
@@ -201,4 +428,13 @@ class LogcatMainPanelTest {
       throw UnsupportedOperationException()
     }
   }
+
+  private fun logcatMainPanel(
+    popupActionGroup: ActionGroup = EMPTY_GROUP,
+    logcatColors: LogcatColors = LogcatColors(),
+    state: LogcatPanelConfig? = null,
+    hyperlinkHighlighter: HyperlinkHighlighter = mock(),
+    foldingDetectorFactory: (Editor) -> FoldingDetector = { editor -> FoldingDetectorImpl(projectRule.project, editor) },
+    zoneId: ZoneId = ZoneId.of("Asia/Yerevan"),
+  ) = LogcatMainPanel(projectRule.project, popupActionGroup, logcatColors, state, { hyperlinkHighlighter }, foldingDetectorFactory, zoneId)
 }

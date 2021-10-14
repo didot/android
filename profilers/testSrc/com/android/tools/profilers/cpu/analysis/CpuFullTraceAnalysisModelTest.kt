@@ -34,18 +34,4 @@ class CpuFullTraceAnalysisModelTest {
     val analysisModels = model.tabModels.map(CpuAnalysisTabModel<*>::getTabType).toSet()
     assertThat(analysisModels).containsExactly(Type.SUMMARY, Type.FLAME_CHART, Type.TOP_DOWN, Type.BOTTOM_UP)
   }
-
-  @Test
-  fun systemTraceWithFrameDataShouldShowFramesTab() {
-    val systemTraceData = Mockito.mock(CpuSystemTraceData::class.java).apply {
-      Mockito.`when`(getAndroidFrameLayers()).thenReturn(listOf(TraceProcessor.AndroidFrameEventsResult.Layer.getDefaultInstance()))
-    }
-    val capture = Mockito.mock(CpuCapture::class.java).apply {
-      Mockito.`when`(this.range).thenReturn(Range())
-      Mockito.`when`(this.systemTraceData).thenReturn(systemTraceData)
-    }
-    val model = CpuFullTraceAnalysisModel(capture, Range())
-    val analysisModels = model.tabModels.map(CpuAnalysisTabModel<*>::getTabType).toSet()
-    assertThat(analysisModels).containsExactly(Type.SUMMARY, Type.FLAME_CHART, Type.TOP_DOWN, Type.BOTTOM_UP, Type.FRAMES)
-  }
 }

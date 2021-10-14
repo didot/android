@@ -339,6 +339,8 @@ iml_module(
         "//tools/base/manifest-parser:studio.android.sdktools.manifest-parser[module]",
         "//tools/base/common:studio.android.sdktools.common.testfixtures[module, test]",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle-java[test]",
+        "//tools/base/deploy/deployer:studio.android.sdktools.deployer[module, test]",
+        "//tools/adt/idea/android-lint:intellij.android.lint[module, test]",
     ],
 )
 
@@ -450,7 +452,7 @@ maven_repository(
         "@maven//:androidx.appcompat.appcompat_1.0.2",
         "@maven//:androidx.appcompat.appcompat_1.3.0",
         "@maven//:androidx.benchmark.benchmark-gradle-plugin_1.0.0",
-        "@maven//:androidx.compose.ui.ui-tooling_1.0.1",
+        "@maven//:androidx.compose.ui.ui-tooling_1.0.3",
         "@maven//:androidx.constraintlayout.constraintlayout_1.1.3",
         "@maven//:androidx.constraintlayout.constraintlayout_2.0.4",
         "@maven//:androidx.core.core-ktx_1.0.1",
@@ -586,13 +588,8 @@ iml_module(
             # TODO(b/191881927) Test cases with a gradle KTS sync do not shard well
             "test_filter": "com.android.tools.idea.inspections.IllegalIdentifierInspectionTest",
         },
-        "GradleSyncKtsIntegrationTest": {
-            # TODO(b/191881927) Test cases with a gradle KTS sync do not shard well
-            "test_filter": "com.android.tools.idea.gradle.project.sync.GradleSyncKtsIntegrationTest",
-            "tags": ["no_windows"],
-        },
         "other": {
-            "shard_count": 4,
+            "shard_count": 3,
         },
     },
     test_class = "com.android.tools.idea.IdeaTestSuite",
@@ -640,5 +637,6 @@ iml_module(
         "//tools/adt/idea/adt-ui:intellij.android.adt.ui[module, test]",
         "//tools/adt/idea/android-kotlin:intellij.android.kotlin.idea[module, test]",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin[test]",
+        "//tools/adt/idea/android-lint:intellij.android.lint[module, test]",
     ],
 )

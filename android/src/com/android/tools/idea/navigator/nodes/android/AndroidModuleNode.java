@@ -123,7 +123,7 @@ public class AndroidModuleNode extends AndroidViewModuleNode {
       result.add(new AndroidJniFolderNode(project, ndkModuleModel, settings));
     }
 
-    AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(facet.getModule());
+    AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(facet.getHolderModule());
     PsiDirectory sampleDataPsi = getPsiDirectory(project, moduleSystem.getSampleDataDirectory());
     if (sampleDataPsi != null) {
       result.add(new PsiDirectoryNode(project, sampleDataPsi, settings));
@@ -209,6 +209,10 @@ public class AndroidModuleNode extends AndroidViewModuleNode {
       if (androidTestArtifact != null) {
         files.addAll(GradleUtil.getGeneratedSourceFoldersToUse(androidTestArtifact, androidModuleModel));
       }
+      IdeAndroidArtifact testFixturesArtifact = androidModuleModel.getArtifactForTestFixtures();
+      if (testFixturesArtifact != null) {
+        files.addAll(GradleUtil.getGeneratedSourceFoldersToUse(testFixturesArtifact, androidModuleModel));
+      }
       IdeJavaArtifact unitTestArtifact = androidModuleModel.getSelectedVariant().getUnitTestArtifact();
       if (unitTestArtifact != null) {
         files.addAll(unitTestArtifact.getGeneratedSourceFolders());
@@ -234,6 +238,10 @@ public class AndroidModuleNode extends AndroidViewModuleNode {
       IdeAndroidArtifact androidTest = androidModuleModel.getArtifactForAndroidTest();
       if (androidTest != null) {
         files.addAll(androidTest.getGeneratedResourceFolders());
+      }
+      IdeAndroidArtifact testFixtures = androidModuleModel.getArtifactForTestFixtures();
+      if (testFixtures != null) {
+        files.addAll(testFixtures.getGeneratedResourceFolders());
       }
 
       for (File file : files) {

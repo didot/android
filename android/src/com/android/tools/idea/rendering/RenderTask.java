@@ -16,6 +16,8 @@
 package com.android.tools.idea.rendering;
 
 import static com.android.tools.compose.ComposeLibraryNamespaceKt.COMPOSE_VIEW_ADAPTER_FQNS;
+import static com.android.tools.idea.configurations.AdditionalDeviceService.DEVICE_CLASS_DESKTOP_ID;
+import static com.android.tools.idea.configurations.AdditionalDeviceService.DEVICE_CLASS_TABLET_ID;
 import static com.intellij.lang.annotation.HighlightSeverity.ERROR;
 
 import com.android.SdkConstants;
@@ -145,7 +147,7 @@ public class RenderTask {
   /**
    * When quality < 1.0, the max allowed size for the rendering is DOWNSCALED_IMAGE_MAX_BYTES * downscalingFactor
    */
-  private static final int DOWNSCALED_IMAGE_MAX_BYTES = 2_500_000; // 2.5MB
+  private static final int DEFAULT_DOWNSCALED_IMAGE_MAX_BYTES = 2_500_000; // 2.5MB
 
   /**
    * Executor to run the dispose tasks. The thread will run them sequentially.
@@ -161,6 +163,7 @@ public class RenderTask {
   @NotNull private final LayoutLibrary myLayoutLib;
   @NotNull private final HardwareConfigHelper myHardwareConfigHelper;
   private final float myDefaultQuality;
+  private final long myDownScaledImageMaxBytes;
   @Nullable private IncludeReference myIncludedWithin;
   @NotNull private RenderingMode myRenderingMode = RenderingMode.NORMAL;
   private boolean mySetTransparentBackground = false;
@@ -168,7 +171,6 @@ public class RenderTask {
   private boolean myShadowEnabled = true;
   private boolean myHighQualityShadow = true;
   private boolean myEnableLayoutScanner = false;
-  private boolean myEnableLayoutScannerOptimization = false;
   private boolean myShowWithToolsVisibilityAndPosition = true;
   private AssetRepositoryImpl myAssetRepository;
   private long myTimeout;
@@ -268,6 +270,21 @@ public class RenderTask {
                                     moduleInfo,
                                     renderService.getPlatform(facet));
       myDefaultQuality = quality;
+      // Some devices need more memory to avoid the blur when rendering. These are special cases.
+      // The image looks acceptable after dividing both width and height to half. So we divide memory usage by 4 for these devices.
+      if (DEVICE_CLASS_DESKTOP_ID.equals(device.getId())) {
+        // Desktop device is 1920dp * 1080dp with XXHDPI density, it needs roughly 6K * 3K * 32 (ARGB) / 8 = 72 MB.
+        // We divide it by 4, which is 18 MB.
+        myDownScaledImageMaxBytes = 18_000_000L;
+      }
+      else if (DEVICE_CLASS_TABLET_ID.equals(device.getId())) {
+        // Desktop device is 1280dp * 800dp with XXHDPI density, it needs roughly (1280 * 3) * (800 * 3) * 32 (ARGB) / 8 = 36 MB.
+        // We divide it by 4, which is 9 MB.
+        myDownScaledImageMaxBytes = 9_000_000L;
+      }
+      else {
+        myDownScaledImageMaxBytes = DEFAULT_DOWNSCALED_IMAGE_MAX_BYTES;
+      }
       restoreDefaultQuality();
       myManifestProvider = manifestProvider;
 
@@ -285,7 +302,7 @@ public class RenderTask {
     }
 
     float actualSamplingFactor = MIN_DOWNSCALING_FACTOR + Math.max(Math.min(quality, 1f), 0f) * (1f - MIN_DOWNSCALING_FACTOR);
-    long maxSize = (long)((float)DOWNSCALED_IMAGE_MAX_BYTES * actualSamplingFactor);
+    long maxSize = (long)((float)myDownScaledImageMaxBytes * actualSamplingFactor);
     myCachingImageFactory = new CachingImageFactory(((width, height) -> {
       int downscaleWidth = width;
       int downscaleHeight = height;
@@ -538,11 +555,6 @@ public class RenderTask {
     return this;
   }
 
-  public RenderTask setEnableLayoutScannerOptimization(boolean enableLayoutScannerOptimization) {
-    myEnableLayoutScannerOptimization = enableLayoutScannerOptimization;
-    return this;
-  }
-
   /**
    * Sets whether the rendering should use 'tools' namespaced 'visibility' and 'layout_editor_absoluteX/Y' attributes.
    * <p>
@@ -629,7 +641,8 @@ public class RenderTask {
     params.setFlag(RenderParamsFlags.FLAG_KEY_RENDER_HIGH_QUALITY_SHADOW, myHighQualityShadow);
     params.setFlag(RenderParamsFlags.FLAG_KEY_ENABLE_LAYOUT_SCANNER, myEnableLayoutScanner);
     params.setFlag(RenderParamsFlags.FLAG_ENABLE_LAYOUT_SCANNER_IMAGE_CHECK, myEnableLayoutScanner);
-    params.setFlag(RenderParamsFlags.FLAG_ENABLE_LAYOUT_SCANNER_OPTIMIZATION, myEnableLayoutScannerOptimization);
+    // TODO: Remove after ag/15997527
+    params.setFlag(RenderParamsFlags.FLAG_ENABLE_LAYOUT_SCANNER_OPTIMIZATION, myEnableLayoutScanner);
 
     // Request margin and baseline information.
     // TODO: Be smarter about setting this; start without it, and on the first request
@@ -1332,6 +1345,27 @@ public class RenderTask {
       myLogger.error(null, t.getLocalizedMessage(), t, null, null);
       throw t;
     }
+  }
+
+  /**
+   * Similar to {@link #runAsyncRenderAction(Callable)} but executes it under a {@link RenderSession}. This allows the
+   * given block to access resources since they are setup before executing it.
+   * @return A {@link CompletableFuture} that completes when the block finalizes.
+   */
+  @NotNull
+  public CompletableFuture<Void> runAsyncRenderActionWithSession(@NotNull Runnable block) {
+    if (isDisposed.get()) {
+      return immediateFailedFuture(new IllegalStateException("RenderTask was already disposed"));
+    }
+    RenderSession renderSession = myRenderSession;
+    if (renderSession == null) {
+      return immediateFailedFuture(new IllegalStateException("No RenderSession available"));
+    }
+    return runAsyncRenderAction(() -> {
+      renderSession.execute(block);
+
+      return null;
+    });
   }
 
   @VisibleForTesting

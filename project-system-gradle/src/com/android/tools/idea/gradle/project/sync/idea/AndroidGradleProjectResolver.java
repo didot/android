@@ -75,8 +75,8 @@ import com.android.tools.idea.gradle.project.model.JavaModuleModel;
 import com.android.tools.idea.gradle.project.model.NdkModuleModel;
 import com.android.tools.idea.gradle.project.model.V2NdkModel;
 import com.android.tools.idea.gradle.project.sync.AdditionalClassifierArtifactsActionOptions;
-import com.android.tools.idea.gradle.project.sync.AndroidExtraModelProvider;
 import com.android.tools.idea.gradle.project.sync.AllVariantsSyncActionOptions;
+import com.android.tools.idea.gradle.project.sync.AndroidExtraModelProvider;
 import com.android.tools.idea.gradle.project.sync.GradleSyncStudioFlags;
 import com.android.tools.idea.gradle.project.sync.IdeAndroidModels;
 import com.android.tools.idea.gradle.project.sync.IdeAndroidNativeVariantsModels;
@@ -450,6 +450,10 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
       if (androidTest != null) {
         createAndSetupGradleSourceSetDataNode(moduleNode, gradleModule, androidTest);
       }
+      IdeBaseArtifact testFixtures = variant.getTestFixturesArtifact();
+      if (testFixtures != null) {
+        createAndSetupGradleSourceSetDataNode(moduleNode, gradleModule, testFixtures);
+      }
     }
 
     // Ensure the kapt module is stored on the datanode so that dependency setup can use it
@@ -658,6 +662,14 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
       String variantName = sourceSetName.substring(0, sourceSetName.length() - androidTestSuffix.length());
       IdeVariant variant = androidModel.findVariantByName(variantName);
       return variant == null ? null : Pair.create(variant, variant.getAndroidTestArtifact());
+    }
+
+    // Check if it's test fixtures source set.
+    String testFixturesSuffix = "TestFixtures";
+    if (sourceSetName.endsWith(testFixturesSuffix)) {
+      String variantName = sourceSetName.substring(0, sourceSetName.length() - testFixturesSuffix.length());
+      IdeVariant variant = androidModel.findVariantByName(variantName);
+      return variant == null ? null : Pair.create(variant, variant.getTestFixturesArtifact());
     }
 
     // Check if it's unit test source set.

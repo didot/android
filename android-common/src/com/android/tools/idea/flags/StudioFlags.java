@@ -430,6 +430,11 @@ public final class StudioFlags {
     "Provide a checkbox in Layout Validation Tool to allow user only show the layouts with issue detected by visual lint.",
     false);
 
+  public static final Flag<Boolean> NELE_ATF_IN_VISUAL_LINT = Flag.create(
+    NELE, "visual.lint.atf", "Enable ATF integration in visual linting for layouts",
+    "Enable ATF integration in visual linting of layouts.",
+    false);
+
   public static final Flag<Boolean> NELE_WARN_NEW_THREADS = Flag.create(
     NELE, "preview.warn.new.threads", "Enable new threads warning",
     "Display a warning if user code creates new threads in the preview",
@@ -850,10 +855,13 @@ public final class StudioFlags {
     true
   );
 
+  // b/202709703: Disable jb_formatters (which is used to pull Natvis) temporarily, because
+  // the latest changes in cidr-debugger cause the jb_formatters to conflict with the
+  // built-in lldb formatters.
   public static final Flag<Boolean> ENABLE_LLDB_NATVIS = Flag.create(
     NDK, "lldb.natvis", "Use NatVis visualizers in native debugger",
     "If enabled, native debugger formats variables using NatVis files found in the project.",
-    true
+    false
   );
   //endregion
 

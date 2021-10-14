@@ -1,0 +1,123 @@
+load("//tools/base/bazel:bazel.bzl", "iml_module")
+load("//tools/base/bazel:maven.bzl", "maven_repository")
+
+# managed by go/iml_to_build
+iml_module(
+    name = "intellij.android.lint",
+    srcs = ["src"],
+    iml_files = ["intellij.android.lint.iml"],
+    resources = ["resources"],
+    visibility = ["//visibility:public"],
+    # do not sort: must match IML order
+    deps = [
+        "//tools/adt/idea/lint:intellij.lint[module]",
+        "//tools/base/common:studio.android.sdktools.common[module]",
+        "//prebuilts/studio/intellij-sdk:studio-sdk",
+        "//tools/base/lint:studio.android.sdktools.lint-checks[module]",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin",
+        "//tools/adt/idea/android-common:intellij.android.common[module]",
+        "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
+        "//tools/analytics-library/shared:analytics-shared[module]",
+        "//tools/adt/idea/project-system-gradle-models:intellij.android.projectSystem.gradle.models[module]",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-properties",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
+        "//tools/analytics-library/tracker:analytics-tracker[module]",
+        "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
+        "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module]",
+        "//tools/base/resource-repository:studio.android.sdktools.resource-repository[module]",
+        "//tools/adt/idea/android:intellij.android.core[module]",
+    ],
+)
+
+# managed by go/iml_to_build
+iml_module(
+    name = "intellij.android.lint.tests",
+    iml_files = ["intellij.android.lint.tests.iml"],
+    split_test_targets = {
+        "AndroidLintCustomCheckTest": {
+            "test_filter": "com.android.tools.idea.lint.AndroidLintCustomCheckTest",
+        },
+        "LintModelSnapshotComparisonTest": {
+            # keep sorted
+            "data": [
+                "//prebuilts/studio/sdk:cmake",
+                "//prebuilts/studio/sdk:ndk",
+            ],
+            "tags": ["no_windows"],
+            "test_filter": "com.android.tools.idea.lint.model.LintModelSnapshotComparisonTest",
+        },
+        "AndroidLintGradleTest": {
+            "test_filter": "com.android.tools.idea.lint.AndroidLintGradleTest",
+        },
+        "other": {},
+    },
+    test_class = "com.android.tools.idea.lint.AndroidLintTestSuite",
+    # keep sorted
+    test_data = [
+        ":test_deps",
+        "//prebuilts/studio/jdk",
+        "//prebuilts/studio/layoutlib/data:framework_res.jar",
+        "//prebuilts/studio/sdk:build-tools/latest",
+        "//prebuilts/studio/sdk:platforms/latest",
+        "//tools/adt/idea/android-lint/testData",
+        "//tools/adt/idea/android/testData",
+        "//tools/base/build-system:gradle-distrib",
+        "//tools/base/build-system:studio_repo",
+        "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
+    ],
+    test_srcs = ["testSrc"],
+    test_tags = [],
+    test_timeout = "long",
+    visibility = ["//visibility:public"],
+    # do not sort: must match IML order
+    deps = [
+        "//prebuilts/studio/intellij-sdk:studio-sdk",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle",
+        "//tools/base/repository:studio.android.sdktools.repository[module, test]",
+        "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
+        "//tools/adt/idea/android-lint:intellij.android.lint[module, test]",
+        "//tools/base/sdklib:studio.android.sdktools.sdklib[module, test]",
+        "//tools/adt/idea/lint:intellij.lint[module, test]",
+        "//tools/base/lint:studio.android.sdktools.lint-checks[module, test]",
+        "//tools/adt/idea/android-common:intellij.android.common[module, test]",
+        "//tools/adt/idea/.idea/libraries:truth[test]",
+        "//tools/adt/idea/.idea/libraries:mockito[test]",
+        "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
+        "//tools/analytics-library/shared:analytics-shared[module, test]",
+        "//tools/adt/idea/.idea/libraries:studio-analytics-proto[test]",
+        "//tools/analytics-library/tracker:analytics-tracker[module, test]",
+        "//tools/analytics-library/testing:android.sdktools.analytics-testing[module, test]",
+        "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
+        "//tools/adt/idea/android:intellij.android.core[module, test]",
+        "//tools/adt/idea/project-system:intellij.android.projectSystem[module, test]",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin[test]",
+    ],
+)
+
+maven_repository(
+    name = "test_deps",
+    # keep sorted: for buildifier
+    artifacts = [
+        "//tools/adt/idea/kotlin-integration:kotlin-android-extensions-runtime-for-ide-plugin",
+        "//tools/adt/idea/kotlin-integration:kotlin-gradle-plugin-for-ide-plugin",
+        "//tools/adt/idea/kotlin-integration:kotlin-reflect-for-ide-plugin",
+        "//tools/adt/idea/kotlin-integration:kotlin-stdlib-jdk8-for-ide-plugin",
+        "@maven//:androidx.appcompat.appcompat_1.0.2",
+        "@maven//:androidx.appcompat.appcompat_1.1.0",
+        "@maven//:androidx.constraintlayout.constraintlayout_1.1.3",
+        "@maven//:androidx.core.core-ktx_1.0.1",
+        "@maven//:androidx.test.espresso.espresso-core_3.2.0",
+        "@maven//:androidx.test.ext.junit_1.1.1",
+        "@maven//:com.android.support.appcompat-v7_28.0.0",
+        "@maven//:com.android.support.constraint.constraint-layout_1.0.2",
+        "@maven//:com.android.support.constraint.constraint-layout_1.1.0",
+        "@maven//:com.android.support.multidex-instrumentation_1.0.2",
+        "@maven//:com.android.support.support-v13_28.0.0",
+        "@maven//:com.android.support.test.espresso.espresso-core_3.0.2",
+        "@maven//:com.android.tools.desugar_jdk_libs_1.0.5",
+        "@maven//:com.google.dagger.dagger-compiler_2.6",
+        "@maven//:com.google.guava.guava_28.2-jre",
+        "@maven//:junit.junit_4.13.2",
+        "@maven//:org.jdeferred.jdeferred-android-aar_1.2.3",
+    ],
+)

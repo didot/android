@@ -45,6 +45,7 @@ import com.android.tools.idea.gradle.model.IdeVariantBuildInformation
 import com.android.tools.idea.gradle.model.IdeViewBindingOptions
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel
 import com.android.tools.idea.gradle.project.model.NdkModuleModel
+import com.android.tools.idea.projectsystem.isHolderModule
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -53,14 +54,23 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.util.io.sanitizeFileName
+import org.jetbrains.kotlin.gradle.KotlinGradleModel
+import org.jetbrains.kotlin.kapt.idea.KaptGradleModel
 import java.io.File
 
-fun ProjectDumper.dumpAndroidIdeModel(project: Project) {
+fun ProjectDumper.dumpAndroidIdeModel(
+  project: Project,
+  kotlinModels: (com.intellij.openapi.module.Module) -> KotlinGradleModel?,
+  kaptModels: (com.intellij.openapi.module.Module) -> KaptGradleModel?
+) {
   nest(File(project.basePath!!), "PROJECT") {
     ModuleManager.getInstance(project).modules.sortedBy { it.name }.forEach { module ->
       head("MODULE") { module.name }
       nest {
         AndroidModuleModel.get(module)?.let { it ->
+          // Skip all but holders to prevent needless spam in the snapshots. All modules
+          // point to the same facet.
+          if (!module.isHolderModule()) return@let
           dump(it.androidProject)
           // Dump all the fetched Ide variants.
           head("IdeVariants")
@@ -69,10 +79,17 @@ fun ProjectDumper.dumpAndroidIdeModel(project: Project) {
               }
             }
         }
-      }
-      nest {
+
         NdkModuleModel.get(module)?.let { it ->
           dumpNdkModuleModel(it)
+        }
+
+        kotlinModels(module)?.let {
+          dump(it)
+        }
+
+        kaptModels(module)?.let {
+          dump(it)
         }
       }
     }
@@ -564,11 +581,72 @@ private fun ProjectDumper.dump(testOptions: IdeTestOptions) {
     }
 }
 
+private fun ProjectDumper.dump(kotlinGradleModel: KotlinGradleModel) {
+  head("KotlinGradleModel")
+  nest {
+    prop("hasKotlinPlugin") { kotlinGradleModel.hasKotlinPlugin.takeIf { it }?.toString() }
+    prop("coroutines") { kotlinGradleModel.coroutines }
+    prop("platformPluginId") { kotlinGradleModel.platformPluginId }
+    prop("implements") { kotlinGradleModel.implements.joinToString() }
+    prop("kotlinTarget") { kotlinGradleModel.kotlinTarget }
+    prop("gradleUserHome") { kotlinGradleModel.gradleUserHome.toPrintablePath() }
+    kotlinGradleModel.kotlinTaskProperties.forEach { key, value ->
+      head("kotlinTaskProperties") { key }
+      nest {
+        prop("incremental") { value.incremental?.toString() }
+        prop("packagePrefix") { value.packagePrefix }
+        value.pureKotlinSourceFolders?.forEach { prop("pureKotlinSourceFolders") { it.path.toPrintablePath() } }
+        prop("pluginVersion") { value.pluginVersion?.replaceKnownPatterns() }
+      }
+    }
+    kotlinGradleModel.compilerArgumentsBySourceSet.forEach { key, value ->
+      head("compilerArgumentsBySourceSet") { key }
+      nest {
+        fun dumpArg(title: String, arg: String) {
+          val (name, values) = when {
+            !arg.contains('=') && !arg.contains(':') -> arg to sequenceOf<String>()
+            arg.contains('=') -> arg.substringBefore('=', "") to arg.substringAfter('=', arg).splitToSequence(',')
+            else -> "" to arg.splitToSequence(':')
+          }
+          if (name == "plugin:org.jetbrains.kotlin.android:configuration") return // Base64 encoded serialized format.
+          head(title) { name.replaceKnownPaths() }
+          nest {
+            values.forEach {
+              prop("-") { it.toPrintablePath()}
+            }
+          }
+        }
+
+        value.currentArguments.forEach { dumpArg("currentArguments", it) }
+        value.defaultArguments.forEach { dumpArg("defaultArguments", it) }
+        value.dependencyClasspath.forEach { prop("dependencyClasspath") { it.toPrintablePath() } }
+      }
+    }
+  }
+}
+
+private fun ProjectDumper.dump(kaptGradleModel: KaptGradleModel) {
+  if (!kaptGradleModel.isEnabled) return // Usually models are present for all modules with Kotlin but disabled.
+  head("kaptGradleModel")
+  nest {
+    prop("buildDirectory") { kaptGradleModel.buildDirectory.path.toPrintablePath() }
+    kaptGradleModel.sourceSets.forEach { sourceSet ->
+      head("sourceSets") { sourceSet.sourceSetName }
+      nest {
+        prop("isTest") { sourceSet.isTest.takeIf { it }?.toString() }
+        prop("generatedSourcesDir") { sourceSet.generatedSourcesDir.toPrintablePath() }
+        prop("generatedClassesDir") { sourceSet.generatedClassesDir.toPrintablePath() }
+        prop("generatedKotlinSourcesDir") { sourceSet.generatedKotlinSourcesDir.toPrintablePath() }
+      }
+    }
+  }
+}
+
 class DumpProjectIdeModelAction : DumbAwareAction("Dump Project IDE Models") {
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project!!
     val dumper = ProjectDumper()
-    dumper.dumpAndroidIdeModel(project)
+    dumper.dumpAndroidIdeModel(project, { null }, { null })
     val dump = dumper.toString().trimIndent()
     val outputFile = File(File(project.basePath), sanitizeFileName(project.name) + ".project_ide_models_dump")
     outputFile.writeText(dump)

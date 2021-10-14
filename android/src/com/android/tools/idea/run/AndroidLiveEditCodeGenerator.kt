@@ -18,41 +18,44 @@ package com.android.tools.idea.run
 import com.android.annotations.Trace
 import com.android.tools.idea.editors.literals.LiveEditService
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.kotlin.getQualifiedName
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
+import org.jetbrains.kotlin.backend.common.output.OutputFile
 import org.jetbrains.kotlin.backend.common.phaser.PhaseConfig
+import org.jetbrains.kotlin.backend.jvm.jvmPhases
 import org.jetbrains.kotlin.caches.resolve.KotlinCacheService
 import org.jetbrains.kotlin.codegen.ClassBuilderFactories
 import org.jetbrains.kotlin.codegen.KotlinCodegenFacade
 import org.jetbrains.kotlin.codegen.state.GenerationState
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
-import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
-import org.jetbrains.kotlin.backend.jvm.jvmPhases
+import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.diagnostics.Severity
 import org.jetbrains.kotlin.fileClasses.javaFileFacadeFqName
 import org.jetbrains.kotlin.idea.project.languageVersionSettings
-import org.jetbrains.kotlin.nj2k.postProcessing.type
-import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
-import org.jetbrains.kotlin.psi.KtDeclarationModifierList
+import org.jetbrains.kotlin.idea.project.platform
+import org.jetbrains.kotlin.idea.resolve.ResolutionFacade
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedDeclarationUtil
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.typeUtil.isBoolean
-import org.jetbrains.kotlin.types.typeUtil.isByte
-import org.jetbrains.kotlin.types.typeUtil.isChar
-import org.jetbrains.kotlin.types.typeUtil.isDouble
-import org.jetbrains.kotlin.types.typeUtil.isFloat
-import org.jetbrains.kotlin.types.typeUtil.isInt
-import org.jetbrains.kotlin.types.typeUtil.isLong
-import org.jetbrains.kotlin.types.typeUtil.isShort
-import org.jetbrains.kotlin.types.typeUtil.isUnit
+import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.kotlin.resolve.calls.components.hasDefaultValue
+import org.jetbrains.kotlin.resolve.jvm.jvmSignature.KotlinToJvmSignatureMapper
+import java.lang.Math.ceil
+import java.util.ServiceLoader
+
+const val SLOTS_PER_INT = 10
+const val BITS_PER_INT = 31
 
 class AndroidLiveEditCodeGenerator {
+
+  private val SIGNATURE_MAPPER = ServiceLoader.load(
+    KotlinToJvmSignatureMapper::class.java,
+    KotlinToJvmSignatureMapper::class.java.classLoader
+  ).iterator().next()
 
   /**
    * Compile a given set of MethodReferences to Java .class files and invoke a callback upon completion.
@@ -60,104 +63,149 @@ class AndroidLiveEditCodeGenerator {
   @Trace
   fun compile(project: Project, methods: List<LiveEditService.MethodReference>,
               callback: (className: String, methodSignature: String, classData: ByteArray) -> Unit) {
+
+    // If we (or the user) ended up setting the update time intervals to be long. It is very possible that
+    // that multiple change events of the same file can be queue up. We keep track of what we have deploy
+    // so we don't compile the same file twice.
     val compiled = HashSet<PsiFile>()
     for (method in methods) {
       val root = method.file
+
       if (root !is KtFile || compiled.contains(root)) {
         continue
       }
+      val inputs = listOf(root)
 
-      val filesToAnalyze = listOf(root)
-
+      // A compile is always going to be a ReadAction because it reads an KtFile completely.
       ApplicationManager.getApplication().runReadAction {
-        val kotlinCacheService = KotlinCacheService.getInstance(project)
-        val resolution = kotlinCacheService.getResolutionFacade(filesToAnalyze,
-                                                                JvmPlatforms.unspecifiedJvmPlatform)
+        // Three steps process:
 
-        val analysisResult = com.android.tools.tracer.Trace.begin("analyzeWithAllCompilerChecks").use {
-          resolution.analyzeWithAllCompilerChecks(filesToAnalyze)
-        }
+        // 1) Compute binding context based on any previous cached analysis results.
+        //    On small edits of previous analyzed project, this operation should be below 30ms or so.
+        var resolution = fetchResolution(project, inputs)
+        var bindingContext = analyze(inputs, resolution) ?: return@runReadAction
 
-        if (analysisResult.isError()) {
-          println("Live Edit: resolution analysis error\n ${analysisResult.error.message}")
-          return@runReadAction
-        }
+        // 2) Invoke the backend with the inputs and the binding context computed from step 1.
+        //    This is the one of the most time consuming step with 80 to 500ms turnaround depending the
+        //    complexity of the input .kt file.
+        var classes = backendCodeGen(project, resolution, bindingContext, inputs, root.languageVersionSettings)
 
-        var bindingContext = analysisResult.bindingContext
+        // 3) From the information we gather at the PSI changes and the output classes of Step 2, we
+        //    decide which classes we want to send to the device along with what extra meta-information the
+        //    agent need.
+        if (!deployLiveEditToDevice(method.function, bindingContext, classes, callback)) return@runReadAction
 
-        for (diagnostic in bindingContext.diagnostics) {
-          if (diagnostic.severity == Severity.ERROR) {
-            println("Live Edit: resolution analysis error\n $diagnostic")
-            return@runReadAction
-          }
-        }
-
-        val compilerConfiguration = CompilerConfiguration()
-
-        compilerConfiguration.languageVersionSettings = root.languageVersionSettings
-
-        val useComposeIR = StudioFlags.COMPOSE_DEPLOY_LIVE_EDIT_USE_EMBEDDED_COMPILER.get();
-        if (useComposeIR) {
-          // Not 100% sure what causes the issue but not seeing this in the IR backend causes exceptions.
-          compilerConfiguration.put(JVMConfigurationKeys.DO_NOT_CLEAR_BINDING_CONTEXT, true)
-        }
-
-        val generationStateBuilder = GenerationState.Builder(project,
-                                                      ClassBuilderFactories.BINARIES,
-                                                      resolution.moduleDescriptor,
-                                                      bindingContext,
-                                                      filesToAnalyze,
-                                                      compilerConfiguration);
-
-        if (useComposeIR) {
-          generationStateBuilder.codegenFactory(AndroidLiveEditJvmIrCodegenFactory(PhaseConfig(jvmPhases)))
-        }
-
-        val generationState = generationStateBuilder.build();
-
-        val methodSignature = functionSignature(method.function)
-
-        // Class name can be either the class containing the function fragment or a KtFile
-        var className = KtNamedDeclarationUtil.getParentFqName(method.function).toString()
-        if (method.function.isTopLevel) {
-          val grandParent : KtFile = method.function.parent as KtFile
-          className = grandParent.javaFileFacadeFqName.toString()
-        }
-
-        if (className.isEmpty() || methodSignature.isEmpty()) {
-          return@runReadAction
-        }
-
-        com.android.tools.tracer.Trace.begin("KotlinCodegenFacade").use {
-          try {
-            KotlinCodegenFacade.compileCorrectFiles(generationState)
-          } catch (e : Throwable) {
-            handleCompilerErrors(e)
-            return@runReadAction
-          }
-          compiled.add(root)
-        }
-        val classes = generationState.factory.asList();
-        if (classes.isEmpty()) {
-          // TODO: Error reporting.
-          print(" We don't have successful classes");
-          return@runReadAction
-        }
-
-        // TODO: This needs a bit more work. Lambdas, inner classes..etc need to be mapped back.
-        val internalClassName = className.replace(".", "/") + ".class"
-        for (c in classes) {
-          if (!c.relativePath.contains(internalClassName)) {
-            continue
-          }
-          for (m in methods) {
-            callback(className, methodSignature, c.asByteArray())
-            // TODO: Deal with multiple requests
-            break
-          }
-        }
+        compiled.add(root)
       }
     }
+  }
+
+  /**
+   * Fetch the resolution based on the cached service.
+   */
+  fun fetchResolution(project: Project, input: List<KtFile>): ResolutionFacade {
+    val kotlinCacheService = KotlinCacheService.getInstance(project)
+    return kotlinCacheService.getResolutionFacade(input, project.platform!!)
+  }
+
+  /**
+   * Compute the BindingContext of the input file that can be used for code generation.
+   *
+   * This function needs to be done in a read action.
+   */
+  fun analyze(input: List<KtFile>, resolution: ResolutionFacade) : BindingContext? {
+    val analysisResult = com.android.tools.tracer.Trace.begin("analyzeWithAllCompilerChecks").use {
+      resolution.analyzeWithAllCompilerChecks(input)
+    }
+
+    if (analysisResult.isError()) {
+      println("Live Edit: resolution analysis error\n ${analysisResult.error.message}")
+      return null
+    }
+
+    for (diagnostic in analysisResult.bindingContext.diagnostics) {
+      if (diagnostic.severity == Severity.ERROR) {
+        println("Live Edit: resolution analysis error\n $diagnostic")
+        return null
+      }
+    }
+
+    return analysisResult.bindingContext
+  }
+
+  /**
+   * Invoke the Kotlin compiler that is part of the plugin. The compose plugin is also attached by the
+   * the extension point to generate code for @composable functions.
+   */
+  fun backendCodeGen(project: Project, resolution: ResolutionFacade, bindingContext: BindingContext,
+                     input: List<KtFile>, langVersion: LanguageVersionSettings): List<OutputFile> {
+    val compilerConfiguration = CompilerConfiguration()
+    compilerConfiguration.languageVersionSettings = langVersion
+
+    val useComposeIR = StudioFlags.COMPOSE_DEPLOY_LIVE_EDIT_USE_EMBEDDED_COMPILER.get();
+    if (useComposeIR) {
+      // Not 100% sure what causes the issue but not seeing this in the IR backend causes exceptions.
+      compilerConfiguration.put(JVMConfigurationKeys.DO_NOT_CLEAR_BINDING_CONTEXT, true)
+    }
+
+    val generationStateBuilder = GenerationState.Builder(project,
+                                                         ClassBuilderFactories.BINARIES,
+                                                         resolution.moduleDescriptor,
+                                                         bindingContext,
+                                                         input,
+                                                         compilerConfiguration);
+
+    if (useComposeIR) {
+      generationStateBuilder.codegenFactory(AndroidLiveEditJvmIrCodegenFactory(PhaseConfig(jvmPhases)))
+    }
+
+    val generationState = generationStateBuilder.build();
+
+    try {
+      KotlinCodegenFacade.compileCorrectFiles(generationState)
+    } catch (e : Throwable) {
+      handleCompilerErrors(e)
+      return emptyList()
+    }
+
+    return generationState.factory.asList();
+  }
+
+  /**
+   * Pick out what classes we need from the generated list of .class files and invoke the callback.
+   */
+  fun deployLiveEditToDevice(targetFunction : KtNamedFunction, bindingContext : BindingContext, compilerOutput : List<OutputFile>,
+                             callback: (className: String, methodSignature: String, classData: ByteArray) -> Unit) : Boolean {
+    val methodSignature = functionSignature(bindingContext, targetFunction)
+
+    // Class name can be either the class containing the function fragment or a KtFile
+    var className = KtNamedDeclarationUtil.getParentFqName(targetFunction).toString()
+    if (targetFunction.isTopLevel) {
+      val grandParent : KtFile = targetFunction.parent as KtFile
+      className = grandParent.javaFileFacadeFqName.toString()
+    }
+
+    if (className.isEmpty() || methodSignature.isEmpty()) {
+      // TODO: Error reporting.
+      print("Empty class name / method signature.")
+      return false
+    }
+
+    if (compilerOutput.isEmpty()) {
+      // TODO: Error reporting.
+      print("No compiler output.")
+      return false
+    }
+
+    // TODO: This needs a bit more work. Lambdas, inner classes..etc need to be mapped back.
+    val internalClassName = className.replace(".", "/") + ".class"
+    for (c in compilerOutput) {
+      if (!c.relativePath.contains(internalClassName)) {
+        continue
+      }
+      callback(className, methodSignature, c.asByteArray())
+    }
+    return true
   }
 
   fun handleCompilerErrors(e : Throwable) {
@@ -181,70 +229,45 @@ class AndroidLiveEditCodeGenerator {
     println("Live Edit: compilation error\n ${e.message}")
   }
 
-  fun functionSignature(function : KtNamedFunction) : String {
-    val functionName = function.name
-    val params = ArrayList<String>()
-    function.valueParameters.forEach {
-      params.add(vmName(it.type()!!))
+  fun functionSignature(context: BindingContext, function : KtNamedFunction) : String {
+    val desc = context[BindingContext.FUNCTION, function]
+    val signature = SIGNATURE_MAPPER.mapToJvmMethodSignature(desc!!)
+
+    if (!desc.annotations.hasAnnotation(FqName("androidx.compose.runtime.Composable"))) {
+      // This is a pure Kotlin function and not a Composable. The method signature will not
+      // be changed by the compose compiler at all.
+      return signature.toString()
     }
 
-    // If the target function is an @Composable function, we know that the compose compiler
-    // will append two more parameters when generating code. Therefore, we need to take
-    // that into account and assume a composable function has two more parameter than it
-    // showed in the PSI tree.
-    val modifiers = function.firstChild
-    if (modifiers is KtDeclarationModifierList) {
-      for (annotation in modifiers.annotationEntries) {
-        if (annotation.getQualifiedName().toString() == "androidx.compose.runtime.Composable") {
-          params.add("Landroidx/compose/runtime/Composer;")
-          params.add("I")
-        }
-      }
+    // The number of synthetic int param added to a function is the total of:
+    // 1. max (1, ceil(numParameters / 10))
+    // 2. 0 default int parameters if none of the N parameters have default expressions
+    // 3. ceil(N / 31) N parameters have default expressions if there are any defaults
+    //
+    // The formula follows the one found in ComposableFunctionBodyTransformer.kt
+
+    var totalSyntheticParamCount = 0
+    var realValueParamsCount = desc.valueParameters.size
+
+    if (realValueParamsCount == 0) {
+      totalSyntheticParamCount += 1;
+    } else {
+      val totalParams = realValueParamsCount
+      totalSyntheticParamCount += ceil(totalParams.toDouble() / SLOTS_PER_INT.toDouble()).toInt()
     }
 
-    val paramSig = params.joinToString(separator = "") { it }
-    val returnType = vmName(function.type()!!)
-    return "$functionName($paramSig)$returnType"
-  }
+    var numDefaults = desc.valueParameters.count { it.hasDefaultValue() }
 
-  fun vmName(type: KotlinType): String {
-    when {
-      type.isChar() -> {
-        return "C"
-      }
-      type.isByte() -> {
-        return "B"
-      }
-      type.isInt() -> {
-        return "I"
-      }
-      type.isLong() -> {
-        return "L"
-      }
-      type.isShort() -> {
-        return "S"
-      }
-      type.isFloat() -> {
-        return "F"
-      }
-      type.isDouble() -> {
-        return "D"
-      }
-      type.isBoolean() -> {
-        return "Z"
-      }
-      type.isUnit() -> {
-        return "V"
-      }
-      else -> {
-        val fqName = type.getQualifiedName().toString()
-
-        if (fqName == "kotlin.String") {
-          return "Ljava/lang/String;"
-        }
-
-        return "L" + fqName.replace(".", "/") + ";"
-      }
+    if (desc.valueParameters.size != 0 && numDefaults != 0) {
+      totalSyntheticParamCount += ceil(realValueParamsCount.toDouble() / BITS_PER_INT.toDouble()).toInt()
     }
+
+    var target = signature.toString()
+
+    // Add the Composer parameter as well as number of additional ints computed above.
+    var additionalParams = "Landroidx/compose/runtime/Composer;"
+    for (x in 1 .. totalSyntheticParamCount) additionalParams += "I"
+    target = target.replace(")", additionalParams + ")")
+    return target
   }
 }

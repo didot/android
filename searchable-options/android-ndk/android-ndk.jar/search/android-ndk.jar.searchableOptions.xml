@@ -21,7 +21,8 @@
   <configurable id="editor.preferences.folding" configurable_name="Code Folding">
     <option name="" hit=" JNI-mangled function name " />
     <option name="function" hit=" JNI-mangled function name " />
-    <option name="jni-mangled" hit=" JNI-mangled function name " />
+    <option name="jni" hit=" JNI-mangled function name " />
+    <option name="mangled" hit=" JNI-mangled function name " />
     <option name="name" hit=" JNI-mangled function name " />
   </configurable>
   <configurable id="debugger.stepping" configurable_name="Stepping">

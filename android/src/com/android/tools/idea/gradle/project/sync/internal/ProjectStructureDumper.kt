@@ -18,11 +18,13 @@ package com.android.tools.idea.gradle.project.sync.internal
 import com.android.tools.idea.gradle.project.facet.gradle.GradleFacetConfiguration
 import com.android.tools.idea.gradle.project.facet.java.JavaFacetConfiguration
 import com.android.tools.idea.gradle.project.facet.ndk.NdkFacetConfiguration
+import com.android.tools.idea.gradle.project.model.AndroidModuleModel
 import com.android.tools.idea.run.AndroidRunConfigurationBase
 import com.android.tools.idea.run.profiler.CpuProfilerConfig
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration
 import com.android.tools.idea.util.CommonAndroidUtil.LINKED_ANDROID_MODULE_GROUP
 import com.android.tools.idea.util.LinkedAndroidModuleGroup
+import com.android.tools.idea.util.androidFacet
 import com.android.utils.FileUtils
 import com.intellij.execution.RunManagerEx
 import com.intellij.execution.configurations.RunConfiguration
@@ -38,6 +40,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AnnotationOrderRootType
 import com.intellij.openapi.roots.CompilerModuleExtension
 import com.intellij.openapi.roots.ContentEntry
+import com.intellij.openapi.roots.DependencyScope
 import com.intellij.openapi.roots.ExcludeFolder
 import com.intellij.openapi.roots.InheritedJdkOrderEntry
 import com.intellij.openapi.roots.JavadocOrderRootType
@@ -50,7 +53,10 @@ import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.roots.SourceFolder
 import com.intellij.openapi.roots.libraries.Library
+import com.intellij.openapi.roots.libraries.LibraryTable
+import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
 import com.intellij.util.text.nullize
+import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.facet.AndroidFacetConfiguration
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.config.CompilerSettings
@@ -67,6 +73,13 @@ fun ProjectDumper.dumpProject(project: Project) {
     }
     ModuleManager.getInstance(project).modules.sortedBy { it.name }.forEach { dump(it) }
     RunManagerEx.getInstanceEx(project).allConfigurationsList.sortedBy { it.name }.forEach { dump(it) }
+    val libraries = LibraryTablesRegistrar.getInstance().getLibraryTable(project).libraries
+    if (libraries.isNotEmpty()) {
+      head("LIBRARY_TABLE")
+      nest {
+        libraries.sortedBy { it.name }.forEach { dump(it) }
+      }
+    }
   }
 }
 
@@ -95,7 +108,14 @@ private fun ProjectDumper.dump(module: Module) {
 
     prop("ModuleFile") { moduleFile }
     prop("ModuleTypeName") { module.moduleTypeName }
-    FacetManager.getInstance(module).allFacets.sortedBy { it.name }.forEach { dump(it) }
+    FacetManager.getInstance(module).allFacets.sortedBy { it.name }.forEach {
+      // Don't print the AndroidFact for every module only print the holder modules, they will be the same for all modules produced
+      // from the same Gradle project.
+      if (it.typeId == AndroidFacet.ID && !(it as AndroidFacet).shouldDumpFullFacet()) {
+        head("HIDDEN FACET") { it.name }
+        return@forEach
+      } else dump(it)
+    }
     val moduleRootManager = ModuleRootManager.getInstance(module)
     prop("ExternalSource.DisplayName") { moduleRootManager.externalSource?.displayName?.takeUnless { it == "Gradle" } }
     prop("ExternalSource.Id") { moduleRootManager.externalSource?.id?.takeUnless { it == "GRADLE" } }
@@ -178,45 +198,49 @@ private fun ProjectDumper.dumpJdk(jdkOrderEntry: JdkOrderEntry) {
 }
 
 private fun ProjectDumper.dumpLibrary(library: LibraryOrderEntry) {
-  head("LIBRARY") { library.libraryName?.removeAndroidVersionsFromDependencyNames()?.replaceKnownPaths() }
+  head("LIBRARY") { library.libraryName?.markMatching(library?.library?.name.orEmpty())?.removeAndroidVersionsFromDependencyNames()?.replaceKnownPaths() }
   nest {
-    prop("LibraryLevel") { library.libraryLevel }
-    prop("IsModuleLevel") { library.isModuleLevel.toString() }
-    prop("Scope") { library.scope.toString() }
-    prop("IsExported") { library.isExported.toString() }
-    library.library?.let { dump(it, library.libraryName.orEmpty()) }
+    prop("LibraryLevel") { library.libraryLevel.takeUnless { it == "project" } }
+    prop("IsModuleLevel") { library.isModuleLevel.takeIf { it }?.toString() }
+    prop("Scope") { library.scope.takeIf {it != DependencyScope.COMPILE}?.toString () }
+    prop("IsExported") { library.isExported.takeIf{ it}?.toString() }
+    if (library.libraryLevel != "project" ) {
+      library.library?.let { dump(it) }
+    }
   }
 }
 
-private fun ProjectDumper.dump(library: Library, matchingName: String) {
+private fun ProjectDumper.dump(library: Library) {
   val androidVersion = library.name?.getAndroidVersionFromDependencyName()
-  prop("Name") { library.name?.markMatching(matchingName)?.removeAndroidVersionsFromDependencyNames()?.replaceKnownPaths() }
-  val orderRootTypes = OrderRootType.getAllPersistentTypes().toList() + OrderRootType.DOCUMENTATION
-  orderRootTypes.forEach { type ->
-    library
-      .getUrls(type)
-      .filterNot { file ->
-        // Do not allow sources and java docs coming from cache sources as their content may change.
-        (file.toPrintablePath().contains("<M2>") || file.toPrintablePath().contains("<GRADLE>")) &&
-        (type == OrderRootType.DOCUMENTATION ||
-         type == OrderRootType.SOURCES ||
-         type == JavadocOrderRootType.getInstance())
-      }
-      .filter { file ->
-        !file.toPrintablePath().contains("<USER_M2>") || type != AnnotationOrderRootType.getInstance()
-      }
-      .map { file ->
-        file.toPrintablePath().replaceMatchingVersion(androidVersion).also {
-          if (type == OrderRootType.SOURCES || type == OrderRootType.DOCUMENTATION || type == JavadocOrderRootType.getInstance()) {
-            println("$file -> $it")
+  head("LIBRARY") { library.name?.removeAndroidVersionsFromDependencyNames()?.replaceKnownPaths() }
+  nest {
+    val orderRootTypes = OrderRootType.getAllPersistentTypes().toList() + OrderRootType.DOCUMENTATION
+    orderRootTypes.forEach { type ->
+      library
+        .getUrls(type)
+        .filterNot { file ->
+          // Do not allow sources and java docs coming from cache sources as their content may change.
+          (file.toPrintablePath().contains("<M2>") || file.toPrintablePath().contains("<GRADLE>")) &&
+          (type == OrderRootType.DOCUMENTATION ||
+           type == OrderRootType.SOURCES ||
+           type == JavadocOrderRootType.getInstance())
+        }
+        .filter { file ->
+          !file.toPrintablePath().contains("<USER_M2>") || type != AnnotationOrderRootType.getInstance()
+        }
+        .map { file ->
+          file.toPrintablePath().replaceMatchingVersion(androidVersion).also {
+            if (type == OrderRootType.SOURCES || type == OrderRootType.DOCUMENTATION || type == JavadocOrderRootType.getInstance()) {
+              println("$file -> $it")
+            }
           }
         }
-      }
-      .sorted()
-      .forEach { printerPath ->
-        // TODO(b/124659827): Include source and JavaDocs artifacts when available.
-        prop("*" + type.name()) { printerPath }
-      }
+        .sorted()
+        .forEach { printerPath ->
+          // TODO(b/124659827): Include source and JavaDocs artifacts when available.
+          prop("*" + type.name()) { printerPath }
+        }
+    }
   }
 }
 
@@ -433,7 +457,17 @@ private fun ProjectDumper.dump(linkedAndroidModuleGroup: LinkedAndroidModuleGrou
     prop("main") { linkedAndroidModuleGroup.main.name }
     prop("unitTest") { linkedAndroidModuleGroup.unitTest?.name }
     prop("androidTest") { linkedAndroidModuleGroup.androidTest?.name }
+    prop("testFixtures") { linkedAndroidModuleGroup.testFixtures?.name }
   }
+}
+
+private fun AndroidFacet.shouldDumpFullFacet() : Boolean {
+  val holderFacet = holderModule.androidFacet
+  // Display the holder facet
+  if (holderFacet == this || holderFacet == null) return true
+  if (holderFacet.configuration.state.SELECTED_BUILD_VARIANT != configuration.state.SELECTED_BUILD_VARIANT) return true
+  if (AndroidModuleModel.get(module) != AndroidModuleModel.get(holderFacet.module)) return true
+  return false
 }
 
 private fun String.toSystemIndependent() = FileUtils.toSystemIndependentPath(this)

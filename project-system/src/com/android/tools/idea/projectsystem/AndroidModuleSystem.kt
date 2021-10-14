@@ -342,7 +342,8 @@ enum class DependencyType {
 enum class DependencyScopeType {
   MAIN,
   UNIT_TEST,
-  ANDROID_TEST
+  ANDROID_TEST,
+  TEST_FIXTURES
 }
 
 /**
@@ -404,6 +405,8 @@ fun Module.isMainModule() = getMainModule() == this
 fun Module.getUnitTestModule() = getUserData(CommonAndroidUtil.LINKED_ANDROID_MODULE_GROUP)?.unitTest ?: this
 
 fun Module.getAndroidTestModule() = getUserData(CommonAndroidUtil.LINKED_ANDROID_MODULE_GROUP)?.androidTest ?: this
+
+fun Module.getTestFixturesModule() = getUserData(CommonAndroidUtil.LINKED_ANDROID_MODULE_GROUP)?.testFixtures
 
 /**
  * Utility method to find out if a module is derived from an Android Gradle project. This will return true

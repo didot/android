@@ -33,6 +33,7 @@ import com.android.tools.adtui.actions.DropDownAction
 import com.android.tools.adtui.imagediff.ImageDiffTestUtil
 import com.android.tools.adtui.swing.FakeMouse
 import com.android.tools.adtui.swing.FakeUi
+import com.android.tools.adtui.swing.IconLoaderRule
 import com.android.tools.adtui.swing.SetPortableUiFontRule
 import com.android.tools.adtui.workbench.PropertiesComponentMock
 import com.android.tools.idea.appinspection.ide.ui.SelectProcessAction
@@ -41,6 +42,8 @@ import com.android.tools.idea.layoutinspector.LayoutInspector
 import com.android.tools.idea.layoutinspector.common.SelectViewAction
 import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model
+import com.android.tools.idea.layoutinspector.model.DrawViewImage
+import com.android.tools.idea.layoutinspector.model.InspectorModel
 import com.android.tools.idea.layoutinspector.model.ROOT
 import com.android.tools.idea.layoutinspector.model.SelectionOrigin
 import com.android.tools.idea.layoutinspector.model.VIEW1
@@ -69,7 +72,6 @@ import com.intellij.openapi.actionSystem.ActionPopupMenu
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.impl.ActionButton
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.util.IconLoader
 import com.intellij.testFramework.DisposableRule
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.ProjectRule
@@ -117,9 +119,12 @@ class DeviceViewContentPanelTest {
   val disposable = DisposableRule()
 
   @get:Rule
-  val chain = RuleChain.outerRule(projectRule).around(EdtRule())!!
+  val chain = RuleChain.outerRule(projectRule).around(EdtRule()).around(IconLoaderRule())!!
 
-  var testDataPath: Path = Path.of("")
+  @get:Rule
+  val fontRule = SetPortableUiFontRule()
+
+  private var testDataPath: Path = Path.of("")
 
   @Before
   fun before() {
@@ -233,6 +238,70 @@ class DeviceViewContentPanelTest {
   }
 
   @Test
+  fun testPaintWithFold() {
+    val model = model {
+      view(ROOT, 0, 0, 20, 40) {
+        view(VIEW1, 3, 3, 14, 14) {
+          view(VIEW2, 6, 6, 8, 8)
+          image()
+        }
+      }
+    }
+    model.foldInfo = InspectorModel.FoldInfo(97, InspectorModel.Posture.HALF_OPEN, InspectorModel.FoldOrientation.VERTICAL)
+    @Suppress("UndesirableClassUsage")
+    val generatedImage = BufferedImage(130, 250, TYPE_INT_ARGB)
+    var graphics = generatedImage.createGraphics()
+
+    val settings = EditorDeviceViewSettings(scalePercent = 100)
+    settings.drawLabel = false
+    val treeSettings = FakeTreeSettings()
+    treeSettings.hideSystemNodes = false
+    val client = mock<InspectorClient>()
+    `when`(client.capabilities).thenReturn(setOf(InspectorClient.Capability.SUPPORTS_SKP))
+    val panel = DeviceViewContentPanel(model, SessionStatistics(model, treeSettings), treeSettings, settings, { client }, mock(), null,
+                                       disposable.disposable)
+    panel.setSize(130, 250)
+
+    panel.paint(graphics)
+    CheckUtil.assertImageSimilarPerPlatform(testDataPath, "testPaintFold", generatedImage, DIFF_THRESHOLD)
+
+    panel.model.layerSpacing = 10
+    panel.model.rotate(0.5, 0.7)
+    graphics = generatedImage.createGraphics()
+    panel.paint(graphics)
+    CheckUtil.assertImageSimilarPerPlatform(testDataPath, "testPaintFold_rotated", generatedImage, DIFF_THRESHOLD)
+
+    panel.model.hoveredDrawInfo = panel.model.hitRects.find { it.node is DrawViewImage }
+    graphics = generatedImage.createGraphics()
+    panel.paint(graphics)
+    CheckUtil.assertImageSimilarPerPlatform(testDataPath, "testPaintFold_hovered", generatedImage, DIFF_THRESHOLD)
+
+    model.setSelection(model[VIEW1], SelectionOrigin.INTERNAL)
+    graphics = generatedImage.createGraphics()
+    panel.paint(graphics)
+    CheckUtil.assertImageSimilarPerPlatform(testDataPath, "testPaintFold_hovered_selected", generatedImage, DIFF_THRESHOLD)
+
+    panel.model.hoveredDrawInfo = null
+    graphics = generatedImage.createGraphics()
+    panel.paint(graphics)
+    CheckUtil.assertImageSimilarPerPlatform(testDataPath, "testPaintFold_selected", generatedImage, DIFF_THRESHOLD)
+
+    settings.drawFold = false
+    graphics = generatedImage.createGraphics()
+    panel.paint(graphics)
+    ImageDiffUtil.assertImageSimilar(testDataPath.resolve("testPaintFold_no_fold.png"), generatedImage, DIFF_THRESHOLD)
+    settings.drawFold = true
+
+    panel.setSize(350, 100)
+    @Suppress("UndesirableClassUsage")
+    val generatedImage2 = BufferedImage(350, 100, TYPE_INT_ARGB)
+    model.foldInfo = InspectorModel.FoldInfo(97, InspectorModel.Posture.HALF_OPEN, InspectorModel.FoldOrientation.HORIZONTAL)
+    graphics = generatedImage2.createGraphics()
+    panel.paint(graphics)
+    CheckUtil.assertImageSimilarPerPlatform(testDataPath, "testPaintFold_horizontal", generatedImage2, DIFF_THRESHOLD)
+  }
+
+  @Test
   fun testPaintWithHiddenSystemViews() {
     val model = model {
       view(ROOT, 0, 0, 20, 40, layout = null) {
@@ -277,7 +346,7 @@ class DeviceViewContentPanelTest {
   fun testRotationDoesntThrow() {
     val model = model {
       view(ROOT, 0, 0, 500, 1000) {
-        // Use a RTL name to force TextLayout to be used
+        // Use an RTL name to force TextLayout to be used
         view(VIEW1, 125, 150, 250, 250, qualifiedName = "שמי העברי") {
           image()
         }
@@ -1001,7 +1070,6 @@ class DeviceViewContentPanelWithScaledFontTest {
   @Test
   fun testPaintEmpty() {
     AssumeUtil.assumeNotMac() // b/163289116
-    IconLoader.activate()
     val treeSettings = FakeTreeSettings()
     treeSettings.hideSystemNodes = false
     val model = model {}

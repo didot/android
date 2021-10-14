@@ -25,7 +25,6 @@ import com.android.tools.idea.layoutinspector.metrics.LayoutInspectorMetrics
 import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model.InspectorModel
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLauncher
-import com.android.tools.idea.layoutinspector.pipeline.adb.AdbUtils
 import com.android.tools.idea.layoutinspector.properties.LayoutInspectorPropertiesPanelDefinition
 import com.android.tools.idea.layoutinspector.tree.InspectorTreeSettings
 import com.android.tools.idea.layoutinspector.tree.LayoutInspectorTreePanelDefinition
@@ -85,7 +84,6 @@ class LayoutInspectorToolWindowFactory : ToolWindowFactory {
 
     workbench.showLoading("Initializing ADB")
     AndroidExecutors.getInstance().workerThreadExecutor.execute {
-      val adb = AdbUtils.getAdbFuture(project).get()
       edtExecutor.execute {
         workbench.hideLoading()
 
@@ -97,13 +95,15 @@ class LayoutInspectorToolWindowFactory : ToolWindowFactory {
         processes.addSelectedProcessListeners {
           // Reset notification bar every time active process changes, since otherwise we might leave up stale notifications from an error
           // encountered during a previous run.
-          InspectorBannerService.getInstance(project).notification = null
+          if (!project.isDisposed) {
+            InspectorBannerService.getInstance(project).notification = null
+          }
         }
 
         lateinit var launcher: InspectorClientLauncher
         val treeSettings = InspectorTreeSettings { launcher.activeClient }
         val stats = SessionStatistics(model, treeSettings)
-        launcher = InspectorClientLauncher.createDefaultLauncher(adb, processes, model, stats, workbench)
+        launcher = InspectorClientLauncher.createDefaultLauncher(processes, model, stats, workbench)
         val layoutInspector = LayoutInspector(launcher, model, stats, treeSettings)
         val deviceViewPanel = DeviceViewPanel(processes, layoutInspector, viewSettings, workbench)
         DataManager.registerDataProvider(workbench, dataProviderForLayoutInspector(layoutInspector, deviceViewPanel))

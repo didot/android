@@ -31,6 +31,7 @@ import com.android.tools.idea.observable.core.OptionalValueProperty
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAssistantEventKind.FAILURE_PREDICTED
 import com.intellij.icons.AllIcons
 import com.intellij.ide.plugins.newui.HorizontalLayout
+import com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI.DEFAULT_STYLE_KEY
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
@@ -594,6 +595,7 @@ class ContentManager(val project: Project) {
         toolTipText = uiState.runTooltip
         isEnabled = uiState.runEnabled
       }
+      putClientProperty(DEFAULT_STYLE_KEY, true)
     }
     val previewButton = JButton("Show Usages").apply {
       addActionListener { this@View.model.runUpgrade(true) }
@@ -677,11 +679,9 @@ class ContentManager(val project: Project) {
       layout = HorizontalLayout(5)
       add(upgradeLabel)
       add(versionTextField)
-      // TODO(xof): make these buttons come in a platform-dependent order
-      add(refreshButton)
-      // TODO(xof): make this look like a default button
       add(okButton)
       add(previewButton)
+      add(refreshButton)
       add(messageLabel)
     }
 
@@ -850,11 +850,11 @@ fun AgpUpgradeComponentNecessity.description() = when (this) {
 }
 
 fun GradleVersion?.upgradeLabelText() = when (this) {
-  null -> "Upgrading Android Gradle Plugin from unknown version to"
-  else -> "Upgrading Android Gradle Plugin from version $this to"
+  null -> "Upgrade Android Gradle Plugin from unknown version to"
+  else -> "Upgrade Android Gradle Plugin from version $this to"
 }
 
 fun GradleVersion?.contentDisplayName() = when (this) {
-  null -> "Upgrading project from unknown AGP"
-  else -> "Upgrading project from AGP $this"
+  null -> "Upgrade project from unknown AGP"
+  else -> "Upgrade project from AGP $this"
 }

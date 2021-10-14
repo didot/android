@@ -19,10 +19,13 @@ import com.android.annotations.concurrency.WorkerThread
 import com.android.ddmlib.IDevice
 import com.android.ddmlib.MultiLineReceiver
 import com.android.tools.idea.projectsystem.getProjectSystem
+import com.android.tools.idea.run.LaunchableAndroidDevice
 import com.android.tools.idea.run.configuration.AndroidWearConfiguration
 import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxTargetProvider
 import com.android.tools.idea.run.util.LaunchUtils
+import com.android.tools.idea.stats.RunStats
 import com.android.tools.idea.wearpairing.await
+import com.google.common.annotations.VisibleForTesting
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.ExecutionResult
 import com.intellij.execution.Executor
@@ -54,32 +57,56 @@ abstract class AndroidWearConfigurationExecutorBase(private val environment: Exe
   }
 
   @WorkerThread
-  fun execute(): RunContentDescriptor? {
+  fun execute(stats: RunStats): RunContentDescriptor? {
+    stats.setDebuggable(LaunchUtils.canDebugApp(facet))
+    stats.setExecutor(environment.executor.id)
+    stats.setPackage(appId)
+    stats.setAppComponentType(configuration.componentType)
+
     ProgressManager.checkCanceled()
     val indicator = ProgressIndicatorProvider.getGlobalProgressIndicator()!!
     indicator.text = "Waiting for all target devices to come online"
-
-    val devices = getDevices()
+    val devices = getDevices(stats)
     devices.forEach { LaunchUtils.initiateDismissKeyguard(it) }
-    return doOnDevices(devices, indicator)
+    stats.beginLaunchTasks()
+    val runContentDescriptor = doOnDevices(devices, indicator)
+    stats.endBeforeRunTasks()
+    return runContentDescriptor
   }
 
+  @VisibleForTesting
   abstract fun doOnDevices(devices: List<IDevice>, indicator: ProgressIndicator): RunContentDescriptor?
 
-  private fun getDevices(): List<IDevice> {
+  private fun getDevices(stats: RunStats): List<IDevice> {
     val devices = runBlocking {
       val provider = DeviceAndSnapshotComboBoxTargetProvider()
       val deployTarget = if (provider.requiresRuntimePrompt(project)) invokeAndWaitIfNeeded {
         provider.showPrompt(facet)
       }
       else provider.getDeployTarget(project)
-      val deviceFutureList = deployTarget?.getDevices(facet)?.get() ?: return@runBlocking emptyList()
-      return@runBlocking deviceFutureList.map { it.await() }
+      val deviceFutureList = deployTarget?.getDevices(facet) ?: return@runBlocking emptyList()
+
+      // Record stat if we launched a device.
+      stats.setLaunchedDevices(deviceFutureList.devices.any { it is LaunchableAndroidDevice })
+      return@runBlocking deviceFutureList.get().map {
+        stats.beginWaitForDevice()
+        val device = it.await()
+        stats.endWaitForDevice(device)
+        device
+      }
     }
     if (devices.isEmpty()) {
       throw ExecutionException(AndroidBundle.message("deployment.target.not.found"))
     }
     return devices
+  }
+
+  fun getApplicationInstaller(): ApplicationInstaller {
+    return ApplicationInstaller(configuration)
+  }
+
+  fun getDebugSessionStarter(): DebugSessionStarter {
+    return DebugSessionStarter(environment)
   }
 
   class EmptyProcessHandler : ProcessHandler() {
