@@ -423,7 +423,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> NELE_VISUAL_LINT = Flag.create(
     NELE, "visual.lint", "Enable visual linting for layouts",
     "Enable all the various tools related to visual linting of layouts.",
-    false);
+    true);
 
   public static final Flag<Boolean> NELE_VISUAL_LINT_TOGGLE_ISSUE_LAYOUTS = Flag.create(
     NELE, "visual.lint.toggle.issue.layouts", "Checkbox to show the the layouts with issue only.",
@@ -667,13 +667,13 @@ public final class StudioFlags {
     "Enable build attribution.", true);
   public static final Flag<Boolean> BUILD_ANALYZER_JETIFIER_ENABLED = Flag.create(
     GRADLE_IDE, "build.analyzer.jetifier.warning", "Enable Jetifier usage analyzis",
-    "Enable Jetifier usage analyzis is Build Analyzer.", false);
+    "Enable Jetifier usage analyzis is Build Analyzer.", true);
   public static final Flag<Boolean> DISABLE_FORCED_UPGRADES = Flag.create(
     GRADLE_IDE, "forced.agp.update", "Disable forced Android Gradle plugin upgrades",
     "This option is only respected when running Android Studio internally.", false);
   public static final Flag<Boolean> USE_MODULE_PER_SOURCE_SET = Flag.create(
     GRADLE_IDE, "module.per.source.set", "Enables creating multiple modules per Gradle project",
-    "This allows the IDE to more closely represent how the project is configured in Gradle.", false);
+    "This allows the IDE to more closely represent how the project is configured in Gradle.", true);
 
   public static final Flag<Boolean> GRADLE_SYNC_PARALLEL_SYNC_ENABLED = Flag.create(
     GRADLE_IDE, "gradle.sync.parallel.sync.enabled", "Enables parallel sync",
@@ -693,7 +693,7 @@ public final class StudioFlags {
     GRADLE_IDE, "jdk.allow.different", "Allow different Gradle JDK", "Allow usage of a different JDK version when running Gradle.", true);
 
   public static final Flag<Boolean> GRADLE_SYNC_USE_V2_MODEL = Flag.create(
-    GRADLE_IDE, "gradle.sync.use.v2", "Use V2 Builder models", "Enable fetching V2 builder models from AGP when syncing.", false);
+    GRADLE_IDE, "gradle.sync.use.v2", "Use V2 Builder models", "Enable fetching V2 builder models from AGP when syncing.", true);
 
   public static final Flag<Boolean> GRADLE_SYNC_RECREATE_JDK = Flag.create(
     GRADLE_IDE, "gradle.sync.recreate.jdk", "Recreate JDK on sync", "Recreate Gradle JDK when syncing if there are changed roots.", true);

@@ -19,11 +19,9 @@ import com.android.annotations.concurrency.Slow
 import com.android.annotations.concurrency.UiThread
 import com.android.annotations.concurrency.WorkerThread
 import com.android.ddmlib.AndroidDebugBridge
-import com.android.ddmlib.CollectingOutputReceiver
 import com.android.ddmlib.EmulatorConsole
 import com.android.ddmlib.IDevice
 import com.android.ddmlib.IDevice.HardwareFeature
-import com.android.ddmlib.NullOutputReceiver
 import com.android.sdklib.internal.avd.AvdInfo
 import com.android.sdklib.repository.targets.SystemImage
 import com.android.tools.idea.AndroidStartupActivity
@@ -36,7 +34,6 @@ import com.android.tools.idea.ddms.DevicePropertyUtil.getModel
 import com.android.tools.idea.observable.core.OptionalProperty
 import com.android.tools.idea.project.AndroidNotification
 import com.android.tools.idea.project.hyperlink.NotificationHyperlink
-import com.android.tools.idea.wearpairing.GmscoreHelper.refreshEmulatorConnection
 import com.google.common.util.concurrent.Futures
 import com.google.wireless.android.sdk.stats.WearPairingEvent
 import com.intellij.notification.NotificationType.INFORMATION
@@ -51,8 +48,10 @@ import com.intellij.util.net.NetUtils
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.android.sdk.AndroidSdkUtils
 import org.jetbrains.android.util.AndroidBundle.message
 import org.jetbrains.annotations.TestOnly
@@ -61,6 +60,13 @@ import java.util.concurrent.TimeUnit
 private val LOG get() = logger<WearPairingManager>()
 
 object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidStartupActivity {
+  enum class PairingState {
+    OFFLINE, // One or both device are offline/disconnected
+    CONNECTING, // Both devices are online, and ADB bridge is set up
+    CONNECTED, // End to end device pairing is set up
+    PAIRING_FAILED  // Both devices are online, ADB bridge is set up, but don't seem to pair
+  }
+
   private val updateDevicesChannel = Channel<Unit>(Channel.CONFLATED)
 
   private var runningJob: Job? = null
@@ -72,7 +78,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   data class PhoneWearPair(
     val phone: PairingDevice,
     val wear: PairingDevice,
-    var allDevicesOnline: Boolean,
+    var pairingStatus: PairingState,
     var hostPort: Int
   )
 
@@ -124,7 +130,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       val phoneWearPair = PhoneWearPair(
         phone = deviceMap[phoneId]!!.toPairingDevice(ConnectionState.DISCONNECTED),
         wear = deviceMap[wearId]!!.toPairingDevice(ConnectionState.DISCONNECTED),
-        allDevicesOnline = false,
+        pairingStatus = PairingState.OFFLINE,
         hostPort = 0
       )
       pairedDevicesTable[phoneId] = phoneWearPair
@@ -175,7 +181,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       }
     }
 
-    updateDevicesChannel.offer(Unit)
+    updateDevicesChannel.trySend(Unit)
   }
 
   @Synchronized
@@ -188,7 +194,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
                                        phoneDevice: IDevice,
                                        wear: PairingDevice,
                                        wearDevice: IDevice,
-                                       connect: Boolean = true) {
+                                       connect: Boolean = true): PhoneWearPair {
     LOG.warn("Starting device bridge {connect = $connect}")
     removePairedDevices(wear.deviceID, restartWearGmsCore = false)
 
@@ -196,7 +202,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
     val phoneWearPair = PhoneWearPair(
       phone = phone.disconnectedCopy(),
       wear = wear.disconnectedCopy(),
-      allDevicesOnline = true,
+      pairingStatus = PairingState.CONNECTING,
       hostPort = hostPort
     )
 
@@ -208,9 +214,20 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       LOG.warn("Creating adb bridge")
       phoneDevice.runCatching { createForward(hostPort, 5601) }
       wearDevice.runCatching { createReverse(5601, hostPort) }
-
       wearDevice.refreshEmulatorConnection()
+      phoneWearPair.pairingStatus = findDevicePairingStatus(phoneDevice, wearDevice)
     }
+
+    return phoneWearPair
+  }
+
+  private suspend fun findDevicePairingStatus(phoneDevice: IDevice, wearDevice: IDevice): PairingState {
+    return withTimeoutOrNull(5_000) {
+      while (!checkDevicesPaired(phoneDevice, wearDevice)) {
+        delay(1000)
+      }
+      PairingState.CONNECTED
+    } ?: PairingState.PAIRING_FAILED
   }
 
   @Synchronized
@@ -243,7 +260,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       LOG.warn(ex)
     }
 
-    updateDevicesChannel.offer(Unit)
+    updateDevicesChannel.trySend(Unit)
   }
 
   suspend fun checkCloudSyncIsEnabled(phone: PairingDevice): Boolean {
@@ -256,15 +273,15 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   }
 
   override fun deviceConnected(device: IDevice) {
-    updateDevicesChannel.offer(Unit)
+    updateDevicesChannel.trySend(Unit)
   }
 
   override fun deviceDisconnected(device: IDevice) {
-    updateDevicesChannel.offer(Unit)
+    updateDevicesChannel.trySend(Unit)
   }
 
   override fun deviceChanged(device: IDevice, changeMask: Int) {
-    updateDevicesChannel.offer(Unit)
+    updateDevicesChannel.trySend(Unit)
   }
 
   @Slow
@@ -289,7 +306,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       val avdDevice = deviceTable[deviceID]
       // Note: Emulators IDevice "Hardware" feature returns "emulator" (instead of TV, WEAR, etc.), so we only check for physical devices
       if (iDevice.isPhysicalPhone() || avdDevice != null) {
-        deviceTable[deviceID] = iDevice.toPairingDevice(deviceID, isPaired(deviceID), avdDevice = avdDevice)
+        deviceTable[deviceID] = iDevice.toPairingDevice(deviceID, avdDevice = avdDevice)
       }
     }
 
@@ -345,13 +362,14 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
     val onlineWear = onlineDevices[phoneWearPair.wear.deviceID]
     val bothDeviceOnline = onlinePhone != null && onlineWear != null
     try {
-      if (bothDeviceOnline && !phoneWearPair.allDevicesOnline) {
+      if (bothDeviceOnline && phoneWearPair.pairingStatus == PairingState.OFFLINE) {
         // Both devices are online, and before one (or both) were offline. Time to bridge
         createPairedDeviceBridge(phoneWearPair.phone, onlinePhone!!, phoneWearPair.wear, onlineWear!!)
         showReconnectMessageBalloon(phoneWearPair.phone.displayName, phoneWearPair.wear.displayName, wizardAction)
       }
-      else if (!bothDeviceOnline && phoneWearPair.allDevicesOnline) {
+      else if (!bothDeviceOnline && phoneWearPair.pairingStatus != PairingState.OFFLINE) {
         // One (or both) devices are offline, and before were online. Show "connection dropped" message
+        phoneWearPair.pairingStatus = PairingState.OFFLINE
         val offlineName = if (onlinePhone == null) phoneWearPair.phone.displayName else phoneWearPair.wear.displayName
         showConnectionDroppedBalloon(offlineName, phoneWearPair.phone.displayName, phoneWearPair.wear.displayName, wizardAction)
       }
@@ -359,8 +377,6 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
     catch (ex: Throwable) {
       LOG.warn(ex)
     }
-
-    phoneWearPair.allDevicesOnline = bothDeviceOnline
   }
 
   private suspend fun addDisconnectedPairedDeviceIfMissing(device: PairingDevice, deviceTable: HashMap<String, PairingDevice>) {
@@ -376,46 +392,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   }
 }
 
-suspend fun IDevice.executeShellCommand(cmd: String) {
-  withContext(ioThread) {
-    runCatching {
-      executeShellCommand(cmd, NullOutputReceiver())
-    }
-  }
-}
-
-suspend fun IDevice.runShellCommand(cmd: String): String = withContext(ioThread) {
-  val outputReceiver = CollectingOutputReceiver()
-  runCatching {
-    executeShellCommand(cmd, outputReceiver)
-  }
-  outputReceiver.output.trim()
-}
-
-suspend fun IDevice.loadNodeID(): String {
-  val localIdPattern = "local: "
-  val output = runShellCommand("dumpsys activity service WearableService | grep '$localIdPattern'")
-  return output.replace(localIdPattern, "").trim()
-}
-
-suspend fun IDevice.loadCloudNetworkID(ignoreNullOutput: Boolean = true): String {
-  val cloudNetworkIdPattern = "cloud network id: "
-  val output = runShellCommand("dumpsys activity service WearableService | grep '$cloudNetworkIdPattern'")
-  return output.replace(cloudNetworkIdPattern, "").run {
-    // The Wear Device may have a "null" cloud ID until ADB forward is established and a properly setup phone connects to it.
-    if (ignoreNullOutput) replace("null", "") else this
-  }.trim()
-}
-
-suspend fun IDevice.retrieveUpTime(): Double {
-  runCatching {
-    val uptimeRes = runShellCommand("cat /proc/uptime")
-    return uptimeRes.split(' ').firstOrNull()?.toDoubleOrNull() ?: 0.0
-  }
-  return 0.0
-}
-
-private fun IDevice.toPairingDevice(deviceID: String, isPared: Boolean, avdDevice: PairingDevice?): PairingDevice {
+private fun IDevice.toPairingDevice(deviceID: String, avdDevice: PairingDevice?): PairingDevice {
   return PairingDevice(
     deviceID = deviceID,
     displayName = avdDevice?.displayName ?: getDeviceName(name),

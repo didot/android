@@ -81,6 +81,7 @@ import com.android.tools.idea.gradle.model.IdeLibrary
 import com.android.tools.idea.gradle.model.IdeLintOptions
 import com.android.tools.idea.gradle.model.IdeMavenCoordinates
 import com.android.tools.idea.gradle.model.IdeModuleLibrary
+import com.android.tools.idea.gradle.model.IdeModuleSourceSet
 import com.android.tools.idea.gradle.model.IdeProductFlavor
 import com.android.tools.idea.gradle.model.IdeProductFlavorContainer
 import com.android.tools.idea.gradle.model.IdeSigningConfig
@@ -316,7 +317,8 @@ internal fun modelCacheV1Impl(buildFolderPaths: BuildFolderPaths): ModelCache {
       buildId = copyNewProperty(library::getBuildId) ?: buildFolderPaths.rootBuildId!!,
       projectPath = projectPath,
       variant = copyNewProperty(library::getProjectVariant),
-      lintJar = copyNewProperty(library::getLintJar)?.path
+      lintJar = copyNewProperty(library::getLintJar)?.path,
+      sourceSet = IdeModuleSourceSet.MAIN
     )
     return IdeModuleLibraryImpl(moduleLibraryCores.internCore(core))
   }
@@ -326,7 +328,8 @@ internal fun modelCacheV1Impl(buildFolderPaths: BuildFolderPaths): ModelCache {
       buildId = copyNewProperty(library::getBuildId) ?: buildFolderPaths.rootBuildId!!,
       projectPath = projectPath,
       variant = null,
-      lintJar = null
+      lintJar = null,
+      sourceSet = IdeModuleSourceSet.MAIN
     )
     return IdeModuleLibraryImpl(moduleLibraryCores.internCore(core))
   }
@@ -498,7 +501,8 @@ internal fun modelCacheV1Impl(buildFolderPaths: BuildFolderPaths): ModelCache {
       buildId = buildId,
       projectPath = projectPath,
       variant = variantName,
-      lintJar = null
+      lintJar = null,
+      sourceSet = IdeModuleSourceSet.MAIN
     )
     return IdeModuleLibraryImpl(moduleLibraryCores.internCore(core))
   }
@@ -827,7 +831,7 @@ internal fun modelCacheV1Impl(buildFolderPaths: BuildFolderPaths): ModelCache {
       targetSdkVersion = mergedFlavor.targetSdkVersion,
       maxSdkVersion = mergedFlavor.maxSdkVersion,
       versionCode = mergedFlavor.versionCode,
-      versionNameWithSuffix = mergedFlavor.versionName?.let { it + versionNameSuffix },
+      versionNameWithSuffix = mergedFlavor.versionName?.let { it + versionNameSuffix.orEmpty() },
       versionNameSuffix = versionNameSuffix,
       instantAppCompatible = (modelVersion != null &&
                               modelVersion.isAtLeast(3, 3, 0, "alpha", 10, true) &&
@@ -1168,10 +1172,15 @@ internal fun modelCacheV1Impl(buildFolderPaths: BuildFolderPaths): ModelCache {
 
     override fun variantFrom(
       androidProject: IdeAndroidProject,
-      basicVariant: BasicVariant,
+      basicVariant: com.android.builder.model.v2.ide.BasicVariant,
       variant: com.android.builder.model.v2.ide.Variant,
-      modelVersion: GradleVersion?,
+      modelVersion: GradleVersion?
+    ): IdeVariantImpl = throw UnsupportedOperationException()
+
+    override fun variantFrom(
+      variant: IdeVariantImpl,
       variantDependencies: VariantDependencies,
+      getVariantNameResolver: (buildId: File, projectPath: String) -> VariantNameResolver,
       buildNameMap: Map<String, File>
     ): IdeVariantImpl = throw UnsupportedOperationException()
 

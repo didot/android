@@ -53,6 +53,7 @@ import static org.mockito.Mockito.when;
 
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.idea.IdeInfo;
+import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.gradle.ProjectLibraries;
 import com.android.tools.idea.gradle.actions.SyncProjectAction;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
@@ -85,7 +86,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.WriteAction;
-import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.externalSystem.ExternalSystemManager;
 import com.intellij.openapi.externalSystem.model.DataNode;
 import com.intellij.openapi.externalSystem.model.ProjectKeys;
@@ -98,13 +98,13 @@ import com.intellij.openapi.externalSystem.model.task.ExternalSystemTaskNotifica
 import com.intellij.openapi.externalSystem.service.notification.NotificationData;
 import com.intellij.openapi.externalSystem.settings.AbstractExternalSystemLocalSettings;
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil;
+import com.intellij.openapi.module.LanguageLevelUtil;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.roots.ContentEntry;
 import com.intellij.openapi.roots.DependencyScope;
-import com.intellij.openapi.roots.LanguageLevelModuleExtensionImpl;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.roots.libraries.Library;
 import com.intellij.openapi.util.SystemInfo;
@@ -127,8 +127,6 @@ import java.util.Properties;
 import junit.framework.AssertionFailedError;
 import org.jetbrains.android.compiler.ModuleSourceAutogenerating;
 import org.jetbrains.android.facet.AndroidFacet;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.gradle.internal.daemon.GradleDaemonServices;
 import org.jetbrains.plugins.gradle.settings.GradleProjectSettings;
 import org.jetbrains.plugins.gradle.settings.GradleSettings;
@@ -254,13 +252,8 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
   public void testModuleJavaLanguageLevel() throws Exception {
     loadProject(TRANSITIVE_DEPENDENCIES);
     Module library1Module = TestModuleUtil.findModule(getProject(), "library1");
-    LanguageLevel javaLanguageLevel = getJavaLanguageLevel(library1Module);
+    LanguageLevel javaLanguageLevel = LanguageLevelUtil.getCustomLanguageLevel(library1Module);
     assertEquals(JDK_1_8, javaLanguageLevel);
-  }
-
-  @Nullable
-  private static LanguageLevel getJavaLanguageLevel(@NotNull Module module) {
-    return LanguageLevelModuleExtensionImpl.getInstance(module).getLanguageLevel();
   }
 
   // https://code.google.com/p/android/issues/detail?id=227931
@@ -336,6 +329,8 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
   // Verifies that sync does not fail and user is warned when a project contains an Android module without variants.
   // See https://code.google.com/p/android/issues/detail?id=170722
   public void testWithAndroidProjectWithoutVariants() throws Exception {
+    //TODO(b/202142748): enable for V2 as well when bug is fixed.
+    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.override(false);
     Project project = getProject();
 
     GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
@@ -348,6 +343,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
 
     String failure = requestSyncAndGetExpectedFailure();
     assertThat(failure).contains("No variants found for ':app'. Check build files to ensure at least one variant exists.");
+    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.clearOverride();
   }
 
   public void testGradleSyncActionAfterFailedSync() throws Exception {
@@ -371,6 +367,8 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
   // due to conflicts in variant attributes.
   // See b/64213214.
   public void testSyncIssueWithNonMatchingVariantAttributes() throws Exception {
+    //TODO(b/202142748): enable for V2 as well when bug is fixed.
+    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.override(false);
     Project project = getProject();
     GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
 
@@ -389,10 +387,12 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
     List<NotificationData> messages = syncMessages.getNotifications();
     List<NotificationData> relevantMessages = messages.stream()
       .filter(m -> m.getTitle().equals("Unresolved dependencies") &&
-                   m.getMessage().contains(
-                     "Unable to resolve dependency for ':app@basicQa/compileClasspath': Could not resolve project :lib.\nAffected Modules:"))
+                   (m.getMessage().contains(
+                     "Unable to resolve dependency for ':app@basicQa/compileClasspath': Could not resolve project :lib.\nAffected Modules:")
+                    || m.getMessage().contains("Failed to resolve: project :lib\nAffected Modules:")))
       .collect(toList());
     assertThat(relevantMessages).isNotEmpty();
+    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.clearOverride();
   }
 
   // Verify that custom properties on local.properties are preserved after sync (b/70670394)
@@ -585,7 +585,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
     SimulatedSyncErrors.registerSyncErrorToSimulate(new JdkImportCheckException("Presync checks failed"));
 
     // Spy on SyncView manager to confirm it is displaying the error message
-    SyncViewManager spyViewManager = spy(ServiceManager.getService(project, SyncViewManager.class));
+    SyncViewManager spyViewManager = spy(project.getService(SyncViewManager.class));
     myIdeComponents.replaceProjectService(SyncViewManager.class, spyViewManager);
 
     String syncError = loadProjectAndExpectSyncError(SIMPLE_APPLICATION);
@@ -595,7 +595,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
   public void testFinishBuildEventOnlyCreatedOnce() throws Exception {
     Project project = getProject();
     // Spy on SyncView manager to capture the build events.
-    SyncViewManager spyViewManager = spy(ServiceManager.getService(project, SyncViewManager.class));
+    SyncViewManager spyViewManager = spy(project.getService(SyncViewManager.class));
     myIdeComponents.replaceProjectService(SyncViewManager.class, spyViewManager);
 
     // Invoke Gradle sync.
@@ -613,7 +613,7 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
   public void testStartAndFinishBuildEventHasSameBuildId() throws Exception {
     Project project = getProject();
     // Spy on SyncView manager to capture the build events.
-    SyncViewManager spyViewManager = spy(ServiceManager.getService(project, SyncViewManager.class));
+    SyncViewManager spyViewManager = spy(project.getService(SyncViewManager.class));
     myIdeComponents.replaceProjectService(SyncViewManager.class, spyViewManager);
 
     // Invoke Gradle sync.

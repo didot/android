@@ -46,7 +46,6 @@ import com.intellij.notification.NotificationsManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState.NON_MODAL
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
-import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.DumbService
@@ -204,7 +203,11 @@ fun shouldRecommendUpgrade(current: GradleVersion, latestKnown: GradleVersion, p
 }
 
 class ProjectUpgradeNotification(title: String, content: String, listener: NotificationListener)
-  : Notification(AGP_UPGRADE_NOTIFICATION_GROUP.displayId, title, content, NotificationType.INFORMATION, listener)
+  : Notification(AGP_UPGRADE_NOTIFICATION_GROUP.displayId, title, content, NotificationType.INFORMATION) {
+    init {
+      setListener(listener)
+    }
+  }
 
 fun expireProjectUpgradeNotifications(project: Project?) {
   NotificationsManager
@@ -277,7 +280,7 @@ fun performForcedPluginUpgrade(
 
   if (upgradeAccepted) {
     // The user accepted the upgrade
-    val assistantInvoker = ServiceManager.getService(project, AssistantInvoker::class.java)
+    val assistantInvoker = project.getService(AssistantInvoker::class.java)
     val processor = assistantInvoker.createProcessor(project, currentPluginVersion, newPluginVersion)
     val runProcessor = assistantInvoker.showAndGetAgpUpgradeDialog(processor)
     if (runProcessor) {

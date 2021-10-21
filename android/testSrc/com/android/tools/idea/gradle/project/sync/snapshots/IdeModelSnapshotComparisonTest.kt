@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.gradle.project.sync.snapshots
 
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.sync.CaptureKotlinModelsProjectResolverExtension
 import com.android.tools.idea.gradle.project.sync.internal.dumpAndroidIdeModel
 import com.android.tools.idea.testing.AndroidProjectRule
@@ -98,6 +99,10 @@ open class IdeModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotCompa
       TestProject(TestProjectToSnapshotPaths.TEST_FIXTURES, incompatibleWithAgps = setOf(AgpVersion.LEGACY_4_1, AgpVersion.LEGACY_4_2)),
       TestProject(TestProjectToSnapshotPaths.TEST_ONLY_MODULE),
       TestProject(TestProjectToSnapshotPaths.KOTLIN_MULTIPLATFORM, incompatibleWithAgps = setOf(AgpVersion.LEGACY_4_1, AgpVersion.LEGACY_4_2)),
+      TestProject(TestProjectToSnapshotPaths.MULTI_FLAVOR),
+      TestProject(TestProjectToSnapshotPaths.NAMESPACES),
+      TestProject(TestProjectToSnapshotPaths.INCLUDE_FROM_LIB),
+      TestProject(TestProjectToSnapshotPaths.LOCAL_AARS_AS_MODULES)
       )
 
     fun testProjectsFor(agpVersions: Collection<AgpVersion>) =
@@ -131,24 +136,29 @@ open class IdeModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotCompa
 
   @Test
   fun testIdeModels() {
-    val projectName = testProjectName ?: error("unit test parameter not initialized")
-    val agpVersion = agpVersion ?: error("unit test parameter not initialized")
-    val root = prepareGradleProject(
-      projectName.template,
-      "project",
-      null,
-      agpVersion.legacyAgpVersion
-    )
-    CaptureKotlinModelsProjectResolverExtension.registerTestHelperProjectResolver(projectRule.fixture.testRootDisposable)
-    openPreparedProject("project${testProjectName?.pathToOpen}") { project ->
-      val dump = project.saveAndDump(mapOf("ROOT" to root)) { project, projectDumper ->
-        projectDumper.dumpAndroidIdeModel(
-          project,
-          kotlinModels = { CaptureKotlinModelsProjectResolverExtension.getKotlinModel(it) },
-          kaptModels = { CaptureKotlinModelsProjectResolverExtension.getKaptModel(it) }
-        )
+    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.override(false)
+    try {
+      val projectName = testProjectName ?: error("unit test parameter not initialized")
+      val agpVersion = agpVersion ?: error("unit test parameter not initialized")
+      val root = prepareGradleProject(
+        projectName.template,
+        "project",
+        null,
+        agpVersion.legacyAgpVersion
+      )
+      CaptureKotlinModelsProjectResolverExtension.registerTestHelperProjectResolver(projectRule.fixture.testRootDisposable)
+      openPreparedProject("project${testProjectName?.pathToOpen}") { project ->
+        val dump = project.saveAndDump(mapOf("ROOT" to root)) { project, projectDumper ->
+          projectDumper.dumpAndroidIdeModel(
+            project,
+            kotlinModels = { CaptureKotlinModelsProjectResolverExtension.getKotlinModel(it) },
+            kaptModels = { CaptureKotlinModelsProjectResolverExtension.getKaptModel(it) }
+          )
+        }
+        assertIsEqualToSnapshot(dump)
       }
-      assertIsEqualToSnapshot(dump)
+    } finally {
+      StudioFlags.GRADLE_SYNC_USE_V2_MODEL.clearOverride()
     }
   }
 }

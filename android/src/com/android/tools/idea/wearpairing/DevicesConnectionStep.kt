@@ -25,7 +25,6 @@ import com.android.tools.idea.observable.ListenerManager
 import com.android.tools.idea.observable.core.BoolValueProperty
 import com.android.tools.idea.observable.core.ObservableBool
 import com.android.tools.idea.observable.core.OptionalProperty
-import com.android.tools.idea.wearpairing.NonInteractivePairing.PairingState
 import com.android.tools.idea.wizard.model.ModelWizard
 import com.android.tools.idea.wizard.model.ModelWizardStep
 import com.google.common.util.concurrent.Futures
@@ -251,9 +250,9 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
 
   private suspend fun showSecondPhase(phone: PairingDevice, phoneDevice: IDevice, wear: PairingDevice, wearDevice: IDevice) {
     showUiBridgingDevices()
-    WearPairingManager.createPairedDeviceBridge(phone, phoneDevice, wear, wearDevice)
+    val phoneWearPair = WearPairingManager.createPairedDeviceBridge(phone, phoneDevice, wear, wearDevice)
     // Note: createPairedDeviceBridge() restarts GmsCore, so it may take a bit of time until devices paired happens
-    if (waitForCondition(5_000) { checkDevicesPaired(phoneIDevice, wearIDevice) }) {
+    if (phoneWearPair.pairingStatus == WearPairingManager.PairingState.CONNECTED) {
       showPairingSuccess(model.selectedPhoneDevice.value.displayName, model.selectedWearDevice.value.displayName)
     }
     else {
@@ -268,13 +267,13 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
       NonInteractivePairing.startPairing(phoneDevice, wearDevice.avdName!!, companionAppId, wearDevice.loadNodeID()).use {
         withTimeoutOrNull(Duration.ofMinutes(1)) {
           it.pairingState.takeWhile { !it.hasFinished() }.collect { state ->
-            if (state == PairingState.CONSENT) {
+            if (state == NonInteractivePairing.PairingState.CONSENT) {
               showUiPairingNonInteractive(phoneDevice, wearDevice,
                                           message("wear.assistant.device.connection.pairing.auto.consent", phoneDevice.name))
             }
           }
         }
-        if (it.pairingState.value == PairingState.SUCCESS) {
+        if (it.pairingState.value == NonInteractivePairing.PairingState.SUCCESS) {
           showPairingSuccess(model.selectedPhoneDevice.value.displayName, model.selectedWearDevice.value.displayName)
         }
         else {
@@ -786,21 +785,6 @@ private suspend fun waitForCondition(timeMillis: Long, condition: suspend () -> 
     true
   }
   return res == true
-}
-
-private suspend fun IDevice.isCompanionAppInstalled(companionAppId: String): Boolean {
-  val output = runShellCommand("dumpsys package $companionAppId | grep versionName")
-  return output.contains("versionName=")
-}
-
-private suspend fun checkDevicesPaired(phoneDevice: IDevice, wearDevice: IDevice): Boolean {
-  val phoneDeviceID = phoneDevice.loadNodeID()
-  if (phoneDeviceID.isNotEmpty()) {
-    val wearPattern = "connection to peer node: $phoneDeviceID"
-    val wearOutput = wearDevice.runShellCommand("dumpsys activity service WearableService | grep '$wearPattern'")
-    return wearOutput.isNotBlank()
-  }
-  return false
 }
 
 private suspend fun checkWearMayNeedFactoryReset(phoneDevice: IDevice, wearDevice: IDevice): Boolean {

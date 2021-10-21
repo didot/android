@@ -301,12 +301,18 @@ public class AndroidGradleTests {
     // Inspired by: https://github.com/gradle/gradle/commit/8da8e742c3562a8130d3ddb5c6391d90ec565c39
     String debugIntegrationTest = System.getenv("DEBUG_INNER_TEST");
     String debugJvmArgs = "";
-    if (!Strings.isNullOrEmpty(debugIntegrationTest)) {
-      String serverArg = debugIntegrationTest.equalsIgnoreCase("socket-listen") ? "n" : "y";
+    if (!Strings.isNullOrEmpty(debugIntegrationTest)
+        && !debugIntegrationTest.equalsIgnoreCase("n")
+        && !(debugIntegrationTest.equalsIgnoreCase("attach-when-debugging") && System.getProperty("intellij.debug.agent") == null)
+    ) {
+      String serverArg = (debugIntegrationTest.equalsIgnoreCase("socket-listen")
+                          || debugIntegrationTest.equalsIgnoreCase("attach-when-debugging")
+                         ) ? "n" : "y";
       debugJvmArgs =
         String.format(
           "-agentlib:jdwp=transport=dt_socket,server=%s,suspend=n,address=5006 ",
           serverArg);
+      System.out.println("***DEBUGGING GRADLE** via:" + debugJvmArgs);
     }
 
     gradleProperties.setJvmArgs(Strings.nullToEmpty(gradleProperties.getJvmArgs()) + " -XX:MaxMetaspaceSize=768m " + debugJvmArgs);
@@ -558,6 +564,9 @@ public class AndroidGradleTests {
 
     copyDir(srcRoot, projectRoot);
 
+    // patcher may use VFS (in fact, PropertiesFiles is using VFS now), need to refresh
+    // otherwise pre-populated properties files are cleared (e.g. `android.useAndroidX` property)
+    VfsUtil.markDirtyAndRefresh(false, true, true, findFileByIoFile(projectRoot, true));
     patcher.consume(projectRoot);
 
     // Refresh project dir to have files under of the project.getBaseDir() visible to VFS.

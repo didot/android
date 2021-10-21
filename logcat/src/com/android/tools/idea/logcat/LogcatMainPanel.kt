@@ -26,8 +26,10 @@ import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
 import com.android.tools.idea.ddms.DeviceContext
 import com.android.tools.idea.logcat.actions.ClearLogcatAction
 import com.android.tools.idea.logcat.actions.HeaderFormatOptionsAction
+import com.android.tools.idea.logcat.folding.EditorFoldingDetector
 import com.android.tools.idea.logcat.folding.FoldingDetector
-import com.android.tools.idea.logcat.folding.FoldingDetectorImpl
+import com.android.tools.idea.logcat.hyperlinks.EditorHyperlinkDetector
+import com.android.tools.idea.logcat.hyperlinks.HyperlinkDetector
 import com.android.tools.idea.logcat.messages.DocumentAppender
 import com.android.tools.idea.logcat.messages.FormattingOptions
 import com.android.tools.idea.logcat.messages.LogcatColors
@@ -35,21 +37,16 @@ import com.android.tools.idea.logcat.messages.MessageBacklog
 import com.android.tools.idea.logcat.messages.MessageFormatter
 import com.android.tools.idea.logcat.messages.MessageProcessor
 import com.android.tools.idea.logcat.messages.TextAccumulator
-import com.intellij.execution.filters.CompositeFilter
-import com.intellij.execution.filters.Filter
+import com.android.tools.idea.logcat.util.createLogcatEditor
+import com.android.tools.idea.logcat.util.isCaretAtBottom
+import com.android.tools.idea.logcat.util.isScrollAtBottom
 import com.intellij.execution.impl.ConsoleBuffer
-import com.intellij.execution.impl.ConsoleViewUtil
-import com.intellij.execution.impl.EditorHyperlinkSupport
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionManager
-import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.actionSystem.DataProvider
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.command.undo.UndoUtil
-import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
-import com.intellij.openapi.editor.EditorKind
 import com.intellij.openapi.editor.RangeMarker
 import com.intellij.openapi.editor.actions.ScrollToTheEndToolbarAction
 import com.intellij.openapi.editor.actions.ToggleUseSoftWrapsToolbarAction
@@ -57,12 +54,10 @@ import com.intellij.openapi.editor.event.EditorMouseEvent
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.editor.ex.util.EditorUtil
 import com.intellij.openapi.editor.impl.ContextMenuPopupHandler
-import com.intellij.openapi.editor.impl.EditorFactoryImpl
 import com.intellij.openapi.editor.impl.softwrap.SoftWrapAppliancePlaces
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.tools.SimpleActionGroup
 import com.intellij.util.ui.components.BorderLayoutPanel
 import kotlinx.coroutines.isActive
@@ -77,23 +72,33 @@ import kotlin.math.max
 
 /**
  * The top level Logcat panel.
+ *
+ * @param project the [Project]
+ * @param popupActionGroup An [ActionGroup] to add to the right-click menu of the panel
+ * @param logcatColors Provides colors for rendering messages
+ * @param state State to restore or null to use the default state
+ * @param hyperlinkDetector A [HyperlinkDetector] or null to create the default one. For testing.
+ * @param foldingDetector A [FoldingDetector] or null to create the default one. For testing.
+ * @param zoneId A [ZoneId] or null to create the default one. For testing.
  */
 internal class LogcatMainPanel(
   project: Project,
   private val popupActionGroup: ActionGroup,
   logcatColors: LogcatColors,
   state: LogcatPanelConfig?,
-  hyperlinkHighlighterFactory: (EditorEx) -> HyperlinkHighlighter = ::HyperlinkHighlighterImpl,
-  foldingDetectorFactory: (Editor) -> FoldingDetector = { editor -> FoldingDetectorImpl(project, editor) },
+  hyperlinkDetector: HyperlinkDetector? = null,
+  foldingDetector: FoldingDetector? = null,
   zoneId: ZoneId = ZoneId.systemDefault()
-) : BorderLayoutPanel(), LogcatPresenter, SplittingTabsStateProvider, Disposable, DataProvider {
+) : BorderLayoutPanel(), LogcatPresenter, SplittingTabsStateProvider, Disposable {
 
   @VisibleForTesting
-  internal val editor: EditorEx = createEditor(project)
+  internal val editor: EditorEx = createLogcatEditor(project)
   private val document = editor.document
-  private val documentAppender = DocumentAppender(project, document)
+  private val documentAppender = DocumentAppender(project, document, ConsoleBuffer.getCycleBufferSize())
   private val deviceContext = DeviceContext()
-  private val formattingOptions = state?.formattingOptions ?: FormattingOptions()
+
+  @VisibleForTesting
+  internal val formattingOptions = state?.formattingOptions ?: FormattingOptions()
   private val messageFormatter = MessageFormatter(formattingOptions, logcatColors, zoneId)
 
   @VisibleForTesting
@@ -104,10 +109,8 @@ internal class LogcatMainPanel(
   private val headerPanel = LogcatHeaderPanel(project, deviceContext)
   private var logcatReader: LogcatReader? = null
   private val toolbar = ActionManager.getInstance().createActionToolbar("LogcatMainPanel", createToolbarActions(project), false)
-  private val hyperlinkHighlighter = hyperlinkHighlighterFactory(editor)
-  private val hyperlinkFilters =
-    CompositeFilter(project, ConsoleViewUtil.computeConsoleFilters(project, null, GlobalSearchScope.allScope(project)))
-  private val foldingUpdater = foldingDetectorFactory(editor)
+  private val hyperlinkDetector = hyperlinkDetector ?: EditorHyperlinkDetector(project, editor)
+  private val foldingDetector = foldingDetector ?: EditorFoldingDetector(project, editor)
   private var ignoreCaretAtBottom = false // Derived from similar code in ConsoleViewImpl. See initScrollToEndStateHandling()
 
   init {
@@ -188,7 +191,6 @@ internal class LogcatMainPanel(
   override fun getState(): String = LogcatPanelConfig.toJson(
     LogcatPanelConfig(
       deviceContext.selectedDevice?.serialNumber,
-      deviceContext.selectedClient?.clientData?.packageName,
       formattingOptions))
 
   override suspend fun appendMessages(textAccumulator: TextAccumulator) = withContext(uiThread(ModalityState.any())) {
@@ -206,8 +208,8 @@ internal class LogcatMainPanel(
     val startLine = if (endMarker.isValid) document.getLineNumber(endMarker.endOffset) else 0
     endMarker.dispose()
     val endLine = max(0, document.lineCount - 1)
-    hyperlinkHighlighter.highlightHyperlinks(hyperlinkFilters, startLine, endLine)
-    foldingUpdater.detectFoldings(startLine, endLine)
+    hyperlinkDetector.detectHyperlinks(startLine, endLine)
+    foldingDetector.detectFoldings(startLine, endLine)
 
     if (shouldStickToEnd) {
       scrollToEnd()
@@ -234,7 +236,9 @@ internal class LogcatMainPanel(
         templatePresentation.text = StringUtil.toTitleCase(text)
         templatePresentation.description = text
       })
-      add(ToggleUseSoftWrapsToolbarAction(SoftWrapAppliancePlaces.CONSOLE))
+      add(object : ToggleUseSoftWrapsToolbarAction(SoftWrapAppliancePlaces.CONSOLE) {
+        override fun getEditor(e: AnActionEvent) = this@LogcatMainPanel.editor
+      })
       add(HeaderFormatOptionsAction(project, this@LogcatMainPanel, formattingOptions))
     }
   }
@@ -259,13 +263,6 @@ internal class LogcatMainPanel(
 
   override fun isMessageViewEmpty() = document.textLength == 0
 
-  override fun getData(dataId: String): Any? {
-    return when {
-      CommonDataKeys.EDITOR.`is`(dataId) -> editor
-      else -> null
-    }
-  }
-
   // Derived from similar code in ConsoleViewImpl. See initScrollToEndStateHandling()
   @UiThread
   private fun updateScrollToEndState(useImmediatePosition: Boolean) {
@@ -280,66 +277,4 @@ internal class LogcatMainPanel(
     EditorUtil.scrollToTheEnd(editor, true)
     ignoreCaretAtBottom = false
   }
-
-  companion object {
-    /**
-     * This code is based on [com.intellij.execution.impl.ConsoleViewImpl]
-     */
-    fun createEditor(project: Project): EditorEx {
-      val editorFactory = EditorFactory.getInstance()
-      val document = (editorFactory as EditorFactoryImpl).createDocument(true)
-      UndoUtil.disableUndoFor(document)
-      val editor = editorFactory.createViewer(document, project, EditorKind.CONSOLE) as EditorEx
-      document.setCyclicBufferSize(ConsoleBuffer.getCycleBufferSize())
-      val editorSettings = editor.settings
-      editorSettings.isAllowSingleLogicalLineFolding = true
-      editorSettings.isLineMarkerAreaShown = false
-      editorSettings.isIndentGuidesShown = false
-      editorSettings.isLineNumbersShown = false
-      editorSettings.isFoldingOutlineShown = true
-      editorSettings.isAdditionalPageAtBottom = false
-      editorSettings.additionalColumnsCount = 0
-      editorSettings.additionalLinesCount = 0
-      editorSettings.isRightMarginShown = false
-      editorSettings.isCaretRowShown = false
-      editorSettings.isShowingSpecialChars = false
-      editor.gutterComponentEx.isPaintBackground = false
-
-      return editor
-    }
-  }
-}
-
-/**
- * Wrapper interface around [EditorHyperlinkSupport] to allow for testing.
- */
-internal interface HyperlinkHighlighter {
-  /**
-   * Highlight hyperlinks in an [EditorEx].
-   *
-   * @param filter A [Filter] used by the [EditorHyperlinkSupport] implementation
-   * @param startLine Start line of region to process (zero based)
-   * @param startLine End line of region to process (zero based)
-   */
-  fun highlightHyperlinks(filter: Filter, startLine: Int, endLine: Int)
-}
-
-private class HyperlinkHighlighterImpl(editor: EditorEx) : HyperlinkHighlighter {
-  private val editorHyperlinkSupport = EditorHyperlinkSupport.get(editor)
-  override fun highlightHyperlinks(filter: Filter, startLine: Int, endLine: Int) {
-    editorHyperlinkSupport.highlightHyperlinks(filter, startLine, endLine)
-  }
-}
-
-@VisibleForTesting
-@UiThread
-internal fun EditorEx.isCaretAtBottom() = document.let {
-  it.getLineNumber(caretModel.offset) >= it.lineCount - 1
-}
-
-@UiThread
-private fun EditorEx.isScrollAtBottom(useImmediatePosition: Boolean): Boolean {
-  val scrollBar = scrollPane.verticalScrollBar
-  val position = if (useImmediatePosition) scrollBar.value else scrollingModel.visibleAreaOnScrollingFinished.y
-  return scrollBar.maximum - scrollBar.visibleAmount == position
 }

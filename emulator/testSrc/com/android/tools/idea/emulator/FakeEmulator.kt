@@ -72,7 +72,7 @@ import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
-import org.junit.Assert
+import org.junit.Assert.fail
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.RenderingHints
@@ -106,6 +106,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Predicate
 import javax.imageio.ImageIO
 import kotlin.math.roundToInt
+import com.android.emulator.control.DisplayMode as DisplayModeMessage
 import com.android.emulator.snapshot.SnapshotOuterClass.Image as SnapshotImage
 
 /**
@@ -155,6 +156,7 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
         }
       }
     }
+  var displayMode = config.displayModes.firstOrNull { it.width == config.displayWidth && it.height == config.displayHeight }
 
   @Volatile var extendedControlsVisible = false
 
@@ -431,6 +433,7 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
       .setHeight(rotatedImage.height)
       .setRotation(Rotation.newBuilder().setRotation(displayRotation))
     foldedDisplay?.let { imageFormat.foldedDisplay = it }
+    displayMode?.let { imageFormat.displayMode = it.displayModeId }
 
     val response = Image.newBuilder()
       .setImage(ByteString.copyFrom(imageBytes))
@@ -443,6 +446,10 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
     var displayWidth = display.width
     var displayHeight = display.height
     if (displayId == PRIMARY_DISPLAY_ID) {
+      displayMode?.let {
+        displayWidth = it.width
+        displayHeight = it.height
+      }
       foldedDisplay?.let {
         displayWidth = it.width
         displayHeight = it.height
@@ -527,6 +534,19 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
       }
     }
 
+    override fun setDisplayMode(request: DisplayModeMessage, responseObserver: StreamObserver<Empty>) {
+      executor.execute {
+        val changed = displayMode?.displayModeId != request.value
+        displayMode = config.displayModes.firstOrNull { it.displayModeId == request.value }
+        sendEmptyResponse(responseObserver)
+        if (changed) {
+          val screenshotObserver = screenshotStreamObserver ?: return@execute
+          val screenshotRequest = screenshotStreamRequest ?: return@execute
+          sendScreenshot(screenshotRequest, screenshotObserver)
+        }
+      }
+    }
+
     override fun sendKey(request: KeyboardEvent, responseObserver: StreamObserver<Empty>) {
       executor.execute {
         sendEmptyResponse(responseObserver)
@@ -582,15 +602,17 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
         val image = drawDisplayImage(size, displayId)
         val stream = ByteArrayOutputStream()
         ImageIO.write(image, "PNG", stream)
+
+        val imageFormat = ImageFormat.newBuilder()
+          .setFormat(ImgFormat.PNG)
+          .setWidth(image.width)
+          .setHeight(image.height)
+          .setRotation(Rotation.newBuilder().setRotation(displayRotation))
+        displayMode?.let { imageFormat.displayMode = it.displayModeId }
+
         val response = Image.newBuilder()
           .setImage(ByteString.copyFrom(stream.toByteArray()))
-          .setFormat(ImageFormat.newBuilder()
-                       .setFormat(ImgFormat.PNG)
-                       .setWidth(image.width)
-                       .setHeight(image.height)
-                       .setRotation(Rotation.newBuilder().setRotation(displayRotation))
-          )
-
+          .setFormat(imageFormat)
         sendResponse(responseObserver, response.build())
       }
     }
@@ -749,16 +771,17 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
       responseMessageCounter.poll(timeout, unit)
     }
 
-    fun waitForCompletion(timeout: Long, unit: TimeUnit) {
+    private fun waitForCompletion(timeout: Long, unit: TimeUnit) {
       completion.get(timeout, unit)
     }
 
     fun waitForCancellation(timeout: Long, unit: TimeUnit) {
       try {
-        waitForCompletion(2, TimeUnit.SECONDS)
-        Assert.fail("The $methodName call was not cancelled")
+        waitForCompletion(timeout, unit)
+        fail("The $methodName call was not cancelled")
       }
-      catch (expected: CancellationException) {
+      catch (_: CancellationException) {
+        // Expected.
       }
     }
 
@@ -1175,17 +1198,17 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
       val configIni = """
           AvdId=${avdId}
           PlayStore.enabled=false
-          abi.type=x86
+          abi.type=x86_64
           avd.ini.displayname=${avdName}
           avd.ini.encoding=UTF-8
-          disk.dataPartition.size=800M
+          disk.dataPartition.size=6442450944
           hw.accelerometer=yes
           hw.arc=false
           hw.audioInput=yes
           hw.battery=yes
           hw.camera.back=virtualscene
           hw.camera.front=emulated
-          hw.cpu.arch=x86
+          hw.cpu.arch=x86_64
           hw.cpu.ncore=4
           hw.dPad=no
           hw.device.name = resizable
@@ -1195,14 +1218,15 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
           hw.initialOrientation=Portrait
           hw.keyboard=yes
           hw.lcd.density = 420
-          hw.lcd.height = 2208
-          hw.lcd.width = 1768
+          hw.lcd.height = 2340
+          hw.lcd.width = 1080
           hw.mainKeys=no
           hw.ramSize=1536
           hw.sdCard=yes
           hw.sensors.orientation=yes
           hw.sensors.proximity=no
           hw.trackBall=no
+          hw.resizable.configs = phone-0-1080-2340-420, foldable-1-1768-2208-420, tablet-2-1920-1200-240, desktop-3-1920-1080-160
           image.sysdir.1 = system-images/android-32/google_apis/x86_64/
           runtime.network.latency=none
           runtime.network.speed=full
@@ -1210,20 +1234,19 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
           sdcard.size=512M
           showDeviceFrame=yes
           skin.dynamic=yes
-          skin.name=1768x2208
+          skin.name=1080x2340
           skin.path=_no_skin
           tag.display=Google APIs
           tag.id=google_apis
           """.trimIndent()
 
       val hardwareIni = """
-          hw.cpu.arch = x86
-          hw.cpu.model = qemu32
+          hw.cpu.arch = x86_64
           hw.cpu.ncore = 4
-          hw.lcd.width = 1768
-          hw.lcd.height = 2208
+          hw.lcd.width = 1080
+          hw.lcd.height = 2340
           hw.lcd.density = 420
-          hw.ramSize = 2048
+          hw.ramSize = 1536
           hw.screen = multi-touch
           hw.dPad = false
           hw.rotaryInput = false
@@ -1239,7 +1262,6 @@ class FakeEmulator(val avdFolder: Path, val grpcPort: Int, registrationDirectory
           android.sdk.root = $sdkFolder
           hw.initialOrientation = Portrait
           hw.device.name = resizable
-          hw.resizable.configs = phone-0-1080-2340-420, unfolded-1-1768-2208-420, tablet-2-1920-1200-240, desktop-3-1920-1080-160
           """.trimIndent()
 
       return createAvd(avdFolder, configIni, hardwareIni)

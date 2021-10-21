@@ -195,6 +195,7 @@ maven_repository(
         "@maven//:org.jetbrains.kotlin.kotlin-android-extensions-runtime_1.5.21",
         "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.4.32",
         "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.5.21",
+        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.5.30",
         "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.4.31",
         "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.5.21",
         "@maven//:org.jetbrains.kotlin.kotlin-script-runtime_1.5.21",
@@ -588,7 +589,7 @@ java_test(
     tags = COMMON_TAGS + [
         "no_mac",
         "ui_test",
-        "very_flaky",  # b/201104220
+        "very_flaky",  # b/203243180
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],
@@ -753,7 +754,6 @@ java_test(
     tags = COMMON_TAGS + [
         "no_mac",
         "ui_test",
-        "very_flaky",  # b/201104220
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],
@@ -834,7 +834,6 @@ java_test(
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.uibuilder.BasicLayoutEditTest"],
     tags = COMMON_TAGS + [
         "ui_test",
-        "very_flaky",  # b/201104220
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],
@@ -1009,7 +1008,6 @@ java_test(
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.uibuilder.CreateNewMobileProjectTest"],
     tags = COMMON_TAGS + [
         "ui_test",
-        "very_flaky",  # b/201104220
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],
@@ -1028,7 +1026,6 @@ java_test(
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.kotlin.CreateCppKotlinProjectTest"],
     tags = COMMON_TAGS + [
         "ui_test",
-        "very_flaky",  # b/201104220
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],
@@ -1345,7 +1342,6 @@ java_test(
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.compose.NewComposeProjectTest"],
     tags = COMMON_TAGS + [
         "ui_test",
-        "very_flaky",  # b/201104220
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],
@@ -2498,6 +2494,22 @@ java_test(
         "testData/SimpleApplication/**",
     ]),
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.editors.ToastLiveTemplateTest"],
+    tags = COMMON_TAGS + [
+        "qa_fast",
+    ],
+    test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
+    runtime_deps = [":intellij.android.guiTests_testlib"],
+)
+
+# fat test
+java_test(
+    name = "ImportMlModelTest",
+    data = COMMON_DATA + [
+        "//prebuilts/tools/common/mlkit/testData",
+    ] + glob([
+        "testData/SimpleApplication/**",
+    ]),
+    jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.mlmodels.ImportMlModelTest"],
     tags = COMMON_TAGS + [
         "qa_fast",
     ],

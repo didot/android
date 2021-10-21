@@ -15,8 +15,6 @@
  */
 package com.android.tools.idea.gradle.dsl.parser.kotlin
 
-import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec
-import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.iStr
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType.DERIVED
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType.VARIABLE
@@ -29,7 +27,6 @@ import com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyn
 import com.android.tools.idea.gradle.dsl.parser.GradleDslParser
 import com.android.tools.idea.gradle.dsl.parser.GradleReferenceInjection
 import com.android.tools.idea.gradle.dsl.parser.dependencies.DependenciesDslElement
-import com.android.tools.idea.gradle.dsl.parser.dependencies.FakeArtifactElement
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslClosure
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement
@@ -72,7 +69,6 @@ import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
 import org.jetbrains.kotlin.psi.KtPostfixExpression
 import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtReferenceExpression
 import org.jetbrains.kotlin.psi.KtScriptInitializer
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -130,7 +126,7 @@ class KotlinDslParser(
       // Ex: KotlinCompilerVersion, android.compileSdkVersion
       is KtNameReferenceExpression, is KtDotQualifiedExpression -> {
         if (resolve) {
-          val gradleDslElement = context.resolveExternalSyntaxReference(literal.text, true)
+          val gradleDslElement = context.resolveExternalSyntaxReference(literal, true)
           // Only get the value if the element is a GradleDslSimpleExpression.
           if (gradleDslElement is GradleDslSimpleExpression) {
             return gradleDslElement.value
@@ -141,7 +137,7 @@ class KotlinDslParser(
       // prop[0], rootProject.extra["kotlin_version"]
       is KtArrayAccessExpression -> {
         if (resolve) {
-          val gradleDslElement = context.resolveExternalSyntaxReference(literal.text, true)
+          val gradleDslElement = context.resolveExternalSyntaxReference(literal, true)
           if (gradleDslElement is GradleDslSimpleExpression) {
             return gradleDslElement.value
           }

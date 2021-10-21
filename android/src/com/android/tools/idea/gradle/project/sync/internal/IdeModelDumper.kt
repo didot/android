@@ -23,6 +23,7 @@ import com.android.tools.idea.gradle.model.IdeAndroidProject
 import com.android.tools.idea.gradle.model.IdeApiVersion
 import com.android.tools.idea.gradle.model.IdeArtifactLibrary
 import com.android.tools.idea.gradle.model.IdeBaseArtifact
+import com.android.tools.idea.gradle.model.IdeBaseConfig
 import com.android.tools.idea.gradle.model.IdeBuildTasksAndOutputInformation
 import com.android.tools.idea.gradle.model.IdeBuildTypeContainer
 import com.android.tools.idea.gradle.model.IdeDependencies
@@ -171,15 +172,34 @@ private fun ProjectDumper.dump(ideVariant: IdeVariant) {
       prop("BuildType") { ideVariant.buildType }
       prop("DisplayName") { ideVariant.displayName }
       prop("InstantAppCompatible") { ideVariant.instantAppCompatible.toString() }
-      // TODO(193515353): Add minSdkVersion once it is made notNull.
-      //prop("MinSdkVersion") { ideVariant.minSdkVersion?.toString() }
+      prop("MinSdkVersion") { ideVariant.minSdkVersion?.toString() }
       prop("TargetSdkVersion") { ideVariant.targetSdkVersion?.toString() }
       prop("MaxSdkVersion") { ideVariant.maxSdkVersion?.toString() }
+      prop("VersionCode") { ideVariant.versionCode?.toString() }
+      prop("VersionNameSuffix") { ideVariant.versionNameSuffix }
+      prop("VersionNameWithSuffix") { ideVariant.versionNameWithSuffix }
       prop("TestApplicationId") { ideVariant.testApplicationId }
       prop("DeprecatedPreMergedApplicationId") { ideVariant.deprecatedPreMergedApplicationId }
+      ideVariant.proguardFiles.forEach { prop("ProguardFiles") { it.path.toPrintablePath() } }
+      ideVariant.consumerProguardFiles.forEach { prop("ConsumerProguardFiles") { it.path.toPrintablePath() } }
       ideVariant.resourceConfigurations.forEach { prop("ResourceConfigurations") { it } }
       ideVariant.productFlavors.forEach { prop("ProductFlavors") { it } }
       prop("TestInstrumentationRunner") { ideVariant.testInstrumentationRunner }
+      if (ideVariant.manifestPlaceholders.isNotEmpty()) {
+        head("ManifestPlaceholders")
+        nest {
+          ideVariant.manifestPlaceholders.forEach { (key, value) ->
+            prop(key) { value }
+          }
+        }
+      }
+      if ( ideVariant.resValues.isNotEmpty()) {
+        head("ResValues")
+        nest {
+          ideVariant.resValues.forEach { (key, value) -> prop(key) { "(${value.type}, ${value.name}, ${value.value})" }
+          }
+        }
+      }
       if (ideVariant.testInstrumentationRunnerArguments.isNotEmpty()) {
         head("TestInstrumentationRunnerArguments")
         nest {
@@ -367,7 +387,33 @@ private fun ProjectDumper.dump(ideProductFlavorContainer: IdeProductFlavorContai
     }
 }
 
+private fun ProjectDumper.dump(ideBaseConfig: IdeBaseConfig) {
+  prop("Name") { ideBaseConfig.name }
+  prop("ApplicationIdSuffix") { ideBaseConfig.applicationIdSuffix }
+  prop("VersionNameSuffix") { ideBaseConfig.versionNameSuffix }
+  prop("IsMultiDexEnabled") { ideBaseConfig.multiDexEnabled?.toString() }
+  if ( ideBaseConfig.resValues.isNotEmpty()) {
+    head("ResValues")
+    nest {
+      ideBaseConfig.resValues.forEach { (key, value) -> prop(key) { "(${value.type}, ${value.name}, ${value.value})" }
+      }
+    }
+  }
+
+  ideBaseConfig.proguardFiles.forEach { prop("ProguardFiles") { it.path.toPrintablePath() } }
+  ideBaseConfig.consumerProguardFiles.forEach { prop("ConsumerProguardFiles") { it.path.toPrintablePath() } }
+  if (ideBaseConfig.manifestPlaceholders.isNotEmpty()) {
+    head("ManifestPlaceholders")
+    nest {
+      ideBaseConfig.manifestPlaceholders.forEach { (key, value) ->
+        prop(key) { value }
+      }
+    }
+  }
+}
+
 private fun ProjectDumper.dump(ideProductFlavor: IdeProductFlavor) {
+  dump(ideProductFlavor as IdeBaseConfig)
   prop("Dimension") { ideProductFlavor.dimension }
   prop("ApplicationId") { ideProductFlavor.applicationId }
   prop("VersionCode") { ideProductFlavor.versionCode?.toString() }
@@ -434,6 +480,7 @@ private fun ProjectDumper.dump(extraSourceProvider: IdeSourceProviderContainer) 
 private fun ProjectDumper.dump(ideBuildTypeContainer: IdeBuildTypeContainer) {
   head("BuildType")
     nest {
+      dump(ideBuildTypeContainer.buildType as IdeBaseConfig)
       prop("IsDebuggable") { ideBuildTypeContainer.buildType.isDebuggable.toString() }
       prop("IsJniDebuggable") { ideBuildTypeContainer.buildType.isJniDebuggable.toString() }
       prop("IsRenderscriptDebuggable") { ideBuildTypeContainer.buildType.isRenderscriptDebuggable.toString() }

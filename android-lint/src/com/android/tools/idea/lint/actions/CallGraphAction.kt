@@ -26,7 +26,6 @@ import com.intellij.ide.util.treeView.NodeDescriptor
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
@@ -45,7 +44,7 @@ import kotlin.collections.ArrayList
 /** Creates a collection of UFiles from a project and scope. */
 fun UastVisitor.visitAll(project: Project, scope: AnalysisScope): Collection<UFile> {
   val res = ArrayList<UFile>()
-  val uastContext = ServiceManager.getService(project, UastContext::class.java)
+  val uastContext = project.getService(UastContext::class.java)
   scope.accept { virtualFile ->
     if (!uastContext.isFileSupported(virtualFile.name)) return@accept true
     val psiFile = PsiManager.getInstance(project).findFile(virtualFile) ?: return@accept true
@@ -110,14 +109,13 @@ open class ContextualCallPathBrowser(
   }
 
   override fun createTrees(typeToTreeMap: MutableMap<in String, in JTree>) {
-    val group = ActionManager.getInstance().getAction(IdeActions.GROUP_CALL_HIERARCHY_POPUP) as ActionGroup
     val baseOnThisMethodAction = BaseOnThisMethodAction()
     val kinds = arrayOf(
         CallHierarchyBrowserBase.CALLEE_TYPE,
         CallHierarchyBrowserBase.CALLER_TYPE)
     for (kind in kinds) {
       val tree = createTree(false)
-      PopupHandler.installPopupHandler(tree, group, ActionPlaces.CALL_HIERARCHY_VIEW_POPUP, ActionManager.getInstance())
+      PopupHandler.installPopupMenu(tree, IdeActions.GROUP_CALL_HIERARCHY_POPUP, ActionPlaces.CALL_HIERARCHY_VIEW_POPUP)
       baseOnThisMethodAction
           .registerCustomShortcutSet(ActionManager.getInstance().getAction(IdeActions.ACTION_CALL_HIERARCHY).shortcutSet, tree)
       typeToTreeMap[kind] = tree

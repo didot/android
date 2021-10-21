@@ -17,6 +17,7 @@
 
 package com.android.tools.idea.gradle.project.sync.idea
 
+import com.android.tools.idea.gradle.model.IdeModuleSourceSet
 import com.android.tools.idea.gradle.project.facet.ndk.NdkFacet
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel
 import com.android.tools.idea.gradle.project.model.NdkModuleModel
@@ -91,7 +92,7 @@ fun computeExpectedVariantsAfterSwitch(
   val affectedModules =
     androidModules.getAffectedModuleIds(
       module.getGradleProjectPath()
-        ?.let { GradleProjectPath(it.projectRoot, it.gradleProjectPath) }
+        ?.let { GradleProjectPath(it.projectRoot, it.gradleProjectPath, IdeModuleSourceSet.MAIN) }
       ?: return null
     )
 
@@ -211,6 +212,7 @@ private fun AndroidModules.getAffectedModuleIds(moduleId: GradleProjectPath): Se
           head.androidModel.selectedVariant
             .let {
               it.mainArtifact.level2Dependencies.moduleDependencies +
+              it.unitTestArtifact?.level2Dependencies?.moduleDependencies.orEmpty() +
               it.androidTestArtifact?.level2Dependencies?.moduleDependencies.orEmpty() +
               it.testFixturesArtifact?.level2Dependencies?.moduleDependencies.orEmpty()
             }
@@ -219,7 +221,9 @@ private fun AndroidModules.getAffectedModuleIds(moduleId: GradleProjectPath): Se
         queue.addAll(
           head.androidModel.androidProject.dynamicFeatures
             // TODO: Fix support for dynamic features in included builds.
-            .mapNotNull { dynamicFeatureId -> modulesByGradleProjectPath[GradleProjectPath(head.gradleProjectPath.buildRoot, dynamicFeatureId)] }
+            .mapNotNull { dynamicFeatureId ->
+              modulesByGradleProjectPath[GradleProjectPath(head.gradleProjectPath.buildRoot, dynamicFeatureId, IdeModuleSourceSet.MAIN)]
+            }
         )
       }
     }
@@ -244,7 +248,8 @@ private fun DataNode<ProjectData>.getAndroidModules(): AndroidModules {
                                                 if (rootProjectName == "") this.data.linkedExternalProjectPath
                                                 else roots[rootProjectName]?.data?.linkedExternalProjectPath
                                               ) ?: error("Cannot find root module data: $rootProjectName"),
-                                              projectPath
+                                              projectPath,
+                                              IdeModuleSourceSet.MAIN
         ),
         module = node,
         androidModel = androidModel)

@@ -381,7 +381,7 @@
     <applicationService serviceImplementation="com.android.tools.idea.deploy.DeploymentConfiguration"/>
     <applicationConfigurable groupId="build" id="testing.instrumented.configuration"
                              provider="com.android.tools.idea.testartifacts.instrumented.configuration.AndroidTestConfigurableProvider"/>
-    <editorAppearanceConfigurable instance="com.android.tools.idea.editors.AndroidEditorAppearanceConfigurable"/>
+    <editorAppearanceConfigurable instance="com.android.tools.idea.rendering.AndroidEditorAppearanceConfigurable"/>
     <applicationService serviceImplementation="com.android.tools.idea.testartifacts.instrumented.configuration.AndroidTestConfiguration"/>
     <projectConfigurable provider="com.android.tools.idea.flags.StudioExperimentalConfigurableProvider"
                          id ="experimental" displayName="Experimental" groupId="root" groupWeight="-999"/>
@@ -447,6 +447,7 @@
     <configurationType implementation="com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfigurationType"/>
     <configurationType implementation="com.android.tools.idea.run.configuration.AndroidWatchFaceConfigurationType"/>
     <configurationType implementation="com.android.tools.idea.run.configuration.AndroidTileConfigurationType"/>
+    <configurationType implementation="com.android.tools.idea.run.configuration.AndroidComplicationConfigurationType"/>
     <programRunner implementation="com.android.tools.idea.run.configuration.AndroidWearProgramRunner"/>
     <programRunner implementation="com.android.tools.idea.run.DefaultStudioProgramRunner" order="first"/>
     <facetType implementation="org.jetbrains.android.facet.AndroidFacetType"/>
@@ -996,10 +997,6 @@
               topic="com.android.tools.idea.gradle.project.sync.GradleSyncListener"/>
     <listener class="com.android.tools.idea.gradle.project.sync.GradleSyncState$DataImportListener"
               topic="com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener"/>
-    <listener class="com.android.tools.idea.stats.AnalyticsTestRunnerEventsListener"
-              topic="com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener"/>
-    <listener class="com.android.tools.idea.stats.AnalyticsTestRunnerEventsListener"
-              topic="com.intellij.execution.ExecutionListener"/>
     <listener class="org.jetbrains.android.AndroidPropertyFilesUpdater$ModuleRootListenerImpl"
               topic="com.intellij.openapi.roots.ModuleRootListener"/>
     <listener class="com.android.tools.idea.stats.ProjectSizeUsageTrackerListener"

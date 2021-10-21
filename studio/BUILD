@@ -539,9 +539,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Chipmunk | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 2,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 
@@ -577,20 +577,27 @@ py_test(
     ],
 )
 
-java_binary(
+py_binary(
     name = "stamper",
-    srcs = ["stamper/src/com/android/tools/idea/Stamper.java"],
-    main_class = "com.android.tools.idea.Stamper",
+    srcs = ["stamper.py"],
     visibility = ["//visibility:public"],
-    deps = [
-        "@maven//:org.apache.commons.commons-compress",
-    ],
 )
 
 py_binary(
     name = "check_plugin",
     srcs = ["check_plugin.py"],
     visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "tools_test",
+    srcs = ["tools_test.py"],
+    tags = [
+        "no_mac",
+        "no_windows",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [":stamper"],
 )
 
 java_binary(
@@ -660,6 +667,7 @@ iml_module(
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle-java",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-hg4idea",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-intellij-toml",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-IntelliLang",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-java-decompiler",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-java-i18n",
@@ -712,19 +720,5 @@ iml_module(
         "//tools/base/perf-logger:studio.perf-logger[module, test]",
         "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
-    ],
-)
-
-# managed by go/iml_to_build
-iml_module(
-    name = "intellij.android.studio.stamper",
-    srcs = ["stamper/src"],
-    iml_files = ["stamper/intellij.android.studio.stamper.iml"],
-    test_srcs = ["stamper/testSrc"],
-    visibility = ["//visibility:public"],
-    # do not sort: must match IML order
-    deps = [
-        "//prebuilts/tools/common/m2:junit-4.13.2[test]",
-        "//prebuilts/tools/common/m2:commons-compress-1.20",
     ],
 )

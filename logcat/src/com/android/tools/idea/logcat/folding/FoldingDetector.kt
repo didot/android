@@ -25,7 +25,7 @@ internal interface FoldingDetector {
    * Detects foldings in a region of text.
    *
    * @param startLine Start line of region to process (zero based)
-   * @param startLine End line of region to process (zero based)
+   * @param endLine End line of region to process (zero based)
    */
   @UiThread
   fun detectFoldings(startLine: Int, endLine: Int)

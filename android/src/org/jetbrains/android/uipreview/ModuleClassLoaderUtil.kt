@@ -47,8 +47,10 @@ import org.jetbrains.annotations.TestOnly
 import org.jetbrains.annotations.VisibleForTesting
 import org.objectweb.asm.ClassWriter
 import java.io.File
+import java.net.URL
 import java.nio.file.Path
 import java.util.Collections
+import java.util.Enumeration
 import java.util.concurrent.ConcurrentHashMap
 
 private val ourLoaderCachePool = UrlClassLoader.createCachePool()
@@ -64,13 +66,38 @@ fun createUrlClassLoader(paths: List<Path>, allowLock: Boolean = !SystemInfo.isW
     .get()
 }
 
+private fun String.isSystemPrefix(): Boolean = startsWith("java.") ||
+                                               startsWith("javax.") ||
+                                               startsWith("android.") ||
+                                               startsWith("sun.") ||
+                                               startsWith("org.jetbrains.") ||
+                                               startsWith("com.android.")
+
+
 /**
  * [PseudoClassLocator] that uses the given [DelegatingClassLoader.Loader] to find the `.class` file.
+ * If a class is not found in the [classLoader] loader, this class will try to load it from the given [parentClassLoaderLoader] allowing
+ * to load system classes from it.
  */
 @VisibleForTesting
-class PseudoClassLocatorForLoader(private val classLoader: DelegatingClassLoader.Loader) : PseudoClassLocator {
-  override fun locatePseudoClass(classFqn: String): PseudoClass =
-    PseudoClass.fromByteArray(classLoader.loadClass(classFqn), this)
+class PseudoClassLocatorForLoader @JvmOverloads constructor(
+  private val classLoader: DelegatingClassLoader.Loader,
+  private val parentClassLoader: ClassLoader = PseudoClassLocatorForLoader::class.java.classLoader) : PseudoClassLocator {
+  private val parentClassLoaderLoader = ClassLoaderLoader(parentClassLoader)
+
+  override fun locatePseudoClass(classFqn: String): PseudoClass {
+    if (classFqn == PseudoClass.objectPseudoClass().name) return PseudoClass.objectPseudoClass() // Avoid hitting this for this common case
+    val bytes = classLoader.loadClass(classFqn) ?: parentClassLoaderLoader.loadClass(classFqn)
+    if (bytes != null) return PseudoClass.fromByteArray(bytes, this)
+
+    // We fall back to loading from the class loader.
+    try {
+      return PseudoClass.fromClass(parentClassLoader.loadClass(classFqn), this)
+    }
+    catch (_: ClassNotFoundException) {
+    }
+    return PseudoClass.objectPseudoClass()
+  }
 }
 
 private val additionalLibraries: List<Path>
@@ -142,6 +169,11 @@ internal class ModuleClassLoaderImpl(module: Module,
   val externalLibraries = module.externalLibraries
 
   /**
+   * Class loader for classes and resources contained in [externalLibraries].
+   */
+  val externalLibrariesClassLoader = createUrlClassLoader(externalLibraries)
+
+  /**
    * List of the FQCN of the classes loaded from the project.
    */
   val projectLoadedClassNames: Set<String> get() = _projectLoadedClassNames
@@ -174,30 +206,40 @@ internal class ModuleClassLoaderImpl(module: Module,
     // map of fqcn -> library path used to be able to insert classes into the ClassBinaryCache
     val fqcnToLibraryPath = mutableMapOf<String, String>()
     val jarLoader = NameRemapperLoader(
-      ClassLoaderLoader(createUrlClassLoader(externalLibraries)) { fqcn, path, _ ->
+      ClassLoaderLoader(externalLibrariesClassLoader) { fqcn, path, _ ->
         URLUtil.splitJarUrl(path)?.first?.let { libraryPath -> fqcnToLibraryPath[fqcn] = libraryPath }
       },
       ::onDiskClassNameLookup)
     val nonProjectLoader =
-      ClassBinaryCacheLoader(
-        ListeningLoader(
-          AsmTransformingLoader(
-            nonProjectTransforms,
-            jarLoader,
-            PseudoClassLocatorForLoader(
-              jarLoader
-            ),
-            ClassWriter.COMPUTE_MAXS,
-            onClassRewrite),
-          onAfterLoad = { fqcn, bytes ->
-            _nonProjectLoadedClassNames.add(fqcn)
-            // Map the fqcn to the library path and insert the class into the class binary cache
-            fqcnToLibraryPath[onDiskClassNameLookup(fqcn)]?.let { libraryPath ->
-              binaryCache.put(fqcn, nonProjectTransformationId, libraryPath, bytes)
-            }
-          }),
-        nonProjectTransformationId,
-        binaryCache)
+      ListeningLoader(
+        ClassBinaryCacheLoader(
+          ListeningLoader(
+            AsmTransformingLoader(
+              nonProjectTransforms,
+              jarLoader,
+              PseudoClassLocatorForLoader(
+                jarLoader
+              ),
+              ClassWriter.COMPUTE_MAXS,
+              onClassRewrite),
+            onAfterLoad = { fqcn, bytes ->
+              _nonProjectLoadedClassNames.add(fqcn)
+              // Map the fqcn to the library path and insert the class into the class binary cache
+              fqcnToLibraryPath[onDiskClassNameLookup(fqcn)]?.let { libraryPath ->
+                binaryCache.put(fqcn, nonProjectTransformationId, libraryPath, bytes)
+              }
+            }),
+          nonProjectTransformationId,
+          binaryCache), onBeforeLoad = {
+        if (it == "kotlinx.coroutines.android.AndroidDispatcherFactory") {
+          // Hide this class to avoid the coroutines in the project loading the AndroidDispatcherFactory for now.
+          // b/162056408
+          //
+          // Throwing an exception here (other than ClassNotFoundException) will force the FastServiceLoader to fallback
+          // to the regular class loading. This allows us to inject our own DispatcherFactory, specific to Layoutlib.
+          throw IllegalArgumentException("AndroidDispatcherFactory not supported by layoutlib");
+        }
+      })
     loader = MultiLoader(
       listOfNotNull(
         createOptionalOverlayLoader(module, onClassRewrite),
@@ -223,6 +265,9 @@ internal class ModuleClassLoaderImpl(module: Module,
 
     return loader.loadClass(fqcn)
   }
+
+  fun getResources(name: String): Enumeration<URL> = externalLibrariesClassLoader.getResources(name)
+  fun getResource(name: String): URL? = externalLibrariesClassLoader.getResource(name)
 
   /**
    * Finds the [VirtualFile] for the `.class` associated to the given [fqcn].

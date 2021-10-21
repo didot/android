@@ -83,8 +83,14 @@ class IdeV2ModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotComparis
       TestProject(TestProjectToSnapshotPaths.KOTLIN_KAPT),
       TestProject(TestProjectToSnapshotPaths.LINT_CUSTOM_CHECKS),
       TestProject(TestProjectToSnapshotPaths.TEST_FIXTURES, skipV1toV2Comparison = true),
+      // Ignore comparing the variant name for module dependencies because this is not always provided by V1 models.
       TestProject(TestProjectToSnapshotPaths.TEST_ONLY_MODULE, v1toV2PropertiesToSkip = setOf("ModuleDependencies/ModuleDependency/Variant")),
-      TestProject(TestProjectToSnapshotPaths.KOTLIN_MULTIPLATFORM)
+      TestProject(TestProjectToSnapshotPaths.KOTLIN_MULTIPLATFORM),
+      TestProject(TestProjectToSnapshotPaths.MULTI_FLAVOR),
+      // Skip V1 and V2 comparison for namespace project. The support for namespace in V2 is stricter since ag/16005984. more info b/111168382.
+      TestProject(TestProjectToSnapshotPaths.NAMESPACES, skipV1toV2Comparison = true),
+      TestProject(TestProjectToSnapshotPaths.INCLUDE_FROM_LIB),
+      TestProject(TestProjectToSnapshotPaths.LOCAL_AARS_AS_MODULES)
     )
   }
 
@@ -102,27 +108,21 @@ class IdeV2ModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotComparis
 
   @Test
   fun testIdeModels() {
-    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.override(true)
-    try {
-      val projectName = testProjectName ?: error("unit test parameter not initialized")
-      val root = prepareGradleProject(
-        projectName.template,
-        "project"
-      )
-      CaptureKotlinModelsProjectResolverExtension.registerTestHelperProjectResolver(projectRule.fixture.testRootDisposable)
-      openPreparedProject("project${testProjectName?.pathToOpen}") { project ->
-        val dump = project.saveAndDump(mapOf("ROOT" to root)) { project, projectDumper ->
-          projectDumper.dumpAndroidIdeModel(
-            project,
-            kotlinModels = { CaptureKotlinModelsProjectResolverExtension.getKotlinModel(it) },
-            kaptModels = { CaptureKotlinModelsProjectResolverExtension.getKaptModel(it) }
-          )
-        }
-        assertIsEqualToSnapshot(dump)
+    val projectName = testProjectName ?: error("unit test parameter not initialized")
+    val root = prepareGradleProject(
+      projectName.template,
+      "project"
+    )
+    CaptureKotlinModelsProjectResolverExtension.registerTestHelperProjectResolver(projectRule.fixture.testRootDisposable)
+    openPreparedProject("project${testProjectName?.pathToOpen}") { project ->
+      val dump = project.saveAndDump(mapOf("ROOT" to root)) { project, projectDumper ->
+        projectDumper.dumpAndroidIdeModel(
+          project,
+          kotlinModels = { CaptureKotlinModelsProjectResolverExtension.getKotlinModel(it) },
+          kaptModels = { CaptureKotlinModelsProjectResolverExtension.getKaptModel(it) }
+        )
       }
-    }
-    finally {
-      StudioFlags.GRADLE_SYNC_USE_V2_MODEL.clearOverride()
+      assertIsEqualToSnapshot(dump)
     }
   }
 
@@ -177,16 +177,28 @@ class IdeV2ModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotComparis
         !PROPERTIES_TO_SKIP.any { property.endsWith(it) } &&
         !testProjectName!!.v1toV2PropertiesToSkip.any { property.endsWith(it) }
       }
-      .filter { (property, line) -> !VALUES_TO_SUPPRESS.any { property.endsWith(it.key) and line.contains(it.value) } }
+      .filter { (property, line) -> !VALUES_TO_SUPPRESS.any { property.endsWith(it.key) and it.value.any { value -> line.contains(value) } } }
       .map { it.second }
       .joinToString(separator = "\n")
 
 }
 
+/**
+ * we skip:
+ * [IdeAndroidLibrary.lintJar] because in V2 we do check that the jar exists before populating the property.
+ */
 private val PROPERTIES_TO_SKIP = setOf(
   "/Level2Dependencies/AndroidLibraries/AndroidLibrary/LintJars"
 )
 
+/**
+ * some properties values have different patterns in V1 and V2, and we do suppress them.
+ * AndroidLibrary: in V2 we added better support for wrapped_aars and composite builds in the libraries names,
+ *                  so this will end up being different from V1 where we do not have support for composite builds,
+ *                  and the names are prefixed with "artifacts" instead.
+ * AndroidLibrary.ArtifactAddress: the same rules from above apply to ArtifactAddress as well, plus the distinction of local aars paths.
+ */
 private val VALUES_TO_SUPPRESS = mapOf(
-  "/Level2Dependencies/AndroidLibraries/AndroidLibrary/ArtifactAddress" to "__local_aars__"
+  "/Level2Dependencies/AndroidLibraries/AndroidLibrary" to listOf("__wrapped_aars__", "artifacts"),
+  "/Level2Dependencies/AndroidLibraries/AndroidLibrary/ArtifactAddress" to listOf("__local_aars__", "__wrapped_aars__", "artifacts")
 )

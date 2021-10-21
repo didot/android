@@ -64,6 +64,7 @@ import com.android.tools.idea.gradle.LibraryFilePaths;
 import com.android.tools.idea.gradle.LibraryFilePaths.ArtifactPaths;
 import com.android.tools.idea.gradle.model.IdeAndroidProject;
 import com.android.tools.idea.gradle.model.IdeBaseArtifact;
+import com.android.tools.idea.gradle.model.IdeModuleSourceSet;
 import com.android.tools.idea.gradle.model.IdeSyncIssue;
 import com.android.tools.idea.gradle.model.IdeVariant;
 import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeVariantAbi;
@@ -137,6 +138,7 @@ import com.intellij.util.PathsList;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -264,31 +266,37 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
   private void registerModuleData(@NotNull IdeaModule gradleModule,
                                   DataNode<ModuleData> moduleDataNode) {
     ProjectIdentifier projectIdentifier = gradleModule.getGradleProject().getProjectIdentifier();
-    GradleProjectPath gradleProjectPath = new GradleProjectPath(
-      projectIdentifier.getBuildIdentifier().getRootDir(),
-      projectIdentifier.getProjectPath()
-    );
 
-    DataNode<? extends ModuleData> targetData = null;
     if (isModulePerSourceSetEnabled()) {
       Collection<DataNode<GradleSourceSetData>> sourceSetNodes = findAll(moduleDataNode, GradleSourceSetData.KEY);
 
-      // TODO: Generate entries for each source set/capability when the notion is added to GradleProjectPath.
-      //       This should result in correct dependency resolution in `DependencyUtil.kt`
       if (!sourceSetNodes.isEmpty()) {
         // ":" and similar holder projects do not have any source sets and should not be a target of module dependencies.
-        targetData = sourceSetNodes.stream()
-          .filter(it -> it.getData().getModuleName().equals("main"))
-          .findFirst()
-          .orElseThrow(
-            () -> new IllegalStateException(
-              String.format("Source set 'main' not found in '%s'", gradleModule.getGradleProject().getPath())));
+        sourceSetNodes.forEach(node -> {
+          IdeModuleSourceSet sourceSet = Arrays.stream(IdeModuleSourceSet.values())
+            .filter(sourceSetEnum -> sourceSetEnum.getSourceSetName().equals(node.getData().getModuleName()))
+            .findFirst()
+            .orElse(null);
+
+          if (sourceSet != null) {
+            GradleProjectPath gradleProjectPath = new GradleProjectPath(
+              projectIdentifier.getBuildIdentifier().getRootDir(),
+              projectIdentifier.getProjectPath(),
+              sourceSet
+            );
+            myModuleDataByGradlePath.put(gradleProjectPath, node.getData());
+          }
+        });
       }
     } else {
-      targetData = moduleDataNode;
-    }
-    if (targetData != null) {
-      myModuleDataByGradlePath.put(gradleProjectPath, targetData.getData());
+      if (moduleDataNode != null) {
+        GradleProjectPath gradleProjectPath = new GradleProjectPath(
+          projectIdentifier.getBuildIdentifier().getRootDir(),
+          projectIdentifier.getProjectPath(),
+          IdeModuleSourceSet.MAIN
+        );
+        myModuleDataByGradlePath.put(gradleProjectPath, moduleDataNode.getData());
+      }
     }
   }
 
@@ -397,7 +405,8 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
     if (androidModels != null) {
       androidModel = createAndroidModuleModel(moduleName, rootModulePath, androidModels);
       issueData = androidModels.getSyncIssues();
-      ndkModuleModel = maybeCreateNdkModuleModel(moduleName, rootModulePath, androidModels);
+      String ndkModuleName = moduleName + ((isModulePerSourceSetEnabled()) ? "." + ModuleUtil.getModuleName(androidModel.getMainArtifact()) : "");
+      ndkModuleModel = maybeCreateNdkModuleModel(ndkModuleName, rootModulePath, androidModels);
 
       // Set whether or not we have seen an old (pre 3.0) version of the AndroidProject. If we have seen one
       // Then we require all Java modules to export their dependencies.
@@ -773,7 +782,15 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
       libraryFilePaths = LibraryFilePaths.getInstance(project);
     }
 
-    Function<GradleProjectPath, ModuleData> moduleDataLookup = myModuleDataByGradlePath::get;
+    Function<GradleProjectPath, ModuleData> moduleDataLookup = (gradleProjectPath) -> {
+      // In the case when model v2 is enabled and module per source set is disabled, we might get a query to resolve a dependency on
+      // a testFixtures module. As testFixtures relies on module per source set, we resolve the dependency to the main module instead.
+      if (!isModulePerSourceSetEnabled() && gradleProjectPath.getSourceSet() == IdeModuleSourceSet.TEST_FIXTURES) {
+        return myModuleDataByGradlePath.get(
+          new GradleProjectPath(gradleProjectPath.getBuildRoot(), gradleProjectPath.getPath(), IdeModuleSourceSet.MAIN));
+      }
+      return myModuleDataByGradlePath.get(gradleProjectPath);
+    };
 
     Function<String, AdditionalArtifactsPaths> artifactLookup = (artifactId) -> {
       // First check to see if we just obtained any paths from Gradle. Since we don't request all the paths this can be null
