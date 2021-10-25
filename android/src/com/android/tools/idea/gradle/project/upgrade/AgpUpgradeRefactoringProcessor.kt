@@ -277,7 +277,7 @@ class AgpUpgradeRefactoringProcessor(
 
   val targets = mutableListOf<PsiElement>()
 
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>?): UsageViewDescriptor {
+  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
     return object : UsageViewDescriptorAdapter() {
       override fun getElements(): Array<PsiElement> {
         return targets.toArray(PsiElement.EMPTY_ARRAY)
@@ -823,7 +823,7 @@ class AgpClasspathDependencyRefactoringProcessor : AgpUpgradeComponentRefactorin
 
   override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.classpathDependency"
 
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>?): UsageViewDescriptor {
+  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
     return object : UsageViewDescriptorAdapter() {
       override fun getElements(): Array<PsiElement> {
         return PsiElement.EMPTY_ARRAY
@@ -905,7 +905,7 @@ class GMavenRepositoryRefactoringProcessor : AgpUpgradeComponentRefactoringProce
 
   override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.gmaven"
 
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>?): UsageViewDescriptor {
+  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
     return object : UsageViewDescriptorAdapter() {
       override fun getElements(): Array<PsiElement> {
         return PsiElement.EMPTY_ARRAY
@@ -1009,7 +1009,7 @@ class AgpGradleVersionRefactoringProcessor : AgpUpgradeComponentRefactoringProce
 
   override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.gradleVersion"
 
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>?): UsageViewDescriptor {
+  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
     return object : UsageViewDescriptorAdapter() {
       override fun getElements(): Array<PsiElement> {
         return PsiElement.EMPTY_ARRAY
@@ -1225,7 +1225,7 @@ class Java8DefaultRefactoringProcessor : AgpUpgradeComponentRefactoringProcessor
 
   override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.Java8Default"
 
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>?): UsageViewDescriptor {
+  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
     return object : UsageViewDescriptorAdapter() {
       override fun getElements(): Array<PsiElement> {
         return PsiElement.EMPTY_ARRAY
@@ -1427,7 +1427,7 @@ class CompileRuntimeConfigurationRefactoringProcessor : AgpUpgradeComponentRefac
   override fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder =
     builder.setKind(COMPILE_RUNTIME_CONFIGURATION)
 
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>?): UsageViewDescriptor {
+  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
     return object : UsageViewDescriptorAdapter() {
       override fun getElements(): Array<PsiElement> = PsiElement.EMPTY_ARRAY
 
@@ -2047,7 +2047,7 @@ class ComponentGroupingRuleProvider : UsageGroupingRuleProvider {
 }
 
 class ComponentGroupingRule : SingleParentUsageGroupingRule() {
-  override fun getParentGroupFor(usage: Usage, targets: Array<out UsageTarget>?): UsageGroup? {
+  override fun getParentGroupFor(usage: Usage, targets: Array<out UsageTarget>): UsageGroup? {
     // TODO(xof): arguably we should have AgpComponentUsageInfo here
     val usageInfo = (usage as? UsageInfo2UsageAdapter)?.usageInfo as? GradleBuildModelUsageInfo ?: return null
     val wrappedElement = (usageInfo as? GradleBuildModelUsageInfo)?.element as? WrappedPsiElement ?: return null
