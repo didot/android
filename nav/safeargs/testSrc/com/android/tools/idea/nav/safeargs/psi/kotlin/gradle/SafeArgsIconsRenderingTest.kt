@@ -102,7 +102,7 @@ class SafeArgsIconsRenderingTest {
     fixture.moveCaret("val argsClass = |")
     fixture.type("Args")
     fixture.completeBasic()
-    var icons = fixture.lookupElements
+    var icons = fixture.lookupElements.orEmpty()
       .filter { it.lookupString.endsWith("FragmentArgs") }
       .map { DefaultLookupItemRenderer.getRawIcon(it) }
       .toSet()
@@ -112,7 +112,7 @@ class SafeArgsIconsRenderingTest {
     fixture.moveCaret("val directionsClass = |")
     fixture.type("Directions")
     fixture.completeBasic()
-    icons = fixture.lookupElements
+    icons = fixture.lookupElements.orEmpty()
       .filter { it.lookupString.endsWith("FragmentDirections") }
       .mapNotNull { DefaultLookupItemRenderer.getRawIcon(it) }
       .toSet()
@@ -147,7 +147,7 @@ class SafeArgsIconsRenderingTest {
     // check static method from args class
     fixture.moveCaret("val argsClass1 = SecondFragmentArgs.|")
     fixture.completeBasic()
-    var icons = fixture.lookupElements
+    var icons = fixture.lookupElements.orEmpty()
       .map { it.lookupString to DefaultLookupItemRenderer.getRawIcon(it) }
       .toSet()
     Truth.assertThat(icons).containsExactly("fromBundle" to METHOD_ICON)
@@ -155,7 +155,7 @@ class SafeArgsIconsRenderingTest {
     // check static method from directions class
     fixture.moveCaret("val directionsClass1 = SecondFragmentDirections.|")
     fixture.completeBasic()
-    icons = fixture.lookupElements
+    icons = fixture.lookupElements.orEmpty()
       .mapNotNull { it.lookupString to DefaultLookupItemRenderer.getRawIcon(it) }
       .toSet()
     Truth.assertThat(icons).containsExactly("actionSecondFragmentToFirstFragment" to METHOD_ICON)
@@ -163,7 +163,7 @@ class SafeArgsIconsRenderingTest {
     // check methods from args class
     fixture.moveCaret("val argsClass2 = SecondFragmentArgs().|")
     fixture.completeBasic()
-    icons = fixture.lookupElements
+    icons = fixture.lookupElements.orEmpty()
       .map { it.lookupString to DefaultLookupItemRenderer.getRawIcon(it) }
       .toSet()
     Truth.assertThat(icons).containsExactly(

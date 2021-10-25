@@ -2009,7 +2009,7 @@ class ProductFlavorModelTest : GradleFileModelTestCase() {
 
       // We can set a reference using newDim as a context because we are still withing its parent context (missingDimensionStrategy).
       val otherDim = buildModel.android().defaultConfig().addMissingDimensionStrategy(
-        "otherDim", ReferenceTo.createReferenceFromText("refToVal", newDim))
+        "otherDim", ReferenceTo.createReferenceFromText("refToVal", newDim)!!)
       verifyListProperty(otherDim, listOf("otherDim", "boo"))
     }
 
