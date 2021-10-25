@@ -189,6 +189,15 @@ public class IdeSdks {
         return candidate;
       }
     }
+
+    String envSdkPath = System.getenv(SdkConstants.ANDROID_SDK_ROOT_ENV);
+    if(envSdkPath != null) {
+      File candidate = new File(envSdkPath);
+      if(isValidAndroidSdkPath(candidate)) {
+        return candidate;
+      }
+    }
+
     return null;
   }
 
