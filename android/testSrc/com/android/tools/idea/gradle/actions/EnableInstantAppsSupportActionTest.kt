@@ -16,8 +16,6 @@
 package com.android.tools.idea.gradle.actions
 
 import com.android.testutils.ignore.IgnoreTestRule
-import com.android.testutils.ignore.IgnoreWithCondition
-import com.android.testutils.ignore.OnLinux
 import com.android.tools.idea.gradle.actions.EnableInstantAppsSupportAction.Companion.addInstantAppSupportToManifest
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth
@@ -56,7 +54,6 @@ class EnableInstantAppsSupportActionTest {
     assertTrue("Action should be enabled", event.presentation.isEnabled)
   }
 
-  @IgnoreWithCondition(reason = "b/200583388", condition = OnLinux::class)
   @Test
   fun `check action is disabled with no parent module`() {
     context.put(LangDataKeys.MODULE, null)

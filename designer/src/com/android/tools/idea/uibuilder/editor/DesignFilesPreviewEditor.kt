@@ -22,7 +22,6 @@ import com.android.tools.adtui.workbench.WorkBench
 import com.android.tools.idea.actions.ANIMATION_TOOLBAR
 import com.android.tools.idea.common.editor.DesignToolsSplitEditor
 import com.android.tools.idea.common.editor.DesignerEditor
-import com.android.tools.idea.common.editor.DesignerEditorToolbar
 import com.android.tools.idea.common.editor.DesignerEditorPanel
 import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.common.model.NlModel
@@ -45,6 +44,8 @@ import com.android.tools.idea.uibuilder.type.getPreviewConfig
 import com.intellij.ide.DataManager
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.vfs.VirtualFile
@@ -55,6 +56,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.sumByLong
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.util.function.Consumer
+import javax.swing.JPanel
 
 private const val WORKBENCH_NAME = "DESIGN_FILES_PREVIEW_EDITOR"
 
@@ -120,7 +122,7 @@ class DesignFilesPreviewEditor(file: VirtualFile, project: Project) : DesignerEd
     }
   }
 
-  private fun addAnimationToolbar(surface: DesignSurface, model: NlModel?): DesignerEditorToolbar? {
+  private fun addAnimationToolbar(surface: DesignSurface, model: NlModel?): JPanel? {
     val toolbar = if (StudioFlags.NELE_ANIMATED_SELECTOR_PREVIEW.get() && model?.type is AnimatedStateListTempFile) {
       AnimatedSelectorToolbar.createToolbar(this, animatedSelectorModel!!, AnimatedSelectorListener(surface), 16, 0L)
     }
@@ -142,6 +144,20 @@ class DesignFilesPreviewEditor(file: VirtualFile, project: Project) : DesignerEd
       null
     }
     DataManager.registerDataProvider(surface) { if (ANIMATION_TOOLBAR.`is`(it)) toolbar else null }
+    if (toolbar != null) {
+      myProject.messageBus.connect(toolbar).subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, object : FileEditorManagerListener {
+        override fun selectionChanged(event: FileEditorManagerEvent) {
+          if ((event.oldEditor as? DesignToolsSplitEditor)?.designerEditor == this@DesignFilesPreviewEditor) {
+            // pause the animation when this editor loses the focus.
+            toolbar.pause()
+          }
+          else if ((event.newEditor as? DesignToolsSplitEditor)?.designerEditor == this@DesignFilesPreviewEditor) {
+            // Needs to reinflate when grabbing the focus back.  This makes sure the elapsed frame time is correct when animation resuming.
+            toolbar.forceElapsedReset = true
+          }
+        }
+      })
+    }
     return toolbar
   }
 
@@ -174,14 +190,14 @@ private class AnimatedVectorListener(val surface: DesignSurface) : AnimationList
         }
       }
       else {
-        // We don't need to worry about wrong elapsed frame time here.
-        // In practise, this else branch happens when:
-        //   (1): The animation is playing.
-        //   (2): The elapsed time is changed by back frame or forward frame. In this case the animation must paused or stop before.
-        // In case 1, some of rendering can be ignored to improve the performance. It is similar to frame dropping.
-        // In case 2, the animation is paused or stopped first so there is no rendering task. We can just simply request a new render
-        // for the new elapsed frame time.
+        // In practise, this else branch happens when the animation is playing.
+        // The new render request is ignored when the previous request is not completed yet. Some frames are dropped when it happens.
+        // We don't handle that case because dropping some frames for the playing animation is acceptable.
         it.setElapsedFrameTimeMs(framePositionMs)
+        if (controller.forceElapsedReset) {
+          it.forceReinflate()
+          controller.forceElapsedReset = false
+        }
         it.requestRender()
       }
     }
