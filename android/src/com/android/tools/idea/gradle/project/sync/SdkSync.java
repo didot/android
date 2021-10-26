@@ -37,6 +37,7 @@ import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.ui.MessageDialogBuilder;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Ref;
+import com.intellij.openapi.util.registry.Registry;
 import com.intellij.util.ModalityUiUtil;
 import java.io.File;
 import java.io.IOException;
@@ -138,9 +139,6 @@ public class SdkSync {
                                            @Nullable Project project,
                                            @NotNull File ideAndroidSdkPath,
                                            @NotNull File projectAndroidSdkPath) {
-    // If we have the valid IDE default SDK in headless mode, exit without updating local.properties
-    if(ApplicationManager.getApplication().isHeadlessEnvironment()) return;
-
     ValidationResult validationResult = validateAndroidSdk(projectAndroidSdkPath.toPath(), true);
     if (!validationResult.success) {
       // If we have the IDE default SDK but not a valid project SDK, update local.properties with the default SDK path and exit.
@@ -152,9 +150,13 @@ public class SdkSync {
           }
           String format =
             "%1$s\n\n%3$s will use this Android SDK instead:\n'%2$s'\nand will modify the project's local.properties file.";
-          Messages.showErrorDialog(String.format(format, error, ideAndroidSdkPath.getPath(),
-                                                 ApplicationNamesInfo.getInstance().getFullProductName()),
-                                   ERROR_DIALOG_TITLE);
+          String errorMessage =
+            String.format(format, error, ideAndroidSdkPath.getPath(), ApplicationNamesInfo.getInstance().getFullProductName());
+          if (!ApplicationManager.getApplication().isHeadlessEnvironment()) {
+            Messages.showErrorDialog(errorMessage, ERROR_DIALOG_TITLE);
+          } else {
+            Logger.getInstance(SdkSync.class).warn(errorMessage);
+          }
         }
         setProjectSdk(localProperties, ideAndroidSdkPath);
       });
@@ -253,6 +255,10 @@ public class SdkSync {
   }
 
   private static void setProjectSdk(@NotNull LocalProperties localProperties, @NotNull File androidSdkPath) {
+    if (Registry.is("android.sdk.local.properties.update.disabled")) {
+      Logger.getInstance(SdkSync.class).warn("local.properties should be updated, but update is now disabled.");
+      return;
+    }
     if (filesEqual(localProperties.getAndroidSdkPath(), androidSdkPath)) {
       return;
     }
