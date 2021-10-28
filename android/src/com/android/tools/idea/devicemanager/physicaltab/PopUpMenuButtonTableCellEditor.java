@@ -18,6 +18,7 @@ package com.android.tools.idea.devicemanager.physicaltab;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDeviceTableModel.PopUpMenuValue;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.ui.JBPopupMenu;
+import java.util.List;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import org.jetbrains.annotations.NotNull;
@@ -34,5 +35,5 @@ abstract class PopUpMenuButtonTableCellEditor extends IconButtonTableCellEditor 
     });
   }
 
-  abstract @NotNull Iterable<@NotNull JMenuItem> newItems();
+  abstract @NotNull List<@NotNull JMenuItem> newItems();
 }

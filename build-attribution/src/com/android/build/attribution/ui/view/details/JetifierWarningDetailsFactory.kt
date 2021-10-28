@@ -24,9 +24,10 @@ import com.android.build.attribution.analyzers.JetifierUsageProjectStatus
 import com.android.build.attribution.analyzers.JetifierUsedCheckRequired
 import com.android.build.attribution.ui.BuildAnalyzerBrowserLinks
 import com.android.build.attribution.ui.HtmlLinksHandler
-import com.android.build.attribution.ui.htmlTextLabelWithFixedLines
+import com.android.build.attribution.ui.htmlTextLabelWithLinesWrap
 import com.android.build.attribution.ui.insertBRTags
 import com.android.build.attribution.ui.view.ViewActionHandlers
+import com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI.DEFAULT_STYLE_KEY
 import com.intellij.ide.util.treeView.NodeRenderer
 import com.intellij.ui.ColoredTableCellRenderer
 import com.intellij.ui.OnePixelSplitter
@@ -43,8 +44,10 @@ import com.intellij.util.ui.ListTableModel
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeUtil
 import java.awt.BorderLayout
+import java.awt.Component
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
+import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -54,7 +57,6 @@ import javax.swing.ListSelectionModel
 import javax.swing.table.TableCellRenderer
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
-
 class JetifierWarningDetailsFactory(
   private val actionHandlers: ViewActionHandlers
 ) {
@@ -67,7 +69,7 @@ class JetifierWarningDetailsFactory(
     AnalyzerNotRun -> JPanel()
   }
 
-  private fun createJetifierWarningPage(data: JetifierUsageAnalyzerResult) = JPanel().apply {
+  private fun createJetifierWarningPage(data: JetifierUsageAnalyzerResult): JPanel {
     val linksHandler = HtmlLinksHandler(actionHandlers)
     val learnMoreLink = linksHandler.externalLink("Learn more", BuildAnalyzerBrowserLinks.JETIIFER_MIGRATE)
     val headerStatus = when (data.projectStatus) {
@@ -101,34 +103,42 @@ class JetifierWarningDetailsFactory(
           
           Removing Jetifier could reduce project build time. $callToActionLine
         """.trimIndent().insertBRTags()
-    val header = htmlTextLabelWithFixedLines(contentHtml, linksHandler)
-    val runCheckButton = JButton("Run Jetifier check").apply { addActionListener { actionHandlers.runCheckJetifierTask() } }
+    val header = htmlTextLabelWithLinesWrap(contentHtml, linksHandler)
+    val runCheckButton = JButton("Run Jetifier check").apply {
+      addActionListener { actionHandlers.runCheckJetifierTask() }
+      putClientProperty(DEFAULT_STYLE_KEY, true)
+    }
     val result = createCheckJetifierResultPresentation(data.projectStatus)
 
-    layout = GridBagLayout()
-    add(header, GridBagConstraints().apply {
-      gridx = 0
-      gridy = 0
-      weightx = 1.0
-      fill = GridBagConstraints.HORIZONTAL
-    })
-    add(runCheckButton, GridBagConstraints().apply {
-      gridx = 1
-      gridy = 0
-      weightx = 0.0
-      insets = JBUI.insetsLeft(10)
-      anchor = GridBagConstraints.SOUTHWEST
-    })
-    add(result, GridBagConstraints().apply {
-      gridx = 0
-      gridy = 1
-      gridwidth = GridBagConstraints.REMAINDER
-      weightx = 1.0
-      weighty = 1.0
-      insets = JBUI.insetsTop(10)
-      fill = GridBagConstraints.BOTH
-    })
+    val headerPanel = JPanel().apply {
+      layout = BoxLayout(this, BoxLayout.X_AXIS)
+      // TODO determine size from font metrics?
+      header.maximumSize = JBUI.size(800, Int.MAX_VALUE)
+      // Align both components to the bottom.
+      runCheckButton.alignmentY = Component.BOTTOM_ALIGNMENT
+      header.alignmentY = Component.BOTTOM_ALIGNMENT
+      add(header)
+      add(runCheckButton)
+    }
 
+    return JPanel().apply {
+      layout = GridBagLayout()
+      add(headerPanel, GridBagConstraints().apply {
+        gridx = 0
+        gridy = 0
+        weightx = 1.0
+        fill = GridBagConstraints.HORIZONTAL
+      })
+      add(result, GridBagConstraints().apply {
+        gridx = 0
+        gridy = 1
+        gridwidth = GridBagConstraints.REMAINDER
+        weightx = 1.0
+        weighty = 1.0
+        insets = JBUI.insetsTop(10)
+        fill = GridBagConstraints.BOTH
+      })
+    }
   }
 
   private fun createCheckJetifierResultPresentation(projectState: JetifierUsageProjectStatus) = JPanel().apply {
@@ -148,7 +158,10 @@ class JetifierWarningDetailsFactory(
                 isIconOpaque = true
                 setFocusBorderAroundIcon(true)
                 setPaintFocusBorder(false)
-                // TODO set tooltip text?
+                if (projectState is JetifierRequiredForLibraries) {
+                  val supportLibrary = projectState.checkJetifierResult.dependenciesDependingOnSupportLibs[value]?.dependencyPath?.elements?.size == 1
+                  toolTipText = treeToolTip(supportLibrary = supportLibrary, declaredDependency = true)
+                }
                 append(value.toString(), SimpleTextAttributes.REGULAR_ATTRIBUTES)
               }
             }
@@ -192,7 +205,7 @@ class JetifierWarningDetailsFactory(
       layout = BorderLayout()
       background = UIUtil.getTreeBackground()
       border = JBUI.Borders.customLineBottom(JBUI.CurrentTheme.ToolWindow.headerBorderBackground())
-      val label = JLabel("Context")
+      val label = JLabel("Dependency Structure")
       label.border = JBUI.Borders.emptyLeft(8)
       withPreferredHeight(28)
       withMaximumHeight(28)
@@ -258,6 +271,8 @@ class JetifierWarningDetailsFactory(
         supportLibrary -> "depends on "
         else -> "via "
       }
+    val tooltip: String?
+      get() = treeToolTip(supportLibrary, declaredDependency)
   }
 
   private class DependenciesStructureTreeRenderer() : NodeRenderer() {
@@ -278,7 +293,16 @@ class JetifierWarningDetailsFactory(
         icon = LIBRARY_ICON
         append(userObj.prefix, SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
         append(userObj.fullName)
+        toolTipText = userObj.tooltip
       }
     }
   }
 }
+
+private fun treeToolTip(supportLibrary: Boolean, declaredDependency: Boolean): String? = when {
+  supportLibrary -> "This is a legacy support library. All dependencies on such libraries should be removed before disabling jetifier."
+  declaredDependency -> "This library depends on a legacy support library. In order to disable Jetifier, please, migrate to a version " +
+                        "that no longer depends on legacy support libraries."
+  else -> null
+}
+

@@ -17,7 +17,6 @@ package com.android.tools.idea.run.configuration.execution
 
 import com.android.annotations.concurrency.WorkerThread
 import com.android.ddmlib.IDevice
-import com.android.ddmlib.NullOutputReceiver
 import com.android.tools.deployer.model.component.AppComponent
 import com.intellij.execution.DefaultExecutionResult
 import com.intellij.execution.ExecutionException
@@ -33,7 +32,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import java.util.concurrent.TimeUnit
 
 
-class AndroidTileConfigurationExecutor(private val environment: ExecutionEnvironment) : AndroidWearConfigurationExecutorBase(environment) {
+class AndroidTileConfigurationExecutor(environment: ExecutionEnvironment) : AndroidWearConfigurationExecutorBase(environment) {
 
   companion object {
     private val SHOW_TILE_COMMAND = "am broadcast -a com.google.android.wearable.app.DEBUG_SYSUI --es operation show-tile --ei index"
@@ -49,15 +48,18 @@ class AndroidTileConfigurationExecutor(private val environment: ExecutionEnviron
 
     val applicationInstaller = getApplicationInstaller()
     val mode = if (isDebug) AppComponent.Mode.DEBUG else AppComponent.Mode.RUN
-    devices.forEach {
+    devices.forEach { device ->
       indicator.checkCanceled()
-      val app = applicationInstaller.installAppOnDevice(it, indicator, console)
+      indicator.text = "Installing app"
+      val app = applicationInstaller.installAppOnDevice(device, appId, getApkPaths(device), configuration.installFlags) {
+        console.print(it, ConsoleViewContentType.NORMAL_OUTPUT)
+      }
       val receiver = TileIndexReceiver(indicator, console)
       app.activateComponent(configuration.componentType, configuration.componentName!!, mode, receiver)
       val tileIndex = receiver.tileIndex ?: throw ExecutionException("Tile index is not found")
       val command = "$SHOW_TILE_COMMAND $tileIndex"
       console.print("$ adb shell $command", ConsoleViewContentType.NORMAL_OUTPUT)
-      it.executeShellCommand(command, AndroidLaunchReceiver(indicator, console), 5, TimeUnit.SECONDS)
+      device.executeShellCommand(command, AndroidLaunchReceiver(indicator, console), 5, TimeUnit.SECONDS)
     }
     indicator.checkCanceled()
     val runContentDescriptor = if (isDebug) {

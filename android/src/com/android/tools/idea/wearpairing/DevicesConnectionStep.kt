@@ -72,6 +72,7 @@ import java.util.concurrent.CompletionStage
 import java.util.concurrent.Future
 import javax.swing.Box
 import javax.swing.Box.createVerticalStrut
+import javax.swing.Icon
 import javax.swing.ImageIcon
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -143,7 +144,7 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
 
       if (isFirstStage) {
         phoneIDevice = model.selectedPhoneDevice.launchDeviceIfNeeded()
-        if (!phoneIDevice.hasPairingFeature(PairingFeature.MULTI_WATCH_SINGLE_PHONE_PAIRING, null)) {
+        if (!phoneIDevice.hasPairingFeature(PairingFeature.MULTI_WATCH_SINGLE_PHONE_PAIRING)) {
           killNonSelectedRunningWearEmulators()
         }
         wearIDevice = model.selectedWearDevice.launchDeviceIfNeeded()
@@ -164,8 +165,8 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
 
   private suspend fun showFirstPhase(phonePairingDevice: PairingDevice, phoneDevice: IDevice,
                                      wearPairingDevice: PairingDevice, wearDevice: IDevice) {
-    if (!wearDevice.hasPairingFeature(PairingFeature.REVERSE_PORT_FORWARD, null)) {
-      showDeviceGmscoreNeedsUpdate(wearDevice)
+    if (!wearDevice.hasPairingFeature(PairingFeature.REVERSE_PORT_FORWARD)) {
+      showDeviceGmscoreNeedsUpdate()
       wearDevice.executeShellCommand("am start -a android.intent.action.VIEW -d 'market://details?id=com.google.android.gms'")
       return
     }
@@ -199,7 +200,7 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
   private fun showIncompatibleCompanionAppError(phoneDevice: IDevice, wearDevice: IDevice) {
     dispose()
     GlobalScope.launch(ioThread) {
-      val body = createWarningPanel(message("wear.assistant.device.connection.wear.os.wear3", phoneDevice.name))
+      val body = createWarningPanel(message("wear.assistant.device.connection.wear.os.wear3"))
       body.add(
         LinkLabel<Unit>("Retry", null) { _, _ ->
           check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
@@ -213,9 +214,9 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
     }
   }
 
-  private fun showDeviceGmscoreNeedsUpdate(device: IDevice) {
+  private fun showDeviceGmscoreNeedsUpdate() {
     GlobalScope.launch(ioThread) {
-      val body = createWarningPanel(message("wear.assistant.device.connection.gmscore.error", device.name))
+      val body = createWarningPanel(message("wear.assistant.device.connection.gmscore.error"), StudioIcons.Common.ERROR)
       body.add(
         LinkLabel<Unit>(message("wear.assistant.device.connection.restart.pairing"), null) { _, _ ->
           wizardAction.restart(project)
@@ -277,8 +278,8 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
           showPairingSuccess(model.selectedPhoneDevice.value.displayName, model.selectedWearDevice.value.displayName)
         }
         else {
-          showUiPairingNonInteractive(phoneDevice, wearDevice, message("wear.assistant.device.connection.pairing.auto.failed"), "Retry",
-                                      false)
+          showUiPairingNonInteractive(phoneDevice, wearDevice, message("wear.assistant.device.connection.pairing.auto.failed"),
+                                      "Retry", "Skip to manual instructions", false)
         }
       }
     }
@@ -594,12 +595,16 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
   )
 
   private suspend fun showUiPairingNonInteractive(phoneDevice: IDevice, wearDevice: IDevice, scanningLabel: String = message(
-    "wear.assistant.device.connection.pairing.auto.start"), scanningLink: String = "", showLoadingIcon: Boolean = true) = showUI(
+    "wear.assistant.device.connection.pairing.auto.start"), buttonLabel: String = "", scanningLink: String = "", showLoadingIcon: Boolean = true) = showUI(
     header = message("wear.assistant.device.connection.pairing.auto.title"),
     body = createScanningPanel(
       firstStepLabel = message("wear.assistant.device.connection.pairing.auto.step"),
-      buttonLabel = "",
+      buttonLabel = buttonLabel,
       buttonListener = {
+        check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
+        runningJob = GlobalScope.launch(ioThread) {
+          showPairing(phoneDevice, wearDevice)
+        }
       },
       showLoadingIcon = showLoadingIcon,
       showSuccessIcon = false,
@@ -608,7 +613,7 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
       scanningListener = {
         check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
         runningJob = GlobalScope.launch(ioThread) {
-          showPairing(phoneDevice, wearDevice)
+          showUiPairingAppInstructions(phoneDevice, wearDevice)
         }
       },
       additionalStepsLabel = "",
@@ -754,8 +759,8 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
   }
 }
 
-private fun createWarningPanel(errorMessage: String): JPanel = JPanel(GridBagLayout()).apply {
-  add(JBLabel(IconUtil.scale(StudioIcons.Common.WARNING, null, 2f)).withBorder(empty(0, 0, 0, 8)), gridConstraint(x = 0, y = 0))
+private fun createWarningPanel(errorMessage: String, icon : Icon = StudioIcons.Common.WARNING): JPanel = JPanel(GridBagLayout()).apply {
+  add(JBLabel(IconUtil.scale(icon, null, 2f)).withBorder(empty(0, 0, 0, 8)), gridConstraint(x = 0, y = 0))
   add(HtmlLabel().apply {
     name = "errorMessage"
     HtmlLabel.setUpAsHtmlLabel(this)
