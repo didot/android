@@ -17,7 +17,6 @@ package com.android.tools.idea.naveditor.actions
 
 import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.naveditor.surface.NavDesignSurface
-import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.roots.ui.configuration.actions.IconWithTextAction
@@ -33,7 +32,7 @@ abstract class ToolbarAction(protected val surface: NavDesignSurface, descriptio
 
   override fun createCustomComponent(presentation: Presentation, place: String): JComponent {
     buttonPresentation = presentation
-    return super.createCustomComponent(presentation, ActionPlaces.UNKNOWN)
+    return super.createCustomComponent(presentation, place)
   }
 
   protected abstract fun isEnabled(): Boolean
