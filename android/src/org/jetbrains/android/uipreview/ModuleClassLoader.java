@@ -296,7 +296,7 @@ public final class ModuleClassLoader extends DelegatingClassLoader implements Mo
    * Checks whether any of the .class files loaded by this loader have changed since the creation of this class loader. Always returns
    * false if there has not been any PSI changes.
    */
-  boolean isUserCodeUpToDate() {
+  public boolean isUserCodeUpToDate() {
     Module module = getModule();
     if (module == null) return true;
     // Cache the result of isUserCodeUpToDateNonCached until any PSI modifications have happened.
@@ -361,6 +361,14 @@ public final class ModuleClassLoader extends DelegatingClassLoader implements Mo
   @TestOnly
   void injectProjectClassFile(@NotNull String fqcn, @NotNull VirtualFile file) {
     myImpl.injectProjectClassFile(fqcn, file);
+  }
+
+  /**
+   * Injects the given [fqcn] as if it had been loaded by the overlay loader. Only for testing.
+   */
+  @TestOnly
+  void injectProjectOvelaryLoadedClass(@NotNull String fqcn) {
+    myImpl.injectProjectOvelaryLoadedClass(fqcn);
   }
 
   /**

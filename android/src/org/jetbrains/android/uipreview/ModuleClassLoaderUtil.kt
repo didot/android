@@ -16,6 +16,7 @@
 @file:JvmName("ModuleClassLoaderUtil")
 package org.jetbrains.android.uipreview
 
+import com.android.annotations.concurrency.GuardedBy
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.model.AndroidModel
 import com.android.tools.idea.rendering.classloading.ClassTransform
@@ -162,6 +163,8 @@ internal class ModuleClassLoaderImpl(module: Module,
 
   private val _projectLoadedClassNames: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
   private val _nonProjectLoadedClassNames: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+  private val _projectOverlayLoadedClassNames: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+
 
   /**
    * List of libraries used in this [ModuleClassLoaderImpl].
@@ -184,12 +187,29 @@ internal class ModuleClassLoaderImpl(module: Module,
   val nonProjectLoadedClassNames: Set<String> get() = _nonProjectLoadedClassNames
 
   /**
+   * Set of class FQN for the classes that have been loaded from the overlay.
+   */
+  internal val projectOverlayLoadedClassNames: Set<String> get() = _projectOverlayLoadedClassNames
+
+  /**
    * List of the [VirtualFile] of the `.class` files loaded from the project.
    */
   val projectLoadedClassVirtualFiles get() = projectSystemLoader.loadedVirtualFiles
 
-  private fun applyProjectTransformationsToLoader(loader: DelegatingClassLoader.Loader,
-                                                  onClassRewrite: (String, Long, Int) -> Unit) = AsmTransformingLoader(
+  /**
+   * [ModificationTracker] that changes every time the classes overlay has changed.
+   */
+  private val overlayManager: ModuleClassLoaderOverlays = ModuleClassLoaderOverlays.getInstance(module)
+
+  /**
+   * Modification count for the overlay when the first overlay class was loaded. Used to detect if this [ModuleClassLoaderImpl] is up to
+   * date or if the overlay has changed.
+   */
+  @GuardedBy("overlayModificationTracker")
+  private var overlayFirstLoadModificationCount = -1L
+
+  private fun createProjectLoader(loader: DelegatingClassLoader.Loader,
+                                  onClassRewrite: (String, Long, Int) -> Unit) = AsmTransformingLoader(
     projectTransforms,
     ListeningLoader(loader, onAfterLoad = { fqcn, _ -> _projectLoadedClassNames.add(fqcn) }),
     PseudoClassLocatorForLoader(projectSystemLoader),
@@ -197,10 +217,12 @@ internal class ModuleClassLoaderImpl(module: Module,
     onClassRewrite
   )
 
-  init {
-    // Project classes loading pipeline
-    val projectLoader = applyProjectTransformationsToLoader(projectSystemLoader, onClassRewrite)
-
+  fun createNonProjectLoader(nonProjectTransforms: ClassTransform,
+                             binaryCache: ClassBinaryCache,
+                             externalLibraries: List<Path>,
+                             onClassLoaded: (String) -> Unit,
+                             onClassRewrite: (String, Long, Int) -> Unit): DelegatingClassLoader.Loader {
+    val externalLibrariesClassLoader = createUrlClassLoader(externalLibraries)
     // Non project classes loading pipeline
     val nonProjectTransformationId = nonProjectTransforms.id
     // map of fqcn -> library path used to be able to insert classes into the ClassBinaryCache
@@ -210,36 +232,46 @@ internal class ModuleClassLoaderImpl(module: Module,
         URLUtil.splitJarUrl(path)?.first?.let { libraryPath -> fqcnToLibraryPath[fqcn] = libraryPath }
       },
       ::onDiskClassNameLookup)
-    val nonProjectLoader =
-      ListeningLoader(
-        ClassBinaryCacheLoader(
-          ListeningLoader(
-            AsmTransformingLoader(
-              nonProjectTransforms,
-              jarLoader,
-              PseudoClassLocatorForLoader(
-                jarLoader
-              ),
-              ClassWriter.COMPUTE_MAXS,
-              onClassRewrite),
-            onAfterLoad = { fqcn, bytes ->
-              _nonProjectLoadedClassNames.add(fqcn)
-              // Map the fqcn to the library path and insert the class into the class binary cache
-              fqcnToLibraryPath[onDiskClassNameLookup(fqcn)]?.let { libraryPath ->
-                binaryCache.put(fqcn, nonProjectTransformationId, libraryPath, bytes)
-              }
-            }),
-          nonProjectTransformationId,
-          binaryCache), onBeforeLoad = {
-        if (it == "kotlinx.coroutines.android.AndroidDispatcherFactory") {
-          // Hide this class to avoid the coroutines in the project loading the AndroidDispatcherFactory for now.
-          // b/162056408
-          //
-          // Throwing an exception here (other than ClassNotFoundException) will force the FastServiceLoader to fallback
-          // to the regular class loading. This allows us to inject our own DispatcherFactory, specific to Layoutlib.
-          throw IllegalArgumentException("AndroidDispatcherFactory not supported by layoutlib");
-        }
-      })
+
+    return ListeningLoader(
+      ClassBinaryCacheLoader(
+        ListeningLoader(
+          AsmTransformingLoader(
+            nonProjectTransforms,
+            jarLoader,
+            PseudoClassLocatorForLoader(
+              jarLoader
+            ),
+            ClassWriter.COMPUTE_MAXS,
+            onClassRewrite),
+          onAfterLoad = { fqcn, bytes ->
+            onClassLoaded(fqcn)
+            // Map the fqcn to the library path and insert the class into the class binary cache
+            fqcnToLibraryPath[onDiskClassNameLookup(fqcn)]?.let { libraryPath ->
+              binaryCache.put(fqcn, nonProjectTransformationId, libraryPath, bytes)
+            }
+          }),
+        nonProjectTransformationId,
+        binaryCache), onBeforeLoad = {
+      if (it == "kotlinx.coroutines.android.AndroidDispatcherFactory") {
+        // Hide this class to avoid the coroutines in the project loading the AndroidDispatcherFactory for now.
+        // b/162056408
+        //
+        // Throwing an exception here (other than ClassNotFoundException) will force the FastServiceLoader to fallback
+        // to the regular class loading. This allows us to inject our own DispatcherFactory, specific to Layoutlib.
+        throw IllegalArgumentException("AndroidDispatcherFactory not supported by layoutlib");
+      }
+    })
+  }
+
+  init {
+    // Project classes loading pipeline
+    val projectLoader = createProjectLoader(projectSystemLoader, onClassRewrite)
+    val nonProjectLoader = createNonProjectLoader(nonProjectTransforms,
+                                                  binaryCache,
+                                                  externalLibraries,
+                                                  { _nonProjectLoadedClassNames.add(it) },
+                                                  onClassRewrite)
     loader = MultiLoader(
       listOfNotNull(
         createOptionalOverlayLoader(module, onClassRewrite),
@@ -248,13 +280,28 @@ internal class ModuleClassLoaderImpl(module: Module,
         RecyclerViewAdapterLoader()))
   }
 
+  private fun recordOverlayLoadedClass(fqcn: String) {
+    synchronized(overlayManager) {
+      if (projectLoadedClassNames.isEmpty()) {
+        overlayFirstLoadModificationCount = overlayManager.modificationCount
+      }
+      else {
+        if (overlayFirstLoadModificationCount != overlayManager.modificationCount) {
+          Logger.getInstance(ModuleClassLoaderImpl::class.java).warn("The overlay was modified after the class loading started")
+        }
+      }
+    }
+    _projectOverlayLoadedClassNames.add(fqcn)
+  }
+
   /**
    * Creates an overlay loader. See [OverlayLoader].
    */
   private fun createOptionalOverlayLoader(module: Module, onClassRewrite: (String, Long, Int) -> Unit): DelegatingClassLoader.Loader? {
     if (!StudioFlags.COMPOSE_LIVE_EDIT_PREVIEW.get()) return null
-    val overlayPath = ModuleClassLoaderOverlays.getInstance(module).overlayPath ?: return null
-    return applyProjectTransformationsToLoader(OverlayLoader(overlayPath), onClassRewrite)
+    return createProjectLoader(ListeningLoader(OverlayLoader(overlayManager), onAfterLoad = { fqcn, _ ->
+      recordOverlayLoadedClass(fqcn)
+    }), onClassRewrite)
   }
 
   override fun loadClass(fqcn: String): ByteArray? {
@@ -283,32 +330,36 @@ internal class ModuleClassLoaderImpl(module: Module,
     projectSystemLoader.injectClassFile(fqcn, virtualFile)
   }
 
+  /**
+   * Injects the given [fqcn] as if it had been loaded by the overlay loader. Only for testing.
+   */
+  @TestOnly
+  fun injectProjectOvelaryLoadedClass(fqcn: String) {
+    recordOverlayLoadedClass(fqcn)
+  }
+
   override fun dispose() {
     projectSystemLoader.invalidateCaches()
   }
 
   /**
-   * [ModificationTracker] that changes every time the classes overlay has changed.
-   */
-  private val overlayModificationTracker = ModuleClassLoaderOverlays.getInstance(module)
-
-  /**
-   * Initial count for the overlay. Used to detect if this [ModuleClassLoaderImpl] is up to date or if the
-   * overlay has changed.
-   */
-  private val initialOverlayModificationCount = overlayModificationTracker.modificationCount
-
-  /**
    * Returns if the overlay is up-to-date.
    */
-  internal fun isOverlayUpToDate() = overlayModificationTracker.modificationCount == initialOverlayModificationCount
+  internal fun isOverlayUpToDate() = projectOverlayLoadedClassNames.isEmpty() ||
+                                     synchronized(overlayManager) {
+                                       overlayManager.modificationCount == overlayFirstLoadModificationCount
+                                     }
 }
+
+private val ModuleClassLoaderImpl.hasLoadedAnyUserCode: Boolean
+  get() = projectLoadedClassNames.isNotEmpty() || projectOverlayLoadedClassNames.isNotEmpty()
 
 /**
  * Checks whether any of the .class files loaded by this loader have changed since the creation of this class loader.
  */
 internal val ModuleClassLoaderImpl.isUserCodeUpToDate: Boolean
-  get() = projectLoadedClassVirtualFiles
-    .all { (_, virtualFile, modificationTimestamp) ->
-      virtualFile.isValid && modificationTimestamp.isUpToDate(virtualFile)
-    } && isOverlayUpToDate()
+  get() = !hasLoadedAnyUserCode ||
+          (projectLoadedClassVirtualFiles
+             .all { (_, virtualFile, modificationTimestamp) ->
+               virtualFile.isValid && modificationTimestamp.isUpToDate(virtualFile)
+             } && isOverlayUpToDate())

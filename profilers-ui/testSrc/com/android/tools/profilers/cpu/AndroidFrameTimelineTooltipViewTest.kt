@@ -17,9 +17,12 @@ package com.android.tools.profilers.cpu
 
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.model.DefaultTimeline
+import com.android.tools.adtui.model.MultiSelectionModel
+import com.android.tools.profilers.cpu.analysis.CpuAnalyzable
 import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineEvent
 import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineModel
 import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineTooltip
+import com.android.tools.profilers.cpu.systemtrace.SystemTraceCpuCapture
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.mockito.Mockito
@@ -34,7 +37,8 @@ class AndroidFrameTimelineTooltipViewTest {
       dataRange.set(0.0, 4000.0)
       viewRange.set(0.0, 4000.0)
     }
-    val model = AndroidFrameTimelineModel(listOf(listOf(FAKE_EVENT_0), listOf(FAKE_EVENT_1)), listOf(), timeline.viewRange)
+    val model = AndroidFrameTimelineModel(listOf(FAKE_EVENT_0, FAKE_EVENT_1), listOf(), timeline.viewRange,
+                                          FAKE_SELECTION_MODEL as MultiSelectionModel<CpuAnalyzable<*>>, FAKE_CAPTURE)
     val tooltip = AndroidFrameTimelineTooltip(timeline, model)
     val tooltipView = AndroidFrameTimelineTooltipView(JPanel(), tooltip)
     fun checkText(txt: String) =
@@ -51,7 +55,7 @@ class AndroidFrameTimelineTooltipViewTest {
       assertThat(tooltipView.headingText).isEqualTo("00:00.001")
       assertThat(tooltipView.container.isVisible).isTrue()
       checkText("Frame: 42")
-      checkText("Duration: 00:00.002")
+      checkText("Duration: 2 ms")
       checkText("Deadline missed")
     }
 
@@ -65,24 +69,26 @@ class AndroidFrameTimelineTooltipViewTest {
       assertThat(tooltipView.headingText).isEqualTo("00:00.001")
       assertThat(tooltipView.container.isVisible).isTrue()
       checkText("Frame: 43")
-      checkText("Duration: 00:00.002")
+      checkText("Duration: 2 ms")
       checkText("Buffer stuffing")
     }
   }
 }
 
-val FAKE_EVENT_0: AndroidFrameTimelineEvent = Mockito.mock(AndroidFrameTimelineEvent::class.java).also {
-  Mockito.`when`(it.surfaceFrameToken).thenReturn(42L)
-  Mockito.`when`(it.expectedStartUs).thenReturn(1000L)
-  Mockito.`when`(it.expectedEndUs).thenReturn(2000L)
-  Mockito.`when`(it.actualEndUs).thenReturn(3000L)
-  Mockito.`when`(it.appJankType).thenReturn(PerfettoTrace.FrameTimelineEvent.JankType.JANK_APP_DEADLINE_MISSED)
-}
+val FAKE_EVENT_0 =
+  AndroidFrameTimelineEvent(42L, 42L,
+                            1000L, 2000L, 3000L, "",
+                            PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_LATE,
+                            PerfettoTrace.FrameTimelineEvent.JankType.JANK_APP_DEADLINE_MISSED,
+                            onTimeFinish = false, gpuComposition = false, 1)
 
-val FAKE_EVENT_1: AndroidFrameTimelineEvent = Mockito.mock(AndroidFrameTimelineEvent::class.java).also {
-  Mockito.`when`(it.surfaceFrameToken).thenReturn(43L)
-  Mockito.`when`(it.expectedStartUs).thenReturn(1500L)
-  Mockito.`when`(it.expectedEndUs).thenReturn(3000L)
-  Mockito.`when`(it.actualEndUs).thenReturn(3500L)
-  Mockito.`when`(it.appJankType).thenReturn(PerfettoTrace.FrameTimelineEvent.JankType.JANK_BUFFER_STUFFING)
-}
+val FAKE_EVENT_1 =
+  AndroidFrameTimelineEvent(43L, 43L,
+                            1500L, 3000L, 3500L, "",
+                            PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_LATE,
+                            PerfettoTrace.FrameTimelineEvent.JankType.JANK_BUFFER_STUFFING,
+                            onTimeFinish = false, gpuComposition = false, 0)
+
+
+val FAKE_SELECTION_MODEL = Mockito.mock(MultiSelectionModel::class.java)
+val FAKE_CAPTURE = Mockito.mock(SystemTraceCpuCapture::class.java)

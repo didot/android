@@ -55,19 +55,28 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.android.sdk.AndroidSdkUtils
 import org.jetbrains.android.util.AndroidBundle.message
 import org.jetbrains.annotations.TestOnly
+import java.lang.ref.WeakReference
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
 private val LOG get() = logger<WearPairingManager>()
 
 object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidStartupActivity {
   enum class PairingState {
+    UNKNOWN,
     OFFLINE, // One or both device are offline/disconnected
     CONNECTING, // Both devices are online, and ADB bridge is set up
     CONNECTED, // End to end device pairing is set up
     PAIRING_FAILED  // Both devices are online, ADB bridge is set up, but don't seem to pair
   }
 
+  interface PairingStatusChangedListener {
+    fun pairingStatusChanged(phoneWearPair: PhoneWearPair)
+    fun pairingDeviceRemoved(phoneWearPair: PhoneWearPair)
+  }
+
   private val updateDevicesChannel = Channel<Unit>(Channel.CONFLATED)
+  private val pairingStatusListeners = CopyOnWriteArrayList<WeakReference<PairingStatusChangedListener>>()
 
   private var runningJob: Job? = null
   private var model = WearDevicePairingModel()
@@ -78,9 +87,21 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   data class PhoneWearPair(
     val phone: PairingDevice,
     val wear: PairingDevice,
-    var pairingStatus: PairingState,
-    var hostPort: Int
-  )
+  ) {
+    var pairingStatus = PairingState.UNKNOWN
+      internal set
+    internal var hostPort = 0
+
+    fun getPeerDevice(deviceID: String) =
+      when (deviceID) {
+        phone.deviceID -> wear
+        wear.deviceID -> phone
+        else -> throw AssertionError(deviceID)
+      }
+
+    fun contains(deviceID: String) =
+      deviceID == phone.deviceID || deviceID == wear.deviceID
+  }
 
   private val pairedDevicesTable = hashMapOf<String, PhoneWearPair>()
 
@@ -131,9 +152,8 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       val phoneWearPair = PhoneWearPair(
         phone = deviceMap[phoneId]!!.toPairingDevice(ConnectionState.DISCONNECTED),
         wear = deviceMap[wearId]!!.toPairingDevice(ConnectionState.DISCONNECTED),
-        pairingStatus = PairingState.OFFLINE,
-        hostPort = 0
       )
+      updatePairingStatus(phoneWearPair, PairingState.OFFLINE)
       pairedDevicesTable[phoneId] = phoneWearPair
       pairedDevicesTable[wearId] = phoneWearPair
     }
@@ -186,6 +206,33 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   }
 
   @Synchronized
+  fun addDevicePairingStatusChangedListener(listener: PairingStatusChangedListener) {
+    pairingStatusListeners.forEach {
+      when (it.get()) {
+        listener -> return // Already added
+        null -> removeDevicePairingStatusChangedListener(it) // Already garbage collected
+      }
+    }
+    pairingStatusListeners.add(WeakReference(listener))
+  }
+
+  @Synchronized
+  private fun removeDevicePairingStatusChangedListener(listener: WeakReference<PairingStatusChangedListener>) {
+    pairingStatusListeners.remove(listener)
+  }
+
+  private fun updatePairingStatus(phoneWearPair: PhoneWearPair, newState: PairingState) {
+    if (phoneWearPair.pairingStatus == newState) {
+      return
+    }
+    phoneWearPair.pairingStatus = newState
+    pairingStatusListeners.forEach {
+      val listener = it.get()
+      if (listener == null) removeDevicePairingStatusChangedListener(it) else listener.pairingStatusChanged(phoneWearPair)
+    }
+  }
+
+  @Synchronized
   fun getPairedDevices(deviceID: String): PhoneWearPair? = pairedDevicesTable[deviceID]
 
   @Synchronized
@@ -203,9 +250,9 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
     val phoneWearPair = PhoneWearPair(
       phone = phone.disconnectedCopy(),
       wear = wear.disconnectedCopy(),
-      pairingStatus = PairingState.CONNECTING,
-      hostPort = hostPort
     )
+    phoneWearPair.hostPort = hostPort
+    updatePairingStatus(phoneWearPair, PairingState.CONNECTING)
 
     pairedDevicesTable[phone.deviceID] = phoneWearPair
     pairedDevicesTable[wear.deviceID] = phoneWearPair
@@ -216,19 +263,22 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       phoneDevice.runCatching { createForward(hostPort, 5601) }
       wearDevice.runCatching { createReverse(5601, hostPort) }
       wearDevice.refreshEmulatorConnection()
-      phoneWearPair.pairingStatus = findDevicePairingStatus(phoneDevice, wearDevice)
+      updateDeviceStatus(phoneWearPair, phoneDevice, wearDevice)
     }
 
     return phoneWearPair
   }
 
-  private suspend fun findDevicePairingStatus(phoneDevice: IDevice, wearDevice: IDevice): PairingState {
-    return withTimeoutOrNull(5_000) {
+  suspend fun updateDeviceStatus(phoneWearPair: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice): PairingState {
+    val state = withTimeoutOrNull(5_000) {
       while (!checkDevicesPaired(phoneDevice, wearDevice)) {
         delay(1000)
       }
       PairingState.CONNECTED
     } ?: PairingState.PAIRING_FAILED
+
+    updatePairingStatus(phoneWearPair, state)
+    return state
   }
 
   @Synchronized
@@ -240,6 +290,10 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
 
       pairedDevicesTable.remove(phoneDeviceID)
       pairedDevicesTable.remove(wearDeviceID)
+      pairingStatusListeners.forEach {
+        val listener = it.get()
+        if (listener == null) removeDevicePairingStatusChangedListener(it) else listener.pairingDeviceRemoved(phoneWearPair)
+      }
       saveSettings()
 
       val connectedDevices = getConnectedDevices()
@@ -370,7 +424,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       }
       else if (!bothDeviceOnline && phoneWearPair.pairingStatus != PairingState.OFFLINE) {
         // One (or both) devices are offline, and before were online. Show "connection dropped" message
-        phoneWearPair.pairingStatus = PairingState.OFFLINE
+        updatePairingStatus(phoneWearPair, PairingState.OFFLINE)
         val offlineName = if (onlinePhone == null) phoneWearPair.phone.displayName else phoneWearPair.wear.displayName
         showConnectionDroppedBalloon(offlineName, phoneWearPair.phone.displayName, phoneWearPair.wear.displayName, wizardAction)
       }

@@ -81,15 +81,14 @@ import com.intellij.testFramework.ProjectRule
 import com.intellij.ui.HyperlinkLabel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
-import layoutinspector.view.inspection.LayoutInspectorViewProtocol.ProgressEvent.ProgressCheckpoint.START_RECEIVED
 import org.jetbrains.android.facet.AndroidFacet
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
-import org.mockito.Mockito.verify
-import java.io.File
+import org.mockito.Mockito.inOrder
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 import javax.swing.JPanel
@@ -140,22 +139,26 @@ class AppInspectionInspectorClientTest {
   }
 
   @Test
-  fun inspectorHandlesProgressEvents() = runBlocking {
-    val progressSent = CompletableDeferred<Unit>()
-    inspectionRule.viewInspector.listenWhen({ it.hasStartFetchCommand() }) {
-      (inspectorRule.inspectorClient as AppInspectionInspectorClient).launchMonitor = monitor
-
-      inspectionRule.viewInspector.connection.sendEvent {
-        progressEventBuilder.apply {
-          checkpoint = START_RECEIVED
-        }
-      }
-
-      progressSent.complete(Unit)
-    }
+  fun allStatesReachedDuringConnect() {
+    // Validate all the progress events happen in order. Note that those generated on the device side are synthetic, since we're not
+    // using the real agent in this test.
+    // TODO(b/203712328): Because of a problem with the test framework, this test will pass even without the fix included in the same commit
     inspectorRule.processNotifier.fireConnected(MODERN_PROCESS)
-    progressSent.await()
-    verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.START_RECEIVED)
+    assertThat(inspectorRule.inspectorClient.isConnected).isTrue()
+    val inOrder = inOrder(monitor)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.START_REQUEST_SENT)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.START_RECEIVED)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.ROOTS_EVENT_SENT)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.ROOTS_EVENT_RECEIVED)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.VIEW_INVALIDATION_CALLBACK)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.SCREENSHOT_CAPTURED)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.VIEW_HIERARCHY_CAPTURED)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.RESPONSE_SENT)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.LAYOUT_EVENT_RECEIVED)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.COMPOSE_REQUEST_SENT)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.COMPOSE_RESPONSE_RECEIVED)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.PARSED_COMPONENT_TREE)
+    inOrder.verify(monitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.MODEL_UPDATED)
   }
 
   @Test
@@ -694,7 +697,7 @@ class AppInspectionInspectorClientWithUnsupportedApi29 {
     val sdkPackage = setUpSdkPackage(sdkRoot, 1, 30, null, false) as LocalPackage
     val avdInfo = setUpAvd(sdkPackage, null, 30)
     val packages = RepositoryPackages(listOf(sdkPackage), listOf())
-    val sdkHandler = AndroidSdkHandler(sdkRoot, null, MockFileOp(sdkRoot.fileSystem), FakeRepoManager(sdkRoot, packages))
+    val sdkHandler = AndroidSdkHandler(sdkRoot, null, FakeRepoManager(sdkRoot, packages))
     val banner = InspectorBanner(projectRule.project)
     assertThat(banner.isVisible).isFalse()
 
@@ -718,7 +721,7 @@ class AppInspectionInspectorClientWithUnsupportedApi29 {
     val sdkPackage = setUpSdkPackage(sdkRoot, minRevision - 1, 29, tag, false) as LocalPackage
     val avdInfo = setUpAvd(sdkPackage, tag, 29)
     val packages = RepositoryPackages(listOf(sdkPackage), listOf())
-    val sdkHandler = AndroidSdkHandler(sdkRoot, null, MockFileOp(sdkRoot.fileSystem), FakeRepoManager(sdkRoot, packages))
+    val sdkHandler = AndroidSdkHandler(sdkRoot, null, FakeRepoManager(sdkRoot, packages))
     val banner = InspectorBanner(projectRule.project)
     assertThat(banner.isVisible).isFalse()
 
@@ -751,7 +754,7 @@ class AppInspectionInspectorClientWithUnsupportedApi29 {
   }
 
   private suspend fun setUpAvdManagerAndRun(sdkHandler: AndroidSdkHandler, avdInfo: AvdInfo, body: suspend () -> Unit) {
-    val connection = object : AvdManagerConnection(sdkHandler, sdkHandler.fileOp.fileSystem.someRoot.resolve("android/avds"),
+    val connection = object : AvdManagerConnection(sdkHandler, sdkHandler.location!!.fileSystem.someRoot.resolve("android/avds"),
                                                    MoreExecutors.newDirectExecutorService()) {
       fun setFactory() {
         setConnectionFactory { _, _ -> this }
@@ -779,7 +782,7 @@ class AppInspectionInspectorClientWithUnsupportedApi29 {
       properties[AvdManager.AVD_INI_TAG_ID] = tag.id
       properties[AvdManager.AVD_INI_TAG_DISPLAY] = tag.display
     }
-    return AvdInfo("myAvd-$apiLevel", File("myIni"), "/android/avds/myAvd-$apiLevel", systemImage, properties)
+    return AvdInfo("myAvd-$apiLevel", Paths.get("myIni"), "/android/avds/myAvd-$apiLevel", systemImage, properties)
   }
 
   private fun setUpSdkPackage(sdkRoot: Path, revision: Int, apiLevel: Int, tag: IdDisplay?, isRemote: Boolean): FakePackage {

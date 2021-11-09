@@ -16,6 +16,7 @@
 package com.android.tools.idea.gradle.notification;
 
 import static com.android.utils.BuildScriptUtil.isDefaultGradleBuildFile;
+import static com.android.utils.BuildScriptUtil.isGradleSettingsFile;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_USER_STALE_CHANGES;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_USER_TRY_AGAIN;
 import static com.intellij.openapi.module.ModuleUtilCore.findModuleForFile;
@@ -62,7 +63,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Notifies users that a Gradle project "sync" is either being in progress or failed.
+ * Notifies users that a Gradle project "sync" is required (because of changes to build files, or because the last attempt failed) or
+ * in progress; if no sync is required or active, displays hints and/or diagnostics about editing the Project Structure.
  */
 public class ProjectSyncStatusNotificationProvider extends EditorNotifications.Provider<EditorNotificationPanel> implements DumbAware {
   private static final long PROJECT_STRUCTURE_NOTIFICATION_RESHOW_TIMEOUT_MS = TimeUnit.DAYS.toMillis(30);
@@ -124,13 +126,19 @@ public class ProjectSyncStatusNotificationProvider extends EditorNotifications.P
       return NotificationPanel.Type.SYNC_NEEDED;
     }
 
-    return NotificationPanel.Type.NONE;
+    return NotificationPanel.Type.PROJECT_STRUCTURE;
   }
 
   @VisibleForTesting
   static class NotificationPanel extends EditorNotificationPanel {
     enum Type {
       NONE() {
+        @Override
+        @Nullable NotificationPanel create(@NotNull Project project, @NotNull VirtualFile file, @NotNull GradleProjectInfo projectInfo) {
+          return null;
+        }
+      },
+      PROJECT_STRUCTURE() {
         @Override
         @Nullable
         NotificationPanel create(@NotNull Project project, @NotNull VirtualFile file, @NotNull GradleProjectInfo projectInfo) {
@@ -139,11 +147,8 @@ public class ProjectSyncStatusNotificationProvider extends EditorNotifications.P
                Long.parseLong(
                  PropertiesComponent.getInstance().getValue("PROJECT_STRUCTURE_NOTIFICATION_LAST_HIDDEN_TIMESTAMP", "0")) >
                PROJECT_STRUCTURE_NOTIFICATION_RESHOW_TIMEOUT_MS)) {
-            if (!projectInfo.isBuildWithGradle()) {
-              return null;
-            }
-
-            if (!isDefaultGradleBuildFile(virtualToIoFile(file))) {
+            File ioFile = virtualToIoFile(file);
+            if (!isDefaultGradleBuildFile(ioFile) && !isGradleSettingsFile(ioFile)) {
               return null;
             }
 

@@ -116,6 +116,7 @@ studio_plugin(
             "//tools/adt/idea/build-attribution:intellij.android.build-attribution",
             "//tools/adt/idea/intellij.android.compose-common:intellij.android.compose-common",
             "//tools/adt/idea/android:intellij.android.core",
+            "//tools/adt/idea/android-navigator:intellij.android.navigator",
             "//tools/adt/idea/dagger:intellij.android.dagger",
             "//tools/adt/idea/databinding:intellij.android.databinding",
             "//tools/adt/idea/app-inspection/inspectors/database:app-inspection.inspectors.database",
@@ -335,6 +336,7 @@ studio_plugin(
     resources = {
         "resources": [
             "//prebuilts/studio/layoutlib:layoutlib",
+            "//tools/adt/idea/compose-designer:kotlin-compiler-daemon-libs",
         ],
     },
     deps = [
@@ -539,9 +541,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Chipmunk | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 4,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 

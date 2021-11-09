@@ -47,6 +47,7 @@ import com.android.tools.idea.testing.TestProjectToSnapshotPaths.TEST_FIXTURES
 import com.android.tools.idea.testing.TestProjectToSnapshotPaths.TRANSITIVE_DEPENDENCIES
 import com.android.tools.idea.testing.TestProjectToSnapshotPaths.TWO_JARS
 import com.android.tools.idea.testing.TestProjectToSnapshotPaths.VARIANT_SPECIFIC_DEPENDENCIES
+import com.android.tools.idea.testing.TestProjectToSnapshotPaths.WITH_GRADLE_METADATA
 import com.android.tools.idea.testing.assertAreEqualToSnapshots
 import com.android.tools.idea.testing.assertIsEqualToSnapshot
 import com.android.tools.idea.testing.onEdt
@@ -156,14 +157,18 @@ open class GradleSyncProjectComparisonTest : GradleIntegrationTest, SnapshotComp
     }
 
     @Test
+    fun testWithGradleMetadata() {
+      val text = importSyncAndDumpProject(WITH_GRADLE_METADATA)
+      assertIsEqualToSnapshot(text)
+    }
+
+    @Test
     fun testTestFixturesWithModulePerSourceSetEnabled() {
-      StudioFlags.GRADLE_SYNC_USE_V2_MODEL.override(true)
       StudioFlags.USE_MODULE_PER_SOURCE_SET.override(true)
       try {
         val text = importSyncAndDumpProject(TEST_FIXTURES)
         assertIsEqualToSnapshot(text)
       } finally {
-        StudioFlags.GRADLE_SYNC_USE_V2_MODEL.clearOverride()
         StudioFlags.USE_MODULE_PER_SOURCE_SET.clearOverride()
       }
     }

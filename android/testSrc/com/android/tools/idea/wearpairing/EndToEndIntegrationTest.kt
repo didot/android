@@ -40,7 +40,7 @@ import com.intellij.ui.components.JBLabel
 import org.jetbrains.android.util.AndroidBundle.message
 import org.junit.Test
 import org.mockito.Mockito
-import java.io.File
+import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import javax.swing.JButton
 
@@ -90,7 +90,7 @@ class EndToEndIntegrationTest : LightPlatform4TestCase() {
     }
 
     val wearPropertiesMap = mapOf(AvdManager.AVD_INI_TAG_ID to "android-wear")
-    val avdWearInfo = AvdInfo("My Wear", File("ini"), "folder", Mockito.mock(ISystemImage::class.java), wearPropertiesMap)
+    val avdWearInfo = AvdInfo("My Wear", Paths.get("ini"), "folder", Mockito.mock(ISystemImage::class.java), wearPropertiesMap)
 
     val wearIDevice = Mockito.mock(IDevice::class.java).apply {
       Mockito.`when`(arePropertiesSet()).thenReturn(true)
@@ -134,6 +134,7 @@ class EndToEndIntegrationTest : LightPlatform4TestCase() {
     val phoneWearPair = WearPairingManager.getPairedDevices(wearIDevice.name)
     assertThat(phoneWearPair).isNotNull()
     assertThat(phoneWearPair!!.pairingStatus).isEqualTo(WearPairingManager.PairingState.CONNECTED)
+    assertThat(phoneWearPair.getPeerDevice(wearIDevice.name).displayName).isEqualTo(phoneIDevice.name)
   }
 
   private fun FakeUi.clickButton(text: String) {

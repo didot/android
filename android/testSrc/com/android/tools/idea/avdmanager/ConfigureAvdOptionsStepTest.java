@@ -55,6 +55,7 @@ import com.intellij.ui.components.JBLabel;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -88,7 +89,7 @@ public class ConfigureAvdOptionsStepTest extends AndroidTestCase {
 
     // Q image (API 29)
     String qPath = "system-images;android-29;google_apis;x86";
-    FakePackage.FakeLocalPackage pkgQ = new FakePackage.FakeLocalPackage(qPath, fileOp);
+    FakePackage.FakeLocalPackage pkgQ = new FakePackage.FakeLocalPackage(qPath, fileOp.toPath("/sdk/qSysImg"));
     DetailsTypes.SysImgDetailsType detailsQ =
       AndroidSdkHandler.getSysImgModule().createLatestFactory().createSysImgDetailsType();
     detailsQ.getTags().add(IdDisplay.create("google_apis", "Google APIs"));
@@ -99,7 +100,7 @@ public class ConfigureAvdOptionsStepTest extends AndroidTestCase {
 
     // Marshmallow image (API 23)
     String marshmallowPath = "system-images;android-23;google_apis;x86";
-    FakePackage.FakeLocalPackage pkgMarshmallow = new FakePackage.FakeLocalPackage(marshmallowPath, fileOp);
+    FakePackage.FakeLocalPackage pkgMarshmallow = new FakePackage.FakeLocalPackage(marshmallowPath, fileOp.toPath("/sdk/mSysImg"));
     DetailsTypes.SysImgDetailsType detailsMarshmallow =
       AndroidSdkHandler.getSysImgModule().createLatestFactory().createSysImgDetailsType();
     detailsMarshmallow.getTags().add(IdDisplay.create("google_apis", "Google APIs"));
@@ -110,7 +111,7 @@ public class ConfigureAvdOptionsStepTest extends AndroidTestCase {
 
     // Preview image
     String previewPath = "system-images;android-ZZZ;google_apis;x86";
-    FakePackage.FakeLocalPackage pkgPreview = new FakePackage.FakeLocalPackage(previewPath, fileOp);
+    FakePackage.FakeLocalPackage pkgPreview = new FakePackage.FakeLocalPackage(previewPath, fileOp.toPath("/sdk/previewSysImg"));
     DetailsTypes.SysImgDetailsType detailsPreview =
       AndroidSdkHandler.getSysImgModule().createLatestFactory().createSysImgDetailsType();
     detailsPreview.getTags().add(IdDisplay.create("google_apis", "Google APIs"));
@@ -123,7 +124,7 @@ public class ConfigureAvdOptionsStepTest extends AndroidTestCase {
     // Image with an unknown API level
     // (This is not supposed to happen. But it does sometimes.)
     String zuluPath = "system-images;android-Z;google_apis;x86";
-    FakePackage.FakeLocalPackage pkgZulu = new FakePackage.FakeLocalPackage(zuluPath, fileOp);
+    FakePackage.FakeLocalPackage pkgZulu = new FakePackage.FakeLocalPackage(zuluPath, fileOp.toPath("/sdk/zSysImg"));
     DetailsTypes.SysImgDetailsType detailsZulu =
       AndroidSdkHandler.getSysImgModule().createLatestFactory().createSysImgDetailsType();
     detailsZulu.getTags().add(IdDisplay.create("google_apis", "Google APIs"));
@@ -135,7 +136,7 @@ public class ConfigureAvdOptionsStepTest extends AndroidTestCase {
 
     // Image that contains SDK extensions and is not the base SDK
     String extensionsPath = "system-images;android-32-3;google_apis;x86";
-    FakePackage.FakeLocalPackage pkgExtensions = new FakePackage.FakeLocalPackage(extensionsPath, fileOp);
+    FakePackage.FakeLocalPackage pkgExtensions = new FakePackage.FakeLocalPackage(extensionsPath, fileOp.toPath("/sdk/extensionSysImg"));
     DetailsTypes.SysImgDetailsType detailsExtensions =
       AndroidSdkHandler.getSysImgModule().createLatestFactory().createSysImgDetailsType();
     detailsExtensions.getTags().add(IdDisplay.create("google_apis", "Google APIs"));
@@ -151,7 +152,7 @@ public class ConfigureAvdOptionsStepTest extends AndroidTestCase {
     RepoManager mgr = new FakeRepoManager(fileOp.toPath(SDK_LOCATION), packages);
 
     AndroidSdkHandler sdkHandler =
-      new AndroidSdkHandler(fileOp.toPath(SDK_LOCATION), fileOp.toPath(AVD_LOCATION), fileOp, mgr);
+      new AndroidSdkHandler(fileOp.toPath(SDK_LOCATION), fileOp.toPath(AVD_LOCATION), mgr);
 
     FakeProgressIndicator progress = new FakeProgressIndicator();
     SystemImageManager systemImageManager = sdkHandler.getSystemImageManager(progress);
@@ -174,15 +175,15 @@ public class ConfigureAvdOptionsStepTest extends AndroidTestCase {
     myAutomotive = devMgr.getDevice("automotive_1024p_landscape", "Google");
 
     myQAvdInfo =
-      new AvdInfo("name", new File("ini"), "folder", QImage, myPropertiesMap);
+      new AvdInfo("name", Paths.get("ini"), "folder", QImage, myPropertiesMap);
     myMarshmallowAvdInfo =
-      new AvdInfo("name", new File("ini"), "folder", marshmallowImage, myPropertiesMap);
+      new AvdInfo("name", Paths.get("ini"), "folder", marshmallowImage, myPropertiesMap);
     myPreviewAvdInfo =
-      new AvdInfo("name", new File("ini"), "folder", NPreviewImage, myPropertiesMap);
+      new AvdInfo("name", Paths.get("ini"), "folder", NPreviewImage, myPropertiesMap);
     myZuluAvdInfo =
-      new AvdInfo("name", new File("ini"), "folder", ZuluImage, myPropertiesMap);
+      new AvdInfo("name", Paths.get("ini"), "folder", ZuluImage, myPropertiesMap);
     myExtensionsAvdInfo =
-      new AvdInfo("name", new File("ini"), "folder", extensionsImage, myPropertiesMap);
+      new AvdInfo("name", Paths.get("ini"), "folder", extensionsImage, myPropertiesMap);
 
     BatchInvoker.setOverrideStrategy(BatchInvoker.INVOKE_IMMEDIATELY_STRATEGY);
   }
@@ -304,7 +305,7 @@ public class ConfigureAvdOptionsStepTest extends AndroidTestCase {
     tempFolder.create();
     File snapAvdDir = tempFolder.newFolder("proto_avd");
     AvdInfo snapshotAvdInfo =
-      new AvdInfo("snapAvd", new File("ini"), snapAvdDir.getAbsolutePath(), mySnapshotSystemImage, myPropertiesMap);
+      new AvdInfo("snapAvd", Paths.get("ini"), snapAvdDir.getAbsolutePath(), mySnapshotSystemImage, myPropertiesMap);
     AvdOptionsModel optionsModel = new AvdOptionsModel(snapshotAvdInfo);
 
     ConfigureAvdOptionsStep optionsStep = new ConfigureAvdOptionsStep(getProject(), optionsModel, newSkinChooser());

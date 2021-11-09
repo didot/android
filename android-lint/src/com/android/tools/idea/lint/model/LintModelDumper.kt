@@ -141,6 +141,12 @@ private fun ProjectDumper.dump(lintModelVariant: LintModelVariant) {
       androidTestArtifact?.let { androidTestArtifact ->
         dump(androidTestArtifact)
       }
+      testFixturesArtifact?.let { testFixturesArtifact ->
+        head("TestFixturesArtifact")
+        nest {
+          dump(testFixturesArtifact)
+        }
+      }
       prop("Package") { `package` }
       prop("MinSdkVersion") { minSdkVersion?.toString() }
       prop("TargetSdkVersion") { targetSdkVersion?.toString() }
@@ -173,6 +179,12 @@ private fun ProjectDumper.dump(lintModelVariant: LintModelVariant) {
         head("TestSourceProviders")
         nest {
           testSourceProviders.forEach { dump(it) }
+        }
+      }
+      if (testFixturesSourceProviders.isNotEmpty()) {
+        head("TestFixturesSourceProviders")
+        nest {
+          testFixturesSourceProviders.forEach { dump(it) }
         }
       }
       prop("Debuggable") { debuggable.takeIf { it }?.toString() }

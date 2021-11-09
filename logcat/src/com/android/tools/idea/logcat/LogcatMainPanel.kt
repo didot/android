@@ -107,7 +107,7 @@ internal class LogcatMainPanel(
 
   @VisibleForTesting
   internal val messageProcessor = MessageProcessor(this, messageFormatter::formatMessages)
-  private val headerPanel = LogcatHeaderPanel(project, this, deviceContext)
+  private val headerPanel = LogcatHeaderPanel(project, logcatPresenter = this, deviceContext)
   private var logcatReader: LogcatReader? = null
   private val toolbar = ActionManager.getInstance().createActionToolbar("LogcatMainPanel", createToolbarActions(project), false)
   private val hyperlinkDetector = hyperlinkDetector ?: EditorHyperlinkDetector(project, editor)
@@ -257,7 +257,7 @@ internal class LogcatMainPanel(
         it.stop()
         it.clearLogcat()
       }
-      messageBacklog.messages.clear()
+      messageBacklog.clear()
       logcatReader?.start()
       withContext(uiThread) {
         document.setText("")

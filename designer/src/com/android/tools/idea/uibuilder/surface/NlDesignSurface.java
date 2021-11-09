@@ -418,6 +418,7 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
 
   private boolean myIsRenderingSynchronously = false;
   private boolean myIsAnimationScrubbing = false;
+  private float myRotateSurfaceDegree = Float.NaN;
 
   private final Dimension myScrollableViewMinSize = new Dimension();
   @Nullable private LayoutScannerControl myScannerControl;
@@ -865,7 +866,7 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
         });
 
         if (myShouldRunVisualLintService) {
-          VisualLintService.getInstance().runVisualLintAnalysis(getModels(), myIssueModel);
+          VisualLintService.getInstance().runVisualLintAnalysis(getModels(), myIssueModel, NlDesignSurface.this);
         }
       }
 
@@ -1066,6 +1067,20 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
     myIsAnimationScrubbing = value;
   }
 
+  /**
+   * Set the rotation degree of the surface to simulate the phone rotation.
+   * @param value angle of the rotation.
+   */
+  public void setRotateSufaceDegree(float value) {
+    myRotateSurfaceDegree = value;
+  }
+
+  /**
+   * Return the rotation degree of the surface to simulate the phone rotation.
+   */
+  public float getRotateSurfaceDegree() {
+    return myRotateSurfaceDegree;
+  }
   public boolean isInAnimationScrubbing() { return myIsAnimationScrubbing; }
 
   /**

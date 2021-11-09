@@ -10,8 +10,10 @@ import static com.android.AndroidProjectTypes.PROJECT_TYPE_TEST;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.android.ddmlib.IDevice;
+import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.project.AndroidProjectInfo;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
+import com.android.tools.idea.run.configuration.user.settings.AndroidConfigurationExecutionSettings;
 import com.android.tools.idea.run.editor.AndroidDebugger;
 import com.android.tools.idea.run.editor.AndroidDebuggerContext;
 import com.android.tools.idea.run.editor.AndroidDebuggerState;
@@ -25,6 +27,7 @@ import com.android.tools.idea.run.tasks.AppLaunchTask;
 import com.android.tools.idea.run.tasks.LaunchTasksProvider;
 import com.android.tools.idea.run.util.LaunchStatus;
 import com.android.tools.idea.run.util.LaunchUtils;
+import com.android.tools.idea.run.util.SwapInfo;
 import com.android.tools.idea.stats.RunStats;
 import com.android.tools.idea.stats.RunStatsService;
 import com.google.common.collect.ImmutableList;
@@ -88,8 +91,6 @@ public abstract class AndroidRunConfigurationBase extends ModuleBasedConfigurati
 
   public boolean CLEAR_LOGCAT = false;
   public boolean SHOW_LOGCAT_AUTOMATICALLY = false;
-  public boolean SKIP_NOOP_APK_INSTALLATIONS = true; // skip installation if the APK hasn't hasn't changed
-  public boolean FORCE_STOP_RUNNING_APP = true; // if no new apk is being installed, then stop the app before launching it again
   public boolean INSPECTION_WITHOUT_ACTIVITY_RESTART = false; // set global attributes at launch time
 
   private final ProfilerState myProfilerState;
@@ -242,8 +243,6 @@ public abstract class AndroidRunConfigurationBase extends ModuleBasedConfigurati
   protected LaunchOptions.Builder getLaunchOptions() {
     return LaunchOptions.builder()
       .setClearLogcatBeforeStart(CLEAR_LOGCAT)
-      .setSkipNoopApkInstallations(SKIP_NOOP_APK_INSTALLATIONS)
-      .setForceStopRunningApp(FORCE_STOP_RUNNING_APP)
       .setInspectionWithoutActivityRestart(INSPECTION_WITHOUT_ACTIVITY_RESTART);
   }
 
@@ -285,6 +284,14 @@ public abstract class AndroidRunConfigurationBase extends ModuleBasedConfigurati
                                     @NotNull ExecutionEnvironment env,
                                     @NotNull RunStats stats) throws ExecutionException {
     validateBeforeRun(executor);
+
+    if (StudioFlags.NEW_EXECUTION_FLOW_ENABLED.get()
+        && !isTestConfiguration()
+        && env.getUserData(SwapInfo.SWAP_INFO_KEY) == null
+        && AndroidConfigurationExecutionSettings.getInstance().getState().getEnableNewConfigurationFlow()
+    ) {
+      // TODO: implement new flow
+    }
 
     Module module = getConfigurationModule().getModule();
     assert module != null : "Enforced by fatal validation check in checkConfiguration.";

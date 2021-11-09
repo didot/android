@@ -379,14 +379,14 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
 
   fun productFlavorContainerFrom(
     productFlavor: ProductFlavor,
-    container: SourceSetContainer): IdeProductFlavorContainerImpl {
+    container: SourceSetContainer?): IdeProductFlavorContainerImpl {
     return IdeProductFlavorContainerImpl(
       productFlavor = copyModel(productFlavor, ::productFlavorFrom),
-      sourceProvider = copyModel(container.sourceProvider, ::sourceProviderFrom),
+      sourceProvider = copyModel(container?.sourceProvider, ::sourceProviderFrom),
       extraSourceProviders = listOfNotNull(
-        copyModel(container.androidTestSourceProvider, ::sourceProviderContainerFrom),
-        copyModel(container.unitTestSourceProvider, ::sourceProviderContainerFrom),
-        copyModel(container.testFixturesSourceProvider, ::sourceProviderContainerFrom)
+        copyModel(container?.androidTestSourceProvider, ::sourceProviderContainerFrom),
+        copyModel(container?.unitTestSourceProvider, ::sourceProviderContainerFrom),
+        copyModel(container?.testFixturesSourceProvider, ::sourceProviderContainerFrom)
       )
     )
   }
@@ -539,10 +539,9 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
         val variantNameResolver = getVariantNameResolver(buildNameMap[projectInfo.buildId]!!, projectInfo.projectPath)
         // TODO(b/203750717): Model this explicitly in the tooling model.
         val variantName = variantNameResolver(
-          projectInfo.attributes["com.android.build.api.attributes.BuildTypeAttr"],
-          { dimension -> projectInfo.attributes["com.android.build.api.attributes.ProductFlavor:$dimension"] ?: projectInfo.attributes[dimension] ?: error("$dimension attribute not found. Library: ${identifier.key}") }
+          projectInfo.buildType,
+          { dimension -> projectInfo.productFlavors[dimension] ?: error("$dimension attribute not found. Library: ${identifier.key}") }
         )
-        val projectName = projectInfo.projectPath.split(":").last()
         createModuleLibrary(
           visited,
           projectInfo.projectPath, // this should always be non-null as this is a module library
@@ -550,12 +549,7 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
           variantName,
           identifier.lintJar,
           projectInfo.buildId,
-          // A testFixtures component of a project will have the capability (group = project.group, name = project.name + "-test-fixtures",
-          // version = null), and the string representation will be `${project.group}:${project.name}-test-fixtures:unspecified`
-          // See [DefaultDependencyHandler.testFixtures](https://github.com/gradle/gradle/blob/master/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/dsl/dependencies/DefaultDependencyHandler.java)
-          // to know how testFixtures capability is created.
-          // TODO(b/202838863): have a better way to figure out whether the dependency is on a testFixtures component
-          isTestFixturesComponent = identifier.projectInfo!!.capabilities.any { it.endsWith(":$projectName-test-fixtures:unspecified") }
+          projectInfo.isTestFixtures
         )
       }
     }
@@ -1149,7 +1143,7 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
     androidDsl: AndroidDsl
   ): IdeAndroidProjectImpl {
     val parsedModelVersion = GradleVersion.tryParse(modelsVersions.agp)
-    val defaultConfigCopy: IdeProductFlavorContainer = copyModel(androidDsl.defaultConfig, basicProject.mainSourceSet,
+    val defaultConfigCopy: IdeProductFlavorContainer = copyModel2(androidDsl.defaultConfig, basicProject.mainSourceSet,
                                                                  ::productFlavorContainerFrom)
     val buildTypesCopy: Collection<IdeBuildTypeContainer> = copy(androidDsl::buildTypes, basicProject::buildTypeSourceSets,
                                                                  ::buildTypeContainerFrom)

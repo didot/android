@@ -697,7 +697,7 @@ public final class StudioFlags {
     GRADLE_IDE, "jdk.allow.different", "Allow different Gradle JDK", "Allow usage of a different JDK version when running Gradle.", true);
 
   public static final Flag<Boolean> GRADLE_SYNC_USE_V2_MODEL = Flag.create(
-    GRADLE_IDE, "gradle.sync.use.v2", "Use V2 Builder models", "Enable fetching V2 builder models from AGP when syncing.", false);
+    GRADLE_IDE, "gradle.sync.use.v2", "Use V2 Builder models", "Enable fetching V2 builder models from AGP when syncing.", true);
 
   public static final Flag<Boolean> GRADLE_SYNC_RECREATE_JDK = Flag.create(
     GRADLE_IDE, "gradle.sync.recreate.jdk", "Recreate JDK on sync", "Recreate Gradle JDK when syncing if there are changed roots.", true);
@@ -818,13 +818,6 @@ public final class StudioFlags {
   public static final Flag<Boolean> MIGRATE_TO_NON_TRANSITIVE_R_CLASSES_REFACTORING_ENABLED = Flag.create(
     REFACTORINGS, "migrateto.nontransitiverclasses.enabled", "Enable the Migrate to non-transitive R classes refactoring",
     "If enabled, show the action in the refactoring menu", true);
-  //endregion
-
-  //region IoT
-  private static final FlagGroup IOT = new FlagGroup(FLAGS, "iot", "IoT features");
-  public static final Flag<Boolean> UNINSTALL_LAUNCHER_APPS_ENABLED = Flag.create(
-    IOT, "iot.uninstalllauncherapps.enabled", "Enable the Uninstall of IoT launcher apps feature",
-    "If enabled, uninstall IoT launcher apps when installing a new one", false);
   //endregion
 
   //region NDK
@@ -992,10 +985,6 @@ public final class StudioFlags {
 
   //region Compose
   private static final FlagGroup COMPOSE = new FlagGroup(FLAGS, "compose", "Compose");
-  public static final Flag<Boolean> COMPOSE_PREVIEW = Flag.create(
-    COMPOSE, "preview.enabled", "Enable the Compose preview",
-    "If enabled, a visual preview will be available for Compose.",
-    true);
 
   public static final Flag<Boolean> COMPOSE_PREVIEW_ONLY_KOTLIN_BUILD = Flag.create(
     COMPOSE, "preview.fast.build.enabled", "Enable the use of \"compileDebugKotlin\" for the preview refresh",
@@ -1338,6 +1327,13 @@ public final class StudioFlags {
     "Enable the Wear OS virtual device pairing assistant",
     "Enable the Wear OS virtual device pairing assistant",
     true);
+
+  public static final Flag<Boolean> PAIRED_DEVICES_TAB_ENABLED = Flag.create(
+    DEVICE_MANAGER,
+    "paired.devices.tab.enabled",
+    "Enable the Paired devices tab",
+    "Enable the Paired devices tab in the details panel",
+    false);
   // endregion
 
   //region DDMLIB
@@ -1363,5 +1359,13 @@ public final class StudioFlags {
   );
   // endregion SERVER_FLAGS
 
+  //region METRICS
+  private static final FlagGroup METRICS = new FlagGroup(FLAGS, "metrics", "Metrics");
+  public static final Flag<Boolean> NEW_CONSENT_DIALOG = Flag.create(
+    METRICS, "new.consent.dialog", "New consent dialog",
+    "Enable the new consent dialog for opting into metrics",
+    false
+  );
+  // endregion SERVER_FLAGS
   private StudioFlags() { }
 }

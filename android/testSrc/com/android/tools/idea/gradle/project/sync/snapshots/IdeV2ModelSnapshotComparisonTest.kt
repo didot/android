@@ -75,6 +75,7 @@ class IdeV2ModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotComparis
     @Parameterized.Parameters(name = "{0}")
     fun testProjects(): Collection<*> = listOf(
       TestProject(TestProjectToSnapshotPaths.SIMPLE_APPLICATION),
+      TestProject(TestProjectToSnapshotPaths.WITH_GRADLE_METADATA),
       TestProject(TestProjectToSnapshotPaths.BASIC_CMAKE_APP),
       TestProject(TestProjectToSnapshotPaths.PSD_SAMPLE_GROOVY),
       TestProject(TestProjectToSnapshotPaths.COMPOSITE_BUILD),
@@ -108,27 +109,21 @@ class IdeV2ModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotComparis
 
   @Test
   fun testIdeModels() {
-    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.override(true)
-    try {
-      val projectName = testProjectName ?: error("unit test parameter not initialized")
-      val root = prepareGradleProject(
-        projectName.template,
-        "project"
-      )
-      CaptureKotlinModelsProjectResolverExtension.registerTestHelperProjectResolver(projectRule.fixture.testRootDisposable)
-      openPreparedProject("project${testProjectName?.pathToOpen}") { project ->
-        val dump = project.saveAndDump(mapOf("ROOT" to root)) { project, projectDumper ->
-          projectDumper.dumpAndroidIdeModel(
-            project,
-            kotlinModels = { CaptureKotlinModelsProjectResolverExtension.getKotlinModel(it) },
-            kaptModels = { CaptureKotlinModelsProjectResolverExtension.getKaptModel(it) }
-          )
-        }
-        assertIsEqualToSnapshot(dump)
+    val projectName = testProjectName ?: error("unit test parameter not initialized")
+    val root = prepareGradleProject(
+      projectName.template,
+      "project"
+    )
+    CaptureKotlinModelsProjectResolverExtension.registerTestHelperProjectResolver(projectRule.fixture.testRootDisposable)
+    openPreparedProject("project${testProjectName?.pathToOpen}") { project ->
+      val dump = project.saveAndDump(mapOf("ROOT" to root)) { project, projectDumper ->
+        projectDumper.dumpAndroidIdeModel(
+          project,
+          kotlinModels = { CaptureKotlinModelsProjectResolverExtension.getKotlinModel(it) },
+          kaptModels = { CaptureKotlinModelsProjectResolverExtension.getKaptModel(it) }
+        )
       }
-    }
-    finally {
-      StudioFlags.GRADLE_SYNC_USE_V2_MODEL.clearOverride()
+      assertIsEqualToSnapshot(dump)
     }
   }
 

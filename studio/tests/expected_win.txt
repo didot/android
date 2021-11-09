@@ -618,11 +618,11 @@ android-studio/lib/jsp-base-openapi.jar
 android-studio/lib/jsr305-3.0.2.jar
 android-studio/lib/junit-4.12.jar
 android-studio/lib/junit.jar
-android-studio/lib/kotlin-reflect-1.5.10-release-896.jar
-android-studio/lib/kotlin-stdlib-1.5.10-release-896.jar
-android-studio/lib/kotlin-stdlib-common-1.5.10-release-896.jar
-android-studio/lib/kotlin-stdlib-jdk7-1.5.10-release-896.jar
-android-studio/lib/kotlin-stdlib-jdk8-1.5.10-release-896.jar
+android-studio/lib/kotlin-reflect-1.5.10-release-931.jar
+android-studio/lib/kotlin-stdlib-1.5.10-release-931.jar
+android-studio/lib/kotlin-stdlib-common-1.5.10-release-931.jar
+android-studio/lib/kotlin-stdlib-jdk7-1.5.10-release-931.jar
+android-studio/lib/kotlin-stdlib-jdk8-1.5.10-release-931.jar
 android-studio/lib/kotlin-test-1.4.32.jar
 android-studio/lib/kotlin-test-common-1.4.32.jar
 android-studio/lib/kotlinx-coroutines-core-jvm-1.5.0.jar
@@ -2010,6 +2010,7 @@ android-studio/plugins/coverage/lib/org.jacoco.core-0.8.7.jar
 android-studio/plugins/coverage/lib/org.jacoco.report-0.8.7.jar
 android-studio/plugins/design-tools/lib/design-tools.jar
 android-studio/plugins/design-tools/lib/layoutlib.jar
+android-studio/plugins/design-tools/resources/kotlin-compiler-daemon-1.1.0-fallback.jar
 android-studio/plugins/design-tools/resources/layoutlib/build.prop
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/AndroidClock.ttf
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/CarroisGothicSC-Regular.ttf
