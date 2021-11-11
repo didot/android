@@ -61,7 +61,6 @@ iml_module(
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
         "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
-        "//tools/adt/idea/android:intellij.android.core.tests[module, test]",
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
         "//tools/adt/idea/android:intellij.android.core[module, test]",
         "//tools/adt/idea/.idea/libraries:truth[test]",
@@ -168,7 +167,6 @@ local_old_agp_test(
     shard_count = 4,
     tags = [
         "block-network",
-        "manual",  # b/199740328
         "no_test_mac",
         "no_test_windows",
     ],

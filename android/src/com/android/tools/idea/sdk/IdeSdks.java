@@ -259,7 +259,7 @@ public class IdeSdks {
   public File getAndroidNdkPath(@Nullable Predicate<Revision> filter) {
     LocalPackage ndk = getHighestLocalNdkPackage(false, filter);
     if (ndk != null) {
-      return FileOpUtils.toFileUnsafe(ndk.getLocation());
+      return ndk.getLocation().toFile();
     }
     return null;
   }
@@ -1063,6 +1063,62 @@ public class IdeSdks {
     LOG.warn("  Apple JDK: " + new File(homePath, "../Classes/classes.jar").exists());
     LOG.warn("  IBM JDK: " + new File(homePath, "jre/lib/vm.jar").exists());
     LOG.warn("  Custom build: " + new File(homePath, "classes").isDirectory());
+  }
+
+  /**
+   * Returns an explanation on why a JDK located at {@param path} is not valid. This method is based on the checks done in
+   * {@link com.intellij.openapi.projectRoots.JdkUtil#checkForJdk(java.nio.file.Path)}
+   * @param path Path where the JDK is looked for
+   * @return null if the JDK is valid or the reason cannot be identified, a message otherwise.
+   */
+  @Nullable
+  public String generateInvalidJdkReason(@NotNull Path path) {
+    Path validPath = validateJdkPath(path);
+    if (validPath != null) {
+      // It is a valid JDK
+      return null;
+    }
+    Path possiblePath = path;
+    String reason;
+    if (SystemInfo.isMac) {
+      Path macPath = path.resolve(MAC_JDK_CONTENT_PATH);
+      if (Files.isDirectory(macPath) && checkForJdk(macPath)) {
+        reason = getInvalidJdkReason(macPath);
+        if (reason == null) {
+          possiblePath = macPath;
+        }
+      }
+      else {
+        reason = getInvalidJdkReason(path);
+      }
+    }
+    else {
+      reason = getInvalidJdkReason(path);
+    }
+    if (reason != null) {
+      return reason;
+    }
+    if (StudioFlags.ALLOW_DIFFERENT_JDK_VERSION.get() || isJdkSameVersion(possiblePath, getRunningVersionOrDefault())) {
+        return null;
+    }
+    else {
+      return "JDK version should be " + getRunningVersionOrDefault();
+    }
+  }
+
+  @Nullable
+  private String getInvalidJdkReason(@NotNull Path path) {
+    if (!(Files.exists(path.resolve("bin/javac")) || Files.exists(path.resolve("bin/javac.exe")))) {
+      return "There is no bin/javac in " + path;
+    }
+    if ((!isModularRuntime(path)) &&                               // Jigsaw JDK/JRE
+        (!Files.exists(path.resolve("jre/lib/rt.jar"))) &&         // pre-modular JDK
+        (!Files.isDirectory(path.resolve("classes"))) &&           // custom build
+        (!Files.exists(path.resolve("jre/lib/vm.jar"))) &&         // IBM JDK
+        (!Files.exists(path.resolve("../Classes/classes.jar")))) { // Apple JDK
+      return "Required JDK files from " + path + " are missing";
+    }
+    return null;
   }
 
   /**

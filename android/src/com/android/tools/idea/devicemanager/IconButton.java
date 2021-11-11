@@ -15,20 +15,18 @@
  */
 package com.android.tools.idea.devicemanager;
 
-import com.android.tools.adtui.common.ColoredIconGenerator;
 import com.intellij.util.ui.JBDimension;
-import java.awt.Component;
 import java.awt.Dimension;
+import java.util.Optional;
 import javax.swing.Icon;
 import javax.swing.JButton;
-import javax.swing.JTable;
 import org.jetbrains.annotations.NotNull;
 
-public final class IconButton extends JButton {
-  private final @NotNull Icon myIcon;
+public final class IconButton extends JButton implements IconTableCell {
+  private final @NotNull Icon myDefaultIcon;
 
-  public IconButton(@NotNull Icon icon) {
-    super(icon);
+  public IconButton(@NotNull Icon defaultIcon) {
+    super(defaultIcon);
     Dimension size = new JBDimension(22, 22);
 
     setBorder(null);
@@ -37,19 +35,11 @@ public final class IconButton extends JButton {
     setMinimumSize(size);
     setPreferredSize(size);
 
-    myIcon = icon;
+    myDefaultIcon = defaultIcon;
   }
 
-  public @NotNull Component getTableCellComponent(@NotNull JTable table, boolean selected, boolean focused) {
-    setBackground(Tables.getBackground(table, selected));
-    setBorder(Tables.getBorder(selected, focused));
-    setForeground(Tables.getForeground(table, selected));
-    setSelectedInTableCell(selected);
-
-    return this;
-  }
-
-  public void setSelectedInTableCell(boolean selected) {
-    setIcon(selected ? ColoredIconGenerator.INSTANCE.generateColoredIcon(myIcon, getForeground()) : myIcon);
+  @Override
+  public @NotNull Optional<@NotNull Icon> getDefaultIcon() {
+    return Optional.of(myDefaultIcon);
   }
 }

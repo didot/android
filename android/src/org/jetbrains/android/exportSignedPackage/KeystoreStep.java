@@ -3,7 +3,6 @@
 package org.jetbrains.android.exportSignedPackage;
 
 import static com.android.tools.idea.io.IdeFileUtils.getDesktopDirectoryVirtualFile;
-import static com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE;
 import static icons.StudioIcons.Common.WARNING_INLINE;
 
 import com.android.annotations.concurrency.Slow;
@@ -28,11 +27,11 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.CollectionComboBoxModel;
-import com.intellij.ui.GuiUtils;
 import com.intellij.ui.HyperlinkLabel;
 import com.intellij.ui.SimpleListCellRenderer;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBLabel;
+import com.intellij.util.ModalityUiUtil;
 import java.awt.Cursor;
 import java.io.File;
 import java.io.FileInputStream;
@@ -78,7 +77,6 @@ class KeystoreStep extends ExportSignedPackageWizardStep implements ApkSigningSe
   JComboBox<AndroidFacet> myModuleCombo;
   private JPanel myGradlePanel;
   private JBLabel myGradleWarning;
-  private HyperlinkLabel myCloseAndUpdateLink;
   private JBLabel myKeyStorePathLabel;
   private JBLabel myKeyStorePasswordLabel;
   private JBLabel myKeyAliasLabel;
@@ -120,12 +118,6 @@ class KeystoreStep extends ExportSignedPackageWizardStep implements ApkSigningSe
       label.setIcon(ModuleType.get(module).getIcon());
     }));
     myGradleWarning.setIcon(WARNING_INLINE);
-    myCloseAndUpdateLink.setHyperlinkText(AndroidBundle.message("android.export.package.bundle.gradle.update"));
-    myCloseAndUpdateLink.addHyperlinkListener(e -> {
-      if (DynamicAppUtils.promptUserForGradleUpdate(project)) {
-        myWizard.close(CANCEL_EXIT_CODE);
-      }
-    });
     myGradlePanel.setVisible(false);
     myModuleCombo.addActionListener(e -> updateSelection((AndroidFacet)myModuleCombo.getSelectedItem()));
 
@@ -271,7 +263,7 @@ class KeystoreStep extends ExportSignedPackageWizardStep implements ApkSigningSe
           credentialAttributesForKey(keyStorePasswordKey),
           createKeystoreDeprecatedAttributesPre_2021_1_1_3(keyStorePasswordKey),
           createDeprecatedAttributesPre_3_2(keyStorePasswordKey)
-        )).map(Credentials::getPassword).ifPresent(password -> GuiUtils.invokeLaterIfNeeded(() -> {
+        )).map(Credentials::getPassword).ifPresent(password -> ModalityUiUtil.invokeLaterIfNeeded(() -> {
           if (myKeyStorePasswordField.getPassword().length == 0) {
             myKeyStorePasswordField.setText(password.toString());
           }
@@ -281,7 +273,7 @@ class KeystoreStep extends ExportSignedPackageWizardStep implements ApkSigningSe
           credentialAttributesForKey(keyPasswordKey),
           createKeyDeprecatedAttributesPre_2021_1_1_3(keyPasswordKey),
           createDeprecatedAttributesPre_3_2(keyPasswordKey)
-        )).map(Credentials::getPassword).ifPresent(password -> GuiUtils.invokeLaterIfNeeded(() -> {
+        )).map(Credentials::getPassword).ifPresent(password -> ModalityUiUtil.invokeLaterIfNeeded(() -> {
           if (myKeyPasswordField.getPassword().length == 0) {
             myKeyPasswordField.setText(password.toString());
           }

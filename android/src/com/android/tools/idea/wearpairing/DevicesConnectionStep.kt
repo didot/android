@@ -86,6 +86,7 @@ import javax.swing.event.HyperlinkListener
 
 private const val WEAR_MAIN_ACTIVITY = "com.google.android.clockwork.companion.launcher.LauncherActivity"
 private const val TIME_TO_SHOW_MANUAL_RETRY = 60_000L
+private const val TIME_TO_INSTALL_COMPANION_APP = 120_000L
 private const val PATH_PLAY_SCREEN = "/wearPairing/screens/playStore.png"
 private const val PATH_PAIR_SCREEN = "/wearPairing/screens/wearPair.png"
 
@@ -242,7 +243,7 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
                                         scanningLabel = message("wear.assistant.device.connection.scanning.wear.os.lnk"))
     }
 
-    if (waitForCondition(TIME_TO_SHOW_MANUAL_RETRY) { phoneDevice.isCompanionAppInstalled(wearDevice.getCompanionAppIdForWatch()) }) {
+    if (waitForCondition(TIME_TO_INSTALL_COMPANION_APP) { phoneDevice.isCompanionAppInstalled(wearDevice.getCompanionAppIdForWatch()) }) {
       showUiInstallCompanionAppSuccess(phoneDevice, wearDevice)
       canGoForward.set(true)
     }
@@ -444,6 +445,10 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
         gridConstraint(x = 0, y = RELATIVE, gridwidth = 2, anchor = LINE_START)
       )
     }
+    add(
+      JBLabel(additionalStepsLabel).addBorder(empty(8, 0, 0, 0)),
+      gridConstraint(x = 0, y = RELATIVE, weightx = 1.0, fill = HORIZONTAL, gridwidth = 2)
+    )
     if (showLoadingIcon) {
       add(
         AsyncProcessIcon("ScanningLabel").addBorder(empty(0, 0, 0, 8)),
@@ -471,10 +476,6 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
         gridConstraint(x = 0, y = RELATIVE, weightx = 1.0, fill = HORIZONTAL, gridwidth = 2)
       )
     }
-    add(
-      JBLabel(additionalStepsLabel).addBorder(empty(8, 0, 0, 0)),
-      gridConstraint(x = 0, y = RELATIVE, weightx = 1.0, fill = HORIZONTAL, gridwidth = 2)
-    )
 
     isOpaque = false
     border = empty(8, 2, 12, 4)

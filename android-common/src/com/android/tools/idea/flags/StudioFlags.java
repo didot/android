@@ -143,7 +143,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> PROFILER_JANK_DETECTION_UI = Flag.create(
     PROFILER, "jank.ui", "Enable jank detection UI",
     "Add a track in the display group showing frame janks.",
-    false
+    true
   );
 
   public static final Flag<Boolean> PROFILER_CUSTOM_EVENT_VISUALIZATION = Flag.create(
@@ -764,9 +764,6 @@ public final class StudioFlags {
   public static final Flag<Boolean> DYNAMIC_LAYOUT_INSPECTOR_USE_DEVBUILD_SKIA_SERVER = Flag.create(
     LAYOUT_INSPECTOR, "dynamic.layout.inspector.devbuild.skia", "Use the locally-built skia rendering server",
     "If enabled and this is a locally-built studio instance, use the locally-built skia server instead of one from the SDK.", false);
-  public static final Flag<Boolean> DYNAMIC_LAYOUT_INSPECTOR_ENABLE_COMPOSE_SUPPORT = Flag.create(
-    LAYOUT_INSPECTOR, "dynamic.layout.inspector.compose.support", "Show inspectables from Compose",
-    "If enabled the component tree will include Composable nodes if they are wrapped in an Inspectable.", true);
   public static final Flag<Boolean> DYNAMIC_LAYOUT_INSPECTOR_SHOW_SEMANTICS = Flag.create(
     LAYOUT_INSPECTOR, "dynamic.layout.inspector.show.semantics", "Show semantics",
     "If enabled, display semantic information found in the agent.", true);
@@ -1196,13 +1193,6 @@ public final class StudioFlags {
     false
   );
 
-  public static final Flag<Boolean> COMPOSE_INTERACTIVE_ANIMATION_SWITCH = Flag.create(
-    COMPOSE, "preview.switch.animation.interactive",
-    "Enable animation inspection switch from interactive preview (and disable from static preview)",
-    "If enabled, a user can switch to animation inspection from interactive preview",
-    false
-  );
-
   public static final Flag<Integer> COMPOSE_INTERACTIVE_FPS_LIMIT = Flag.create(
     COMPOSE, "preview.interactive.fps.limit",
     "Interactive Preview FPS limit",
@@ -1240,6 +1230,11 @@ public final class StudioFlags {
     COMPOSE, "preview.fast.reload.debug.daemon", "Starts the Live Edit daemon in debug mode",
     "If enabled, the compiler daemon will wait for a debugger to be attached.",
     false);
+
+  public static final Flag<Boolean> COMPOSE_POWER_SAVE_MODE_SUPPORT = Flag.create(
+    COMPOSE, "preview.power.save.support", "Enable the Compose preview support for PowerSave mode",
+    "If enabled, the Compose Preview will respect the Power Save mode and avoid auto-refresh, reduce FPS, etc.",
+    true);
   //endregion
 
   //region Manifests

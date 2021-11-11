@@ -22,7 +22,7 @@ import com.android.tools.profilers.cpu.CpuThreadInfo
 import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineEvent
 import com.android.tools.profilers.cpu.systemtrace.SystemTraceCpuCapture
 
-class JankAnalysisModel(val event: AndroidFrameTimelineEvent, val capture: SystemTraceCpuCapture): CpuAnalyzable<JankAnalysisModel> {
+data class JankAnalysisModel(val event: AndroidFrameTimelineEvent, val capture: SystemTraceCpuCapture): CpuAnalyzable<JankAnalysisModel> {
 
   override fun getAnalysisModel() =
     CpuAnalysisModel<JankAnalysisModel>("Frame ${event.surfaceFrameToken}").also { model ->
@@ -39,10 +39,10 @@ class JankAnalysisModel(val event: AndroidFrameTimelineEvent, val capture: Syste
       model.addTabModel(chart(CpuAnalysisTabModel.Type.BOTTOM_UP))
     }
 
-  class Summary(val event: AndroidFrameTimelineEvent, private val capture: CpuCapture)
+  class Summary(val event: AndroidFrameTimelineEvent, val capture: CpuCapture)
         : CpuAnalysisSummaryTabModel<JankAnalysisModel>(capture.range) {
     val mainThreadId = firstThreadId { it.isMainThread }
-    val gpuThreadId = firstThreadId { "GPU" in it.name }
+    val gpuThreadId = firstThreadId { it.isGpuThread }
     val renderThreadId = firstThreadId { it.isRenderThread }
     val eventRange = Range(event.expectedStartUs.toDouble(), event.actualEndUs.toDouble())
     override fun getLabel() = "Janky Frame"

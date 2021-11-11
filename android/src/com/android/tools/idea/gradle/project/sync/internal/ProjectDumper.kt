@@ -24,6 +24,7 @@ import com.android.tools.idea.sdk.IdeSdks
 import com.android.tools.idea.util.StudioPathManager
 import com.android.utils.FileUtils
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.DumbAwareAction
@@ -41,7 +42,7 @@ import java.util.Locale
 class ProjectDumper(
   private val offlineRepos: List<File> = getOfflineM2Repositories(),
   private val androidSdk: File = IdeSdks.getInstance().androidSdkPath!!,
-  private val devBuildHome: File? = getStudioSourcesLocation(),
+  private val devBuildHome: File = File(PathManager.getCommunityHomePath()),
   private val additionalRoots: Map<String, File> = emptyMap()
 ) {
   private val gradleCache: File = getGradleCacheLocation()
@@ -257,7 +258,7 @@ fun ProjectDumper.head(name: String, value: () -> String? = { null }) {
   appendln(name.smartPad() + if (v != null) ": $v" else "")
 }
 
-private fun getGradleCacheLocation() = File(System.getProperty("gradle.user.home") ?: (System.getProperty("user.home") + "/.gradle"))
+private fun getGradleCacheLocation() = File(System.getProperty("gradle.user.home") ?: System.getenv("GRADLE_USER_HOME") ?: (System.getProperty("user.home") + "/.gradle"))
 
 private fun getStudioSourcesLocation() =
   if (StudioPathManager.isRunningFromSources()) File(StudioPathManager.getSourcesRoot()) else null

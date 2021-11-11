@@ -30,7 +30,6 @@ import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -49,11 +48,10 @@ import org.mockito.Mockito;
 public final class PhysicalDevicePanelTest {
   private PhysicalDevicePanel myPanel;
   private Project myProject;
+  private Disposable myParent;
   private PairDevicesUsingWiFiService myService;
   private PhysicalTabPersistentStateComponent myComponent;
   private Disposable myListener;
-
-  private PhysicalDevice myOnlinePixel3;
   private PhysicalDeviceAsyncSupplier mySupplier;
 
   private CountDownLatch myLatch;
@@ -61,6 +59,11 @@ public final class PhysicalDevicePanelTest {
   @Before
   public void mockProject() {
     myProject = Mockito.mock(Project.class);
+  }
+
+  @Before
+  public void initParent() {
+    myParent = Disposer.newDisposable("PhysicalDevicePanelTest");
   }
 
   @Before
@@ -80,17 +83,10 @@ public final class PhysicalDevicePanelTest {
 
   @Before
   public void mockSupplier() {
-    myOnlinePixel3 = new PhysicalDevice.Builder()
-      .setKey(new SerialNumber("86UX00F4R"))
-      .setLastOnlineTime(Instant.parse("2021-03-24T22:38:05.890570Z"))
-      .setName("Google Pixel 3")
-      .setTarget("Android 12.0")
-      .setApi("S")
-      .addConnectionType(ConnectionType.USB)
-      .build();
+    List<PhysicalDevice> devices = Collections.singletonList(TestPhysicalDevices.ONLINE_GOOGLE_PIXEL_3);
 
     mySupplier = Mockito.mock(PhysicalDeviceAsyncSupplier.class);
-    Mockito.when(mySupplier.get()).thenReturn(Futures.immediateFuture(Collections.singletonList(myOnlinePixel3)));
+    Mockito.when(mySupplier.get()).thenReturn(Futures.immediateFuture(devices));
   }
 
   @Before
@@ -99,14 +95,15 @@ public final class PhysicalDevicePanelTest {
   }
 
   @After
-  public void disposeOfPanel() {
-    Disposer.dispose(myPanel);
+  public void disposeOfParent() {
+    Disposer.dispose(myParent);
   }
 
   @Test
   public void newPhysicalDevicePanel() throws InterruptedException {
     // Act
     myPanel = new PhysicalDevicePanel(myProject,
+                                      myParent,
                                       project -> myService,
                                       () -> myComponent,
                                       model -> myListener,
@@ -117,9 +114,9 @@ public final class PhysicalDevicePanelTest {
     // Assert
     CountDownLatchAssert.await(myLatch, Duration.ofMillis(128));
 
-    Object data = Collections.singletonList(Arrays.asList(myOnlinePixel3,
-                                                          "S",
-                                                          "USB",
+    Object data = Collections.singletonList(Arrays.asList(TestPhysicalDevices.ONLINE_GOOGLE_PIXEL_3,
+                                                          "31",
+                                                          ConnectionType.USB_SET,
                                                           ActivateDeviceFileExplorerWindowValue.INSTANCE,
                                                           RemoveValue.INSTANCE,
                                                           PopUpMenuValue.INSTANCE));
@@ -134,6 +131,7 @@ public final class PhysicalDevicePanelTest {
 
     // Act
     myPanel = new PhysicalDevicePanel(myProject,
+                                      myParent,
                                       project -> myService,
                                       () -> myComponent,
                                       model -> myListener,
@@ -144,15 +142,15 @@ public final class PhysicalDevicePanelTest {
     // Assert
     CountDownLatchAssert.await(myLatch, Duration.ofMillis(128));
 
-    Object data = Arrays.asList(Arrays.asList(myOnlinePixel3,
-                                              "S",
-                                              "USB",
+    Object data = Arrays.asList(Arrays.asList(TestPhysicalDevices.ONLINE_GOOGLE_PIXEL_3,
+                                              "31",
+                                              ConnectionType.USB_SET,
                                               ActivateDeviceFileExplorerWindowValue.INSTANCE,
                                               RemoveValue.INSTANCE,
                                               PopUpMenuValue.INSTANCE),
                                 Arrays.asList(TestPhysicalDevices.GOOGLE_PIXEL_5,
                                               "30",
-                                              "",
+                                              Collections.EMPTY_SET,
                                               ActivateDeviceFileExplorerWindowValue.INSTANCE,
                                               RemoveValue.INSTANCE,
                                               PopUpMenuValue.INSTANCE));
@@ -168,6 +166,7 @@ public final class PhysicalDevicePanelTest {
   public void initPairUsingWiFiButtonFeatureIsntEnabled() {
     // Act
     myPanel = new PhysicalDevicePanel(myProject,
+                                      myParent,
                                       project -> myService,
                                       () -> myComponent,
                                       model -> myListener,
@@ -189,6 +188,7 @@ public final class PhysicalDevicePanelTest {
 
     // Act
     myPanel = new PhysicalDevicePanel(myProject,
+                                      myParent,
                                       project -> myService,
                                       () -> myComponent,
                                       model -> myListener,

@@ -35,6 +35,7 @@ import com.android.tools.idea.observable.core.OptionalProperty
 import com.android.tools.idea.project.AndroidNotification
 import com.android.tools.idea.project.hyperlink.NotificationHyperlink
 import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.wireless.android.sdk.stats.WearPairingEvent
 import com.intellij.notification.NotificationType.INFORMATION
 import com.intellij.openapi.Disposable
@@ -55,7 +56,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.android.sdk.AndroidSdkUtils
 import org.jetbrains.android.util.AndroidBundle.message
 import org.jetbrains.annotations.TestOnly
-import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
@@ -76,7 +76,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   }
 
   private val updateDevicesChannel = Channel<Unit>(Channel.CONFLATED)
-  private val pairingStatusListeners = CopyOnWriteArrayList<WeakReference<PairingStatusChangedListener>>()
+  private val pairingStatusListeners = CopyOnWriteArrayList<PairingStatusChangedListener>()
 
   private var runningJob: Job? = null
   private var model = WearDevicePairingModel()
@@ -207,17 +207,14 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
 
   @Synchronized
   fun addDevicePairingStatusChangedListener(listener: PairingStatusChangedListener) {
-    pairingStatusListeners.forEach {
-      when (it.get()) {
-        listener -> return // Already added
-        null -> removeDevicePairingStatusChangedListener(it) // Already garbage collected
-      }
+    pairingStatusListeners.addIfAbsent(listener)
+    if (pairingStatusListeners.size > 2) { // We should have no more than two pairing details panels listening
+      LOG.error("Memory leak adding listeners")
     }
-    pairingStatusListeners.add(WeakReference(listener))
   }
 
   @Synchronized
-  private fun removeDevicePairingStatusChangedListener(listener: WeakReference<PairingStatusChangedListener>) {
+  fun removeDevicePairingStatusChangedListener(listener: PairingStatusChangedListener) {
     pairingStatusListeners.remove(listener)
   }
 
@@ -227,8 +224,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
     }
     phoneWearPair.pairingStatus = newState
     pairingStatusListeners.forEach {
-      val listener = it.get()
-      if (listener == null) removeDevicePairingStatusChangedListener(it) else listener.pairingStatusChanged(phoneWearPair)
+      it.pairingStatusChanged(phoneWearPair)
     }
   }
 
@@ -291,8 +287,7 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
       pairedDevicesTable.remove(phoneDeviceID)
       pairedDevicesTable.remove(wearDeviceID)
       pairingStatusListeners.forEach {
-        val listener = it.get()
-        if (listener == null) removeDevicePairingStatusChangedListener(it) else listener.pairingDeviceRemoved(phoneWearPair)
+        it.pairingDeviceRemoved(phoneWearPair)
       }
       saveSettings()
 
@@ -395,6 +390,13 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
   suspend fun PairingDevice.supportsMultipleWatchConnections(): Boolean =
     getConnectedDevices()[deviceID]?.hasPairingFeature(PairingFeature.MULTI_WATCH_SINGLE_PHONE_PAIRING) == true
 
+  internal fun launchDevice(project: Project?, deviceId: String, avdInfo: AvdInfo): ListenableFuture<IDevice> {
+    connectedDevicesProvider().find { it.getDeviceID() == deviceId }?.apply {
+      return Futures.immediateFuture(this)
+    }
+    return AvdManagerConnection.getDefaultAvdManagerConnection().startAvd(project, avdInfo)
+  }
+
   private fun findAdb() : AndroidDebugBridge? {
     AndroidDebugBridge.getBridge()?.also {
       return it // Instance found, just return it
@@ -471,7 +473,7 @@ private fun AvdInfo.toPairingDevice(deviceID: String): PairingDevice {
     state = ConnectionState.OFFLINE,
     hasPlayStore = hasPlayStore(),
   ).apply {
-    launch = { project -> AvdManagerConnection.getDefaultAvdManagerConnection().startAvd(project, this@toPairingDevice) }
+    launch = { project -> WearPairingManager.launchDevice(project, deviceID, this@toPairingDevice) }
   }
 }
 

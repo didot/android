@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.explorer.mocks;
 
+import static com.android.tools.idea.explorer.mocks.MockDeviceFileSystemServiceKt.OPERATION_TIMEOUT_MILLIS;
+
 import com.android.ddmlib.FileListingService;
 import com.android.tools.idea.adb.AdbShellCommandException;
 import com.android.tools.idea.concurrency.FutureCallbackExecutor;
@@ -38,6 +40,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
+import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -49,8 +52,8 @@ public class MockDeviceFileSystem implements DeviceFileSystem {
   @NotNull private final MockDeviceFileEntry myRoot;
   private long myDownloadChunkSize = 1024;
   private long myUploadChunkSize = 1024;
-  private int myDownloadFileChunkIntervalMillis = MockDeviceFileSystemService.OPERATION_TIMEOUT_MILLIS;
-  private int myUploadFileChunkIntervalMillis = MockDeviceFileSystemService.OPERATION_TIMEOUT_MILLIS;
+  private int myDownloadFileChunkIntervalMillis = OPERATION_TIMEOUT_MILLIS;
+  private int myUploadFileChunkIntervalMillis = OPERATION_TIMEOUT_MILLIS;
   private Throwable myDownloadError;
   private Throwable myRootDirectoryError;
   private Throwable myUploadError;
@@ -95,9 +98,9 @@ public class MockDeviceFileSystem implements DeviceFileSystem {
   @Override
   public ListenableFuture<DeviceFileEntry> getRootDirectory() {
     if (myRootDirectoryError != null) {
-      return FutureUtils.delayedError(myRootDirectoryError, MockDeviceFileSystemService.OPERATION_TIMEOUT_MILLIS);
+      return FutureUtils.delayedError(myRootDirectoryError, OPERATION_TIMEOUT_MILLIS);
     }
-    return FutureUtils.delayedValue(myRoot, MockDeviceFileSystemService.OPERATION_TIMEOUT_MILLIS);
+    return FutureUtils.delayedValue(myRoot, OPERATION_TIMEOUT_MILLIS);
   }
 
   @NotNull
@@ -164,22 +167,22 @@ public class MockDeviceFileSystem implements DeviceFileSystem {
   }
 
   @NotNull
-  public ListenableFuture<Void> downloadFile(@NotNull DeviceFileEntry entry,
+  public ListenableFuture<Unit> downloadFile(@NotNull DeviceFileEntry entry,
                                              @NotNull Path localPath,
                                              @NotNull FileTransferProgress progress) {
     if (myDownloadError != null) {
-      return FutureUtils.delayedError(myDownloadError, MockDeviceFileSystemService.OPERATION_TIMEOUT_MILLIS);
+      return FutureUtils.delayedError(myDownloadError, OPERATION_TIMEOUT_MILLIS);
     }
     return new DownloadWorker((MockDeviceFileEntry)entry, localPath, progress).myFutureResult;
   }
 
   @NotNull
-  public ListenableFuture<Void> uploadFile(@NotNull Path localFilePath,
+  public ListenableFuture<Unit> uploadFile(@NotNull Path localFilePath,
                                            @NotNull DeviceFileEntry remoteDirectory,
                                            @NotNull String fileName,
                                            @NotNull FileTransferProgress progress) {
     if (myUploadError != null) {
-      return FutureUtils.delayedError(myUploadError, MockDeviceFileSystemService.OPERATION_TIMEOUT_MILLIS);
+      return FutureUtils.delayedError(myUploadError, OPERATION_TIMEOUT_MILLIS);
     }
 
     return new UploadWorker((MockDeviceFileEntry)remoteDirectory, fileName, localFilePath, progress).myFutureResult;
@@ -217,7 +220,7 @@ public class MockDeviceFileSystem implements DeviceFileSystem {
     @NotNull private final MockDeviceFileEntry myEntry;
     @NotNull private final Path myPath;
     @NotNull private final FileTransferProgress myProgress;
-    @NotNull private final SettableFuture<Void> myFutureResult;
+    @NotNull private final SettableFuture<Unit> myFutureResult;
     @NotNull private final Alarm myAlarm;
     private long myCurrentOffset;
     @Nullable private FileOutputStream myOutputStream;
@@ -276,7 +279,7 @@ public class MockDeviceFileSystem implements DeviceFileSystem {
         Disposer.dispose(this);
       }
       finally {
-        myFutureResult.set(null);
+        myFutureResult.set(Unit.INSTANCE);
       }
     }
 
@@ -324,7 +327,7 @@ public class MockDeviceFileSystem implements DeviceFileSystem {
     @NotNull private final String myFileName;
     @NotNull private final Path myPath;
     @NotNull private final FileTransferProgress myProgress;
-    @NotNull private final SettableFuture<Void> myFutureResult;
+    @NotNull private final SettableFuture<Unit> myFutureResult;
     @NotNull private final Alarm myAlarm;
     private long myCurrentOffset;
     private long myFileLength;
@@ -383,7 +386,7 @@ public class MockDeviceFileSystem implements DeviceFileSystem {
         Disposer.dispose(this);
       }
       finally {
-        myFutureResult.set(null);
+        myFutureResult.set(Unit.INSTANCE);
       }
     }
 
