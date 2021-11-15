@@ -153,7 +153,7 @@ public class FirstRunWizard extends DynamicWizard {
 
   @Override
   protected String getWizardActionDescription() {
-    return "Android Studio Setup Wizard";
+    return ApplicationNamesInfo.getInstance().getFullProductName()+" Setup Wizard";
   }
 
   private class FirstRunProgressStep extends ConsolidatedProgressStep {

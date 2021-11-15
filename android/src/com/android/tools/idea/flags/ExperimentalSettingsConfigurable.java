@@ -30,6 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.intellij.ide.IdeBundle;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ApplicationNamesInfo;
 import com.intellij.openapi.application.ex.ApplicationEx;
 import com.intellij.openapi.externalSystem.util.ExternalSystemUiUtil;
 import com.intellij.openapi.options.Configurable;
@@ -298,7 +299,9 @@ public class ExperimentalSettingsConfigurable implements SearchableConfigurable,
       // Restart of studio is required to apply the changes, because the jvm args are specified at startup of studio.
       boolean canRestart = app.isRestartCapable();
       String okText = canRestart ? "Restart" : "Exit";
-      String message = "A restart of Android Studio is required to apply changes related to tracing.\n\n" +
+      String message = "A restart of " +
+                       ApplicationNamesInfo.getInstance().getFullProductName() +
+                       " is required to apply changes related to tracing.\n\n" +
                        "Do you want to proceed?";
       int result = Messages.showOkCancelDialog(message, "Restart", okText, "Cancel", Messages.getQuestionIcon());
 
