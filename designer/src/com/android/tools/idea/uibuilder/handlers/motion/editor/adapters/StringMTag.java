@@ -252,7 +252,7 @@ public class StringMTag implements MTag {
     HashSet<StringMTag> props = new HashSet<>();
     try {
       InputStream inputStream = new ByteArrayInputStream(str.getBytes(Charset.forName("UTF-8")));
-      SAXParserFactory factory = SAXParserFactory.newInstance();
+      SAXParserFactory factory = SAXParserFactory.newDefaultInstance();
       SAXParser saxParser = factory.newSAXParser();
       saxParser.parse(inputStream, new DefaultHandler() {
         StringMTag currentTag = null;

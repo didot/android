@@ -132,7 +132,7 @@ object RecipeUtils {
 
   private fun parseManifestForPermissions(f: File, metadata: RecipeMetadata) =
     try {
-      val factory = SAXParserFactory.newInstance()
+      val factory = SAXParserFactory.newDefaultInstance()
       val saxParser = factory.newSAXParser()
       saxParser.parse(
         f,
