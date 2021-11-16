@@ -55,7 +55,6 @@ iml_module(
     test_data = [
         ":test_deps",
         "//prebuilts/studio/sdk:platforms/latest",
-        "//prebuilts/studio/sdk:platforms/android-31",
         "//tools/base/build-system:studio_repo",
         "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
         "//tools/base/build-system:gradle-distrib",
