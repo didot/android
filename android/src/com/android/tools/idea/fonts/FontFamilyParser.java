@@ -59,7 +59,7 @@ class FontFamilyParser {
 
   private static QueryParser.ParseResult parseFontReference(@NotNull File xmlFile)
     throws SAXException, ParserConfigurationException, IOException {
-    SAXParserFactory factory = SAXParserFactory.newInstance();
+    SAXParserFactory factory = SAXParserFactory.newDefaultInstance();
     factory.setNamespaceAware(true);
     SAXParser parser = factory.newSAXParser();
     FontFamilyHandler handler = new FontFamilyHandler(xmlFile);
