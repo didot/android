@@ -27,7 +27,10 @@ import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.EnumComboBoxModel
 import com.intellij.ui.SimpleListCellRenderer
-import com.intellij.ui.layout.panel
+import com.intellij.ui.dsl.builder.BottomGap
+import com.intellij.ui.dsl.builder.LabelPosition
+import com.intellij.ui.dsl.builder.bindItem
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.layout.selected
 import org.jetbrains.annotations.Nls
 import javax.swing.JCheckBox
@@ -51,40 +54,35 @@ class EmulatorSettingsUi : SearchableConfigurable, Configurable.NoScroll {
   override fun createComponent() = panel {
     row {
       launchInToolWindowCheckBox =
-          checkBox("Launch in a tool window",
-                   comment = "Enabling this setting will cause Android Emulator to launch in a tool window. " +
-                             "Otherwise Android Emulator will launch as a standalone application.").component
-    }
-    blockRow {} // Visual separator.
+        checkBox("Launch in a tool window")
+          .comment("Enabling this setting will cause Android Emulator to launch in a tool window. " +
+                   "Otherwise Android Emulator will launch as a standalone application.")
+          .component
+    }.bottomGap(BottomGap.MEDIUM)
     row {
       synchronizeClipboardCheckBox =
           checkBox("Enable clipboard sharing")
-            .enableIf(launchInToolWindowCheckBox.selected)
+            .enabledIf(launchInToolWindowCheckBox.selected)
             .component
     }
     row {
-      cell(isVerticalFlow = true) {
-        label("When encountering snapshots incompatible with the current configuration:")
-        snapshotAutoDeletionPolicyComboBox =
-            comboBox(snapshotAutoDeletionPolicyComboBoxModel,
-                     { snapshotAutoDeletionPolicyComboBoxModel.selectedItem },
-                     { snapshotAutoDeletionPolicyComboBoxModel.setSelectedItem(it) },
-                     renderer = SimpleListCellRenderer.create(DEFAULT_SNAPSHOT_AUTO_DELETION_POLICY.displayName) { it?.displayName })
-              .enableIf(launchInToolWindowCheckBox.selected)
-              .component
-      }
+      snapshotAutoDeletionPolicyComboBox =
+        comboBox(snapshotAutoDeletionPolicyComboBoxModel,
+                 renderer = SimpleListCellRenderer.create(DEFAULT_SNAPSHOT_AUTO_DELETION_POLICY.displayName) { it?.displayName })
+          .bindItem({ snapshotAutoDeletionPolicyComboBoxModel.selectedItem },
+                    { snapshotAutoDeletionPolicyComboBoxModel.setSelectedItem(it) })
+          .enabledIf(launchInToolWindowCheckBox.selected)
+          .label("When encountering snapshots incompatible with the current configuration:", LabelPosition.TOP)
+          .component
     }
     row {
-      cell(isVerticalFlow = true) {
-        label("Velocity control keys for virtual scene camera:")
-        cameraVelocityControlComboBox =
-          comboBox(cameraVelocityControlComboBoxModel,
-                   { cameraVelocityControlComboBoxModel.selectedItem },
-                   { cameraVelocityControlComboBoxModel.setSelectedItem(it) },
-                   renderer = SimpleListCellRenderer.create(DEFAULT_CAMERA_VELOCITY_CONTROLS.label) { it?.label })
-            .enableIf(launchInToolWindowCheckBox.selected)
-            .component
-      }
+      cameraVelocityControlComboBox =
+        comboBox(cameraVelocityControlComboBoxModel,
+                 renderer = SimpleListCellRenderer.create(DEFAULT_CAMERA_VELOCITY_CONTROLS.label) { it?.label })
+          .bindItem({ cameraVelocityControlComboBoxModel.selectedItem },
+                    { cameraVelocityControlComboBoxModel.setSelectedItem(it) })
+          .enabledIf(launchInToolWindowCheckBox.selected)
+          .component
     }
   }
 
