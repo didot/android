@@ -68,7 +68,8 @@ fun <T : Any> Project.dumpAndroidProjectView(
       this is IconLoader.CachedImageIcon -> originalPath ?: Regex("path=([^,]+)").find(toString())?.groups?.get(1)?.value ?: ""
       this is ImageIconUIResource -> description ?: "ImageIconUIResource(?)"
       this is LayeredIcon && allLayers.size == 1 ->  getIcon(0)?.toText()
-      this is LayeredIcon -> "[${allLayers.joinToString(separator = ", ") { it.toText().orEmpty() }}] / ${getToolTip(true)}"
+      this is LayeredIcon -> "[${allLayers.joinToString(separator = ", ") { it.toText().orEmpty() }}]}"
+      this.javaClass.simpleName == "DummyIcon" -> this.toString()
       else -> "$this (${javaClass.simpleName})"
     }
 
