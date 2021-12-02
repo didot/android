@@ -16,13 +16,13 @@
 package com.android.tools.idea.layoutinspector.pipeline.appinspection
 
 import com.android.flags.junit.SetFlagRule
-import com.android.ide.common.workers.ExecutorServiceAdapterTest
 import com.android.tools.adtui.model.FakeTimer
 import com.android.tools.app.inspection.AppInspection
 import com.android.tools.idea.appinspection.api.AppInspectionApiServices
 import com.android.tools.idea.appinspection.test.AppInspectionServiceRule
 import com.android.tools.idea.appinspection.test.TestAppInspectorCommandHandler
 import com.android.tools.idea.appinspection.test.createResponse
+import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.layoutinspector.InspectorClientProvider
 import com.android.tools.idea.layoutinspector.LayoutInspector
@@ -40,13 +40,7 @@ import com.android.tools.idea.transport.faketransport.commands.CommandHandler
 import com.android.tools.profiler.proto.Commands
 import com.android.tools.profiler.proto.Common
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.util.Disposer
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.job
-import kotlinx.coroutines.runBlocking
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
@@ -80,8 +74,7 @@ class AppInspectionClientProvider(
  */
 class AppInspectionInspectorRule(private val parentDisposable: Disposable, withDefaultResponse: Boolean = true) : TestRule {
   private val timer = FakeTimer()
-  private val transportService = FakeTransportService(timer)
-  private val scope = CoroutineScope(ExecutorServiceAdapterTest.executorService.asCoroutineDispatcher() + SupervisorJob())
+  val transportService = FakeTransportService(timer)
 
   // This flag allows us to avoid a path in Compose inspector client construction so we don't need to mock a bunch of services
   private val devModeFlagRule = SetFlagRule(StudioFlags.APP_INSPECTION_USE_DEV_JAR, true)
@@ -135,15 +128,16 @@ class AppInspectionInspectorRule(private val parentDisposable: Disposable, withD
         }
       }
     })
-
-    Disposer.register(parentDisposable) { runBlocking { scope.coroutineContext.job.cancelAndJoin() } }
   }
 
   /**
    * Convenience method so users don't have to manually create an [AppInspectionClientProvider].
    */
   fun createInspectorClientProvider(monitor: InspectorClientLaunchMonitor = InspectorClientLaunchMonitor()): AppInspectionClientProvider {
-    return AppInspectionClientProvider({ inspectionService.apiServices }, { scope }, { monitor }, parentDisposable)
+    return AppInspectionClientProvider({ inspectionService.apiServices }, {
+      // We might want to shut down the client and create a new one, so it needs its own supervisor scope
+      inspectionService.scope.createChildScope(true)
+    }, { monitor }, parentDisposable)
   }
 
   override fun apply(base: Statement, description: Description): Statement {

@@ -27,7 +27,7 @@ import com.android.tools.adtui.swing.SetPortableUiFontRule
 import com.android.tools.idea.avdmanager.AvdLaunchListener
 import com.android.tools.idea.concurrency.waitForCondition
 import com.android.tools.idea.protobuf.TextFormat
-import com.android.tools.idea.run.AppDeploymentListener
+import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.intellij.execution.configurations.GeneralCommandLine
@@ -108,7 +108,7 @@ class EmulatorToolWindowManagerTest {
 
     // Send notification that the emulator has been launched.
     val avdInfo = AvdInfo(emulator1.avdId, emulator1.avdFolder.resolve("config.ini"),
-                          emulator1.avdFolder.toString(), mock(), null)
+                          emulator1.avdFolder, mock(), null)
     val commandLine = GeneralCommandLine("/emulator_home/fake_emulator", "-avd", emulator1.avdId, "-qt-hide-window")
     project.messageBus.syncPublisher(AvdLaunchListener.TOPIC).avdLaunched(avdInfo, commandLine, project)
     dispatchAllInvocationEvents()
@@ -136,7 +136,7 @@ class EmulatorToolWindowManagerTest {
       val device = mock<IDevice>()
       `when`(device.isEmulator).thenReturn(true)
       `when`(device.serialNumber).thenReturn("emulator-${emulator.serialPort}")
-      project.messageBus.syncPublisher(AppDeploymentListener.TOPIC).appDeployedToDevice(device, project)
+      project.messageBus.syncPublisher(DeviceHeadsUpListener.TOPIC).deviceNeedsAttention(device, project)
     }
 
     // Deploying an app activates the corresponding emulator panel.

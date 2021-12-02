@@ -27,13 +27,14 @@ import com.android.repository.impl.meta.TypeDetails;
 import com.android.sdklib.AndroidVersion;
 import com.android.sdklib.repository.AndroidSdkHandler;
 import com.android.sdklib.repository.meta.DetailsTypes;
+import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.gradle.util.EmbeddedDistributionPaths;
 import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.sdk.SdkMerger;
 import com.android.tools.idea.sdk.StudioDownloader;
 import com.android.tools.idea.sdk.StudioSettingsController;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
-import com.android.tools.idea.sdk.progress.StudioProgressRunner;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
+import com.android.tools.idea.progress.StudioProgressRunner;
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils;
 import com.android.tools.idea.sdk.wizard.legacy.LicenseAgreementStep;
 import com.android.tools.idea.ui.ApplicationUtils;
@@ -196,7 +197,12 @@ public class InstallComponentsPath extends DynamicWizardPath implements LongRunn
     assert location != null;
 
     myState.put(WizardConstants.KEY_SDK_INSTALL_LOCATION, location.getAbsolutePath());
-    Path file = EmbeddedDistributionPaths.getInstance().tryToGetEmbeddedJdkPath();
+    Path file = null;
+    // Game tools does not contain embedded JDK, trying to get it prints spurious
+    // exceptions to the log.
+    if (!IdeInfo.getInstance().isGameTools()) {
+      file = EmbeddedDistributionPaths.getInstance().tryToGetEmbeddedJdkPath();
+    }
     if (file != null) {
       myState.put(WizardConstants.KEY_JDK_LOCATION, file.toString());
     }

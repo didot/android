@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.util.io.sanitizeFileName
 import org.jetbrains.android.facet.AndroidFacetProperties
+import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import java.io.File
 import java.lang.Math.max
 import java.util.Locale
@@ -229,6 +230,7 @@ class ProjectDumper(
 
   fun String.replaceJavaVersion(): String? = replace(Regex("11|1\\.8"), "<JAVA_VERSION>")
   fun String.replaceJdkVersion(): String? = replace(Regex("1\\.8\\.0_[0-9]+|11\\.0\\.[0-9]+"), "<JDK_VERSION>")
+    .replace(KotlinCompilerVersion.VERSION, "<KOTLIN_SDK_VERSION>")
   fun String.replaceMatchingVersion(version: String?): String =
     if (version != null) this.replace("-$version", "-<VERSION>") else this
 
@@ -281,17 +283,3 @@ private val androidLibraryPattern =
  * Replaces artifact version in string containing artifact ids like com.android.group.artifact.artifact-28.3.4.jar with <VERSION>.
  */
 private val androidPathPattern = Regex("(?:com/android/.*/)([0-9.]+)(?:/.*-)(\\1)(?:\\.jar)")
-
-class DumpProjectAction : DumbAwareAction("Dump Project Structure") {
-  override fun actionPerformed(e: AnActionEvent) {
-    val project = e.project!!
-    val dumper = ProjectDumper()
-    dumper.dumpProject(project)
-    val dump = dumper.toString().trimIndent()
-    val outputFile = File(File(project.basePath), sanitizeFileName(project.name) + ".project_dump")
-    outputFile.writeText(dump)
-    FileEditorManager.getInstance(project).openEditor(OpenFileDescriptor(project, VfsUtil.findFileByIoFile(outputFile, true)!!), true)
-    VfsUtil.markDirtyAndRefresh(true, false, false, outputFile)
-    println("Dumped to: file://$outputFile")
-  }
-}

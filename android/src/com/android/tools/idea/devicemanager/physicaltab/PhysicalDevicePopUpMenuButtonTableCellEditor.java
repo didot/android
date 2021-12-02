@@ -24,13 +24,15 @@ import com.android.tools.idea.wearpairing.WearPairingManager;
 import com.android.tools.idea.wearpairing.WearPairingManager.PhoneWearPair;
 import com.google.wireless.android.sdk.stats.DeviceManagerEvent;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.JBMenuItem;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import javax.swing.AbstractButton;
+import javax.swing.JComponent;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu.Separator;
 import javax.swing.JTable;
 import kotlin.coroutines.CoroutineContext;
 import kotlinx.coroutines.BuildersKt;
@@ -39,21 +41,34 @@ import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 
 final class PhysicalDevicePopUpMenuButtonTableCellEditor extends PopUpMenuButtonTableCellEditor {
-  private final @NotNull Project myProject;
+  private final @NotNull PhysicalDevicePanel myPanel;
+  private final @NotNull WearPairingManager myManager;
+
   private Device myDevice;
 
-  PhysicalDevicePopUpMenuButtonTableCellEditor(@NotNull Project project) {
-    myProject = project;
+  PhysicalDevicePopUpMenuButtonTableCellEditor(@NotNull PhysicalDevicePanel panel) {
+    myPanel = panel;
+    myManager = WearPairingManager.INSTANCE;
   }
 
   @Override
-  @NotNull List<@NotNull JMenuItem> newItems() {
-    List<JMenuItem> items = new ArrayList<>();
+  @NotNull List<@NotNull JComponent> newItems() {
+    List<JComponent> items = new ArrayList<>();
+    Optional<JComponent> optionalItem = newUnpairDeviceItem();
 
+    items.add(newViewDetailsItem());
+    optionalItem.ifPresent(item -> items.add(new Separator()));
     items.add(newPairDeviceItem());
-    newUnpairDeviceItem().ifPresent(items::add);
+    optionalItem.ifPresent(items::add);
 
     return items;
+  }
+
+  private @NotNull JComponent newViewDetailsItem() {
+    AbstractButton item = new JBMenuItem("View details");
+    item.addActionListener(event -> myPanel.viewDetails());
+
+    return item;
   }
 
   private @NotNull JMenuItem newPairDeviceItem() {
@@ -84,16 +99,16 @@ final class PhysicalDevicePopUpMenuButtonTableCellEditor extends PopUpMenuButton
         .build();
 
       DeviceManagerUsageTracker.log(deviceManagerEvent);
-      new WearDevicePairingWizard().show(myProject, myDevice.getKey().toString());
+      new WearDevicePairingWizard().show(myPanel.getProject(), myDevice.getKey().toString());
     });
 
     return item;
   }
 
   @SuppressWarnings("unused")
-  private @NotNull Optional<@NotNull JMenuItem> newUnpairDeviceItem() {
+  private @NotNull Optional<@NotNull JComponent> newUnpairDeviceItem() {
     String key = myDevice.getKey().toString();
-    PhoneWearPair pair = WearPairingManager.INSTANCE.getPairedDevices(key);
+    PhoneWearPair pair = myManager.getPairedDevices(key);
 
     if (pair == null) {
       return Optional.empty();
@@ -111,7 +126,7 @@ final class PhysicalDevicePopUpMenuButtonTableCellEditor extends PopUpMenuButton
 
       try {
         CoroutineContext context = GlobalScope.INSTANCE.getCoroutineContext();
-        BuildersKt.runBlocking(context, (scope, continuation) -> WearPairingManager.INSTANCE.removePairedDevices(key, true, continuation));
+        BuildersKt.runBlocking(context, (scope, continuation) -> myManager.removePairedDevices(key, true, continuation));
       }
       catch (InterruptedException exception) {
         Thread.currentThread().interrupt();

@@ -66,6 +66,7 @@ class AppInspectionSnapshotSupportTest {
   @Before
   fun setUp() {
     inspectorRule.projectRule.replaceService(PropertiesComponent::class.java, PropertiesComponentMock())
+    inspectorRule.attachDevice(MODERN_DEVICE)
   }
 
   private val savePath = createInMemoryFileSystemAndFolder("snapshot").resolve("snapshot.li")
@@ -180,7 +181,7 @@ class AppInspectionSnapshotSupportTest {
 
     // Now switch to non-live
     InspectorClientSettings.isCapturingModeOn = false
-    inspectorRule.inspectorClient.stopFetching()
+    inspectorRule.inspectorClient.stopFetching().get()
 
     val startedLatch = CountDownLatch(1)
     // Try to save the snapshot right away, before we've gotten any events

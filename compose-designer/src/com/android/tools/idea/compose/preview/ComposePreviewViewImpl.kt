@@ -73,6 +73,7 @@ import java.awt.event.AdjustmentEvent
 import javax.swing.JComponent
 import javax.swing.JLayeredPane
 import javax.swing.JPanel
+import javax.swing.LayoutFocusTraversalPolicy
 import javax.swing.OverlayLayout
 
 private const val SURFACE_SPLITTER_DIVIDER_WIDTH_PX = 5
@@ -117,6 +118,11 @@ interface ComposePreviewView {
    * Sets whether the panel has content to display. If it does not, it will display an overlay with a message for the user.
    */
   var hasContent: Boolean
+
+  /**
+   * True if the view is displaying an overlay with a message.
+   */
+  val isMessageBeingDisplayed: Boolean
 
   /**
    * If true, the contents have been at least rendered once.
@@ -318,7 +324,15 @@ internal class ComposePreviewViewImpl(private val project: Project,
 
   override var scrollPosition: Point
     get() = scrollPane.viewport.viewPosition
-    set(value) { scrollPane.viewport.viewPosition = value }
+    set(value) {
+      val extentSize = scrollPane.viewport.extentSize
+      val viewSize = scrollPane.viewport.viewSize
+      val maxAvailableWidth = viewSize.width - extentSize.width
+      val maxAvailableHeight = viewSize.height - extentSize.height
+
+      value.setLocation(value.x.coerceIn(0, maxAvailableWidth), value.y.coerceIn(0, maxAvailableHeight))
+      scrollPane.viewport.viewPosition = value
+    }
 
   /**
    * True if the pinned surface is visible in the preview.
@@ -388,6 +402,8 @@ internal class ComposePreviewViewImpl(private val project: Project,
                     else -> message("panel.initializing")
                   })
     }
+    focusTraversalPolicy = LayoutFocusTraversalPolicy()
+    isFocusCycleRoot = true
   }
 
   override fun updateProgress(message: String) = UIUtil.invokeLaterIfNeeded {
@@ -470,7 +486,7 @@ internal class ComposePreviewViewImpl(private val project: Project,
             // We zoom to fit to have better initial zoom level when first build is completed.
             // We invoke later to allow the panel to layout itself before calling zoomToFit.
             ApplicationManager.getApplication().invokeLater {
-              pinnedSurface.zoomToFit()
+              if (isPinnedSurfaceVisible) pinnedSurface.zoomToFit()
               mainSurface.zoomToFit()
             }
           }
@@ -523,6 +539,9 @@ internal class ComposePreviewViewImpl(private val project: Project,
   override var isAnimationPreview: Boolean = false
 
   override var hasContent: Boolean = true
+
+  override val isMessageBeingDisplayed: Boolean
+    get() = this.isMessageVisible
 
   @get:Synchronized
   override var hasRendered: Boolean = false

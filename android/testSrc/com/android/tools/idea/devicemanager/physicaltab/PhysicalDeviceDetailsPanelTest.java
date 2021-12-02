@@ -17,17 +17,18 @@ package com.android.tools.idea.devicemanager.physicaltab;
 
 import static org.junit.Assert.assertEquals;
 
+import com.android.tools.idea.devicemanager.CountDownLatchAssert;
 import com.android.tools.idea.devicemanager.DetailsPanel;
 import com.android.tools.idea.devicemanager.Resolution;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDeviceDetailsPanel.DeviceSection;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDeviceDetailsPanel.DeviceSectionCallback;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDeviceDetailsPanel.SummarySection;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDeviceDetailsPanel.SummarySectionCallback;
+import com.android.tools.idea.wearpairing.WearPairingManager;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.awt.Container;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import javax.swing.JLabel;
@@ -76,10 +77,11 @@ public final class PhysicalDeviceDetailsPanelTest {
     PhysicalDeviceDetailsPanel panel = new PhysicalDeviceDetailsPanel(DEVICE,
                                                                       future,
                                                                       section -> newSummarySectionCallback(section, latch),
-                                                                      DeviceSectionCallback::new);
+                                                                      DeviceSectionCallback::new,
+                                                                      WearPairingManager.INSTANCE);
 
     // Assert
-    CountDownLatchAssert.await(latch, Duration.ofMillis(4));
+    CountDownLatchAssert.await(latch);
 
     SummarySection section = panel.getSummarySection();
 
@@ -105,10 +107,11 @@ public final class PhysicalDeviceDetailsPanelTest {
     PhysicalDeviceDetailsPanel panel = new PhysicalDeviceDetailsPanel(DEVICE,
                                                                       future,
                                                                       SummarySectionCallback::new,
-                                                                      section -> newDeviceSectionCallback(section, latch));
+                                                                      section -> newDeviceSectionCallback(section, latch),
+                                                                      WearPairingManager.INSTANCE);
 
     // Assert
-    CountDownLatchAssert.await(latch, Duration.ofMillis(4));
+    CountDownLatchAssert.await(latch);
     assertEquals("Google Pixel 3", panel.getDeviceSection().myNameLabel.getText());
   }
 
@@ -123,7 +126,8 @@ public final class PhysicalDeviceDetailsPanelTest {
     DetailsPanel detailsPanel = new PhysicalDeviceDetailsPanel(TestPhysicalDevices.GOOGLE_PIXEL_3,
                                                                Futures.immediateFuture(TestPhysicalDevices.GOOGLE_PIXEL_3),
                                                                SummarySectionCallback::new,
-                                                               DeviceSectionCallback::new);
+                                                               DeviceSectionCallback::new,
+                                                               WearPairingManager.INSTANCE);
 
     // Assert
     Container sectionPanel = detailsPanel.getInfoSectionPanel();

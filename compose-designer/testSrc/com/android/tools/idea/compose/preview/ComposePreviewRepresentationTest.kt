@@ -46,6 +46,7 @@ internal class TestComposePreviewView(override val pinnedSurface: NlDesignSurfac
   override var hasComponentsOverlay: Boolean = false
   override var isInteractive: Boolean = false
   override var isAnimationPreview: Boolean = false
+  override val isMessageBeingDisplayed: Boolean = false
   override var hasContent: Boolean = true
   override var hasRendered: Boolean = true
 
@@ -114,8 +115,8 @@ class ComposePreviewRepresentationTest {
     val composeView = TestComposePreviewView(pinnedSurface, mainSurface)
     val preview = ReadAction.compute<ComposePreviewRepresentation, Throwable> {
       ComposePreviewRepresentation(composeTest, object : PreviewElementProvider<PreviewElement> {
-        override val previewElements: Sequence<PreviewElement>
-          get() = ReadAction.compute<Sequence<PreviewElement>, Throwable> {
+        override suspend fun previewElements(): Sequence<PreviewElement> =
+          ReadAction.compute<Sequence<PreviewElement>, Throwable> {
             AnnotationFilePreviewElementFinder.findPreviewMethods(project, composeTest.virtualFile).asSequence()
           }
 

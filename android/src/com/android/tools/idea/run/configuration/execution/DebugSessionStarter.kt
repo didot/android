@@ -19,10 +19,11 @@ import com.android.annotations.concurrency.WorkerThread
 import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.Client
 import com.android.ddmlib.IDevice
+import com.android.ddmlib.NullOutputReceiver
 import com.android.tools.idea.projectsystem.getProjectSystem
 import com.android.tools.idea.run.configuration.AndroidWearConfiguration
 import com.intellij.debugger.DebuggerManagerEx
-import com.intellij.debugger.DefaultDebugUIEnvironment
+import com.intellij.debugger.DefaultDebugEnvironment
 import com.intellij.debugger.engine.JavaDebugProcess
 import com.intellij.debugger.engine.RemoteDebugProcessHandler
 import com.intellij.execution.DefaultExecutionResult
@@ -37,6 +38,7 @@ import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.RunContentDescriptor
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.progress.ProgressIndicatorProvider
+import com.intellij.openapi.project.Project
 import com.intellij.xdebugger.XDebugProcess
 import com.intellij.xdebugger.XDebugProcessStarter
 import com.intellij.xdebugger.XDebugSession
@@ -52,7 +54,7 @@ class DebugSessionStarter(private val environment: ExecutionEnvironment) {
                       ?: throw RuntimeException("Cannot get ApplicationIdProvider")
 
   @WorkerThread
-  fun attachDebuggerToClient(device: IDevice, consoleView: ConsoleView): RunContentDescriptor {
+  fun attachDebuggerToClient(device: IDevice, processHandler: AndroidProcessHandlerForDevices, consoleView: ConsoleView): RunContentDescriptor {
     waitForClient(device)
     val client = device.getClient(appId)
     val debugPort = client.debuggerListenPort.toString()
@@ -61,7 +63,7 @@ class DebugSessionStarter(private val environment: ExecutionEnvironment) {
     return invokeAndWaitIfNeeded {
       val debugState = object : RemoteState {
         override fun execute(executor: Executor?, runner: ProgramRunner<*>): ExecutionResult {
-          val process = RemoteDebugProcessHandler(project, false)
+          val process = AndroidRemoteDebugProcessHandler(project, consoleView, processHandler)
           consoleView.attachToProcess(process)
           return DefaultExecutionResult(consoleView, process)
         }
@@ -69,8 +71,8 @@ class DebugSessionStarter(private val environment: ExecutionEnvironment) {
         override fun getRemoteConnection() = remoteConnection
       }
 
-      val debugEnvironment = DefaultDebugUIEnvironment(environment, debugState, remoteConnection, false)
-      val debuggerSession = DebuggerManagerEx.getInstanceEx(project).attachVirtualMachine(debugEnvironment.environment)
+      val debugEnvironment = DefaultDebugEnvironment(environment, debugState, remoteConnection, false)
+      val debuggerSession = DebuggerManagerEx.getInstanceEx(project).attachVirtualMachine(debugEnvironment)
                             ?: throw ExecutionException("Could not attach the virtual machine")
 
       val debugSession = XDebuggerManager.getInstance(project).startSession(environment, object : XDebugProcessStarter() {
@@ -109,9 +111,37 @@ class DebugSessionStarter(private val environment: ExecutionEnvironment) {
     }
 
     if (!appProcessCountDownLatch.await(15, TimeUnit.SECONDS)) {
+      device.executeShellCommand(AndroidRemoteDebugProcessHandler.CLEAR_DEBUG_APP_COMMAND, NullOutputReceiver(), 5, TimeUnit.SECONDS)
       throw ExecutionException("Process $appId is not found. Aborting session.")
     }
 
     return device.getClient(appId)
+  }
+}
+
+/**
+ * [processHandler] is handler responsible for monitoring app process on devices. For example [WatchFaceProcessHandler].
+ * [AndroidRemoteDebugProcessHandler] is responsible for monitoring debugger process.
+ */
+class AndroidRemoteDebugProcessHandler(
+  project : Project,
+  private val console: ConsoleView,
+  private val processHandler: AndroidProcessHandlerForDevices
+) : RemoteDebugProcessHandler(project, false) {
+
+  companion object {
+    const val CLEAR_DEBUG_APP_COMMAND = "am clear-debug-app"
+  }
+
+  override fun detachIsDefault() = false
+
+  override fun destroyProcess() {
+    super.destroyProcess()
+    processHandler.destroyProcess()
+    processHandler.devices.forEach {
+      console.printShellCommand(CLEAR_DEBUG_APP_COMMAND)
+      it.executeShellCommand(CLEAR_DEBUG_APP_COMMAND, AndroidConfigurationExecutorBase.AndroidLaunchReceiver({ false }, console), 5,
+                             TimeUnit.SECONDS)
+    }
   }
 }

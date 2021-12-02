@@ -17,9 +17,8 @@ com.android.tools.idea.gradle.project.AndroidGradleOrderEnumeratorHandlerTest
 com.android.tools.idea.gradle.project.build.GradleBuildStateIntegrationTest
 com.android.tools.idea.gradle.project.build.invoker.BuildActionInvokerTest
 com.android.tools.idea.gradle.project.build.invoker.BuildInvokerTest
-com.android.tools.idea.gradle.project.build.invoker.GradleTaskFinderTestOnlyModuleTest
 com.android.tools.idea.gradle.project.importing.TopLevelModuleFactoryTest
-com.android.tools.idea.gradle.project.model.AndroidModuleModelTest
+com.android.tools.idea.gradle.project.model.GradleAndroidModelTest
 com.android.tools.idea.gradle.project.model.IdeAndroidProjectImplTest
 com.android.tools.idea.gradle.project.model.ModelSerializationTest
 com.android.tools.idea.gradle.project.sync.AllVariantsSyncWithGradleSyncExecutorTest
@@ -60,7 +59,6 @@ com.android.tools.idea.gradle.project.sync.errors.SetLanguageLevel8QuickFixTest
 com.android.tools.idea.gradle.project.sync.errors.UnexpectedIssueCheckerTest
 com.android.tools.idea.gradle.project.sync.errors.UnknownHostIssueCheckerTest
 com.android.tools.idea.gradle.project.sync.errors.UnsupportedGradleVersionIssueCheckerTest
-com.android.tools.idea.gradle.project.sync.errors.UnsupportedModelVersionIssueCheckerTest
 com.android.tools.idea.gradle.project.sync.hyperlink.AddGoogleMavenRepositoryHyperlinkTest
 com.android.tools.idea.gradle.project.sync.hyperlink.ConfirmSHA256FromGradleWrapperHyperlinkTest
 com.android.tools.idea.gradle.project.sync.hyperlink.RemoveJcenterHyperlinkTest
@@ -104,7 +102,6 @@ com.android.tools.idea.gradle.structure.daemon.analysis.PsJavaModuleAnalyzerTest
 com.android.tools.idea.gradle.structure.model.DependencyManagementTest
 com.android.tools.idea.gradle.structure.model.PsModuleCollectionTest
 com.android.tools.idea.gradle.structure.model.PsModuleTest
-com.android.tools.idea.gradle.structure.model.PsModuleTypeTest
 com.android.tools.idea.gradle.structure.model.PsProjectImplTest
 com.android.tools.idea.gradle.structure.model.PsVariablesTest
 com.android.tools.idea.gradle.structure.model.android.AndroidModuleDescriptorsTest
@@ -139,7 +136,7 @@ com.android.tools.idea.run.editor.AndroidTestExtraParamsDialogTest
 com.android.tools.idea.run.editor.AndroidTestExtraParamsTableTest
 com.android.tools.idea.run.editor.ApplicationRunParametersTest
 com.android.tools.idea.run.editor.InstantAppRunConfigurationsDialogTest
-com.android.tools.idea.run.editor.SpecificActivityLaunchTest
+com.android.tools.idea.run.activity.launch.SpecificActivityLaunchTest
 com.android.tools.idea.sdk.IdeSdksAndroidTest
 com.android.tools.idea.sdk.wizard.SdkQuickfixUtilsTest
 com.android.tools.idea.startup.GradleSpecificInitializerTest

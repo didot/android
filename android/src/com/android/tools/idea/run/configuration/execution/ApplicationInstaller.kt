@@ -40,7 +40,7 @@ interface ApplicationInstaller {
                          appId: String,
                          apksPaths: List<String>,
                          installFlags: String,
-                         infoReceiver: (String) -> Unit = {}): App
+                         infoReceiver: (String) -> Unit): App
 }
 
 class ApplicationInstallerImpl(private val project: Project) : ApplicationInstaller {
@@ -61,7 +61,7 @@ class ApplicationInstallerImpl(private val project: Project) : ApplicationInstal
       return result.app
     }
     catch (e: DeployerException) {
-      throw ExecutionException("Failed to install app. ${e.message ?: ""}", e.cause)
+      throw ExecutionException("Failed to install app '$appId'. ${e.message ?: ""}", e.cause)
     }
   }
 

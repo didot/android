@@ -82,7 +82,10 @@ orExpression ::= expression OR expression
 andExpression ::= expression AND expression
 
 literalExpression
-  ::= KEY VALUE
+  ::= KEY KVALUE
+  |   STRING_KEY STRING_KVALUE
+  |   REGEX_KEY REGEX_KVALUE
   |   VALUE
+  |   PROJECT_APP
 
 parenExpression ::= LPAREN expression RPAREN

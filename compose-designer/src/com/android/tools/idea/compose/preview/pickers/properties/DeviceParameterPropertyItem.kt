@@ -27,8 +27,9 @@ import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_WIDTH
 import com.android.tools.idea.compose.preview.pickers.properties.editingsupport.IntegerNormalValidator
 import com.android.tools.idea.compose.preview.pickers.properties.editingsupport.IntegerStrictValidator
 import com.android.tools.idea.compose.preview.pickers.properties.utils.findByIdOrName
-import com.android.tools.idea.compose.preview.pickers.properties.utils.findOrParseFromDefinition
 import com.android.tools.idea.compose.preview.pickers.properties.utils.toDeviceConfig
+import com.android.tools.idea.compose.preview.pickers.tracking.PickerTrackableValue
+import com.android.tools.idea.compose.preview.pickers.tracking.PickerTrackerHelper
 import com.android.tools.idea.compose.preview.util.enumValueOfOrNull
 import com.android.tools.idea.configurations.ConfigurationManager
 import com.intellij.openapi.diagnostic.Logger
@@ -62,17 +63,17 @@ internal class DeviceParameterPropertyItem(
   //TODO: Do this elsewhere, this is not the only place where it's done
   private val availableDevices = run {
     AndroidFacet.getInstance(model.module)?.let { facet ->
-      AndroidSdkData.getSdkData(facet)?.deviceManager?.getDevices(DeviceManager.ALL_DEVICES)?.toList()
+      AndroidSdkData.getSdkData(facet)?.deviceManager?.getDevices(DeviceManager.ALL_DEVICES)?.filter { !it.isDeprecated }?.toList()
     } ?: emptyList()
   }
 
-  private val defaultDeviceValues: DeviceValues =
-    ConfigurationManager.findExistingInstance(model.module)?.defaultDevice?.toDeviceConfig()?.toImmutableValues() ?: DeviceValues(
+  private val defaultDeviceValues: DeviceConfig =
+    ConfigurationManager.findExistingInstance(model.module)?.defaultDevice?.toDeviceConfig() ?: DeviceConfig(
       shape = DEFAULT_SHAPE,
       width = DEFAULT_WIDTH,
       height = DEFAULT_HEIGHT,
-      unit = DEFAULT_UNIT,
-      density = DEFAULT_DENSITY.dpiValue
+      dimUnit = DEFAULT_UNIT,
+      dpi = DEFAULT_DENSITY.dpiValue
     )
 
   override var name: String = PARAMETER_HARDWARE_DEVICE
@@ -86,6 +87,7 @@ internal class DeviceParameterPropertyItem(
       newValue.toIntOrNull()?.let {
         config.width = it
       }
+      PickerTrackableValue.UNSUPPORTED_OR_OPEN_ENDED
     },
     DevicePropertyItem(
       name = PARAMETER_HARDWARE_HEIGHT,
@@ -95,39 +97,45 @@ internal class DeviceParameterPropertyItem(
       newValue.toIntOrNull()?.let {
         config.height = it
       }
+      PickerTrackableValue.UNSUPPORTED_OR_OPEN_ENDED
     },
     DevicePropertyItem(
       name = PARAMETER_HARDWARE_DIM_UNIT,
-      defaultValue = defaultDeviceValues.unit.name,
-      getter = { it.dimensionUnit.name }) { config, newValue ->
-      enumValueOfOrNull<DimUnit>(newValue)?.let {
-        config.dimensionUnit = it
-      }
+      defaultValue = defaultDeviceValues.dimUnit.name,
+      getter = { it.dimUnit.name }) { config, newValue ->
+      val newUnit = enumValueOfOrNull<DimUnit>(newValue)
+      newUnit?.let {
+        config.dimUnit = newUnit
+        newUnit.trackableValue
+      } ?: PickerTrackableValue.UNKNOWN
     },
     DevicePropertyItem(
       name = PARAMETER_HARDWARE_DENSITY,
-      defaultValue = defaultDeviceValues.density.toString(),
+      defaultValue = defaultDeviceValues.dpi.toString(),
       inputValidation = IntegerStrictValidator,
-      getter = { it.density.toString() }) { config, newValue ->
-      newValue.toIntOrNull()?.let {
-        config.density = it
-      }
+      getter = { it.dpi.toString() }) { config, newValue ->
+      val newDpi = newValue.toIntOrNull()
+      newDpi?.let {
+        config.dpi = newDpi
+        PickerTrackerHelper.densityBucketOfDeviceConfig(config)
+      } ?: PickerTrackableValue.UNKNOWN
     },
     DevicePropertyItem(
       name = PARAMETER_HARDWARE_ORIENTATION,
       defaultValue = defaultDeviceValues.orientation.name,
       getter = { it.orientation.name }) { config, newValue ->
-      enumValueOfOrNull<Orientation>(newValue)?.let {
-        config.orientation = it
-      }
+      val newOrientation = enumValueOfOrNull<Orientation>(newValue)
+      newOrientation?.let {
+        config.orientation = newOrientation
+        newOrientation.trackableValue
+      } ?: PickerTrackableValue.UNKNOWN
     },
   )
 
-  private fun getCurrentDeviceConfig(): DeviceConfig {
-    val defaultConfig = defaultDeviceValues.toMutableConfig()
+  private fun getCurrentDeviceConfig(): MutableDeviceConfig {
     return value?.let { currentValue ->
       DeviceConfig.toDeviceConfigOrNull(currentValue) ?: availableDevices.findByIdOrName(currentValue, log)?.toDeviceConfig()
-    } ?: defaultConfig
+    }?.toMutableConfig() ?: defaultDeviceValues.toMutableConfig()
   }
 
   /**
@@ -137,8 +145,8 @@ internal class DeviceParameterPropertyItem(
     name: String,
     defaultValue: String?,
     inputValidation: EditingValidation = { EDITOR_NO_ERROR },
-    private val getter: (DeviceConfig) -> String,
-    private val setter: (DeviceConfig, String) -> Unit
+    private val getter: (MutableDeviceConfig) -> String,
+    private val setter: (MutableDeviceConfig, String) -> PickerTrackableValue
   ) : MemoryParameterPropertyItem(
     name, defaultValue, inputValidation
   ) {
@@ -147,41 +155,9 @@ internal class DeviceParameterPropertyItem(
       set(newValue) {
         newValue?.let {
           val deviceConfig = getCurrentDeviceConfig()
-          setter(deviceConfig, newValue)
-          writeNewValue(deviceConfig.deviceSpec(), false)
+          val trackableValue = setter(deviceConfig, newValue)
+          writeNewValue(deviceConfig.deviceSpec(), false, trackableValue)
         }
       }
   }
 }
-
-private fun DeviceConfig.toImmutableValues(): DeviceValues =
-  DeviceValues(
-    shape = this.shape,
-    width = this.width,
-    height = this.height,
-    unit = this.dimensionUnit,
-    density = this.density
-  )
-
-private fun DeviceValues.toMutableConfig(): DeviceConfig =
-  DeviceConfig(
-    shape = this.shape,
-    width = this.width,
-    height = this.height,
-    dimUnit = this.unit,
-    density = this.density
-  )
-
-/**
- * Immutable equivalent of [DeviceConfig]
- */
-private data class DeviceValues(
-  val shape: Shape,
-  val width: Int,
-  val height: Int,
-  val unit: DimUnit,
-  val density: Int
-) {
-  val orientation = if (height >= width) Orientation.portrait else Orientation.landscape
-}
-

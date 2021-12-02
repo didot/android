@@ -53,7 +53,7 @@ class JankyFrameTrackRenderer(private val vsyncEnabler: BooleanSupplier): TrackR
       }
     }.let { VsyncPanel.of(FrameTimelineSelectionOverlayPanel.of(it, trackModel.dataModel.viewRange,
                                                                 trackModel.dataModel.multiSelectionModel,
-                                                                GrayOutMode.NONE, true),
+                                                                GrayOutMode.None, true),
                           trackModel.dataModel.vsyncSeries, vsyncEnabler)}
 
   private fun renderJankyFrame(multiSelectionModel: MultiSelectionModel<CpuAnalyzable<*>>): Renderer<AndroidFrameTimelineEvent?> =
@@ -78,7 +78,7 @@ class JankyFrameTrackRenderer(private val vsyncEnabler: BooleanSupplier): TrackR
         // draw text
         val availableTextSpace = blankRectWidth - textPadding * 2
         if (availableTextSpace > 1) {
-          val fullText = "Frame ${event.surfaceFrameToken}: ${TimeFormatter.getSingleUnitDurationString(duration)}"
+          val fullText = "${event.surfaceFrameToken}: ${TimeFormatter.getSingleUnitDurationString(duration)}"
           val text = AdtUiUtils.shrinkToFit(fullText, fontMetrics, availableTextSpace)
           if (text.isNotEmpty()) {
             g.color = if (active) JBUI.CurrentTheme.Label.foreground() else JBUI.CurrentTheme.Label.disabledForeground()

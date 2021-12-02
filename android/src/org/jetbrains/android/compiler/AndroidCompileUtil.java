@@ -20,14 +20,12 @@ import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import com.android.tools.idea.lang.rs.AndroidRenderscriptFileType;
 import com.android.tools.idea.lang.aidl.AidlFileType;
 import com.android.tools.idea.model.AndroidModel;
+import com.android.tools.idea.res.AndroidDependenciesCache;
 import com.intellij.CommonBundle;
 import com.intellij.compiler.CompilerConfiguration;
 import com.intellij.compiler.CompilerConfigurationImpl;
 import com.intellij.compiler.CompilerWorkspaceConfiguration;
-import com.intellij.compiler.impl.CompileContextImpl;
-import com.intellij.compiler.impl.ModuleCompileScope;
 import com.intellij.compiler.options.CompileStepBeforeRun;
-import com.intellij.compiler.progress.CompilerTask;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationGroup;
@@ -56,19 +54,14 @@ import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.*;
-import com.intellij.packaging.artifacts.Artifact;
-import com.intellij.packaging.artifacts.ArtifactProperties;
-import com.intellij.packaging.impl.compiler.ArtifactCompileScope;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.search.FileTypeIndex;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.ArrayUtil;
-import org.jetbrains.android.compiler.artifact.*;
 import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
-import org.jetbrains.android.facet.AndroidFacetConfiguration;
 import org.jetbrains.android.facet.AndroidRootUtil;
 import org.jetbrains.android.sdk.AndroidPlatform;
 import org.jetbrains.android.util.*;
@@ -76,7 +69,6 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.SystemIndependent;
-import org.jetbrains.android.facet.AndroidFacetProperties;
 import org.jetbrains.jps.model.java.JavaModuleSourceRootTypes;
 import org.jetbrains.jps.model.java.JavaSourceRootProperties;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
@@ -721,51 +713,6 @@ public class AndroidCompileUtil {
   }
 
   @Nullable
-  public static ProguardRunningOptions getProguardConfigFilePathIfShouldRun(@NotNull AndroidFacet facet, CompileContext context) {
-    // wizard
-    String pathsStr = context.getCompileScope().getUserData(PROGUARD_CFG_PATHS_KEY);
-    if (pathsStr != null) {
-      final String[] paths = pathsStr.split(File.pathSeparator);
-
-      if (paths.length > 0) {
-        return new ProguardRunningOptions(Arrays.asList(paths));
-      }
-    }
-    final AndroidPlatform platform = AndroidPlatform.getInstance(facet.getModule());
-    final String sdkHomePath = platform != null ? FileUtil.toCanonicalPath(platform.getSdkData().getPath()) : null;
-
-    // artifact
-    final Project project = context.getProject();
-    final Set<Artifact> artifacts = ArtifactCompileScope.getArtifactsToBuild(project, context.getCompileScope(), false);
-
-    for (Artifact artifact : artifacts) {
-      if (artifact.getArtifactType() instanceof AndroidApplicationArtifactType &&
-          facet.equals(AndroidArtifactUtil.getPackagedFacet(project, artifact))) {
-        final ArtifactProperties<?> properties = artifact.getProperties(AndroidArtifactPropertiesProvider.getInstance());
-
-        if (properties instanceof AndroidApplicationArtifactProperties) {
-          final AndroidApplicationArtifactProperties p = (AndroidApplicationArtifactProperties)properties;
-
-          if (p.isRunProGuard()) {
-            final List<String> paths = AndroidUtils.urlsToOsPaths(p.getProGuardCfgFiles(), sdkHomePath);
-            return new ProguardRunningOptions(paths);
-          }
-        }
-      }
-    }
-
-    // facet
-    final AndroidFacetConfiguration configuration = facet.getConfiguration();
-    final AndroidFacetProperties properties = configuration.getState();
-    if (properties != null && properties.RUN_PROGUARD) {
-      final List<String> urls = properties.myProGuardCfgFiles;
-      final List<String> paths = AndroidUtils.urlsToOsPaths(urls, sdkHomePath);
-      return new ProguardRunningOptions(paths);
-    }
-    return null;
-  }
-
-  @Nullable
   public static Module findCircularDependencyOnLibraryWithSamePackage(@NotNull AndroidFacet facet) {
     final Manifest manifest = Manifest.getMainManifest(facet);
     final String aPackage = manifest != null ? manifest.getPackage().getValue() : null;
@@ -773,11 +720,11 @@ public class AndroidCompileUtil {
       return null;
     }
 
-    for (AndroidFacet depFacet : AndroidUtils.getAllAndroidDependencies(facet.getModule(), true)) {
+    for (AndroidFacet depFacet : AndroidDependenciesCache.getAllAndroidDependencies(facet.getModule(), true)) {
       final Manifest depManifest = Manifest.getMainManifest(depFacet);
       final String depPackage = depManifest != null ? depManifest.getPackage().getValue() : null;
       if (aPackage.equals(depPackage)) {
-        final List<AndroidFacet> depDependencies = AndroidUtils.getAllAndroidDependencies(depFacet.getModule(), false);
+        final List<AndroidFacet> depDependencies = AndroidDependenciesCache.getAllAndroidDependencies(depFacet.getModule(), false);
 
         if (depDependencies.contains(facet)) {
           // circular dependency on library with the same package
@@ -811,7 +758,7 @@ public class AndroidCompileUtil {
       return false;
     }
 
-    final List<AndroidFacet> dependencies = AndroidUtils.getAllAndroidDependencies(facet.getModule(), false);
+    final List<AndroidFacet> dependencies = AndroidDependenciesCache.getAllAndroidDependencies(facet.getModule(), false);
 
     final Manifest manifest = Manifest.getMainManifest(facet);
     if (manifest == null) {
@@ -824,7 +771,7 @@ public class AndroidCompileUtil {
     }
 
     for (AndroidFacet depFacet : dependencies) {
-      final List<AndroidFacet> depDependencies = AndroidUtils.getAllAndroidDependencies(depFacet.getModule(), true);
+      final List<AndroidFacet> depDependencies = AndroidDependenciesCache.getAllAndroidDependencies(depFacet.getModule(), true);
 
       if (depDependencies.contains(facet) &&
           dependencies.contains(depFacet) &&

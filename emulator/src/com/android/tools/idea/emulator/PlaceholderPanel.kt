@@ -27,7 +27,7 @@ import com.android.tools.idea.concurrency.executeOnPooledThread
 import com.android.tools.idea.emulator.settings.EmulatorSettingsUi
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.sdk.AndroidSdks
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.options.ShowSettingsUtil
@@ -36,7 +36,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.htmlComponent
 import com.intellij.util.ui.JBUI
-import org.jetbrains.android.actions.RunAndroidAvdManagerAction
+import com.android.tools.idea.avdmanager.actions.RunAndroidAvdManagerAction
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.event.MouseEvent

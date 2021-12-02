@@ -194,6 +194,13 @@ public final class StudioFlags {
     true);
   //endregion
 
+  //region Design Tools
+  private static final FlagGroup DESIGN_TOOLS = new FlagGroup(FLAGS, "design.tools", "Design Tools");
+  public static final Flag<Boolean> DESIGN_TOOLS_POWER_SAVE_MODE_SUPPORT = Flag.create(
+    DESIGN_TOOLS, "power.save.support", "Enable previews support for PowerSave mode",
+    "If enabled, the the Layout Editor and Compose Preview will respect the Power Save mode and avoid auto-refresh, reduce FPS, etc.",
+    true);
+
   //region Layout Editor
   private static final FlagGroup NELE = new FlagGroup(FLAGS, "nele", "Layout Editor");
   public static final Flag<Boolean> NELE_ANIMATIONS_PREVIEW = Flag.create(
@@ -334,6 +341,11 @@ public final class StudioFlags {
     NELE, "visualization.apply.config", "Apply Selected Configuration in Validation Tool to Layout Editor",
     "Apply the configuration to Layout Editor by double clicking the preview in Validation Tool",
     true);
+
+  public static final Flag<Boolean> NELE_VISUALIZATION_MULTIPLE_CUSTOM = Flag.create(
+    NELE, "visualization.multiple.custom", "Multiple Custom Categories in Layout Validation Tool",
+    "Allow to create or delete multiple custom categories in Layout Validation Tool",
+    false);
 
   public static final Flag<Boolean> NELE_SOURCE_CODE_EDITOR = Flag.create(
     NELE, "show.source.code.editor", "New Source Code Editor",
@@ -485,6 +497,8 @@ public final class StudioFlags {
     10000);
   //endregion
 
+  //endregion
+
   //region Run/Debug
   private static final FlagGroup RUNDEBUG = new FlagGroup(FLAGS, "rundebug", "Run/Debug");
   public static final Flag<Boolean> RUNDEBUG_LOGCAT_CONSOLE_OUTPUT_ENABLED = Flag.create(
@@ -604,11 +618,18 @@ public final class StudioFlags {
     "To allow toggling between automatic or user managed ADB server mode.",
     false);
 
-  public static final Flag<Boolean> DEFAULT_ACTIVITY_LOCATOR_FROM_APKS = Flag.create(
+  public static final Flag<Boolean> ADBLIB_MIGRATION_DEVICE_EXPLORER = Flag.create(
     RUNDEBUG,
-    "default.activity.locator.sourceoftruth",
-    "Use APKs as source of truth",
-    "Open APK and parse the manifest in order to discover default activity.",
+    "adblib.migration.device.explorer",
+    "Use adblib in Device Explorer",
+    "Use adblib instead of ddmlib for Device Explorer",
+    false);
+
+  public static final Flag<Boolean> ADBLIB_MIGRATION_WIFI_PAIRING = Flag.create(
+    RUNDEBUG,
+    "adblib.migration.wifi.pairing",
+    "Use adblib in Pair Device over Wi-Fi",
+    "Use adblib instead of ddmlib for Pair Device over Wi-Fi",
     true);
 
   public static final Flag<Boolean> SUPPORT_FEATURE_ON_FEATURE_DEPS = Flag.create(
@@ -1230,20 +1251,6 @@ public final class StudioFlags {
     COMPOSE, "preview.fast.reload.debug.daemon", "Starts the Live Edit daemon in debug mode",
     "If enabled, the compiler daemon will wait for a debugger to be attached.",
     false);
-
-  public static final Flag<Boolean> COMPOSE_POWER_SAVE_MODE_SUPPORT = Flag.create(
-    COMPOSE, "preview.power.save.support", "Enable the Compose preview support for PowerSave mode",
-    "If enabled, the Compose Preview will respect the Power Save mode and avoid auto-refresh, reduce FPS, etc.",
-    true);
-  //endregion
-
-  //region Manifests
-  private static final FlagGroup MANIFESTS = new FlagGroup(FLAGS, "manifests", "Android Manifests");
-  public static final Flag<Boolean> ANDROID_MANIFEST_INDEX_ENABLED = Flag.create(
-    MANIFESTS, "index.enabled", "Enable Android Manifest Indexing",
-    "Enables a custom index for pre-parsing your project's AndroidManifest.xml files",
-    true);
-
   //endregion
 
   // region App Inspection

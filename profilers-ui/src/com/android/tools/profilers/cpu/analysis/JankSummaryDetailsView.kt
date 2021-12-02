@@ -17,54 +17,83 @@ package com.android.tools.profilers.cpu.analysis
 
 import com.android.tools.adtui.PaginatedTableView
 import com.android.tools.adtui.common.primaryContentBackground
+import com.android.tools.adtui.model.Range
 import com.android.tools.adtui.model.formatter.TimeFormatter
 import com.android.tools.adtui.ui.HideablePanel
+import com.android.tools.profilers.ProfilerColors
 import com.android.tools.profilers.StudioProfilersView
 import com.android.tools.profilers.cpu.CaptureNode
 import com.android.tools.profilers.cpu.CpuCapture
 import com.android.tools.profilers.cpu.LazyDataSeries
-import com.android.tools.profilers.cpu.ThreadState
 import com.android.tools.profilers.cpu.analysis.TableUtils.setColumnRenderers
+import com.android.tools.profilers.cpu.getActiveColor
 import com.android.tools.profilers.cpu.systemtrace.getTitle
 import com.intellij.ui.components.JBLabel
-import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
+import java.awt.Color
 import java.awt.Dimension
+import java.awt.Graphics
 import javax.swing.JComponent
 import javax.swing.table.DefaultTableCellRenderer
+import kotlin.math.min
+import com.android.tools.adtui.common.border as BorderColor
+import kotlin.streams.toList
 
 class JankSummaryDetailsView(profilersView: StudioProfilersView, model: JankAnalysisModel.Summary)
       : SummaryDetailsViewBase<JankAnalysisModel.Summary>(profilersView, model) {
   init {
     val capture = model.capture
     fun hideablePanel(title: String, content: JComponent) =
-      HideablePanel(HideablePanel.Builder(title, content)
-                      .setPanelBorder(JBUI.Borders.empty())
-                      .setContentBorder(JBUI.Borders.empty(8, 0, 0, 0)).apply {
+      HideablePanel.Builder(title, content)
+        .setPanelBorder(JBUI.Borders.empty())
+        .setContentBorder(JBUI.Borders.merge(JBUI.Borders.customLine(BorderColor, 1), JBUI.Borders.empty(8, 0, 0, 0), true))
+        .build().apply {
           background = primaryContentBackground
-        })
+        }
     val event = model.event
 
-    addRowToCommonSection("Jank type", JBLabel(event.appJankType.getTitle()))
+    addRowToCommonSection("Jank type", JBLabel(event.appJankType.getTitle()).apply {
+      foreground = event.getActiveColor()
+    })
     addRowToCommonSection("Display timing", JBLabel(event.presentType.getTitle()))
-    addRowToCommonSection("App deadline",
-                          JBLabel(TimeFormatter.getSemiSimplifiedClockString(capture.offset(event.expectedEndUs))))
-    addRowToCommonSection("Actual render time",
-                          JBLabel(TimeFormatter.getSemiSimplifiedClockString(capture.offset(event.actualEndUs))))
-    addRowToCommonSection("Expected duration", JBLabel(TimeFormatter.getSingleUnitDurationString(event.expectedDurationUs)))
-    addRowToCommonSection("Actual duration", JBLabel(TimeFormatter.getSingleUnitDurationString(event.actualDurationUs)))
-    addSection(hideablePanel("Events associated with Jank",
+
+    val (expectedPercent, actualPercent) = when {
+      event.expectedDurationUs < event.actualDurationUs -> (event.expectedDurationUs * 100 / event.actualDurationUs).toInt() to 100
+      event.expectedDurationUs > 0 -> 100 to (event.actualDurationUs * 100 / event.expectedDurationUs).toInt()
+      else -> 100 to 100
+    }
+    val maxDurationBarWidth = 100
+    addRowToCommonSection("Expected duration",
+                          FilledLabel(TimeFormatter.getSingleUnitDurationString(event.expectedDurationUs),
+                                      ProfilerColors.CAPTURE_SPARKLINE, expectedPercent, maxDurationBarWidth))
+    addRowToCommonSection("Actual duration",
+                          FilledLabel(TimeFormatter.getSingleUnitDurationString(event.actualDurationUs),
+                                      event.getActiveColor(), actualPercent, maxDurationBarWidth))
+    addSection(hideablePanel("Events associated with frame",
                              EventTable.of(capture,
-                                           model.getThreadChildren(model.renderThreadId) to "Render",
-                                           model.getThreadChildren(model.gpuThreadId) to "GPU",
-                                           model.getThreadChildren(model.mainThreadId) to "Main")))
+                                           model.sequence.renderEvent.descendants() to "Render",
+                                           model.sequence.gpuEvent.descendants() to "GPU",
+                                           model.sequence.mainEvent.descendants() to "Main")))
 
     addSection(CpuThreadStateTable(profilersView.studioProfilers,
-                                   listOf(LazyDataSeries{model.getThreadState(model.mainThreadId)},
-                                          LazyDataSeries{model.getThreadState(model.renderThreadId)},
-                                          LazyDataSeries{model.getThreadState(model.gpuThreadId)}),
-                                   model.eventRange)
+                                   listOf(LazyDataSeries { model.getThreadState(model.capture.mainThreadId)}),
+                                   model.sequence.mainEvent.range(),
+                                   "Main thread states")
                  .component)
+    addSection(CpuThreadStateTable(profilersView.studioProfilers,
+                                   listOf(LazyDataSeries{model.getThreadState(model.capture.renderThreadId)}),
+                                   model.sequence.renderEvent.range(),
+                                   "RenderThread states")
+                 .component)
+  }
+}
+
+private class FilledLabel(text: String, private val barColor: Color, private val percent: Int, private val maxBarWidth: Int): JBLabel(text) {
+  init { require(percent in 0 .. 100) }
+  override fun paintComponent(g: Graphics) {
+    g.color = barColor
+    g.fillRect(0, 0, min(width, maxBarWidth) * percent / 100, height)
+    super.paintComponent(g)
   }
 }
 
@@ -86,6 +115,7 @@ private object EventTable {
           }
           component.apply {
             minimumSize = Dimension(preferredSize.width, 300)
+            isOpaque = false
           }
         }
       }
@@ -99,3 +129,5 @@ private object EventTable {
 }
 
 private fun CpuCapture.offset(us: Long) = us - range.min.toLong()
+private fun CaptureNode?.descendants() = this?.descendantsStream?.toList() ?: listOf()
+private fun CaptureNode?.range() = this?.let { Range(it.startGlobal.toDouble(), it.endGlobal.toDouble())} ?: Range()

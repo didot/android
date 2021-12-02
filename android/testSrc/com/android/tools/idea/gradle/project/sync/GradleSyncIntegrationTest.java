@@ -27,8 +27,8 @@ import static com.android.tools.idea.testing.TestProjectPaths.PURE_JAVA_PROJECT;
 import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION;
 import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION_UNRESOLVED_DEPENDENCY;
 import static com.android.tools.idea.testing.TestProjectPaths.TRANSITIVE_DEPENDENCIES;
-import static com.android.tools.idea.util.PropertiesFiles.getProperties;
-import static com.android.tools.idea.util.PropertiesFiles.savePropertiesToFile;
+import static com.android.tools.idea.gradle.util.PropertiesFiles.getProperties;
+import static com.android.tools.idea.gradle.util.PropertiesFiles.savePropertiesToFile;
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction;
@@ -53,7 +53,6 @@ import static org.mockito.Mockito.when;
 
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.idea.IdeInfo;
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.gradle.ProjectLibraries;
 import com.android.tools.idea.gradle.actions.SyncProjectAction;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
@@ -125,7 +124,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import junit.framework.AssertionFailedError;
-import org.jetbrains.android.compiler.ModuleSourceAutogenerating;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.plugins.gradle.internal.daemon.GradleDaemonServices;
 import org.jetbrains.plugins.gradle.settings.GradleProjectSettings;
@@ -309,28 +307,9 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
     assertThat(sources).isNotEmpty();
   }
 
-  public void testLegacySourceGenerationIsDisabled() throws Exception {
-    loadSimpleApplication();
-
-    Module appModule = TestModuleUtil.findAppModule(getProject());
-    AndroidFacet facet = AndroidFacet.getInstance(appModule);
-    assertNotNull(facet);
-
-    try {
-      ModuleSourceAutogenerating.getInstance(facet);
-      fail("Shouldn't be able to construct a source generator for Gradle projects");
-    }
-    catch (IllegalArgumentException e) {
-      assertEquals(TestModuleUtil.findAppModule(getProject()).getName() +
-                   " is built by an external build system and should not require the IDE to generate sources", e.getMessage());
-    }
-  }
-
   // Verifies that sync does not fail and user is warned when a project contains an Android module without variants.
   // See https://code.google.com/p/android/issues/detail?id=170722
   public void testWithAndroidProjectWithoutVariants() throws Exception {
-    //TODO(b/202142748): enable for V2 as well when bug is fixed.
-    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.override(false);
     Project project = getProject();
 
     GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
@@ -343,7 +322,6 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
 
     String failure = requestSyncAndGetExpectedFailure();
     assertThat(failure).contains("No variants found for ':app'. Check build files to ensure at least one variant exists.");
-    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.clearOverride();
   }
 
   public void testGradleSyncActionAfterFailedSync() throws Exception {
@@ -367,8 +345,6 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
   // due to conflicts in variant attributes.
   // See b/64213214.
   public void testSyncIssueWithNonMatchingVariantAttributes() throws Exception {
-    //TODO(b/202142748): enable for V2 as well when bug is fixed.
-    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.override(false);
     Project project = getProject();
     GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project);
 
@@ -392,7 +368,6 @@ public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCa
                     || m.getMessage().contains("Failed to resolve: project :lib\nAffected Modules:")))
       .collect(toList());
     assertThat(relevantMessages).isNotEmpty();
-    StudioFlags.GRADLE_SYNC_USE_V2_MODEL.clearOverride();
   }
 
   // Verify that custom properties on local.properties are preserved after sync (b/70670394)

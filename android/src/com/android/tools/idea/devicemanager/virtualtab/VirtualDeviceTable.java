@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import javax.swing.ActionMap;
 import javax.swing.DefaultRowSorter;
 import javax.swing.JComponent;
 import javax.swing.ListSelectionModel;
@@ -47,12 +48,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 final class VirtualDeviceTable extends JBTable implements Table, AvdRefreshProvider, AvdInfoProvider {
-  private final @Nullable Project myProject;
+  private final @NotNull VirtualDevicePanel myPanel;
 
-  VirtualDeviceTable(@Nullable Project project) {
+  VirtualDeviceTable(@NotNull VirtualDevicePanel panel) {
     super(new VirtualDeviceTableModel());
-
-    myProject = project;
+    myPanel = panel;
 
     TableModel model = getModel();
     model.addTableModelListener(event -> sizeWidthsToFit());
@@ -65,6 +65,15 @@ final class VirtualDeviceTable extends JBTable implements Table, AvdRefreshProvi
     setRowSorter(newRowSorter(model));
     setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     setShowGrid(false);
+
+    ActionMap map = getActionMap();
+
+    map.put("selectNextColumn", new SelectNextColumnAction());
+    map.put("selectNextColumnCell", new SelectNextColumnCellAction());
+    map.put("selectNextRow", new SelectNextRowAction());
+    map.put("selectPreviousColumn", new SelectPreviousColumnAction());
+    map.put("selectPreviousColumnCell", new SelectPreviousColumnCellAction());
+    map.put("selectPreviousRow", new SelectPreviousRowAction());
 
     // noinspection DialogTitleCapitalization
     getEmptyText()
@@ -98,6 +107,10 @@ final class VirtualDeviceTable extends JBTable implements Table, AvdRefreshProvi
     return sorter;
   }
 
+  @NotNull VirtualDevicePanel getPanel() {
+    return myPanel;
+  }
+
   @Override
   public @NotNull VirtualDeviceTableModel getModel() {
     return (VirtualDeviceTableModel)dataModel;
@@ -105,7 +118,7 @@ final class VirtualDeviceTable extends JBTable implements Table, AvdRefreshProvi
 
   @Override
   public boolean isActionsColumn(int viewColumnIndex) {
-    return false; //TODO
+    return convertColumnIndexToModel(viewColumnIndex) == VirtualDeviceTableModel.ACTIONS_MODEL_COLUMN_INDEX;
   }
 
   @Override
@@ -142,7 +155,7 @@ final class VirtualDeviceTable extends JBTable implements Table, AvdRefreshProvi
     return (AvdInfo)getValueAt(viewRowIndex, deviceViewColumnIndex());
   }
 
-  private int deviceViewColumnIndex() {
+  int deviceViewColumnIndex() {
     return convertColumnIndexToView(VirtualDeviceTableModel.DEVICE_MODEL_COLUMN_INDEX);
   }
 
@@ -150,11 +163,11 @@ final class VirtualDeviceTable extends JBTable implements Table, AvdRefreshProvi
     return convertColumnIndexToView(VirtualDeviceTableModel.API_MODEL_COLUMN_INDEX);
   }
 
-  private int sizeOnDiskViewColumnIndex() {
+  int sizeOnDiskViewColumnIndex() {
     return convertColumnIndexToView(VirtualDeviceTableModel.SIZE_ON_DISK_MODEL_COLUMN_INDEX);
   }
 
-  private int actionsViewColumnIndex() {
+  int actionsViewColumnIndex() {
     return convertColumnIndexToView(VirtualDeviceTableModel.ACTIONS_MODEL_COLUMN_INDEX);
   }
 
@@ -180,7 +193,7 @@ final class VirtualDeviceTable extends JBTable implements Table, AvdRefreshProvi
 
   @Override
   public @Nullable Project getProject() {
-    return myProject;
+    return myPanel.getProject();
   }
 
   @Override

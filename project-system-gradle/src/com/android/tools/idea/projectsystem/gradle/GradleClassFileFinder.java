@@ -18,8 +18,7 @@ package com.android.tools.idea.projectsystem.gradle;
 import static com.intellij.openapi.util.io.FileUtil.join;
 
 import com.android.tools.idea.gradle.model.IdeAndroidArtifact;
-import com.android.tools.idea.gradle.model.IdeVariant;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.gradle.project.model.JavaModuleModel;
 import com.android.tools.idea.project.ModuleBasedClassFileFinder;
 import com.android.tools.idea.projectsystem.ClassFileFinderUtil;
@@ -50,13 +49,8 @@ public class GradleClassFileFinder extends ModuleBasedClassFileFinder {
   @Override
   @Nullable
   protected VirtualFile findClassFileInModule(@NotNull Module module, @NotNull String className) {
-    VirtualFile file = super.findClassFileInModule(module, className);
-    if (file != null) {
-      return file;
-    }
-
     for (VirtualFile outputDir : getModuleCompileOutputs(module)) {
-      file = ClassFileFinderUtil.findClassFileInOutputRoot(outputDir, className);
+      VirtualFile file = ClassFileFinderUtil.findClassFileInOutputRoot(outputDir, className);
       if (file != null) {
         return file;
       }
@@ -65,20 +59,15 @@ public class GradleClassFileFinder extends ModuleBasedClassFileFinder {
   }
 
   @NotNull
-  private static Collection<VirtualFile> getCompilerOutputRoots(@NotNull AndroidModuleModel model) {
-    IdeVariant variant = model.getSelectedVariant();
-    String variantName = variant.getName();
+  private static Collection<VirtualFile> getCompilerOutputRoots(@NotNull GradleAndroidModel model) {
     IdeAndroidArtifact mainArtifactInfo = model.getMainArtifact();
     File classesFolder = mainArtifactInfo.getClassesFolder();
     ImmutableList.Builder<VirtualFile> compilerOutputs = new ImmutableList.Builder<>();
 
     //noinspection ConstantConditions
     if (classesFolder != null) {
-      File outFolder = new File(classesFolder,
-                                // Change variant name variant-release into variant/release directories
-                                variantName.replace('-', File.separatorChar));
-      if (outFolder.exists()) {
-        VirtualFile file = VfsUtil.findFileByIoFile(outFolder, true);
+      if (classesFolder.exists()) {
+        VirtualFile file = VfsUtil.findFileByIoFile(classesFolder, true);
         if (file != null) {
           compilerOutputs.add(file);
         }
@@ -182,7 +171,7 @@ public class GradleClassFileFinder extends ModuleBasedClassFileFinder {
 
   @NotNull
   private static Collection<VirtualFile> getModuleCompileOutputs(@NotNull Module module) {
-    AndroidModuleModel androidModel = AndroidModuleModel.get(module);
+    GradleAndroidModel androidModel = GradleAndroidModel.get(module);
     if (androidModel != null) {
       return getCompilerOutputRoots(androidModel);
     }

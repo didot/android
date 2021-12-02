@@ -25,7 +25,10 @@ import com.android.build.attribution.ui.model.TasksPageId
 import com.android.build.attribution.ui.model.TasksTreeNode
 import com.android.build.attribution.ui.model.WarningsFilter
 import com.android.build.attribution.ui.model.WarningsTreeNode
+import com.android.build.attribution.ui.view.details.JetifierWarningDetailsFactory
 import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.ui.awt.RelativePoint
+import java.awt.event.ActionEvent
 import java.util.function.Supplier
 
 /**
@@ -90,6 +93,6 @@ interface ViewActionHandlers {
   fun turnConfigurationCachingOnInProperties()
   fun updatePluginClicked(pluginWarningData: IncompatiblePluginWarning)
   fun runCheckJetifierTask()
-  fun turnJetifierOffInProperties()
-  fun createFindSelectedLibVersionDeclarationAction(selectionSupplier: Supplier<String?>): AnAction
+  fun turnJetifierOffInProperties(sourceRelativePointSupplier: Supplier<RelativePoint>)
+  fun createFindSelectedLibVersionDeclarationAction(selectionSupplier: Supplier<JetifierWarningDetailsFactory.DirectDependencyDescriptor?>): AnAction
 }

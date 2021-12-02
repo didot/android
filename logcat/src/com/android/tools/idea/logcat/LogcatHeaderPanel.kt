@@ -15,32 +15,51 @@
  */
 package com.android.tools.idea.logcat
 
-import com.android.tools.adtui.RegexTextField
-import com.android.tools.adtui.RegexTextField.OnChangeListener
 import com.android.tools.idea.ddms.DeviceContext
 import com.android.tools.idea.ddms.DevicePanel
-import com.android.tools.idea.logcat.filters.FullMessageRegexFilter
-import com.android.tools.idea.logcat.filters.FullMessageTextFilter
-import com.android.tools.idea.logcat.filters.LogcatFilter.Companion.NOOP_FILTER
+import com.android.tools.idea.logcat.filters.LogcatFilterParser
+import com.android.tools.idea.logcat.filters.parser.LogcatFilterFileType
+import com.intellij.openapi.editor.event.DocumentEvent
+import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.ui.EditorTextField
 import com.intellij.util.ui.JBUI
 import java.awt.Component
+import java.awt.Font
 import java.awt.LayoutManager
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import java.awt.event.MouseEvent
 import javax.swing.GroupLayout
+import javax.swing.JCheckBox
 import javax.swing.JPanel
-
-private const val QUICK_FILTER_HISTORY_PROPERTY_NAME = "logcatQuickFilterHistory"
-private const val QUICK_FILTER_HISTORY_SIZE = 10
+import javax.swing.ToolTipManager
 
 /**
  * A header for the Logcat panel.
  */
-internal class LogcatHeaderPanel(project: Project, logcatPresenter: LogcatPresenter, deviceContext: DeviceContext) : JPanel() {
+internal class LogcatHeaderPanel(
+  project: Project,
+  val logcatPresenter: LogcatPresenter,
+  deviceContext: DeviceContext,
+  packageNamesProvider: PackageNamesProvider,
+  filter: String,
+  showOnlyProjectApps: Boolean,
+) : JPanel() {
   private val deviceComboBox: Component
-  private val quickFilterTextField = RegexTextField(logcatPresenter, QUICK_FILTER_HISTORY_PROPERTY_NAME, QUICK_FILTER_HISTORY_SIZE)
+  private val filterTextField = EditorTextField(filter, project, LogcatFilterFileType)
+
+  // TODO(aalbert): This is a temp UX. Will probably be changed to something that can select individual apps from the project as well.
+  private val projectAppsCheckbox = object : JCheckBox(LogcatBundle.message("logcat.filter.project.apps")) {
+    init {
+      ToolTipManager.sharedInstance().registerComponent(this)
+    }
+
+    override fun getToolTipText(event: MouseEvent): String =
+      packageNamesProvider.getPackageNames().joinToString("<br/>", "<html>", "</html>")
+  }
+  private val filterParser = LogcatFilterParser(project, packageNamesProvider)
 
   init {
     // TODO(aalbert): DevicePanel uses the project as a disposable parent. This doesn't work well with multiple tabs/splitters where we
@@ -49,16 +68,18 @@ internal class LogcatHeaderPanel(project: Project, logcatPresenter: LogcatPresen
     val devicePanel = DevicePanel(project, deviceContext)
     deviceComboBox = devicePanel.deviceComboBox
 
-    quickFilterTextField.addOnChangeListener(object : OnChangeListener {
-      override fun onChange(component: RegexTextField) {
-        val logcatFilter = when {
-          quickFilterTextField.text.isEmpty() -> NOOP_FILTER
-          quickFilterTextField.isRegex -> FullMessageRegexFilter(quickFilterTextField.text)
-          else -> FullMessageTextFilter(quickFilterTextField.text)
+    filterTextField.apply {
+      font = Font.getFont(Font.MONOSPACED)
+      addDocumentListener(object : DocumentListener {
+        override fun documentChanged(event: DocumentEvent) {
+          logcatPresenter.applyFilter(filterParser.parse(text))
         }
-        logcatPresenter.applyFilter(logcatFilter)
-      }
-    })
+      })
+    }
+    projectAppsCheckbox.apply {
+      isSelected = showOnlyProjectApps
+      addItemListener { logcatPresenter.setShowOnlyProjectApps(projectAppsCheckbox.isSelected) }
+    }
 
     addComponentListener(object : ComponentAdapter() {
       override fun componentResized(event: ComponentEvent) {
@@ -66,6 +87,10 @@ internal class LogcatHeaderPanel(project: Project, logcatPresenter: LogcatPresen
       }
     })
   }
+
+  fun getFilterText() = filterTextField.text
+
+  fun isShowProjectApps() = projectAppsCheckbox.isSelected
 
   private fun createWideLayout(): LayoutManager {
     val layout = GroupLayout(this)
@@ -78,11 +103,15 @@ internal class LogcatHeaderPanel(project: Project, logcatPresenter: LogcatPresen
     layout.setHorizontalGroup(
       layout.createSequentialGroup()
         .addComponent(deviceComboBox, minWidth, GroupLayout.DEFAULT_SIZE, maxWidth)
-        .addComponent(quickFilterTextField, minWidth, GroupLayout.DEFAULT_SIZE, maxWidth))
+        .addComponent(filterTextField, minWidth, GroupLayout.DEFAULT_SIZE, maxWidth)
+        .addComponent(projectAppsCheckbox)
+    )
     layout.setVerticalGroup(
       layout.createParallelGroup(GroupLayout.Alignment.CENTER)
         .addComponent(deviceComboBox)
-        .addComponent(quickFilterTextField))
+        .addComponent(filterTextField)
+        .addComponent(projectAppsCheckbox)
+    )
     return layout
   }
 
@@ -95,11 +124,15 @@ internal class LogcatHeaderPanel(project: Project, logcatPresenter: LogcatPresen
     layout.setHorizontalGroup(
       layout.createParallelGroup()
         .addGroup(layout.createSequentialGroup().addComponent(deviceComboBox))
-        .addGroup(layout.createSequentialGroup().addComponent(quickFilterTextField)))
+        .addGroup(layout.createSequentialGroup().addComponent(filterTextField))
+        .addGroup(layout.createSequentialGroup().addComponent(projectAppsCheckbox))
+    )
     layout.setVerticalGroup(
       layout.createSequentialGroup()
         .addGroup(layout.createParallelGroup().addComponent(deviceComboBox))
-        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.CENTER).addComponent(quickFilterTextField)))
+        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.CENTER).addComponent(filterTextField))
+        .addGroup(layout.createParallelGroup().addComponent(projectAppsCheckbox))
+    )
     return layout
   }
 }

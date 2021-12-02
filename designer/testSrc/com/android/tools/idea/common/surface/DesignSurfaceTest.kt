@@ -302,15 +302,12 @@ class TestDesignSurface(project: Project, disposible: Disposable)
                   disposible,
                   java.util.function.Function { ModelBuilder.TestActionManager(it) },
                   java.util.function.Function { TestInteractionHandler(it) },
-                  true,
                   java.util.function.Function { TestLayoutManager(it) },
                   java.util.function.Function { TestActionHandler(it) },
                   ZoomControlsPolicy.VISIBLE) {
   override fun getSelectionAsTransferable(): ItemTransferable {
     return ItemTransferable(DnDTransferItem(0, ImmutableList.of()))
   }
-
-  override fun getComponentRegistrar() = Consumer<NlComponent> {}
 
   override fun createSceneManager(model: NlModel) = SyncLayoutlibSceneManager(model as SyncNlModel)
 

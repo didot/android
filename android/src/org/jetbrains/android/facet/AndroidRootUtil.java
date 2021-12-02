@@ -45,7 +45,7 @@ import java.io.IOException;
 import java.util.*;
 import org.jetbrains.annotations.SystemIndependent;
 
-import static com.android.tools.idea.util.PropertiesFiles.getProperties;
+import static com.android.tools.idea.gradle.util.PropertiesFiles.getProperties;
 import static com.intellij.openapi.util.io.FileUtil.getRelativePath;
 import static com.intellij.openapi.util.io.FileUtil.*;
 import static com.intellij.openapi.vfs.VfsUtilCore.isAncestor;
@@ -74,12 +74,6 @@ public class AndroidRootUtil {
   @Nullable
   public static VirtualFile getCustomManifestFileForCompiler(@NotNull AndroidFacet facet) {
     return getFileByRelativeModulePath(facet.getModule(), facet.getProperties().CUSTOM_COMPILER_MANIFEST, false);
-  }
-
-  // DO NOT get PSI or DOM from this file, because it may be excluded (f.ex. it can be in /target/ directory)
-  @Nullable
-  public static VirtualFile getManifestFileForCompiler(@NotNull AndroidFacet facet) {
-    return facet.getProperties().USE_CUSTOM_COMPILER_MANIFEST ? getCustomManifestFileForCompiler(facet) : getPrimaryManifestFile(facet);
   }
 
   /**

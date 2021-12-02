@@ -13,6 +13,7 @@ iml_module(
         "//prebuilts/studio/intellij-sdk:studio-sdk",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle-java",
+        "//tools/adt/idea/utp[module]",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
         "//tools/adt/idea/project-system-gradle-models:intellij.android.projectSystem.gradle.models[module]",
         "//tools/adt/idea/project-system-gradle-repository-search:intellij.android.projectSystem.gradle.repositorySearch[module]",
@@ -34,6 +35,8 @@ iml_module(
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-junit",
         "//tools/analytics-library/tracker:analytics-tracker[module]",
         "//tools/base/tracer:studio.android.sdktools.tracer[module]",
+        "//tools/adt/idea/project-system-gradle/lib:pepk",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
     ],
 )
 
@@ -45,7 +48,6 @@ iml_module(
     test_class = "com.android.tools.idea.projectsystem.GradleProjectSystemTestSuite",
     test_data = [
         ":test_deps",
-        "//tools/base/build-system/previous-versions:2.2.0",
         "//prebuilts/studio/jdk",
         "//prebuilts/studio/sdk:cmake",
         "//prebuilts/studio/sdk:build-tools/latest",
@@ -60,7 +62,7 @@ iml_module(
         "//tools/base/build-system:studio_repo",
         "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
     ],
-    test_shard_count = 11,
+    test_shard_count = 12,
     test_srcs = ["testSrc"],
     test_tags = [
         "cpu:3",
@@ -135,6 +137,7 @@ maven_repository(
         "@maven//:com.android.support.test.espresso.espresso-core_3.0.2",
         "@maven//:com.google.android.material.material_1.4.0",
         "@maven//:com.google.auto.value.auto-value_1.6.2",
+        "@maven//:com.google.code.gson.gson_2.2.4",
         "@maven//:com.google.dagger.dagger-compiler_2.6",
         "@maven//:com.google.errorprone.error_prone_annotations_2.3.2",
         "@maven//:com.google.guava.guava_19.0",
@@ -144,13 +147,16 @@ maven_repository(
         "@maven//:com.linkedin.testbutler.test-butler-app_1.3.1",
         "@maven//:com.sun.activation.javax.activation_1.2.0",
         "@maven//:commons-lang.commons-lang_2.4",
+        "@maven//:commons-logging.commons-logging_1.1.1",
         "@maven//:org.codehaus.mojo.animal-sniffer-annotations_1.17",
         "@maven//:org.jacoco.org.jacoco.ant_0.8.7",
+        "@maven//:org.jdeferred.jdeferred-android-aar_1.2.3",
         "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.4.32",
         "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk7_1.4.32",
         "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.5.0",
         "@maven//:org.jetbrains.kotlinx.kotlinx-coroutines-android_1.5.2",
         "@maven//:org.jetbrains.kotlinx.kotlinx-coroutines-core_1.5.2",
+        "@maven//:org.mockito.mockito-core_3.0.0",
         "@maven//:xmlpull.xmlpull_1.1.3.1",
     ],
 )

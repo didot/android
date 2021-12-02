@@ -165,7 +165,6 @@ public class PalettePanel extends AdtSecondaryPanel implements Disposable, DataP
     myCategoryList.setBorder(JBUI.Borders.customLine(JBColor.border(), 0, 0, 0, 1));
 
     PreviewProvider provider = new PreviewProvider(() -> myDesignSurface.get(), myDependencyManager);
-    Disposer.register(this, provider);
     myItemList.setModel(myDataModel.getItemListModel());
     myItemList.setTransferHandler(new ItemTransferHandler(provider, myItemList::getSelectedValue));
     if (!GraphicsEnvironment.isHeadless()) {
@@ -508,8 +507,8 @@ public class PalettePanel extends AdtSecondaryPanel implements Disposable, DataP
       }
 
       PreviewProvider.ImageAndDimension imageAndSize = myPreviewProvider.createPreview(component, item);
-      BufferedImage image = imageAndSize.image;
-      Dimension size = imageAndSize.dimension;
+      BufferedImage image = imageAndSize.getImage();
+      Dimension size = imageAndSize.getDimension();
       setDragImage(image);
       if (SystemInfo.isWindows) {
         // Windows uses opposite conventions for computing offset

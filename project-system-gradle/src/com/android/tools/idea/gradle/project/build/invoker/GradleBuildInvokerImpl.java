@@ -40,6 +40,7 @@ import static one.util.streamex.MoreCollectors.onlyOne;
 import com.android.builder.model.AndroidProject;
 import com.android.tools.idea.gradle.filters.AndroidReRunBuildFilter;
 import com.android.tools.idea.gradle.project.BuildSettings;
+import com.android.tools.idea.gradle.project.ProjectStructure;
 import com.android.tools.idea.gradle.project.build.attribution.BuildAttributionManager;
 import com.android.tools.idea.gradle.project.build.attribution.BuildAttributionOutputLinkFilter;
 import com.android.tools.idea.gradle.project.build.attribution.BuildAttributionUtil;
@@ -126,10 +127,9 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
   @NotNull private final BuildStopper myBuildStopper = new BuildStopper();
   @NotNull private final NativeDebugSessionFinder myNativeDebugSessionFinder;
 
-  @NonInjectable
-  @VisibleForTesting
-  public GradleBuildInvokerImpl(@NotNull Project project, @NotNull FileDocumentManager documentManager) {
-    this(project, documentManager, new GradleTasksExecutorImpl(), new NativeDebugSessionFinder(project));
+  @SuppressWarnings("unused") // This constructor is use by the component manager
+  public GradleBuildInvokerImpl(@NotNull Project project) {
+    this(project, FileDocumentManager.getInstance(), new GradleTasksExecutorImpl(), new NativeDebugSessionFinder(project));
   }
 
   @NonInjectable
@@ -150,9 +150,8 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
       return;
     }
     // Collect the root project path for all modules, there is one root project path per included project.
-    GradleRootPathFinder pathFinder = new GradleRootPathFinder();
     Set<File> projectRootPaths = Arrays.stream(ModuleManager.getInstance(getProject()).getModules())
-      .map(module -> pathFinder.getProjectRootPath(module).toFile())
+      .map(module -> ProjectStructure.getInstance(myProject).getModuleFinder().getRootProjectPath(module).toFile())
       .collect(Collectors.toSet());
     for (File projectRootPath : projectRootPaths) {
       executeTasks(CLEAN, projectRootPath, Collections.singletonList(CLEAN_TASK_NAME));
@@ -160,21 +159,11 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
   }
 
   @Override
-  public void generateSources(@NotNull Module[] modules) {
-    generateSources(false, modules);
-  }
-
-  private void generateSources(boolean cleanProject, @NotNull Module[] modules) {
+  public void generateSources(@NotNull Module @NotNull [] modules) {
     BuildMode buildMode = SOURCE_GEN;
 
     GradleTaskFinder gradleTaskFinder = GradleTaskFinder.getInstance();
     ListMultimap<Path, String> tasks = gradleTaskFinder.findTasksToExecute(modules, buildMode, TestCompileType.NONE);
-    if (cleanProject) {
-      if (stopNativeDebugSessionOrStopBuild()) {
-        return;
-      }
-      tasks.keys().elementSet().forEach(key -> tasks.get(key).add(0, CLEAN_TASK_NAME));
-    }
     for (Path rootPath : tasks.keySet()) {
       executeTasks(buildMode, rootPath.toFile(), tasks.get(rootPath), Collections.singletonList(createGenerateSourcesOnlyProperty()));
     }
@@ -221,7 +210,7 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
                          "Clicking \"Cancel\" stops Gradle from cleaning or rebuilding your project, " +
                          "and preserves your debug process.";
         MessageDialogBuilder.YesNoCancel dialogBuilder = MessageDialogBuilder.yesNoCancel("Terminate debugging", message);
-        int answer = dialogBuilder.project(myProject).yesText("Terminate").noText("Do not terminate").cancelText("Cancel").doNotAsk(
+        int answer = dialogBuilder.yesText("Terminate").noText("Do not terminate").cancelText("Cancel").doNotAsk(
           new DialogWrapper.DoNotAskOption.Adapter() {
             @Override
             public void rememberChoice(boolean isSelected, int exitCode) {
@@ -230,7 +219,7 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
               }
             }
           })
-          .show();
+          .show(myProject);
         yesNoCancelRef.set(answer);
       }, ModalityState.NON_MODAL);
       @YesNoCancelResult int answer = yesNoCancelRef.get();
@@ -247,7 +236,7 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
 
   @NotNull
   @Override
-  public ListenableFuture<AssembleInvocationResult> executeAssembleTasks(@NotNull Module[] assembledModules,
+  public ListenableFuture<AssembleInvocationResult> executeAssembleTasks(@NotNull Module @NotNull [] assembledModules,
                                                                          @NotNull List<Request> request) {
     BuildMode buildMode = request.stream()
       .map(Request::getMode)
@@ -255,9 +244,9 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
       .distinct()
       .collect(onlyOne())
       .orElseThrow(() -> new IllegalArgumentException("Each request requires the same not null build mode to be set"));
-    GradleRootPathFinder pathFinder = new GradleRootPathFinder();
     Map<String, List<Module>> modulesByRootProject = Arrays.stream(assembledModules)
-      .map(it -> Pair.create(it, toSystemIndependentName(pathFinder.getProjectRootPath(it).toFile().getPath())))
+      .map(it -> Pair.create(it, toSystemIndependentName(
+        ProjectStructure.getInstance(myProject).getModuleFinder().getRootProjectPath(it).toFile().getPath())))
       .filter(it -> it.second != null)
       .collect(groupingBy(it -> it.second, mapping(it -> it.first, toList())));
     ListenableFuture<GradleMultiInvocationResult> resultFuture = executeTasks(
@@ -283,7 +272,7 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
    *                        main sources, {@link TestCompileType#UNIT_TESTS} if class files for running unit tests are needed.
    */
   @Override
-  public void compileJava(@NotNull Module[] modules, @NotNull TestCompileType testCompileType) {
+  public void compileJava(@NotNull Module @NotNull [] modules, @NotNull TestCompileType testCompileType) {
     BuildMode buildMode = COMPILE_JAVA;
     ListMultimap<Path, String> tasks = GradleTaskFinder.getInstance().findTasksToExecute(modules, buildMode, testCompileType);
     for (Path rootPath : tasks.keySet()) {
@@ -461,7 +450,6 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
     ListenableFuture<GradleInvocationResult> resultFuture = myTaskExecutor.execute(request, buildAction, myBuildStopper, buildTaskListener);
 
     if (request.isWaitForCompletion() && !ApplicationManager.getApplication().isDispatchThread()) {
-      //noinspection CatchMayIgnoreException
       try {
         resultFuture.get();
       }
@@ -521,7 +509,7 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
     @NotNull private final Request myRequest;
     @NotNull private final BuildViewManager myBuildViewManager;
     @NotNull private final String myExecutionName;
-    @NotNull private BuildEventDispatcher myBuildEventDispatcher;
+    @NotNull private final BuildEventDispatcher myBuildEventDispatcher;
     private boolean myBuildFailed;
 
     private boolean myStartBuildEventPosted = false;
@@ -602,6 +590,7 @@ public class GradleBuildInvokerImpl implements GradleBuildInvoker {
       // The underlying output parsers are closed asynchronously. Wait for completion in tests.
       if (ApplicationManager.getApplication().isUnitTestMode()) {
         try {
+          //noinspection ResultOfMethodCallIgnored
           eventDispatcherFinished.await(10, SECONDS);
         }
         catch (InterruptedException ex) {

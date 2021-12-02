@@ -16,7 +16,7 @@
 package com.android.tools.idea.testing
 
 import com.android.tools.idea.gradle.model.IdeSourceProvider
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.projectsystem.IdeaSourceProvider
 import com.android.tools.idea.projectsystem.NamedIdeaSourceProvider
 import com.android.tools.idea.projectsystem.getAndroidFacets
@@ -130,7 +130,7 @@ fun Project.dumpSourceProviders(): String {
             val sourceProviderManager = SourceProviderManager.getInstance(facet)
             sourceProviderManager.mainIdeaSourceProvider.dump()
           }
-          val model = AndroidModuleModel.get(facet)
+          val model = GradleAndroidModel.get(facet)
 
           fun IdeSourceProvider.adjustedName() =
             if (name == "main") "_" else name
@@ -155,6 +155,10 @@ fun Project.dumpSourceProviders(): String {
             nest("UnitTestSources:") { sourceProviderManager.unitTestSources.dump("UnitTestSources") }
             nest("AndroidTestSources:") { sourceProviderManager.androidTestSources.dump("AndroidTestSources") }
             nest("TestFixturesSources:") { sourceProviderManager.testFixturesSources.dump("TestFixturesSources") }
+            nest("GeneratedSources:") { sourceProviderManager.generatedSources.dump("GeneratedSources") }
+            nest("GeneratedUnitTestSources:") { sourceProviderManager.generatedUnitTestSources.dump("GeneratedUnitTestSources") }
+            nest("GeneratedAndroidTestSources:") { sourceProviderManager.generatedAndroidTestSources.dump("GeneratedAndroidTestSources") }
+            nest("GeneratedTestFixturesSources:") { sourceProviderManager.generatedTestFixturesSources.dump("GeneratedTestFixturesSources") }
             nest(
               "CurrentAndSomeFrequentlyUsedInactiveSourceProviders:") { sourceProviderManager.currentAndSomeFrequentlyUsedInactiveSourceProviders.sortedBy { it.adjustedName() }.forEach { it.dump() } }
             nest("CurrentSourceProviders:") { sourceProviderManager.currentSourceProviders.forEach { it.dump() } }

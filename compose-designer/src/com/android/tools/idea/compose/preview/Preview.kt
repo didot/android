@@ -21,6 +21,7 @@ import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.scene.render
 import com.android.tools.idea.common.surface.handleLayoutlibNativeCrash
 import com.android.tools.idea.common.util.ControllableTicker
+import com.android.tools.idea.compose.ComposeExperimentalConfiguration
 import com.android.tools.idea.compose.preview.PreviewGroup.Companion.ALL_PREVIEW_GROUP
 import com.android.tools.idea.compose.preview.actions.ForceCompileAndRefreshAction
 import com.android.tools.idea.compose.preview.actions.PinAllPreviewElementsAction
@@ -53,7 +54,7 @@ import com.android.tools.idea.editors.setupOnSaveListener
 import com.android.tools.idea.editors.shortcuts.getBuildAndRefreshShortcut
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.flags.StudioFlags.COMPOSE_LIVE_EDIT_PREVIEW
-import com.android.tools.idea.flags.StudioFlags.COMPOSE_POWER_SAVE_MODE_SUPPORT
+import com.android.tools.idea.flags.StudioFlags.DESIGN_TOOLS_POWER_SAVE_MODE_SUPPORT
 import com.android.tools.idea.projectsystem.BuildListener
 import com.android.tools.idea.projectsystem.setupBuildListener
 import com.android.tools.idea.rendering.RenderService
@@ -79,6 +80,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.event.CaretEvent
 import com.intellij.openapi.fileEditor.FileEditor
@@ -94,12 +96,10 @@ import com.intellij.problems.WolfTheProblemSolver
 import com.intellij.psi.PsiFile
 import com.intellij.psi.SmartPointerManager
 import com.intellij.ui.EditorNotifications
-import com.intellij.ui.JBColor
 import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jetbrains.kotlin.idea.debugger.readAction
 import org.jetbrains.kotlin.idea.util.module
 import java.awt.Color
 import java.time.Duration
@@ -116,7 +116,7 @@ import kotlin.properties.Delegates
 /**
  * Background color for the surface while "Interactive" is enabled.
  */
-private val INTERACTIVE_BACKGROUND_COLOR = JBColor(Color(203, 210, 217), MEUI.ourInteractiveBackgroundColor)
+private val INTERACTIVE_BACKGROUND_COLOR = MEUI.ourInteractiveBackgroundColor
 
 /**
  * [Notification] group ID. Must match the `groupNotification` entry of `compose-designer.xml`.
@@ -222,10 +222,10 @@ private const val BUILD_ON_SAVE_KEY = "buildOnSave"
 private const val LAYOUT_KEY = "previewLayout"
 
 /**
- * Same as [PowerSaveMode] but obeys to the [COMPOSE_POWER_SAVE_MODE_SUPPORT] to allow disabling the functionality.
+ * Same as [PowerSaveMode] but obeys to the [DESIGN_TOOLS_POWER_SAVE_MODE_SUPPORT] to allow disabling the functionality.
  */
 private val isInPowerSaveMode: Boolean
-  get() = COMPOSE_POWER_SAVE_MODE_SUPPORT.get() && PowerSaveMode.isEnabled()
+  get() = DESIGN_TOOLS_POWER_SAVE_MODE_SUPPORT.get() && PowerSaveMode.isEnabled()
 
 /**
  * A [PreviewRepresentation] that provides a compose elements preview representation of the given `psiFile`.
@@ -317,57 +317,57 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
 
   private val fpsCounter = FpsCalculator { System.nanoTime() }
 
-  override var interactivePreviewElementInstance: PreviewElementInstance?
-    set(value) {
-      if ((interactiveMode == ComposePreviewManager.InteractiveMode.DISABLED && value != null) ||
-          (interactiveMode == ComposePreviewManager.InteractiveMode.READY && value == null)) {
-        LOG.debug("New single preview element focus: $value")
-        val isInteractive = value != null
-        val isFromAnimationInspection = animationInspection.get()
-        // The order matters because we first want to change the composable being previewed and then start interactive loop when enabled
-        // but we want to stop the loop first and then change the composable when disabled
-        if (isInteractive) { // Enable interactive
-          if (isFromAnimationInspection) {
-            onAnimationInspectionStop()
-          } else {
-            EditorNotifications.getInstance(project).updateNotifications(psiFilePointer.virtualFile!!)
-          }
-          interactiveMode = ComposePreviewManager.InteractiveMode.STARTING
-          val quickRefresh = shouldQuickRefresh() && !isFromAnimationInspection// We should call this before assigning newValue to instanceIdFilter
-          val peerPreviews = previewElementProvider.previewElements.count()
-          previewElementProvider.instanceFilter = value
-          composeWorkBench.hasComponentsOverlay = false
-          val startUpStart = System.currentTimeMillis()
-          forceRefresh(quickRefresh).invokeOnCompletion {
-            surface.layoutlibSceneManagers.forEach { it.resetTouchEventsCounter() }
-            if (!isFromAnimationInspection) { // Currently it will re-create classloader and will be slower that switch from static
-              InteractivePreviewUsageTracker.getInstance(surface).logStartupTime(
-                (System.currentTimeMillis() - startUpStart).toInt(), peerPreviews)
-            }
-            fpsCounter.resetAndStart()
-            ticker.start()
-            composeWorkBench.isInteractive = true
+  override val interactivePreviewElementInstance: PreviewElementInstance?
+    get() = previewElementProvider.instanceFilter
 
-            if (StudioFlags.COMPOSE_ANIMATED_PREVIEW_SHOW_CLICK.get()) {
-              // While in interactive mode, display a small ripple when clicking
-              surface.enableMouseClickDisplay()
-            }
-            surface.background = INTERACTIVE_BACKGROUND_COLOR
-            interactiveMode = ComposePreviewManager.InteractiveMode.READY
-            ActivityTracker.getInstance().inc()
-          }
-        }
-        else { // Disable interactive
-          onInteractivePreviewStop()
-          EditorNotifications.getInstance(project).updateNotifications(psiFilePointer.virtualFile!!)
-          onStaticPreviewStart()
-          forceRefresh().invokeOnCompletion {
-            interactiveMode = ComposePreviewManager.InteractiveMode.DISABLED
-          }
-        }
-      }
+  override suspend fun startInteractivePreview(element: PreviewElementInstance) {
+    if (interactiveMode.isStartingOrReady()) return
+    LOG.debug("New single preview element focus: $element")
+    val isFromAnimationInspection = animationInspection.get()
+    // The order matters because we first want to change the composable being previewed and then start interactive loop when enabled
+    // but we want to stop the loop first and then change the composable when disabled
+    if (isFromAnimationInspection) {
+      onAnimationInspectionStop()
+    } else {
+      EditorNotifications.getInstance(project).updateNotifications(psiFilePointer.virtualFile!!)
     }
-    get() = if (interactiveMode == ComposePreviewManager.InteractiveMode.READY) previewElementProvider.instanceFilter else null
+    interactiveMode = ComposePreviewManager.InteractiveMode.STARTING
+    val quickRefresh = shouldQuickRefresh() && !isFromAnimationInspection// We should call this before assigning newValue to instanceIdFilter
+    val peerPreviews = previewElementProvider.previewElements().count()
+    previewElementProvider.instanceFilter = element
+    composeWorkBench.hasComponentsOverlay = false
+    val startUpStart = System.currentTimeMillis()
+    forceRefresh(quickRefresh).invokeOnCompletion {
+      surface.layoutlibSceneManagers.forEach { it.resetTouchEventsCounter() }
+      if (!isFromAnimationInspection) { // Currently it will re-create classloader and will be slower that switch from static
+        InteractivePreviewUsageTracker.getInstance(surface).logStartupTime(
+          (System.currentTimeMillis() - startUpStart).toInt(), peerPreviews)
+      }
+      fpsCounter.resetAndStart()
+      ticker.start()
+      composeWorkBench.isInteractive = true
+
+      if (StudioFlags.COMPOSE_ANIMATED_PREVIEW_SHOW_CLICK.get()) {
+        // While in interactive mode, display a small ripple when clicking
+        surface.enableMouseClickDisplay()
+      }
+      surface.background = INTERACTIVE_BACKGROUND_COLOR
+      interactiveMode = ComposePreviewManager.InteractiveMode.READY
+      ActivityTracker.getInstance().inc()
+    }
+  }
+
+  override fun stopInteractivePreview() {
+    if (interactiveMode.isStoppingOrDisabled()) return
+
+    LOG.debug("Stopping interactive")
+    onInteractivePreviewStop()
+    EditorNotifications.getInstance(project).updateNotifications(psiFilePointer.virtualFile!!)
+    onStaticPreviewStart()
+    forceRefresh().invokeOnCompletion {
+      interactiveMode = ComposePreviewManager.InteractiveMode.DISABLED
+    }
+  }
 
   private fun onStaticPreviewStart() {
     composeWorkBench.hasComponentsOverlay = true
@@ -724,7 +724,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     activationLock.withLock {
       // If the preview is still not active, deactivate the surface.
       if (!isActive.get()) {
-        interactivePreviewElementInstance = null
+        stopInteractivePreview()
         LOG.debug("Delayed surface deactivation")
         surface.deactivate()
       }
@@ -762,7 +762,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
 
     launch(uiThread) {
       val filePreviewElements = withContext(workerThread) {
-        memoizedElementsProvider.previewElements
+        memoizedElementsProvider.previewElements()
       }
 
       filePreviewElements.find { element ->
@@ -787,8 +787,8 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     animationInspectionPreviewElementInstance = null
   }
 
-  override var isBuildOnSaveEnabled: Boolean = false
-    get() = COMPOSE_LIVE_EDIT_PREVIEW.get() && field
+  override val isBuildOnSaveEnabled: Boolean
+    get() = COMPOSE_LIVE_EDIT_PREVIEW.get() && ComposeExperimentalConfiguration.getInstance().isBuildOnSaveEnabled
 
   private var lastPinsModificationCount = -1L
 
@@ -872,10 +872,10 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
    */
   private suspend fun doRefreshSync(filePreviewElements: List<PreviewElement>, quickRefresh: Boolean, progressIndicator: ProgressIndicator) {
     if (LOG.isDebugEnabled) LOG.debug("doRefresh of ${filePreviewElements.count()} elements.")
-    val psiFile = readAction {
+    val psiFile = runReadAction {
       val element = psiFilePointer.element
 
-      return@readAction if (element == null || !element.isValid) {
+      return@runReadAction if (element == null || !element.isValid) {
         LOG.warn("doRefresh with invalid PsiFile")
         null
       }
@@ -892,7 +892,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     if (progressIndicator.isCanceled) return // Return early if user has cancelled the refresh
 
     // Cache available groups
-    availableGroups = previewElementProvider.allAvailableGroups
+    availableGroups = previewElementProvider.allAvailableGroups()
 
     // Restore
     onRestoreState?.invoke()
@@ -900,7 +900,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
 
     val arePinsEnabled = StudioFlags.COMPOSE_PIN_PREVIEW.get() && interactiveMode.isStoppingOrDisabled() && !animationInspection.get()
     val hasPinnedElements = if (arePinsEnabled) {
-      memoizedPinnedPreviewProvider.previewElements.any()
+      memoizedPinnedPreviewProvider.previewElements().any()
     } else false
 
     composeWorkBench.setPinnedSurfaceVisibility(hasPinnedElements)
@@ -1006,7 +1006,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
       try {
         if (checkProgressIndicatorIsCancelledAndUpdateText("refresh.progress.indicator.finding.previews")) return@launch
         val filePreviewElements = withContext(workerThread) {
-          memoizedElementsProvider.previewElements
+          memoizedElementsProvider.previewElements()
             .toList()
             .sortByDisplayAndSourcePosition()
         }
@@ -1015,7 +1015,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
           if (checkProgressIndicatorIsCancelledAndUpdateText("refresh.progress.indicator.finding.pinned.previews")) return@launch
 
           withContext(workerThread) {
-            memoizedPinnedPreviewProvider.previewElements
+            memoizedPinnedPreviewProvider.previewElements()
               .toList()
               .sortByDisplayAndSourcePosition()
           }
@@ -1059,7 +1059,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
         refreshCallsCount.decrementAndGet()
         composeWorkBench.updateVisibilityAndNotifications()
         UIUtil.invokeLaterIfNeeded {
-          if (!(composeWorkBench as ComposePreviewViewImpl).isMessageVisible) {
+          if (!composeWorkBench.isMessageBeingDisplayed) {
             // Only notify the preview refresh time if there are previews to show.
             val durationString = Duration.ofMillis((System.nanoTime() - startTime) / 1_000_000).toDisplayString()
             val notification = Notification(
@@ -1083,13 +1083,11 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     }?.displayName ?: ""
     return mapOf(
       SELECTED_GROUP_KEY to selectedGroupName,
-      BUILD_ON_SAVE_KEY to isBuildOnSaveEnabled.toString(),
       LAYOUT_KEY to selectedLayoutName)
   }
 
   override fun setState(state: PreviewRepresentationState) {
     val selectedGroupName = state[SELECTED_GROUP_KEY]
-    val buildOnSave = state[BUILD_ON_SAVE_KEY]?.toBoolean()
     val previewLayoutName = state[LAYOUT_KEY]
     onRestoreState = {
       if (!selectedGroupName.isNullOrEmpty()) {
@@ -1097,8 +1095,6 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
           groupFilter = it
         }
       }
-
-      buildOnSave?.let { isBuildOnSaveEnabled = it }
 
       PREVIEW_LAYOUT_MANAGER_OPTIONS.find { it.displayName == previewLayoutName }?.let {
         (surface.sceneViewLayoutManager as LayoutManagerSwitcher).setLayoutManager(it.layoutManager)
@@ -1126,5 +1122,5 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
    * When live literals is enabled, we want to try to preserve the same class loader as much as possible.
    */
   private fun shouldQuickRefresh() =
-    !isLiveLiteralsEnabled && StudioFlags.COMPOSE_QUICK_ANIMATED_PREVIEW.get() && previewElementProvider.previewElements.count() == 1
+    !isLiveLiteralsEnabled && StudioFlags.COMPOSE_QUICK_ANIMATED_PREVIEW.get() && previewElements.count() == 1
 }

@@ -15,50 +15,39 @@
  */
 package com.android.tools.idea.devicemanager.virtualtab;
 
-import com.android.sdklib.internal.avd.AvdInfo;
 import com.android.tools.adtui.stdui.CommonButton;
 import com.android.tools.idea.avdmanager.AvdUiAction.AvdInfoProvider;
 import com.android.tools.idea.avdmanager.CreateAvdAction;
 import com.android.tools.idea.devicemanager.DetailsPanel;
-import com.android.tools.idea.devicemanager.DetailsPanelPanel;
-import com.android.tools.idea.devicemanager.DetailsPanelPanelListSelectionListener;
-import com.android.tools.idea.flags.StudioFlags;
+import com.android.tools.idea.devicemanager.DevicePanel;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.ui.SearchTextField;
-import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBDimension;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionListener;
-import java.util.Optional;
 import java.util.function.Function;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.GroupLayout.Group;
 import javax.swing.JButton;
 import javax.swing.JSeparator;
+import javax.swing.JTable;
 import javax.swing.SwingConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 
-public final class VirtualDevicePanel extends JBPanel<VirtualDevicePanel> implements Disposable, DetailsPanelPanel<AvdInfo> {
+public final class VirtualDevicePanel extends DevicePanel {
+  private final @Nullable Project myProject;
+
   private final @NotNull JButton myCreateButton;
   private final @NotNull JSeparator mySeparator;
-  private @Nullable JButton myRefreshButton;
   private final @NotNull JButton myHelpButton;
-  private @Nullable SearchTextField mySearchTextField;
-
-  private final @Nullable Project myProject;
-  private final @NotNull Component myScrollPane;
-  private VirtualDeviceTable myTable;
-  private @Nullable DetailsPanel myDetailsPanel;
 
   public VirtualDevicePanel(@Nullable Project project, @NotNull Disposable parent) {
     this(project, parent, CreateAvdAction::new);
@@ -73,113 +62,34 @@ public final class VirtualDevicePanel extends JBPanel<VirtualDevicePanel> implem
     myScrollPane = new JBScrollPane(myTable);
 
     myCreateButton = new JButton("Create device");
-    myCreateButton.addActionListener(createAvdActionProvider.apply(myTable));
+    myCreateButton.addActionListener(createAvdActionProvider.apply((AvdInfoProvider)myTable));
 
     Dimension separatorSize = new JBDimension(3, 20);
     mySeparator = new JSeparator(SwingConstants.VERTICAL);
     mySeparator.setPreferredSize(separatorSize);
     mySeparator.setMaximumSize(separatorSize);
 
-    if (enableHalfBakedFeatures()) {
-      myRefreshButton = new CommonButton(AllIcons.Actions.Refresh);
-      myRefreshButton.addActionListener(event -> myTable.refreshAvds());
-    }
-
     myHelpButton = new CommonButton(AllIcons.Actions.Help);
     myHelpButton.addActionListener(event -> BrowserUtil.browse("https://d.android.com/r/studio-ui/device-manager/virtual"));
 
-    if (enableHalfBakedFeatures()) {
-      mySearchTextField = new SearchTextField(true);
-      mySearchTextField.setToolTipText("Search virtual devices by name");
-    }
-
-    setLayout(createGroupLayout());
+    initDetailsPanelPanel();
+    layOut();
 
     Disposer.register(parent, this);
   }
 
-  private void initTable() {
-    myTable = new VirtualDeviceTable(myProject);
-    myTable.getSelectionModel().addListSelectionListener(new DetailsPanelPanelListSelectionListener<>(this));
-  }
-
-  private @NotNull GroupLayout createGroupLayout() {
-    GroupLayout groupLayout = new GroupLayout(this);
-
-    Group toolbarHorizontalGroup = createToolbarHorizontalGroup(groupLayout);
-    Group toolbarVerticalGroup = createToolbarVerticalGroup(groupLayout);
-
-    Group horizontalGroup = groupLayout.createParallelGroup(Alignment.LEADING)
-      .addGroup(toolbarHorizontalGroup)
-      .addComponent(myScrollPane);
-
-    if (myDetailsPanel != null) {
-      horizontalGroup.addComponent(myDetailsPanel);
-    }
-
-    Group verticalGroup = groupLayout.createSequentialGroup()
-      .addGroup(toolbarVerticalGroup)
-      .addComponent(myScrollPane, 0, 0, Short.MAX_VALUE);
-
-    if (myDetailsPanel != null) {
-      verticalGroup.addComponent(myDetailsPanel, 0, 0, JBUIScale.scale(240));
-    }
-
-    groupLayout.setHorizontalGroup(horizontalGroup);
-    groupLayout.setVerticalGroup(verticalGroup);
-    return groupLayout;
-  }
-
-  private @NotNull Group createToolbarHorizontalGroup(@NotNull GroupLayout groupLayout) {
-    Group toolbarHorizontalGroup = groupLayout.createSequentialGroup()
-      .addGap(JBUIScale.scale(5))
-      .addComponent(myCreateButton, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-      .addGap(JBUIScale.scale(4))
-      .addComponent(mySeparator, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE);
-
-    if (myRefreshButton != null) {
-      toolbarHorizontalGroup
-        .addComponent(myRefreshButton, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE);
-    }
-
-    toolbarHorizontalGroup.addComponent(myHelpButton, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE);
-
-    if (mySearchTextField != null) {
-      toolbarHorizontalGroup
-        .addComponent(mySearchTextField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE);
-    }
-
-    return toolbarHorizontalGroup;
-  }
-
-  private @NotNull Group createToolbarVerticalGroup(@NotNull GroupLayout groupLayout) {
-    Group toolbarVerticalGroup = groupLayout.createParallelGroup(Alignment.CENTER);
-    toolbarVerticalGroup.addComponent(myCreateButton, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-      .addComponent(mySeparator, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE);
-
-    if (myRefreshButton != null) {
-      toolbarVerticalGroup.addComponent(myRefreshButton, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE);
-    }
-
-    toolbarVerticalGroup.addComponent(myHelpButton, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE);
-
-    if (mySearchTextField != null) {
-      toolbarVerticalGroup
-        .addComponent(mySearchTextField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE);
-    }
-
-    return toolbarVerticalGroup;
-  }
-
-  private static boolean enableHalfBakedFeatures() {
-    return StudioFlags.ENABLE_DEVICE_MANAGER_HALF_BAKED_FEATURES.get();
+  @Override
+  protected @NotNull JTable newTable() {
+    return new VirtualDeviceTable(this);
   }
 
   @Override
-  public void dispose() {
-    if (myDetailsPanel != null) {
-      Disposer.dispose(myDetailsPanel);
-    }
+  protected @NotNull DetailsPanel newDetailsPanel() {
+    return new VirtualDeviceDetailsPanel(((VirtualDeviceTable)myTable).getSelectedDevice().orElseThrow(AssertionError::new));
+  }
+
+  @Nullable Project getProject() {
+    return myProject;
   }
 
   @VisibleForTesting
@@ -187,39 +97,28 @@ public final class VirtualDevicePanel extends JBPanel<VirtualDevicePanel> implem
     return myCreateButton;
   }
 
-  @Override
-  public @NotNull Optional<@NotNull AvdInfo> getSelectedDevice() {
-    return myTable.getSelectedDevice();
-  }
+  private void layOut() {
+    GroupLayout layout = new GroupLayout(this);
 
-  @Override
-  public boolean containsDetailsPanel() {
-    return myDetailsPanel != null;
-  }
+    Group horizontalGroup = layout.createParallelGroup()
+      .addGroup(layout.createSequentialGroup()
+                  .addGap(JBUIScale.scale(5))
+                  .addComponent(myCreateButton)
+                  .addGap(JBUIScale.scale(4))
+                  .addComponent(mySeparator)
+                  .addComponent(myHelpButton))
+      .addComponent(myDetailsPanelPanel);
 
-  @Override
-  public void removeDetailsPanel() {
-    assert myDetailsPanel != null;
+    Group verticalGroup = layout.createSequentialGroup()
+      .addGroup(layout.createParallelGroup(Alignment.CENTER)
+                  .addComponent(myCreateButton)
+                  .addComponent(mySeparator)
+                  .addComponent(myHelpButton))
+      .addComponent(myDetailsPanelPanel);
 
-    remove(myDetailsPanel);
-    Disposer.dispose(myDetailsPanel);
-    myDetailsPanel = null;
-  }
+    layout.setHorizontalGroup(horizontalGroup);
+    layout.setVerticalGroup(verticalGroup);
 
-  @Override
-  public void initDetailsPanel(@NotNull AvdInfo device) {
-    myDetailsPanel = new VirtualDeviceDetailsPanel(device);
-
-    myDetailsPanel.getCloseButton().addActionListener(event -> {
-      myTable.clearSelection();
-
-      removeDetailsPanel();
-      layOut();
-    });
-  }
-
-  @Override
-  public void layOut() {
-    setLayout(createGroupLayout());
+    setLayout(layout);
   }
 }

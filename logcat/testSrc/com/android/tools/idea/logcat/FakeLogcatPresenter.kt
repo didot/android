@@ -42,7 +42,11 @@ internal class FakeLogcatPresenter : LogcatPresenter {
     reloadedMessages++
   }
 
-  override fun applyFilter(logcatFilter: LogcatFilter) {
+  override fun applyFilter(logcatFilter: LogcatFilter?) {
+    TODO("Not yet implemented")
+  }
+
+  override fun setShowOnlyProjectApps(enabled: Boolean) {
     TODO("Not yet implemented")
   }
 

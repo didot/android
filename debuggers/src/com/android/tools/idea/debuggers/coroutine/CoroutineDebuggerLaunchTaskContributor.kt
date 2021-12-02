@@ -17,13 +17,12 @@ package com.android.tools.idea.debuggers.coroutine
 
 import com.android.ddmlib.IDevice
 import com.android.sdklib.AndroidVersion
+import com.android.tools.deployer.Sites
 import com.android.tools.idea.run.AndroidLaunchTaskContributor
 import com.android.tools.idea.run.AndroidRunConfigurationBase
-import com.android.tools.idea.run.LaunchOptions
 import com.android.tools.idea.run.tasks.LaunchTask
 import com.intellij.execution.Executor
 import com.intellij.execution.executors.DefaultDebugExecutor
-import com.intellij.openapi.module.Module
 
 /**
  * Responsible for setting the am start options to start the coroutine debugger agent.
@@ -57,7 +56,16 @@ class CoroutineDebuggerLaunchTaskContributor : AndroidLaunchTaskContributor {
       return ""
     }
 
-    // TODO(b/182023182) make a public accessible method in Deployer to expose the sites values
-    return "--attach-agent /data/data/${applicationId}/code_cache/coroutine_debugger_agent.so"
+    val isCoroutineDebuggerEnabledInSettings = CoroutineDebuggerSettings.isCoroutineDebuggerEnabled()
+
+    CoroutineDebuggerAnalyticsTracker.getInstance(configuration.project).trackLaunchEvent(!isCoroutineDebuggerEnabledInSettings)
+
+    // coroutine debugger can be disabled from studio settings
+    if (!isCoroutineDebuggerEnabledInSettings) {
+      return ""
+    }
+
+    val appCodeCache = Sites.appCodeCache(applicationId)
+    return "--attach-agent ${appCodeCache}coroutine_debugger_agent.so"
   }
 }

@@ -65,6 +65,7 @@ import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet
 import com.android.tools.idea.gradle.project.facet.java.JavaFacet
 import com.android.tools.idea.gradle.project.facet.ndk.NdkFacet
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.gradle.project.model.GradleModuleModel
 import com.android.tools.idea.gradle.project.model.JavaModuleModel
 import com.android.tools.idea.gradle.project.model.NdkModuleModel
@@ -660,6 +661,7 @@ fun AndroidProjectStubBuilder.buildMainArtifactStub(
       apkFromBundleTaskOutputListingFile = buildPath.resolve("intermediates/apk_from_bundle_ide_model/$variant/output.json").path
     ),
     codeShrinker = null,
+    modelSyncFiles = listOf(),
   )
 }
 
@@ -699,6 +701,7 @@ fun AndroidProjectStubBuilder.buildAndroidTestArtifactStub(
       apkFromBundleTaskOutputListingFile = buildPath.resolve("intermediates/apk_from_bundle_ide_model/$variant/output.json").path
     ),
     codeShrinker = null,
+    modelSyncFiles = listOf(),
   )
 }
 
@@ -762,6 +765,7 @@ fun AndroidProjectStubBuilder.buildTestFixturesArtifactStub(
       apkFromBundleTaskOutputListingFile = buildPath.resolve("intermediates/apk_from_bundle_ide_model/$variant/output.json").path
     ),
     codeShrinker = null,
+    modelSyncFiles = listOf(),
   )
 }
 
@@ -848,7 +852,7 @@ fun AndroidProjectStubBuilder.buildAndroidProjectStub(): IdeAndroidProjectImpl {
   val defaultVariantName = defaultVariant?.sourceProvider?.name ?: "main"
   val buildTypes = listOfNotNull(debugBuildType, releaseBuildType)
   return IdeAndroidProjectImpl(
-    modelVersion = agpVersion,
+    agpVersion = agpVersion,
     name = projectName,
     projectType = projectType,
     defaultConfig = defaultConfig,
@@ -1183,9 +1187,9 @@ private fun createAndroidModuleDataNode(
   )
 
   moduleDataNode.addChild(
-    DataNode<AndroidModuleModel>(
+    DataNode<GradleAndroidModel>(
       AndroidProjectKeys.ANDROID_MODEL,
-      AndroidModuleModel.create(
+      GradleAndroidModel.create(
         moduleName,
         moduleBasePath,
         androidProject,

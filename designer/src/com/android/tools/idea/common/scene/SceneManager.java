@@ -100,8 +100,6 @@ abstract public class SceneManager implements Disposable, ResourceNotificationMa
    * Creates a new {@link SceneManager}.
    * @param model the {@NlMode} linked to this {@link SceneManager}.
    * @param surface the {@DesignSurface} that will render this {@link SceneManager}.
-   * @param useLiveRendering if true, the {@link SceneManager} will re-render on every component update. When false, only when a explicit
-   *                         {@link SceneManager#requestRenderAsync} happens.
    * @param sceneComponentProvider a {@link SceneComponentHierarchyProvider} that will generate the {@link SceneComponent}s from the
    *                               given {@link NlComponent}.
    * @param sceneUpdateListener a {@link SceneUpdateListener} that allows performing additional operations when updating the scene.
@@ -109,7 +107,6 @@ abstract public class SceneManager implements Disposable, ResourceNotificationMa
   public SceneManager(
     @NotNull NlModel model,
     @NotNull DesignSurface surface,
-    boolean useLiveRendering,
     @Nullable SceneComponentHierarchyProvider sceneComponentProvider,
     @Nullable SceneManager.SceneUpdateListener sceneUpdateListener) {
     myModel = model;
@@ -118,7 +115,7 @@ abstract public class SceneManager implements Disposable, ResourceNotificationMa
 
     mySceneComponentProvider = sceneComponentProvider == null ? new DefaultSceneManagerHierarchyProvider() : sceneComponentProvider;
     mySceneUpdateListener = sceneUpdateListener == null ? new DefaultSceneUpdateListener() : sceneUpdateListener;
-    myScene = new Scene(this, myDesignSurface, useLiveRendering);
+    myScene = new Scene(this, myDesignSurface);
   }
 
   /**
@@ -363,6 +360,15 @@ abstract public class SceneManager implements Disposable, ResourceNotificationMa
     }
     // NlModel handles the double activation/deactivation itself.
     return getModel().deactivate(source);
+  }
+
+  /**
+   * Returns true if this {@link SceneManager} is not fully up to date with the {@link NlModel}.
+   * This can happen when PowerMode is enabled and the {@link SceneManager} stops listening for automatic updates
+   * from the model.
+   */
+  public boolean isOutOfDate() {
+    return false;
   }
 
   // ---- Implements ResourceNotificationManager.ResourceChangeListener ----

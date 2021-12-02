@@ -78,7 +78,6 @@ iml_module(
         "//tools/adt/idea/android/lib:instantapps-api",
         "//tools/analytics-library/crash:analytics-crash[module]",
         "//tools/adt/idea/.idea/libraries:aapt-proto",
-        "//tools/adt/idea/android/lib:pepk",
         "//tools/adt/idea/.idea/libraries:emulator-proto",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
         "//tools/adt/idea/deploy:intellij.android.deploy[module]",
@@ -282,7 +281,6 @@ iml_module(
         "//tools/adt/idea/android/lib:instantapps-api",
         "//tools/analytics-library/crash:analytics-crash[module, test]",
         "//tools/adt/idea/.idea/libraries:aapt-proto",
-        "//tools/adt/idea/android/lib:pepk[test]",
         "//tools/adt/idea/.idea/libraries:emulator-proto",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
         "//tools/adt/idea/.idea/libraries:jimfs[test]",
@@ -416,6 +414,8 @@ filegroup(
         "//tools/base/utp/android-test-plugin-host-device-info-proto:studio.android-test-plugin-host-device-info-proto",
         "//tools/base/utp/android-test-plugin-host-retention-proto:studio.android-test-plugin-host-retention-proto",
         "//tools/base/utp/android-test-plugin-result-listener-gradle-proto:studio.android-test-plugin-result-listener-gradle-proto",
+        "//tools/data-binding:compilerCommon.antlr_runtime.shaded",
+        "//tools/data-binding:compilerCommon.antlr.shaded",
     ] + select({
         "//tools/base/bazel:windows": [],
         "//conditions:default": [

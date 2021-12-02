@@ -55,8 +55,7 @@
 
     <codeStyleSettingsProvider implementation="org.jetbrains.android.formatter.AndroidStudioCodeStyleSettingsProvider" order="last"/>
 
-    <statusBarWidgetFactory id="UserSentimentPanelPositive" implementation="com.android.tools.idea.stats.PositiveUserSentimentWidgetFactory"/>
-    <statusBarWidgetFactory id="UserSentimentPanelNegative" order="after UserSentimentPanelPositive" implementation="com.android.tools.idea.stats.NegativeUserSentimentWidgetFactory"/>
+    <statusBarWidgetFactory id="SendFeedbackPanel" implementation="com.android.tools.idea.stats.SendFeedbackWidgetFactory"/>
   </extensions>
 
   <actions>
@@ -103,11 +102,8 @@
     <action id="RebuildGradleProject" class="com.android.tools.idea.gradle.actions.RebuildGradleProjectAction">
       <add-to-group group-id="BuildMenu" anchor="after" relative-to-action="CompileProject"/>
     </action>
-    <action id="GenerateSourcesModuleAction" class="com.android.tools.idea.gradle.actions.GenerateSourcesModuleAction">
-      <add-to-group group-id="BuildMenu" anchor="after" relative-to-action="MakeGradleModule" />
-    </action>
 
-    <action id="WelcomeScreen.RunAndroidAvdManager" class="org.jetbrains.android.actions.RunAndroidAvdManagerAction"
+    <action id="WelcomeScreen.RunAndroidAvdManager" class="com.android.tools.idea.avdmanager.actions.RunAndroidAvdManagerAction"
             icon="StudioIcons.Shell.Menu.AVD_MANAGER">
       <add-to-group group-id="WelcomeScreen.QuickStart" relative-to-action="WelcomeScreen.RunAndroidSdkManager" anchor="after"/>
     </action>
@@ -163,12 +159,6 @@
     <projectService serviceInterface="org.jetbrains.plugins.gradle.settings.GradleSettings"
                     serviceImplementation="com.android.tools.idea.gradle.project.AndroidStudioGradleSettings"
                     overrides="true"/>
-
-    <!-- DO NOT move to project-system-gradle-plugin.xml. It should run in Android Studio only. -->
-    <projectService serviceInterface="com.intellij.openapi.externalSystem.autoimport.ExternalSystemProjectTracker"
-                    serviceImplementation="com.android.tools.idea.projectsystem.gradle.RefreshOnlyAutoImportProjectTracker"
-                    overrides="true"
-    />
 
     <welcomeFrameProvider implementation="com.android.tools.idea.welcome.wizard.FirstRunWizardFrameProvider" order="FIRST"/>
 

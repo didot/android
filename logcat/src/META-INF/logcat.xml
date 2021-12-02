@@ -35,5 +35,11 @@
         language="LogcatFilter"
         implementationClass="com.android.tools.idea.logcat.filters.parser.LogcatFilterParserDefinition"
     />
+    <lang.syntaxHighlighterFactory
+        language="LogcatFilter"
+        implementationClass="com.android.tools.idea.logcat.filters.LogcatFilterSyntaxHighlighterFactory"
+    />
+    <colorSettingsPage implementation="com.android.tools.idea.logcat.filters.LogcatFilterColorSettingsPage"/>
+
   </extensions>
 </idea-plugin>

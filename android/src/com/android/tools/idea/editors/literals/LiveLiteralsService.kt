@@ -9,7 +9,7 @@ import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
 import com.android.tools.idea.editors.literals.internal.LiveLiteralsDeploymentReportService
 import com.android.tools.idea.editors.setupChangeListener
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.flags.StudioFlags.COMPOSE_POWER_SAVE_MODE_SUPPORT
+import com.android.tools.idea.flags.StudioFlags.DESIGN_TOOLS_POWER_SAVE_MODE_SUPPORT
 import com.android.tools.idea.projectsystem.BuildListener
 import com.android.tools.idea.projectsystem.setupBuildListener
 import com.android.tools.idea.rendering.classloading.ProjectConstantRemapper
@@ -287,10 +287,10 @@ class LiveLiteralsService private constructor(private val project: Project,
     get() = LiveLiteralsApplicationConfiguration.getInstance().isEnabled
 
   /**
-   * Same as [PowerSaveMode] but obeys to the [COMPOSE_POWER_SAVE_MODE_SUPPORT] to allow disabling the functionality.
+   * Same as [PowerSaveMode] but obeys to the [DESIGN_TOOLS_POWER_SAVE_MODE_SUPPORT] to allow disabling the functionality.
    */
   private val isInPowerSaveMode: Boolean
-    get() = COMPOSE_POWER_SAVE_MODE_SUPPORT.get() && PowerSaveMode.isEnabled()
+    get() = DESIGN_TOOLS_POWER_SAVE_MODE_SUPPORT.get() && PowerSaveMode.isEnabled()
 
   /**
    * Controls when the live literals tracking is available for the current project. The feature might be enable but not available if the
@@ -560,8 +560,8 @@ class LiveLiteralsService private constructor(private val project: Project,
     // Some elements, like directories do not have a containingFile and are safe to ignore.
     val containingFile = element.containingFile ?: return false
     val literalReference = LiteralsManager.getLiteralReference(element) ?: return false
-    return containingFile.hasCompilerLiveLiteral(literalReference.containingFile.virtualFile.path,
-                                                 literalReference.initialTextRange.startOffset)
+    val literalReferencePath = literalReference.containingFile.virtualFile?.path ?: return false
+    return containingFile.hasCompilerLiveLiteral(literalReferencePath, literalReference.initialTextRange.startOffset)
   }
 
   override fun dispose() {

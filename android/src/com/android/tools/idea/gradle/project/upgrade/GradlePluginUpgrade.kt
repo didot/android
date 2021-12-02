@@ -16,6 +16,7 @@
 @file:JvmName("GradlePluginUpgrade")
 package com.android.tools.idea.gradle.project.upgrade
 
+import com.android.SdkConstants
 import com.android.SdkConstants.GRADLE_PATH_SEPARATOR
 import com.android.annotations.concurrency.Slow
 import com.android.ide.common.repository.GradleVersion
@@ -221,33 +222,6 @@ fun expireProjectUpgradeNotifications(project: Project?) {
 // **************************************************************************
 
 /**
- * Returns whether or not the given [current] version requires that the user be force to
- * upgrade their Android Gradle Plugin.
- *
- * If a [project] is given warnings for disabled upgrades are emitted.
- *
- * [recommended] should only be overwritten to inject information for tests.
- */
-fun shouldForcePluginUpgrade(
-  project: Project?,
-  current: GradleVersion?,
-  recommended: GradleVersion = GradleVersion.parse(LatestKnownPluginVersionProvider.INSTANCE.get())
-) : Boolean {
-  // We don't care about forcing upgrades when running unit tests.
-  if (ApplicationManager.getApplication().isUnitTestMode) return false
-  // Or when the skip upgrades property is set.
-  if (SystemProperties.getBooleanProperty("studio.skip.agp.upgrade", false)) return false
-  // Or when the StudioFlag is set (only available internally).
-  if (DISABLE_FORCED_UPGRADES.get()) {
-    return false
-  }
-  if (current == null) return false
-
-  // Now we can check the actual version information.
-  return versionsShouldForcePluginUpgrade(current, recommended)
-}
-
-/**
  * Returns whether, given the [current] version of AGP and the [latestKnown] version to upgrade to (which should be the
  * version returned by [LatestKnownPluginVersionProvider] except for tests), we should force a plugin upgrade to that
  * recommended version.
@@ -329,8 +303,19 @@ fun computeGradlePluginUpgradeState(
   latestKnown: GradleVersion,
   published: Set<GradleVersion>
 ): GradlePluginUpgradeState {
-  if (current >= latestKnown) return GradlePluginUpgradeState(NO_UPGRADE, current)
+  when (computeForcePluginUpgradeReason(current, latestKnown)) {
+    ForcePluginUpgradeReason.MINIMUM -> {
+      val minimum = GradleVersion.parse(SdkConstants.GRADLE_PLUGIN_MINIMUM_VERSION)
+      val earliestStable = published.filter { !it.isPreview }.filter { it >= minimum }.minOrNull() ?: latestKnown
+      return GradlePluginUpgradeState(FORCE, earliestStable)
+    }
+    // TODO(xof): in the cae of a -dev latestKnown and a preview from an earlier series, we should perhaps return the latest stable
+    //  version from that series.  (During a -beta phase, there might not be any such version, though.)
+    ForcePluginUpgradeReason.PREVIEW -> return GradlePluginUpgradeState(FORCE, latestKnown)
+    ForcePluginUpgradeReason.NO_FORCE -> Unit
+  }
 
+  if (current >= latestKnown) return GradlePluginUpgradeState(NO_UPGRADE, current)
   if (!current.isPreview || current.previewType == "rc") {
     // If our latestKnown is stable, recommend it.
     if (!latestKnown.isPreview || latestKnown.previewType == "rc") return GradlePluginUpgradeState(RECOMMEND, latestKnown)
@@ -346,8 +331,7 @@ fun computeGradlePluginUpgradeState(
       // If latestKnown is -dev and current is a preview from an earlier series, recommend an upgrade.
       return GradlePluginUpgradeState(RECOMMEND, latestKnown)
     }
-    // In all other cases where latestKnown is later than an alpha or beta current, force an upgrade.
-    return GradlePluginUpgradeState(FORCE, latestKnown)
+    throw IllegalStateException("Unreachable: handled by computeForcePluginUpgradeReason")
   }
   else {
     // Current is a snapshot, probably -dev, and is less than latestKnown.  Force an upgrade to latestKnown.

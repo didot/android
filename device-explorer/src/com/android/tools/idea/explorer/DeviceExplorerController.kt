@@ -103,9 +103,9 @@ class DeviceExplorerController(
   private val myWorkEstimator = FileTransferWorkEstimator(myEdtExecutor, taskExecutor)
   private val myTransferringNodes: MutableSet<DeviceFileEntryNode> = HashSet()
   private val myLoadingChildren: MutableSet<DeviceFileEntryNode> = HashSet()
-  private val myLoadingNodesAlarms = Alarm(Alarm.ThreadToUse.SWING_THREAD)
-  private val myTransferringNodesAlarms = Alarm(Alarm.ThreadToUse.SWING_THREAD)
-  private val myLoadingChildrenAlarms = Alarm(Alarm.ThreadToUse.SWING_THREAD)
+  private val myLoadingNodesAlarms = Alarm()
+  private val myTransferringNodesAlarms = Alarm()
+  private val myLoadingChildrenAlarms = Alarm()
   private val mySetupFuture = SettableFuture.create<Unit>()
   private var myLongRunningOperationTracker: LongRunningOperationTracker? = null
 
@@ -442,10 +442,27 @@ class DeviceExplorerController(
       }
     }
 
+    private fun openFile(treeNode: DeviceFileEntryNode, localPath: Path) {
+      ApplicationManager.getApplication().invokeLater {
+        val futureOpen: ListenableFuture<Void> = myFileOpener.openFile(localPath)
+        myEdtExecutor.addCallback(futureOpen, object : FutureCallback<Void?> {
+          override fun onSuccess(result: Void?) {
+            // Nothing to do, file is opened in editor
+          }
+
+          override fun onFailure(t: Throwable) {
+            val message = String.format("Unable to open file \"%s\" in editor", localPath)
+            myView.reportErrorRelatedToNode(treeNode, message, t)
+          }
+        })
+      }
+    }
+
+
     private fun downloadAndOpenFile(treeNode: DeviceFileEntryNode): ListenableFuture<Unit> =
       downloadFileEntryToDefaultLocation(treeNode).transformAsync(myEdtExecutor) { path ->
         DeviceExplorerFilesUtils.findFile(myProject, myEdtExecutor, path).transform(myEdtExecutor) {
-          myFileOpener.openFile(it)
+          openFile(treeNode, path)
         }
       }.catching(myEdtExecutor, Throwable::class.java) { t: Throwable ->
         val message = String.format("Error opening contents of device file %s", getUserFacingNodeName(treeNode))
@@ -1701,10 +1718,7 @@ class DeviceExplorerController(
 
   interface FileOpener {
     @UiThread
-    fun openFile(localPath: Path)
-
-    @UiThread
-    fun openFile(virtualFile: VirtualFile)
+    fun openFile(localPath: Path): ListenableFuture<Void>
   }
 
   companion object {

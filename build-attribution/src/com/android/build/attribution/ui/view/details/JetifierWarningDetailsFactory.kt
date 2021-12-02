@@ -26,6 +26,7 @@ import com.android.build.attribution.ui.HtmlLinksHandler
 import com.android.build.attribution.ui.htmlTextLabelWithLinesWrap
 import com.android.build.attribution.ui.insertBRTags
 import com.android.build.attribution.ui.view.ViewActionHandlers
+import com.android.ide.common.attribution.FullDependencyPath
 import com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI.DEFAULT_STYLE_KEY
 import com.intellij.ide.util.treeView.NodeRenderer
 import com.intellij.openapi.actionSystem.ActionManager
@@ -39,7 +40,10 @@ import com.intellij.ui.PopupHandler
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.SimpleColoredComponent
 import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.awt.RelativePoint
+import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBList
+import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.treeStructure.Tree
 import com.intellij.util.PlatformIcons.LIBRARY_ICON
 import com.intellij.util.text.DateFormatUtil
@@ -47,6 +51,7 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.UIUtil.getListBackground
 import com.intellij.util.ui.UIUtil.getListForeground
+import com.intellij.util.ui.components.BorderLayoutPanel
 import com.intellij.util.ui.tree.TreeUtil
 import java.awt.BorderLayout
 import java.awt.Component
@@ -59,6 +64,7 @@ import javax.swing.AbstractAction
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JTree
@@ -82,9 +88,6 @@ class JetifierWarningDetailsFactory(
   private fun createJetifierWarningPage(data: JetifierUsageAnalyzerResult): JPanel {
     val linksHandler = HtmlLinksHandler(actionHandlers)
     val learnMoreLink = linksHandler.externalLink("Learn more", BuildAnalyzerBrowserLinks.JETIIFER_MIGRATE)
-    val removeJetifierFlagActionLink = linksHandler.actionLink("remove the 'android.enableJetifier' flag", "remove.jetifier.action") {
-      actionHandlers.turnJetifierOffInProperties()
-    }
     val headerStatus = when (data.projectStatus) {
       JetifierUsedCheckRequired -> "Check if you need Jetifier in your project"
       is JetifierRequiredForLibraries -> "Some project dependencies require Jetifier"
@@ -95,16 +98,19 @@ class JetifierWarningDetailsFactory(
 
     val callToActionLine = when (data.projectStatus) {
       // The following dependencies are recognized as support libraries: com.android.support, com.android.databinding, android.arch.
-      JetifierUsedCheckRequired -> "To disable Jetifier your project should have no dependencies on legacy support libraries. " +
+      JetifierUsedCheckRequired -> "Removing Jetifier could reduce project build time. " +
+                                   "To disable Jetifier your project should have no dependencies on legacy support libraries. " +
                                    "Run check to see if you have any of such dependencies in your project."
       is JetifierRequiredForLibraries -> when (val size = data.projectStatus.checkJetifierResult.dependenciesDependingOnSupportLibs.size) {
-                                           1 -> "This check found a declared dependency that requires legacy support libraries. " +
+                                           1 -> "This check found <b>1 declared dependency</b> that requires legacy support libraries. " +
+                                                "Removing Jetifier could reduce project build time. " +
                                                 "To disable Jetifier you need to upgrade it to a version that does not require legacy support libraries or find an alternative."
-                                           else -> "This check found $size declared dependencies that require legacy support libraries. " +
+                                           else -> "This check found <b>$size declared dependencies</b> that require legacy support libraries. " +
+                                                   "Removing Jetifier could reduce project build time. " +
                                                    "To disable Jetifier you need to upgrade them to versions that do not require legacy support libraries or find alternatives."
                                          } + " Run this check again to include recent changes to project files."
-      JetifierCanBeRemoved -> "The last check did not find any dependencies that require Jetifier in your project. " +
-                              "You can safely $removeJetifierFlagActionLink."
+      JetifierCanBeRemoved -> "This check found <b>0 declared dependencies</b> that require Jetifier in your project. " +
+                              "You can safely remove the 'android.enableJetifier' flag."
       JetifierNotUsed -> error("Warning should not be shown in this state.")
       AnalyzerNotRun -> error("Warning should not be shown in this state.")
     }
@@ -114,24 +120,42 @@ class JetifierWarningDetailsFactory(
           
           Your project’s gradle.properties file includes 'android.enableJetifier=true'. This flag is needed to enable AndroidX for libraries that don’t support it natively.  $learnMoreLink.
           
-          Removing Jetifier could reduce project build time. $callToActionLine
+          $callToActionLine
         """.trimIndent().insertBRTags()
     val header = htmlTextLabelWithLinesWrap(contentHtml, linksHandler)
     val runCheckButton = JButton("Run Jetifier check").apply {
+      name = "run-check-button"
       addActionListener { actionHandlers.runCheckJetifierTask() }
-      putClientProperty(DEFAULT_STYLE_KEY, true)
+      putClientProperty(DEFAULT_STYLE_KEY, data.projectStatus !is JetifierCanBeRemoved)
+    }
+    val removeJetifierButton = JButton("Disable Jetifier").apply {
+      name = "disable-jetifier-button"
+      toolTipText = "Remove the 'android.enableJetifier' flag from gradle.properties"
+      addActionListener { actionHandlers.turnJetifierOffInProperties { RelativePoint.getSouthOf(this) } }
+      putClientProperty(DEFAULT_STYLE_KEY, data.projectStatus is JetifierCanBeRemoved)
+      isVisible = data.projectStatus is JetifierCanBeRemoved
+      // Making this button same size as a bigger "Run Check" button so that they look better when stacked.
+      preferredSize = runCheckButton.preferredSize
+      maximumSize = runCheckButton.maximumSize
+      minimumSize = runCheckButton.minimumSize
     }
     val result = createCheckJetifierResultPresentation(data)
+
+    val buttonsPanel = JPanel().apply {
+      layout = BoxLayout(this, BoxLayout.Y_AXIS)
+      add(removeJetifierButton)
+      add(runCheckButton)
+    }
 
     val headerPanel = JPanel().apply {
       layout = BoxLayout(this, BoxLayout.X_AXIS)
       // TODO determine size from font metrics?
       header.maximumSize = JBUI.size(800, Int.MAX_VALUE)
       // Align both components to the bottom.
-      runCheckButton.alignmentY = Component.BOTTOM_ALIGNMENT
+      buttonsPanel.alignmentY = Component.BOTTOM_ALIGNMENT
       header.alignmentY = Component.BOTTOM_ALIGNMENT
       add(header)
-      add(runCheckButton)
+      add(buttonsPanel)
     }
 
     return JPanel().apply {
@@ -162,44 +186,46 @@ class JetifierWarningDetailsFactory(
     val declaredDependenciesListValues = (projectStatus as? JetifierRequiredForLibraries)
                                            ?.checkJetifierResult
                                            ?.dependenciesDependingOnSupportLibs
-                                           ?.keys
-                                           ?.sorted()
+                                           ?.entries
+                                           ?.map { DirectDependencyDescriptor(it) }
+                                           ?.sortedBy { it.fullName }
                                          ?: emptyList()
     val declaredDependenciesList = JBList(declaredDependenciesListValues).apply {
       name = "declared-dependencies-list"
-      cellRenderer = object : ColoredListCellRenderer<String>() {
-        override fun customizeCellRenderer(list: JList<out String>, value: String?, index: Int, selected: Boolean, hasFocus: Boolean) {
+      cellRenderer = object : ColoredListCellRenderer<DirectDependencyDescriptor>() {
+        override fun customizeCellRenderer(list: JList<out DirectDependencyDescriptor>,
+                                           value: DirectDependencyDescriptor?,
+                                           index: Int,
+                                           selected: Boolean,
+                                           hasFocus: Boolean) {
+          if (value == null) return
           icon = LIBRARY_ICON
           isIconOpaque = true
           setFocusBorderAroundIcon(true)
           background = getListBackground(selected, hasFocus)
           mySelectionForeground = getListForeground(selected, hasFocus)
           if (projectStatus is JetifierRequiredForLibraries) {
-            val supportLibrary = projectStatus.checkJetifierResult.dependenciesDependingOnSupportLibs[value]?.dependencyPath?.elements?.size == 1
-            toolTipText = treeToolTip(supportLibrary = supportLibrary, declaredDependency = true)
+            toolTipText = treeToolTip(supportLibrary = value.isSupportLibrary, declaredDependency = true)
           }
-          append(value.toString(), SimpleTextAttributes.REGULAR_ATTRIBUTES)
+          append(value.fullName, SimpleTextAttributes.REGULAR_ATTRIBUTES)
         }
       }
       border = JBUI.Borders.empty()
       selectionMode = ListSelectionModel.SINGLE_SELECTION
-      emptyText.apply {
-        when (projectStatus) {
-          is JetifierUsedCheckRequired -> {
-            clear()
-            appendText("Run check", SimpleTextAttributes.LINK_ATTRIBUTES) {
-              actionHandlers.runCheckJetifierTask()
-            }
-            appendText(" to see if you need Jetifier in your project.")
+      emptyText.clear()
+      when (projectStatus) {
+        is JetifierUsedCheckRequired -> {
+          emptyText.appendText("Run check", SimpleTextAttributes.LINK_ATTRIBUTES) {
+            actionHandlers.runCheckJetifierTask()
           }
-          is JetifierCanBeRemoved -> {
-            clear()
-            appendText("No dependencies require jetifier, ", SimpleTextAttributes.GRAYED_ATTRIBUTES)
-            appendText("remove 'android.enableJetifier' flag.", SimpleTextAttributes.LINK_ATTRIBUTES) {
-              actionHandlers.turnJetifierOffInProperties()
-            }
+          emptyText.appendText(" to see if you need Jetifier in your project.")
+        }
+        is JetifierCanBeRemoved -> {
+          emptyText.appendText("No dependencies require jetifier, ", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+          emptyText.appendText("remove 'android.enableJetifier' flag.", SimpleTextAttributes.LINK_ATTRIBUTES) {
+            val pointBelowCenter = emptyText.pointBelow.apply { translate(emptyText.preferredSize.width / 2, 0) }
+            actionHandlers.turnJetifierOffInProperties { RelativePoint(this, pointBelowCenter) }
           }
-          else -> clear()
         }
       }
       installResultsTableActions(this)
@@ -215,6 +241,16 @@ class JetifierWarningDetailsFactory(
       append("Declared Dependencies Requiring Jetifier$lastUpdatedSuffix")
       border = JBUI.Borders.customLineBottom(JBUI.CurrentTheme.ToolWindow.headerBorderBackground())
       background = UIUtil.getTreeBackground()
+    }
+    val outdatedResultsBanner = JPanel().apply {
+      name = "outdated-results-banner"
+      isVisible = data.isPreviouslySavedResultReused()
+      layout = HorizontalLayout(10)
+      border = JBUI.Borders.empty(4, 8)
+      add(JLabel("Showing previously saved results."), HorizontalLayout.LEFT)
+      add(ActionLink("Re-run check.") { actionHandlers.runCheckJetifierTask() }, HorizontalLayout.RIGHT)
+      background = JBUI.CurrentTheme.NotificationWarning.backgroundColor()
+      foreground = JBUI.CurrentTheme.NotificationWarning.foregroundColor()
     }
     val treeHeader = SimpleColoredComponent().apply {
       name = "dependency-structure-header"
@@ -234,13 +270,11 @@ class JetifierWarningDetailsFactory(
         val newRoot = DefaultMutableTreeNode()
         val selectedDependency = declaredDependenciesList.selectedValue
         if (selectedDependency != null) {
-          projectStatus.checkJetifierResult.dependenciesDependingOnSupportLibs[selectedDependency]?.let {
-            val descriptors = it.dependencyPath.elements.map { DependencyDescriptor(it) }
-            descriptors.last().supportLibrary = true
-            descriptors.first().declaredDependency = true
-            descriptors.foldRight(newRoot) { descriptor: DependencyDescriptor, parentNode: DefaultMutableTreeNode ->
-              DependencyTreeNode(descriptor).also { parentNode.add(it) }
-            }
+          val descriptors = selectedDependency.pathToSupportLibrary.map { DependencyDescriptor(it) }
+          descriptors.last().supportLibrary = true
+          descriptors.first().declaredDependency = true
+          descriptors.foldRight(newRoot) { descriptor: DependencyDescriptor, parentNode: DefaultMutableTreeNode ->
+            DependencyTreeNode(descriptor).also { parentNode.add(it) }
           }
         }
         dependencyTreeModel.setRoot(newRoot)
@@ -250,7 +284,8 @@ class JetifierWarningDetailsFactory(
 
     val declaredDependenciesListPanel = ScrollPaneFactory.createScrollPane().apply {
       setColumnHeaderView(tableHeader)
-      setViewportView(declaredDependenciesList)
+      val listWithBanner = BorderLayoutPanel()
+      setViewportView(listWithBanner.addToTop(outdatedResultsBanner).addToCenter(declaredDependenciesList))
     }
     val librariesStructurePanel = ScrollPaneFactory.createScrollPane().apply {
       setColumnHeaderView(treeHeader)
@@ -266,7 +301,7 @@ class JetifierWarningDetailsFactory(
     ListSpeedSearch(declaredDependenciesList)
   }
 
-  private fun installResultsTableActions(resultsTable: JBList<String>) {
+  private fun installResultsTableActions(resultsTable: JBList<DirectDependencyDescriptor>) {
     val findSelectedLibVersionDeclarationAction = actionHandlers.createFindSelectedLibVersionDeclarationAction { resultsTable.selectedValue }
     DefaultActionGroup().let { group ->
       group.add(findSelectedLibVersionDeclarationAction)
@@ -291,6 +326,9 @@ class JetifierWarningDetailsFactory(
     }
   }
 
+  private fun JetifierUsageAnalyzerResult.isPreviouslySavedResultReused(): Boolean =
+    !checkJetifierBuild && (projectStatus is JetifierCanBeRemoved || projectStatus is JetifierRequiredForLibraries)
+
 
   private class DependencyTreeNode(val descriptor: DependencyDescriptor) : DefaultMutableTreeNode(descriptor) {
     override fun toString(): String {
@@ -312,6 +350,20 @@ class JetifierWarningDetailsFactory(
       }
     val tooltip: String?
       get() = treeToolTip(supportLibrary, declaredDependency)
+  }
+
+  data class DirectDependencyDescriptor(
+    val fullName: String,
+    val projects: List<String>,
+    val pathToSupportLibrary: List<String>
+  ) {
+    val isSupportLibrary: Boolean get() = pathToSupportLibrary.size == 1
+
+    constructor(resultEntry: Map.Entry<String, List<FullDependencyPath>>) : this(
+      resultEntry.key,
+      resultEntry.value.map { it.projectPath },
+      resultEntry.value.first().dependencyPath.elements
+    )
   }
 
   private class DependenciesStructureTreeRenderer : NodeRenderer() {

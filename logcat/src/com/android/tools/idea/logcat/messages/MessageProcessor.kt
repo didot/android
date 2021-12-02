@@ -19,7 +19,11 @@ import com.android.ddmlib.logcat.LogCatMessage
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
 import com.android.tools.idea.logcat.LogcatPresenter
+import com.android.tools.idea.logcat.PackageNamesProvider
+import com.android.tools.idea.logcat.filters.AndLogcatFilter
 import com.android.tools.idea.logcat.filters.LogcatFilter
+import com.android.tools.idea.logcat.filters.LogcatMasterFilter
+import com.android.tools.idea.logcat.filters.ProjectAppFilter
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
@@ -42,19 +46,27 @@ private val logger by lazy { Logger.getInstance(MessageProcessor::class.java) }
 internal class MessageProcessor(
   private val logcatPresenter: LogcatPresenter,
   private val formatMessagesInto: (TextAccumulator, List<LogCatMessage>) -> Unit,
+  packageNamesProvider: PackageNamesProvider,
+  var logcatFilter: LogcatFilter?,
+  var showOnlyProjectApps: Boolean,
   private val clock: Clock = Clock.systemDefaultZone(),
   private val maxTimePerBatchMs: Int = MAX_TIME_PER_BATCH_MS,
   private val maxMessagesPerBatch: Int = MAX_MESSAGES_PER_BATCH,
 ) {
-  private var logcatFilter = LogcatFilter.NOOP_FILTER
   private val messageChannel = Channel<List<LogCatMessage>>(CHANNEL_CAPACITY)
+  private val projectAppFilter = ProjectAppFilter(packageNamesProvider)
 
   init {
     processMessageChannel()
   }
 
   internal suspend fun appendMessages(messages: List<LogCatMessage>) {
-    messageChannel.send(logcatFilter.filter(messages))
+    val filter = when {
+      showOnlyProjectApps && logcatFilter != null -> AndLogcatFilter(logcatFilter!!, projectAppFilter)
+      showOnlyProjectApps -> projectAppFilter
+      else -> logcatFilter
+    }
+    messageChannel.send(LogcatMasterFilter(filter).filter(messages))
   }
 
   // TODO(b/200212377): @ExperimentalCoroutinesApi ReceiveChannel#isEmpty is required. See bug for details.
@@ -100,9 +112,5 @@ internal class MessageProcessor(
         }
       }
     }
-  }
-
-  fun setFilter(logcatFilter: LogcatFilter) {
-    this.logcatFilter = logcatFilter
   }
 }

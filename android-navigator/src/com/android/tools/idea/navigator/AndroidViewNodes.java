@@ -15,9 +15,16 @@
  */
 package com.android.tools.idea.navigator;
 
+import com.android.tools.idea.projectsystem.IdeaSourceProvider;
+import com.android.tools.idea.projectsystem.NamedIdeaSourceProvider;
+import com.android.tools.idea.projectsystem.SourceProviders;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.ide.projectView.impl.AbstractProjectViewPane;
 import com.intellij.openapi.project.Project;
+import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.android.facet.SourceProviderManager;
 import org.jetbrains.annotations.NotNull;
 
 public class AndroidViewNodes {
@@ -27,5 +34,29 @@ public class AndroidViewNodes {
     AbstractProjectViewPane androidViewPane = projectView.getProjectViewPaneById(AndroidProjectViewPane.ID);
     assert androidViewPane != null;
     androidViewPane.updateFromRoot(true);
+  }
+
+  @NotNull
+  public static Iterable<NamedIdeaSourceProvider> getSourceProviders(@NotNull AndroidFacet facet) {
+    SourceProviders sourceProviderManager = SourceProviderManager.getInstance(facet);
+    return getSourceProviders(sourceProviderManager);
+  }
+
+  @NotNull
+  public static Iterable<NamedIdeaSourceProvider> getSourceProviders(@NotNull SourceProviders sourceProviders) {
+    return Iterables.concat(
+      sourceProviders.getCurrentSourceProviders(),
+      sourceProviders.getCurrentUnitTestSourceProviders(),
+      sourceProviders.getCurrentAndroidTestSourceProviders(),
+      sourceProviders.getCurrentTestFixturesSourceProviders());
+  }
+
+  @NotNull
+  public static Iterable<IdeaSourceProvider> getGeneratedSourceProviders(@NotNull SourceProviders sourceProviders) {
+    return ImmutableList.of(
+      sourceProviders.getGeneratedSources(),
+      sourceProviders.getGeneratedUnitTestSources(),
+      sourceProviders.getGeneratedAndroidTestSources(),
+      sourceProviders.getGeneratedTestFixturesSources());
   }
 }

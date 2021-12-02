@@ -31,7 +31,6 @@ import com.android.tools.idea.compose.preview.actions.ShowDebugBoundaries
 import com.android.tools.idea.compose.preview.actions.SingleFileCompileAction
 import com.android.tools.idea.compose.preview.actions.StopAnimationInspectorAction
 import com.android.tools.idea.compose.preview.actions.StopInteractivePreviewAction
-import com.android.tools.idea.compose.preview.actions.ToggleAutoBuildOnSave
 import com.android.tools.idea.compose.preview.actions.visibleOnlyInComposeStaticPreview
 import com.android.tools.idea.compose.preview.util.ComposeAdapterLightVirtualFile
 import com.android.tools.idea.compose.preview.util.FilePreviewElementFinder
@@ -92,7 +91,6 @@ private class ComposePreviewToolbar(private val surface: DesignSurface) :
   )
 
   override fun getNorthEastGroup(): ActionGroup = DefaultActionGroup(listOfNotNull(
-    StudioFlags.COMPOSE_LIVE_EDIT_PREVIEW.ifEnabled { ToggleAutoBuildOnSave() },
     ComposeIssueNotificationAction.getInstance()
   ))
 
@@ -183,16 +181,15 @@ class ComposePreviewRepresentationProvider(
    */
   override fun createRepresentation(psiFile: PsiFile): ComposePreviewRepresentation {
     val previewProvider = object : PreviewElementProvider<PreviewElement> {
-      override val previewElements: Sequence<PreviewElement>
-        get() = if (DumbService.isDumb(psiFile.project))
+      override suspend fun previewElements(): Sequence<PreviewElement> = if (DumbService.isDumb(psiFile.project))
+        emptySequence()
+      else
+        try {
+          filePreviewElementProvider().findPreviewMethods(psiFile.project, psiFile.virtualFile).asSequence()
+        }
+        catch (_: IndexNotReadyException) {
           emptySequence()
-        else
-          try {
-            filePreviewElementProvider().findPreviewMethods(psiFile.project, psiFile.virtualFile).asSequence()
-          }
-          catch (_: IndexNotReadyException) {
-            emptySequence()
-          }
+        }
     }
     val hasPreviewMethods = filePreviewElementProvider().hasPreviewMethods(psiFile.project, psiFile.virtualFile)
     if (LOG.isDebugEnabled) {

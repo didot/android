@@ -79,7 +79,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
+import org.mockito.Mockito.`when`
 import org.mockito.Mockito.inOrder
+import org.mockito.Mockito.spy
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ArrayBlockingQueue
@@ -109,6 +111,7 @@ class AppInspectionInspectorClientTest {
   @Before
   fun before() {
     inspectorRule.projectRule.replaceService(PropertiesComponent::class.java, PropertiesComponentMock())
+    inspectorRule.attachDevice(MODERN_DEVICE)
   }
 
   @Test
@@ -769,7 +772,7 @@ class AppInspectionInspectorClientWithUnsupportedApi29 {
       properties[AvdManager.AVD_INI_TAG_ID] = tag.id
       properties[AvdManager.AVD_INI_TAG_DISPLAY] = tag.display
     }
-    return AvdInfo("myAvd-$apiLevel", Paths.get("myIni"), "/android/avds/myAvd-$apiLevel", systemImage, properties)
+    return AvdInfo("myAvd-$apiLevel", Paths.get("myIni"), Paths.get("/android/avds/myAvd-$apiLevel"), systemImage, properties)
   }
 
   private fun setUpSdkPackage(sdkRoot: Path, revision: Int, apiLevel: Int, tag: IdDisplay?, isRemote: Boolean): FakePackage {
@@ -815,11 +818,11 @@ class AppInspectionInspectorClientWithUnsupportedApi29 {
 class AppInspectionInspectorClientWithFailingClientTest {
   private val disposableRule = DisposableRule()
   private val inspectionRule = AppInspectionInspectorRule(disposableRule.disposable)
-  private val inspectorRule = LayoutInspectorRule(
-    AppInspectionClientProvider({ mock() },
-                                { inspectionRule.inspectionService.scope },
-                                { InspectorClientLaunchMonitor() },
-                                disposableRule.disposable)) {
+  private val monitor = spy(InspectorClientLaunchMonitor()).also {
+    `when`(it.updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.START_REQUEST_SENT)).thenThrow(RuntimeException("expected"))
+  }
+
+  private val inspectorRule = LayoutInspectorRule(inspectionRule.createInspectorClientProvider(monitor)) {
     it.name == MODERN_PROCESS.name
   }
 
@@ -829,10 +832,7 @@ class AppInspectionInspectorClientWithFailingClientTest {
   @Test
   fun errorShownOnNoAgentWithApi29() {
     val banner = InspectorBanner(inspectorRule.project)
-    inspectionRule.viewInspector.interceptWhen({ it.hasStartFetchCommand() }) {
-      throw Exception()
-    }
-
+    inspectorRule.attachDevice(MODERN_DEVICE)
     inspectorRule.processNotifier.fireConnected(MODERN_PROCESS)
     assertThat(banner.text.text).isEqualTo("Unable to detect a live inspection service. To enable live inspections, restart the device.")
     assertThat(inspectorRule.inspectorClient.isConnected).isFalse()

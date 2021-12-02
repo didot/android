@@ -20,7 +20,6 @@ import com.android.tools.idea.gradle.project.build.invoker.AssembleInvocationRes
 import com.android.tools.idea.gradle.project.sync.Target.ManuallyAssembled
 import com.android.tools.idea.gradle.project.sync.Target.NamedAppTargetRunConfiguration
 import com.android.tools.idea.gradle.project.sync.Target.TestTargetRunConfiguration
-import com.android.tools.idea.projectsystem.getProjectSystem
 import com.android.tools.idea.projectsystem.gradle.getBuiltApksForSelectedVariant
 import com.android.tools.idea.run.AndroidRunConfigurationBase
 import com.android.tools.idea.run.ApkInfo
@@ -150,10 +149,9 @@ internal val APK_PROVIDER_TESTS: List<ProviderTestDefinition> =
         viaBundle = true,
         testProject = TestProjectPaths.APPLICATION_ID_SUFFIX,
       ),
-      // TODO(b/190357145): Fix ApplicationId when fixed in AGP or decided how to handle this.
       expectApks = mapOf(
         AGP_CURRENT to """
-              ApplicationId: one.name
+              ApplicationId: one.name.defaultConfig.debug
               File: *>java.lang.IllegalArgumentException
               Files:
                 base -> project/app/build/intermediates/extracted_apks/debug/base-master.apk
@@ -642,13 +640,9 @@ private data class ApkProviderTest(
       }
     }
 
-    fun AndroidRunConfigurationBase.getApkProvider(): ApkProvider {
-      return project.getProjectSystem().getApkProvider(this)!!
-    }
-
     val apkProvider = when (scenario.target) {
       is ManuallyAssembled -> assembleResult!!.getApkProvider(scenario.target.gradlePath, scenario.target.forTests)
-      else -> runConfiguration!!.getApkProvider()
+      else -> runConfiguration!!.apkProvider!!
     }
 
     with(valueNormalizers) {
@@ -667,10 +661,11 @@ private data class ApkProviderTest(
 
       fun Collection<ApkInfo>.toTestString() = joinToString("\n\n") { it.toTestString() }
 
-      assertThat(apkProvider.validate().joinToString { it.message }).isEqualTo(expectValidate.forVersion())
+      expect.that(apkProvider.validate().joinToString { it.message }).isEqualTo(expectValidate.forVersion())
 
       val apks = runCatching { apkProvider.getApks(device) }
-      assertThat(apks.toTestString { this.toTestString() }).isEqualTo(expectApks.forVersion())
+      expect.that(apks.toTestString { this.toTestString() }).isEqualTo(expectApks.forVersion())
+      apks.getOrNull()?.flatMap { it.files }?.forEach { expect.that(it.apkFile.exists()).named("${it.apkFile} exists").isTrue() }
     }
   }
 }

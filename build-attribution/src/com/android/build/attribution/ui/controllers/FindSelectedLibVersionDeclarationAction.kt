@@ -16,6 +16,7 @@
 package com.android.build.attribution.ui.controllers
 
 import com.android.build.attribution.ui.analytics.BuildAttributionUiAnalytics
+import com.android.build.attribution.ui.view.details.JetifierWarningDetailsFactory
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
 import com.android.tools.idea.gradle.dsl.model.dependencies.ArtifactDependencySpecImpl
 import com.android.tools.idea.gradle.dsl.parser.dependencies.FakeArtifactElement
@@ -25,6 +26,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Factory
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.usageView.UsageInfo
 import com.intellij.usages.FindUsagesProcessPresentation
 import com.intellij.usages.Usage
@@ -38,10 +40,10 @@ import com.intellij.util.Processor
 import java.util.function.Supplier
 
 class FindSelectedLibVersionDeclarationAction(
-  private val selectionSupplier: Supplier<String?>,
+  private val selectionSupplier: Supplier<JetifierWarningDetailsFactory.DirectDependencyDescriptor?>,
   private val project: Project,
   private val analytics: BuildAttributionUiAnalytics,
-  ) : AnAction(
+) : AnAction(
   "Find Version Declarations") {
   override fun update(e: AnActionEvent) {
     if (selectionSupplier.get() == null) {
@@ -57,9 +59,11 @@ class FindSelectedLibVersionDeclarationAction(
     val usageViewPresentation = UsageViewPresentation()
     usageViewPresentation.tabName = "Dependency Version Declaration"
     usageViewPresentation.tabText = "Dependency Version Declaration"
-    usageViewPresentation.codeUsagesString = "Version declarations of $selectedDependency"
-    usageViewPresentation.scopeText = "project build files"
-    usageViewPresentation.searchString = selectedDependency
+    val fullNameWithoutVersion = selectedDependency.fullName.substringBeforeLast(":")
+    usageViewPresentation.codeUsagesString = "Version declarations of $fullNameWithoutVersion"
+    val pluralizedProject = StringUtil.pluralize("project", selectedDependency.projects.size)
+    usageViewPresentation.scopeText = selectedDependency.projects.joinToString(prefix = "$pluralizedProject ", limit = 5)
+    usageViewPresentation.searchString = fullNameWithoutVersion
     usageViewPresentation.isOpenInNewTab = false
     val processPresentation = FindUsagesProcessPresentation(usageViewPresentation)
     processPresentation.isShowNotFoundMessage = true
@@ -85,11 +89,19 @@ class FindSelectedLibVersionDeclarationAction(
 
 }
 
-fun findVersionDeclarations(project: Project, selectedDependency: String): Array<UsageInfo> {
-  val selectedParsed = ArtifactDependencySpecImpl.create(selectedDependency) ?: return emptyArray()
-  return ProjectBuildModel.get(project).allIncludedBuildModels.asSequence()
+fun findVersionDeclarations(project: Project, selectedDependency: JetifierWarningDetailsFactory.DirectDependencyDescriptor): Array<UsageInfo> {
+  val selectedParsed = ArtifactDependencySpecImpl.create(selectedDependency.fullName) ?: return emptyArray()
+  val rootBuildModel = ProjectBuildModel.get(project).projectBuildModel ?: return emptyArray()
+  val modelsForSearch = ProjectBuildModel.get(project).projectSettingsModel?.let {
+    selectedDependency.projects.mapNotNull { gradleProjectPath -> it.moduleModel(gradleProjectPath) }
+  } ?: listOf(rootBuildModel)
+  return modelsForSearch.asSequence()
     .flatMap { model -> model.dependencies().artifacts() }
-    .filter { dependency -> dependency.spec.group == selectedParsed.group && dependency.spec.name == selectedParsed.name }
+    .filter { dependency ->
+      dependency.spec.let {
+        it.group == selectedParsed.group && it.name == selectedParsed.name
+      }
+    }
     .mapNotNull { dependency ->
       val versionElement = dependency.version().resultModel.rawElement
       fun extractDependencyPsi() = when (val dependencyElement = dependency.completeModel().resultModel.rawElement) {

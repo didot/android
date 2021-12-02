@@ -178,11 +178,11 @@ class EmulatorView(
     get() = screenshotShape.displayMode ?: emulator.emulatorConfig.displayModes.firstOrNull()
 
   /** Count of received display frames. */
-  @VisibleForTesting
+  @get:VisibleForTesting
   var frameNumber = 0
     private set
   /** Time of the last frame update in milliseconds since epoch. */
-  @VisibleForTesting
+  @get:VisibleForTesting
   var frameTimestampMillis = 0L
     private set
 
@@ -662,7 +662,9 @@ class EmulatorView(
   }
 
   private fun requestScreenshotFeed() {
-    requestScreenshotFeed(screenshotShape.rotation)
+    if (connected) {
+      requestScreenshotFeed(screenshotShape.rotation)
+    }
   }
 
   private fun requestScreenshotFeed(rotation: SkinRotation) {
@@ -1091,7 +1093,8 @@ class EmulatorView(
       }
 
       if (response.image.size() != imageFormat.width * imageFormat.height * 3) {
-        LOG.error("Inconsistent ImageMessage: ${imageFormat.width}x${imageFormat.width} image contains ${response.image.size()} bytes")
+        LOG.error("Inconsistent ImageMessage: ${imageFormat.width}x${imageFormat.width} image contains ${response.image.size()} bytes" +
+                  " instead of ${imageFormat.width * imageFormat.height * 3}")
         return
       }
 

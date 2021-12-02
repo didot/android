@@ -24,6 +24,7 @@ import com.android.tools.idea.gradle.model.IdeAndroidLibrary
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType
 import com.android.tools.idea.gradle.model.IdeDependencies
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.gradle.util.DynamicAppUtils
 import com.android.tools.idea.project.getPackageName
 import com.android.tools.idea.projectsystem.AndroidModuleSystem
@@ -47,6 +48,7 @@ import com.android.tools.idea.projectsystem.getFlavorAndBuildTypeManifestsOfLibs
 import com.android.tools.idea.projectsystem.getForFile
 import com.android.tools.idea.projectsystem.getTransitiveNavigationFiles
 import com.android.tools.idea.projectsystem.sourceProviders
+import com.android.tools.idea.res.AndroidDependenciesCache
 import com.android.tools.idea.res.MainContentRootSampleDataDirectoryProvider
 import com.android.tools.idea.run.ApplicationIdProvider
 import com.android.tools.idea.run.GradleApplicationIdProvider
@@ -60,7 +62,6 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.android.dom.manifest.getPrimaryManifestXml
 import org.jetbrains.android.facet.AndroidFacet
-import org.jetbrains.android.util.AndroidUtils
 import java.io.File
 import java.nio.file.Path
 import java.util.Collections
@@ -143,7 +144,7 @@ class GradleModuleSystem(
     }
   }
 
-  override fun getResourceModuleDependencies() = AndroidUtils.getAllAndroidDependencies(module, true).map(AndroidFacet::getModule)
+  override fun getResourceModuleDependencies() = AndroidDependenciesCache.getAllAndroidDependencies(module, true).map(AndroidFacet::getModule)
 
   override fun getDirectResourceModuleDependents(): List<Module> = ModuleManager.getInstance(module.project).getModuleDependentModules(
     module)
@@ -176,19 +177,31 @@ class GradleModuleSystem(
     val manager = GradleDependencyManager.getInstance(module.project)
     val coordinates = Collections.singletonList(coordinate)
 
-    if (type == DependencyType.ANNOTATION_PROCESSOR) {
-      // addDependenciesWithoutSync doesn't support this: more direct implementation
-      manager.addDependenciesWithoutSync(module, coordinates) { _, name, _ ->
-        when {
-          name.startsWith("androidTest") -> "androidTestAnnotationProcessor"
-          name.startsWith("test") -> "testAnnotationProcessor"
-          else -> "annotationProcessor"
+    when (type) {
+      DependencyType.ANNOTATION_PROCESSOR -> {
+        // addDependenciesWithoutSync doesn't support this: more direct implementation
+        manager.addDependenciesWithoutSync(module, coordinates) { _, name, _ ->
+          when {
+            name.startsWith("androidTest") -> "androidTestAnnotationProcessor"
+            name.startsWith("test") -> "testAnnotationProcessor"
+            else -> "annotationProcessor"
+          }
         }
       }
+      DependencyType.DEBUG_IMPLEMENTATION -> {
+        manager.addDependenciesWithoutSync(module, coordinates) { _, _, _ ->
+          "debugImplementation"
+        }
+      }
+      else -> {
+        manager.addDependenciesWithoutSync(module, coordinates)
+      }
     }
-    else {
-      manager.addDependenciesWithoutSync(module, coordinates)
-    }
+  }
+
+  override fun updateLibrariesToVersion(toVersions: List<GradleCoordinate>) {
+    val manager = GradleDependencyManager.getInstance(module.project)
+    manager.updateLibrariesToVersion(module, toVersions)
   }
 
   override fun getModuleTemplates(targetDirectory: VirtualFile?): List<NamedModuleTemplate> {
@@ -213,7 +226,7 @@ class GradleModuleSystem(
 
   override fun getManifestOverrides(): ManifestOverrides {
     val facet = AndroidFacet.getInstance(module)
-    val androidModel = facet?.let(AndroidModuleModel::get) ?: return ManifestOverrides()
+    val androidModel = facet?.let(GradleAndroidModel::get) ?: return ManifestOverrides()
     val directOverrides = notNullMapOf(
       ManifestSystemProperty.MIN_SDK_VERSION to androidModel.minSdkVersion?.apiString,
       ManifestSystemProperty.TARGET_SDK_VERSION to androidModel.targetSdkVersion?.apiString,
@@ -290,11 +303,11 @@ class GradleModuleSystem(
     }
   }
 
-  override fun getNotRuntimeConfigurationSpecificApplicationIdProviderForLegacyUse(): ApplicationIdProvider {
+  override fun getApplicationIdProvider(): ApplicationIdProvider {
     val androidFacet = AndroidFacet.getInstance(module) ?: error("Cannot find AndroidFacet. Module: ${module.name}")
-    val androidModel = AndroidModuleModel.get(androidFacet) ?: error("Cannot find AndroidModuleModel. Module: ${module.name}")
+    val androidModel = GradleAndroidModel.get(androidFacet) ?: error("Cannot find AndroidModuleModel. Module: ${module.name}")
     return GradleApplicationIdProvider(
-      androidFacet, false, androidModel, androidModel.selectedVariant, { null }
+      androidFacet, false, androidModel, androidModel.selectedVariant
     )
   }
 

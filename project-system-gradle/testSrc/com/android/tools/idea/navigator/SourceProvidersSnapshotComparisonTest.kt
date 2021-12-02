@@ -16,7 +16,6 @@
 package com.android.tools.idea.navigator
 
 import com.android.testutils.TestUtils
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.AndroidGradleTestCase
 import com.android.tools.idea.testing.AndroidGradleTests
 import com.android.tools.idea.testing.SnapshotComparisonTest
@@ -104,6 +103,16 @@ class SourceProvidersSnapshotComparisonTest : AndroidGradleTestCase(), SnapshotC
 
   fun testTestFixtures() {
     val text = importSyncAndDumpProject(TestProjectToSnapshotPaths.TEST_FIXTURES)
+    assertIsEqualToSnapshot(text)
+  }
+
+  fun testKotlinKapt() {
+    val text = importSyncAndDumpProject(TestProjectToSnapshotPaths.KOTLIN_KAPT)
+    assertIsEqualToSnapshot(text)
+  }
+
+  fun testKotlinMpp() {
+    val text = importSyncAndDumpProject(TestProjectToSnapshotPaths.KOTLIN_MULTIPLATFORM)
     assertIsEqualToSnapshot(text)
   }
 

@@ -16,7 +16,8 @@
 
 package com.android.tools.idea.run;
 
-import com.android.tools.idea.run.editor.LaunchOptionConfigurableContext;
+import com.android.tools.idea.res.AndroidDependenciesCache;
+import com.android.tools.idea.run.activity.launch.LaunchOptionConfigurableContext;
 import com.intellij.codeInsight.completion.*;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.openapi.editor.Editor;
@@ -111,7 +112,7 @@ public class AndroidActivityAliasCompletionContributor extends CompletionContrib
 
     doCollectActivityAliases(facet, result);
 
-    for (AndroidFacet depFacet : AndroidUtils.getAllAndroidDependencies(facet.getModule(), true)) {
+    for (AndroidFacet depFacet : AndroidDependenciesCache.getAllAndroidDependencies(facet.getModule(), true)) {
       doCollectActivityAliases(depFacet, result);
     }
     return result;

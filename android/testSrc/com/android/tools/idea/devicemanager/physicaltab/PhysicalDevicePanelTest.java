@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 
 import com.android.tools.idea.adb.wireless.PairDevicesUsingWiFiService;
 import com.android.tools.idea.adb.wireless.WiFiPairingController;
+import com.android.tools.idea.devicemanager.CountDownLatchAssert;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDevicePanel.SetDevices;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDeviceTableModel.ActivateDeviceFileExplorerWindowValue;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDeviceTableModel.PopUpMenuValue;
@@ -29,7 +30,6 @@ import com.google.common.util.concurrent.Futures;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -105,14 +105,14 @@ public final class PhysicalDevicePanelTest {
     myPanel = new PhysicalDevicePanel(myProject,
                                       myParent,
                                       project -> myService,
+                                      panel -> new PhysicalDeviceTable(panel, new PhysicalDeviceTableModel()),
                                       () -> myComponent,
                                       model -> myListener,
-                                      panel -> new PhysicalDeviceTable(panel, new PhysicalDeviceTableModel()),
                                       mySupplier,
                                       this::newSetDevices);
 
     // Assert
-    CountDownLatchAssert.await(myLatch, Duration.ofMillis(128));
+    CountDownLatchAssert.await(myLatch);
 
     Object data = Collections.singletonList(Arrays.asList(TestPhysicalDevices.ONLINE_GOOGLE_PIXEL_3,
                                                           "31",
@@ -133,14 +133,14 @@ public final class PhysicalDevicePanelTest {
     myPanel = new PhysicalDevicePanel(myProject,
                                       myParent,
                                       project -> myService,
+                                      panel -> new PhysicalDeviceTable(panel, new PhysicalDeviceTableModel()),
                                       () -> myComponent,
                                       model -> myListener,
-                                      panel -> new PhysicalDeviceTable(panel, new PhysicalDeviceTableModel()),
                                       mySupplier,
                                       this::newSetDevices);
 
     // Assert
-    CountDownLatchAssert.await(myLatch, Duration.ofMillis(128));
+    CountDownLatchAssert.await(myLatch);
 
     Object data = Arrays.asList(Arrays.asList(TestPhysicalDevices.ONLINE_GOOGLE_PIXEL_3,
                                               "31",
@@ -168,9 +168,9 @@ public final class PhysicalDevicePanelTest {
     myPanel = new PhysicalDevicePanel(myProject,
                                       myParent,
                                       project -> myService,
+                                      PhysicalDeviceTable::new,
                                       () -> myComponent,
                                       model -> myListener,
-                                      PhysicalDeviceTable::new,
                                       mySupplier,
                                       SetDevices::new);
 
@@ -190,9 +190,9 @@ public final class PhysicalDevicePanelTest {
     myPanel = new PhysicalDevicePanel(myProject,
                                       myParent,
                                       project -> myService,
+                                      PhysicalDeviceTable::new,
                                       () -> myComponent,
                                       model -> myListener,
-                                      PhysicalDeviceTable::new,
                                       mySupplier,
                                       SetDevices::new);
 

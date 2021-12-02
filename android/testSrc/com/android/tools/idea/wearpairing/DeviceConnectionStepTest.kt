@@ -39,6 +39,7 @@ import org.junit.Test
 import org.mockito.Mockito
 import java.awt.Dimension
 import java.util.concurrent.TimeUnit
+import javax.swing.JButton
 import javax.swing.JLabel
 
 
@@ -174,11 +175,11 @@ class DeviceConnectionStepTest : LightPlatform4TestCase() {
     val (fakeUi, _) = createDeviceConnectionStepUi(wizardAction)
 
     waitForCondition(15, TimeUnit.SECONDS) {
-      fakeUi.findComponent<JLabel> { it.text == "Restart pairing" } != null
+      fakeUi.findComponent<JLabel> { it.text == "My Phone didn't start" } != null
     }
 
     fakeUi.layoutAndDispatchEvents()
-    fakeUi.findComponent<LinkLabel<Any>> { it.text == "Restart pairing" }!!.apply {
+    fakeUi.findComponent<JButton> { it.text == "Try again" }!!.apply {
       this.doClick()
     }
 
@@ -196,6 +197,21 @@ class DeviceConnectionStepTest : LightPlatform4TestCase() {
 
     waitForCondition(15, TimeUnit.SECONDS) {
       fakeUi.findComponent<JLabel> { it.text == "Restart pairing" } != null
+    }
+  }
+
+  @Test
+  fun shouldShowErrorIfAgpConnectionFails() {
+    val iDevice = createTestDevice(companionAppVersion = "versionName=1.0.0") // Simulate Companion App
+    Mockito.`when`(iDevice.createForward(Mockito.anyInt(), Mockito.anyInt())).thenThrow(RuntimeException("Test"))
+    phoneDevice.launch = { Futures.immediateFuture(iDevice) }
+    wearDevice.launch = phoneDevice.launch
+
+    val (fakeUi, _) = createDeviceConnectionStepUi()
+
+    waitForCondition(15, TimeUnit.SECONDS) {
+      invokeStrategy.updateAllSteps()
+      fakeUi.findComponent<JBLabel> { it.text == "Error occurred connecting devices" } != null
     }
   }
 

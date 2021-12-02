@@ -81,19 +81,34 @@ DOUBLE_QUOTED_VALUE = \" ([^\"] | \\\")* \"
 STRING_VALUE        = {UNQUOTED_VALUE} | {SINGLE_QUOTED_VALUE} | {DOUBLE_QUOTED_VALUE}
 
 // Keys that accept quoted or unquoted strings.
-TEXT_KEY = "tag" | "app" | "package" | "message" | "msg" | "line"
+TEXT_KEY
+  = "app"
+  | "line"
+  | "message"
+  | "msg"
+  | "package"
+  | "tag"
 
 // Keys that accept unquoted, non-whitespace values
-KEY = "level" | "fromLevel" | "toLevel" | "age"
+KEY
+  = "age"
+  | "fromLevel"
+  | "level"
+  | "toLevel"
 
-%state STRING_VALUE
-%state VALUE
+PROJECT_APP = "app!" | "package!"
+
+%state STRING_KVALUE_STATE
+%state REGEX_KVALUE_STATE
+%state KVALUE_STATE
 
 %%
 
 <YYINITIAL> {
-  {MINUS}? {TEXT_KEY} {TILDE}? {COLON} { yybegin(STRING_VALUE); return LogcatFilterTypes.KEY; }
-  {KEY} {COLON}                        { yybegin(VALUE); return LogcatFilterTypes.KEY; }
+  {MINUS}? {TEXT_KEY} {COLON}          { yybegin(STRING_KVALUE_STATE); return LogcatFilterTypes.STRING_KEY; }
+  {MINUS}? {TEXT_KEY} {TILDE} {COLON}  { yybegin(REGEX_KVALUE_STATE); return LogcatFilterTypes.REGEX_KEY; }
+  {KEY} {COLON}                        { yybegin(KVALUE_STATE); return LogcatFilterTypes.KEY; }
+  {PROJECT_APP}                        { return LogcatFilterTypes.PROJECT_APP; }
 
   {OR}                                 { return LogcatFilterTypes.OR; }
   {AND}                                { return LogcatFilterTypes.AND; }
@@ -105,8 +120,10 @@ KEY = "level" | "fromLevel" | "toLevel" | "age"
 
 {WHITE_SPACE}+                         { return TokenType.WHITE_SPACE; }
 
-<STRING_VALUE>   {STRING_VALUE}        { yybegin(YYINITIAL); return LogcatFilterTypes.VALUE; }
+<STRING_KVALUE_STATE>   {STRING_VALUE} { yybegin(YYINITIAL); return LogcatFilterTypes.STRING_KVALUE; }
 
-<VALUE>  \S+                           { yybegin(YYINITIAL); return LogcatFilterTypes.VALUE; }
+<REGEX_KVALUE_STATE>    {STRING_VALUE} { yybegin(YYINITIAL); return LogcatFilterTypes.REGEX_KVALUE; }
+
+<KVALUE_STATE>  \S+                    { yybegin(YYINITIAL); return LogcatFilterTypes.KVALUE; }
 
 [^]                                    { return TokenType.BAD_CHARACTER; }

@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.gradle.project.sync
 
-import com.android.SdkConstants.GRADLE_PLUGIN_MINIMUM_VERSION
+import com.android.Version
 import com.android.builder.model.AndroidProject
 import com.android.builder.model.ModelBuilderParameter
 import com.android.builder.model.NativeAndroidProject
@@ -35,14 +35,18 @@ import com.android.builder.model.v2.models.ndk.NativeModelBuilderParameter
 import com.android.builder.model.v2.models.ndk.NativeModule
 import com.android.builder.model.v2.models.ProjectSyncIssues as V2ProjectSyncIssues
 import com.android.builder.model.v2.ide.Variant as V2Variant
+import com.android.ide.common.repository.GradleVersion
+import com.android.ide.gradle.model.composites.BuildMap
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType
 import com.android.tools.idea.gradle.model.IdeVariant
 import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeVariantAbi
-import com.android.ide.common.repository.GradleVersion
-import com.android.ide.gradle.model.composites.BuildMap
 import com.android.tools.idea.gradle.model.IdeSyncIssue
 import com.android.tools.idea.gradle.model.IdeUnresolvedDependencies
 import com.android.tools.idea.gradle.model.impl.IdeSyncIssueImpl
+import com.android.tools.idea.gradle.project.upgrade.ForcePluginUpgradeReason.MINIMUM
+import com.android.tools.idea.gradle.project.upgrade.ForcePluginUpgradeReason.NO_FORCE
+import com.android.tools.idea.gradle.project.upgrade.ForcePluginUpgradeReason.PREVIEW
+import com.android.tools.idea.gradle.project.upgrade.computeForcePluginUpgradeReason
 import com.android.utils.appendCapitalized
 import org.gradle.tooling.BuildController
 import org.gradle.tooling.UnsupportedVersionException
@@ -166,11 +170,10 @@ internal class AndroidExtraModelProviderWorker(
           // Request V2 models if flag is enabled.
           if (syncOptions.flags.studioFlagUseV2BuilderModels) {
             // First request the Versions model to make sure we can fetch V2 models.
-            val modelVersion = controller.findNonParameterizedV2Model(gradleProject, Versions::class.java)
+            val versions = controller.findNonParameterizedV2Model(gradleProject, Versions::class.java)
 
-            if (modelVersion != null &&
-                verifyAgpVersionCompatibleWithIdeAndThrowOtherwise(modelVersion.agp) &&
-                canFetchV2Models(GradleVersion.tryParseAndroidGradlePluginVersion(modelVersion.agp))) {
+            if (versions?.also { checkAgpVersionCompatibility(versions.agp, syncOptions) } != null &&
+                canFetchV2Models(GradleVersion.tryParseAndroidGradlePluginVersion(versions.agp))) {
               val basicAndroidProject = controller.findNonParameterizedV2Model(gradleProject, BasicAndroidProject::class.java)
               val androidProject = controller.findNonParameterizedV2Model(gradleProject, V2AndroidProject::class.java)
               val androidDsl = controller.findNonParameterizedV2Model(gradleProject, AndroidDsl::class.java)
@@ -183,7 +186,7 @@ internal class AndroidExtraModelProviderWorker(
                 }
 
                 androidProjectResult =
-                  AndroidProjectResult.V2Project(basicAndroidProject, androidProject, modelVersion, androidDsl)
+                  AndroidProjectResult.V2Project(basicAndroidProject, androidProject, versions, androidDsl)
 
                 // TODO(solodkyy): Perhaps request the version interface depending on AGP version.
                 val nativeModule = controller.getNativeModuleFromGradle(gradleProject, syncAllVariantsAndAbis = false)
@@ -210,7 +213,7 @@ internal class AndroidExtraModelProviderWorker(
               AndroidProject::class.java,
               shouldBuildVariant = false
             )
-            if (androidProject != null && verifyAgpVersionCompatibleWithIdeAndThrowOtherwise(androidProject.modelVersion)) {
+            if (androidProject?.also { checkAgpVersionCompatibility(androidProject.modelVersion, syncOptions) } != null) {
               if (canFetchV2Models == null) {
                 canFetchV2Models = false
               } else if (canFetchV2Models == true) {
@@ -277,13 +280,15 @@ internal class AndroidExtraModelProviderWorker(
     return modules
   }
 
-  private fun verifyAgpVersionCompatibleWithIdeAndThrowOtherwise(gradleProjectVersion: String?): Boolean {
-    val gradleVersion = if (gradleProjectVersion != null) GradleVersion.parse(gradleProjectVersion) else return true
-    if (gradleVersion.compareIgnoringQualifiers(GRADLE_PLUGIN_MINIMUM_VERSION) < 0) {
-      throw UnsupportedVersionException("The project is using an incompatible version (AGP $gradleVersion) of the Android Gradle plugin. " +
-                                        "Minimum supported version is AGP $GRADLE_PLUGIN_MINIMUM_VERSION.")
+  private fun checkAgpVersionCompatibility(agpVersionString: String?, syncOptions: SyncActionOptions) {
+    if (syncOptions.flags.studioFlagDisableForcedUpgrades) return
+    val agpVersion = if (agpVersionString != null) GradleVersion.parse(agpVersionString) else return
+    val latestKnown = GradleVersion.parse(Version.ANDROID_GRADLE_PLUGIN_VERSION)
+    when (computeForcePluginUpgradeReason(agpVersion, latestKnown)) {
+      MINIMUM -> throw AgpVersionTooOld(agpVersion)
+      PREVIEW -> throw AgpVersionIncompatible(agpVersion)
+      NO_FORCE -> Unit
     }
-    return true
   }
 
   private fun fetchNativeVariantsAndroidModels(
@@ -862,7 +867,7 @@ private fun Collection<SyncIssue>.toSyncIssueData(): List<IdeSyncIssue> {
     IdeSyncIssueImpl(
       message = syncIssue.message,
       data = syncIssue.data,
-      multiLineMessage = ModelCache.safeGet(syncIssue::multiLineMessage, null)?.toList(),
+      multiLineMessage = safeGet(syncIssue::multiLineMessage, null)?.toList(),
       severity = syncIssue.severity,
       type = syncIssue.type
     )
@@ -874,7 +879,7 @@ private fun Collection<com.android.builder.model.v2.ide.SyncIssue>.toV2SyncIssue
     IdeSyncIssueImpl(
       message = syncIssue.message,
       data = syncIssue.data,
-      multiLineMessage = ModelCache.safeGet(syncIssue::multiLineMessage, null)?.filterNotNull()?.toList(),
+      multiLineMessage = safeGet(syncIssue::multiLineMessage, null)?.filterNotNull()?.toList(),
       severity = syncIssue.severity,
       type = syncIssue.type
     )
@@ -890,8 +895,8 @@ private fun createAndroidModule(
   modelCache: ModelCache
 ): AndroidModule {
   val gradleVersionString = when (androidProjectResult) {
-    is AndroidExtraModelProviderWorker.AndroidProjectResult.V1Project -> ModelCache.safeGet(androidProjectResult.androidProject::getModelVersion, "")
-    is AndroidExtraModelProviderWorker.AndroidProjectResult.V2Project -> ModelCache.safeGet(androidProjectResult.modelVersions::agp, "")
+    is AndroidExtraModelProviderWorker.AndroidProjectResult.V1Project -> safeGet(androidProjectResult.androidProject::getModelVersion, "")
+    is AndroidExtraModelProviderWorker.AndroidProjectResult.V2Project -> safeGet(androidProjectResult.modelVersions::agp, "")
   }
   val modelVersion: GradleVersion? = GradleVersion.tryParseAndroidGradlePluginVersion(gradleVersionString)
 
@@ -906,14 +911,14 @@ private fun createAndroidModule(
   val (basicVariants, v2Variants) = when (androidProjectResult) {
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V1Project -> null to null
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V2Project ->
-      ModelCache.safeGet(androidProjectResult.basicAndroidProject::variants, null)?.toList() to ModelCache.safeGet(
+      safeGet(androidProjectResult.basicAndroidProject::variants, null)?.toList() to safeGet(
         androidProjectResult.androidProject::variants, null)?.toList()
   }
 
   // Single-variant-sync models have variantNames property and all-variants-sync model should have all variants present instead.
   val allVariantNames: Set<String>? = when (androidProjectResult) {
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V1Project ->
-      ModelCache.safeGet(androidProjectResult.androidProject::getVariantNames, null).orEmpty().toSet()
+      safeGet(androidProjectResult.androidProject::getVariantNames, null).orEmpty().toSet()
     // For V2, the project always have allVariants because these do not contain any dependency data.
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V2Project -> basicVariants?.map { it.name }?.toSet()
   }
@@ -946,7 +951,7 @@ private fun createAndroidModule(
 
   val defaultVariantName: String? = when (androidProjectResult) {
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V1Project ->
-      ModelCache.safeGet(androidProjectResult.androidProject::getDefaultVariant, null)
+      safeGet(androidProjectResult.androidProject::getDefaultVariant, null)
       ?: allVariantNames?.getDefaultOrFirstItem("debug")
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V2Project -> {
       val flavorDimensions = androidProjectResult.androidDsl.flavorDimensions
@@ -960,7 +965,7 @@ private fun createAndroidModule(
   val ideNativeAndroidProject = when (androidProjectResult) {
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V1Project ->
       nativeAndroidProject?.let {
-        modelCache.nativeAndroidProjectFrom(it, ModelCache.safeGet(androidProjectResult.androidProject::getNdkVersion, ""))
+        modelCache.nativeAndroidProjectFrom(it, safeGet(androidProjectResult.androidProject::getNdkVersion, ""))
       }
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V2Project ->
       if (nativeAndroidProject != null) {
@@ -994,7 +999,7 @@ private fun createAndroidModule(
   @Suppress("DEPRECATION")
   val syncIssues = when (androidProjectResult) {
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V1Project ->
-      ModelCache.safeGet(androidProjectResult.androidProject::getSyncIssues, null)
+      safeGet(androidProjectResult.androidProject::getSyncIssues, null)
     // For V2, we are going to request the Sync issues model after populating build models.
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V2Project -> null
   }
@@ -1010,4 +1015,11 @@ private fun AndroidModule.adjustForTestFixturesSuffix(variantName: String): Stri
   val variantNameWithoutSuffix = variantName.removeSuffix("TestFixtures")
   return if (!allVariantNames.contains(variantName) && allVariantNames.contains(variantNameWithoutSuffix)) variantNameWithoutSuffix
   else variantName
+}
+
+private inline fun <T> safeGet(original: () -> T, default: T): T = try {
+  original()
+}
+catch (ignored: UnsupportedOperationException) {
+  default
 }

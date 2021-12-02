@@ -7,22 +7,6 @@
     <option name="add" path="ActionManager" hit="Add As Library..." />
     <option name="as" path="ActionManager" hit="Add As Library..." />
     <option name="library" path="ActionManager" hit="Add As Library..." />
-    <option name="add" path="ActionManager" hit="Add C++ to Module" />
-    <option name="c" path="ActionManager" hit="Add C++ to Module" />
-    <option name="module" path="ActionManager" hit="Add C++ to Module" />
-    <option name="to" path="ActionManager" hit="Add C++ to Module" />
-    <option name="add" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="build" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="built" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="c" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="cmake" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="code" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="module" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="ndk" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="or" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="this" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="to" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
-    <option name="with" path="ActionManager" hit="Add C/C++ code built with CMake or ndk-build to this module" />
     <option name="add" path="ActionManager" hit="Add Right-to-Left (RTL) Support..." />
     <option name="left" path="ActionManager" hit="Add Right-to-Left (RTL) Support..." />
     <option name="right" path="ActionManager" hit="Add Right-to-Left (RTL) Support..." />
@@ -158,9 +142,9 @@
     <option name="convert" path="ActionManager" hit="Convert to WebP..." />
     <option name="to" path="ActionManager" hit="Convert to WebP..." />
     <option name="webp" path="ActionManager" hit="Convert to WebP..." />
-    <option name="create" path="ActionManager" hit="Create 9-Patch file..." />
-    <option name="file" path="ActionManager" hit="Create 9-Patch file..." />
-    <option name="patch" path="ActionManager" hit="Create 9-Patch file..." />
+    <option name="create" path="ActionManager" hit="Create 9-Patch file…" />
+    <option name="file" path="ActionManager" hit="Create 9-Patch file…" />
+    <option name="patch" path="ActionManager" hit="Create 9-Patch file…" />
     <option name="a" path="ActionManager" hit="Create a new Android object from the Other category" />
     <option name="android" path="ActionManager" hit="Create a new Android object from the Other category" />
     <option name="category" path="ActionManager" hit="Create a new Android object from the Other category" />
@@ -250,12 +234,10 @@
     <option name="views" path="ActionManager" hit="Extracts one or more views into a separate layout" />
     <option name="fold" path="ActionManager" hit="Fold/Unfold" />
     <option name="unfold" path="ActionManager" hit="Fold/Unfold" />
-    <option name="apk" path="ActionManager" hit="Generate Signed Bundle / APK..." />
-    <option name="bundle" path="ActionManager" hit="Generate Signed Bundle / APK..." />
-    <option name="generate" path="ActionManager" hit="Generate Signed Bundle / APK..." />
-    <option name="signed" path="ActionManager" hit="Generate Signed Bundle / APK..." />
-    <option name="generate" path="ActionManager" hit="Generate Sources" />
-    <option name="sources" path="ActionManager" hit="Generate Sources" />
+    <option name="apk" path="ActionManager" hit="Generate Signed Bundle / APK…" />
+    <option name="bundle" path="ActionManager" hit="Generate Signed Bundle / APK…" />
+    <option name="generate" path="ActionManager" hit="Generate Signed Bundle / APK…" />
+    <option name="signed" path="ActionManager" hit="Generate Signed Bundle / APK…" />
     <option name="help" path="ActionManager" hit="Help" />
     <option name="connection" path="ActionManager" hit="Help debug device connection" />
     <option name="debug" path="ActionManager" hit="Help debug device connection" />
@@ -319,22 +301,6 @@
     <option name="library" path="ActionManager" hit="Library Properties..." />
     <option name="properties" path="ActionManager" hit="Library Properties..." />
     <option name="licenses" path="ActionManager" hit="Licenses" />
-    <option name="c" path="ActionManager" hit="Link C++ Project with Gradle" />
-    <option name="gradle" path="ActionManager" hit="Link C++ Project with Gradle" />
-    <option name="link" path="ActionManager" hit="Link C++ Project with Gradle" />
-    <option name="project" path="ActionManager" hit="Link C++ Project with Gradle" />
-    <option name="with" path="ActionManager" hit="Link C++ Project with Gradle" />
-    <option name="an" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="build" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="c" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="cmake" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="external" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="gradle" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="link" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="ndk" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="or" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="project" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
-    <option name="with" path="ActionManager" hit="Link an external C/C++ project (cmake or ndk-build) with Gradle" />
     <option name="and" path="ActionManager" hit="Load and set up Android Test Retention for debug" />
     <option name="android" path="ActionManager" hit="Load and set up Android Test Retention for debug" />
     <option name="debug" path="ActionManager" hit="Load and set up Android Test Retention for debug" />
@@ -412,8 +378,8 @@
     <option name="preferences" path="ActionManager" hit="Navigate to shared preferences folder" />
     <option name="shared" path="ActionManager" hit="Navigate to shared preferences folder" />
     <option name="to" path="ActionManager" hit="Navigate to shared preferences folder" />
-    <option name="module" path="ActionManager" hit="New Module..." />
-    <option name="new" path="ActionManager" hit="New Module..." />
+    <option name="module" path="ActionManager" hit="New Module…" />
+    <option name="new" path="ActionManager" hit="New Module…" />
     <option name="new" path="ActionManager" hit="New Project" />
     <option name="project" path="ActionManager" hit="New Project" />
     <option name="new" path="ActionManager" hit="New Project..." />
@@ -681,6 +647,19 @@
     <option name="of" hit="Live Edit of literals" />
     <option name="decorations" hit="Literals decorations" />
     <option name="literals" hit="Literals decorations" />
+  </configurable>
+  <configurable id="reference.settingsdialog.IDE.editor.colors.Logcat Filter" configurable_name="Logcat Filter">
+    <option name="filter" hit="Logcat Filter" />
+    <option name="logcat" hit="Logcat Filter" />
+    <option name="key" hit="Key" />
+    <option name="app" hit="My app" />
+    <option name="my" hit="My app" />
+    <option name="regex" hit="Regex value" />
+    <option name="value" hit="Regex value" />
+    <option name="string" hit="String value" />
+    <option name="value" hit="String value" />
+    <option name="text" hit="Text" />
+    <option name="value" hit="Value" />
   </configurable>
   <configurable id="project.propDebugger" configurable_name="Debugger">
     <option name="" hit=" Existing ADB server port:" />
@@ -1191,16 +1170,20 @@
     <option name="settings" hit="  Note:  These settings are for features that are considered  experimental . " />
     <option name="that" hit="  Note:  These settings are for features that are considered  experimental . " />
     <option name="these" hit="  Note:  These settings are for features that are considered  experimental . " />
-    <option name="a" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="allows" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="deploying" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="device" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="elements" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="emulator" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="individual" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="or" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="preview" hit="Allows deploying individual @Preview elements to a device or emulator" />
-    <option name="to" hit="Allows deploying individual @Preview elements to a device or emulator" />
+    <option name="build" hit="Build preview on save" />
+    <option name="on" hit="Build preview on save" />
+    <option name="preview" hit="Build preview on save" />
+    <option name="save" hit="Build preview on save" />
+    <option name="allow" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="builds" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="faster" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="for" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="on" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="preview" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="refresh" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="save" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="the" hit="Builds the preview on save to allow for faster preview refresh" />
+    <option name="to" hit="Builds the preview on save to allow for faster preview refresh" />
     <option name="default" hit="Default profile" />
     <option name="profile" hit="Default profile" />
     <option name="build" hit="Do not build Gradle task list during Gradle sync" />
@@ -1211,11 +1194,6 @@
     <option name="not" hit="Do not build Gradle task list during Gradle sync" />
     <option name="sync" hit="Do not build Gradle task list during Gradle sync" />
     <option name="task" hit="Do not build Gradle task list during Gradle sync" />
-    <option name="deploy" hit="Enable @Preview deploy to device" />
-    <option name="device" hit="Enable @Preview deploy to device" />
-    <option name="enable" hit="Enable @Preview deploy to device" />
-    <option name="preview" hit="Enable @Preview deploy to device" />
-    <option name="to" hit="Enable @Preview deploy to device" />
     <option name="enable" hit="Enable @Preview picker" />
     <option name="picker" hit="Enable @Preview picker" />
     <option name="preview" hit="Enable @Preview picker" />
@@ -1226,9 +1204,6 @@
     <option name="animation" hit="Enable animation preview" />
     <option name="enable" hit="Enable animation preview" />
     <option name="preview" hit="Enable animation preview" />
-    <option name="enable" hit="Enable interactive preview" />
-    <option name="interactive" hit="Enable interactive preview" />
-    <option name="preview" hit="Enable interactive preview" />
     <option name="experimental" hit="Experimental" />
     <option name="animation" hit="Frame-by-frame inspection of animations defined using the Compose animation framework" />
     <option name="animations" hit="Frame-by-frame inspection of animations defined using the Compose animation framework" />
@@ -1248,11 +1223,6 @@
     <option name="layout" hit="Layout Editor" />
     <option name="inspector" hit="Layout Inspector" />
     <option name="layout" hit="Layout Inspector" />
-    <option name="gestures" hit="Live preview to test gestures" />
-    <option name="live" hit="Live preview to test gestures" />
-    <option name="preview" hit="Live preview to test gestures" />
-    <option name="test" hit="Live preview to test gestures" />
-    <option name="to" hit="Live preview to test gestures" />
     <option name="annotation" hit="Popup with editing tools for @Preview annotation from the Editor gutter" />
     <option name="editing" hit="Popup with editing tools for @Preview annotation from the Editor gutter" />
     <option name="editor" hit="Popup with editing tools for @Preview annotation from the Editor gutter" />
@@ -1280,28 +1250,5 @@
     <option name="new" hit="Use new dependency mechanism during Gradle sync" />
     <option name="sync" hit="Use new dependency mechanism during Gradle sync" />
     <option name="use" hit="Use new dependency mechanism during Gradle sync" />
-  </configurable>
-  <configurable id="android.dex.compiler" configurable_name="Android Compilers">
-    <option name="add" hit="Add &quot;--core-library&quot; flag" />
-    <option name="core" hit="Add &quot;--core-library&quot; flag" />
-    <option name="flag" hit="Add &quot;--core-library&quot; flag" />
-    <option name="library" hit="Add &quot;--core-library&quot; flag" />
-    <option name="additional" hit="Additional VM options:" />
-    <option name="options" hit="Additional VM options:" />
-    <option name="vm" hit="Additional VM options:" />
-    <option name="android" hit="Android Compilers" />
-    <option name="compilers" hit="Android Compilers" />
-    <option name="dex" hit="DEX" />
-    <option name="force" hit="Force jumbo mode" />
-    <option name="jumbo" hit="Force jumbo mode" />
-    <option name="mode" hit="Force jumbo mode" />
-    <option name="heap" hit="Maximum heap size (MB):" />
-    <option name="maximum" hit="Maximum heap size (MB):" />
-    <option name="mb" hit="Maximum heap size (MB):" />
-    <option name="size" hit="Maximum heap size (MB):" />
-    <option name="optimize" hit="Optimize" />
-    <option name="proguard" hit="ProGuard" />
-    <option name="options" hit="VM options:" />
-    <option name="vm" hit="VM options:" />
   </configurable>
 </options>

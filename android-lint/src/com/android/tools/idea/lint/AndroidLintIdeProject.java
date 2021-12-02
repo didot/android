@@ -23,12 +23,13 @@ import com.android.sdklib.AndroidTargetHash;
 import com.android.sdklib.AndroidVersion;
 import com.android.support.AndroidxNameUtils;
 import com.android.tools.idea.gradle.model.IdeAndroidProject;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.lint.common.LintIdeClient;
 import com.android.tools.idea.lint.common.LintIdeProject;
 import com.android.tools.idea.lint.model.LintModelFactory;
 import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
+import com.android.tools.idea.res.AndroidDependenciesCache;
 import com.android.tools.lint.client.api.LintClient;
 import com.android.tools.lint.detector.api.LintModelModuleAndroidLibraryProject;
 import com.android.tools.lint.detector.api.LintModelModuleProject;
@@ -238,7 +239,7 @@ public class AndroidLintIdeProject extends LintIdeProject {
     if (project == null) {
       // It's possible for the module to *depend* on Android code, e.g. in a Gradle
       // project there will be a top-level non-Android module
-      List<AndroidFacet> dependentFacets = AndroidUtils.getAllAndroidDependencies(module, false);
+      List<AndroidFacet> dependentFacets = AndroidDependenciesCache.getAllAndroidDependencies(module, false);
       for (AndroidFacet dependentFacet : dependentFacets) {
         addProjects(client, dependentFacet.getModule(), files, moduleMap, libraryMap, projectMap, projects, true);
       }
@@ -259,7 +260,7 @@ public class AndroidLintIdeProject extends LintIdeProject {
     List<Project> dependencies = Lists.newArrayList();
     // No, this shouldn't use getAllAndroidDependencies; we may have non-Android dependencies that this won't include
     // (e.g. Java-only modules)
-    List<AndroidFacet> dependentFacets = AndroidUtils.getAllAndroidDependencies(module, true);
+    List<AndroidFacet> dependentFacets = AndroidDependenciesCache.getAllAndroidDependencies(module, true);
     for (AndroidFacet dependentFacet : dependentFacets) {
       Project p = moduleMap.get(dependentFacet.getModule());
       if (p != null) {
@@ -309,8 +310,8 @@ public class AndroidLintIdeProject extends LintIdeProject {
     }
     else if (AndroidModel.isRequired(facet)) {
       AndroidModel androidModel = AndroidModel.get(facet);
-      if (androidModel instanceof AndroidModuleModel) {
-        AndroidModuleModel model = (AndroidModuleModel)androidModel;
+      if (androidModel instanceof GradleAndroidModel) {
+        GradleAndroidModel model = (GradleAndroidModel)androidModel;
         String variantName = model.getSelectedVariantName();
 
         LintModelModule lintModel = getLintModuleModel(model, dir, shallowModel);
@@ -336,7 +337,7 @@ public class AndroidLintIdeProject extends LintIdeProject {
   }
 
   @NotNull
-  private static LintModelModule getLintModuleModel(@NotNull AndroidModuleModel model, File dir, boolean shallowModel) {
+  private static LintModelModule getLintModuleModel(@NotNull GradleAndroidModel model, File dir, boolean shallowModel) {
     IdeAndroidProject builderModelProject = model.getAndroidProject();
     if (model.lintModuleModelCache != null) {
       return (LintModelModule)model.lintModuleModelCache;
@@ -603,7 +604,7 @@ public class AndroidLintIdeProject extends LintIdeProject {
   }
 
   private static class LintGradleProject extends LintModelModuleProject {
-    private final AndroidModuleModel myAndroidModuleModel;
+    private final GradleAndroidModel myAndroidModuleModel;
     private final AndroidFacet myFacet;
 
     /**
@@ -615,7 +616,7 @@ public class AndroidLintIdeProject extends LintIdeProject {
       @NonNull File referenceDir,
       @NonNull LintModelVariant variant,
       @NonNull AndroidFacet facet,
-      @NonNull AndroidModuleModel androidModuleModel) {
+      @NonNull GradleAndroidModel androidModuleModel) {
       super(client, dir, referenceDir, variant, null);
       gradleProject = true;
       mergeManifests = true;

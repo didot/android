@@ -99,7 +99,8 @@ open class IdeModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotCompa
       TestProject(TestProjectToSnapshotPaths.MULTI_FLAVOR),
       TestProject(TestProjectToSnapshotPaths.NAMESPACES),
       TestProject(TestProjectToSnapshotPaths.INCLUDE_FROM_LIB),
-      TestProject(TestProjectToSnapshotPaths.LOCAL_AARS_AS_MODULES)
+      TestProject(TestProjectToSnapshotPaths.LOCAL_AARS_AS_MODULES),
+      TestProject(TestProjectToSnapshotPaths.BASIC)
       )
 
     fun testProjectsFor(agpVersions: Collection<AgpVersion>) =

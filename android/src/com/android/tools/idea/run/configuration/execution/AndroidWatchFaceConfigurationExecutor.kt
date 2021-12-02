@@ -18,25 +18,24 @@ package com.android.tools.idea.run.configuration.execution
 import com.android.annotations.concurrency.WorkerThread
 import com.android.ddmlib.IDevice
 import com.android.tools.deployer.model.component.AppComponent
-import com.intellij.execution.DefaultExecutionResult
+import com.android.tools.deployer.model.component.WatchFace.ShellCommand.SHOW_WATCH_FACE
+import com.android.tools.deployer.model.component.WatchFace.ShellCommand.UNSET_WATCH_FACE
+import com.android.tools.idea.run.configuration.AndroidWatchFaceConfiguration
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.runners.showRunContent
+import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.ui.RunContentDescriptor
-import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.progress.ProgressIndicatorProvider
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.util.Disposer
 import java.util.concurrent.TimeUnit
 
 
-class AndroidWatchFaceConfigurationExecutor(environment: ExecutionEnvironment) : AndroidWearConfigurationExecutorBase(environment) {
-
-  companion object {
-    val SHOW_WATCH_FACE_COMMAND =
-      "am broadcast -a com.google.android.wearable.app.DEBUG_SYSUI --es operation show-watchface"
-  }
+class AndroidWatchFaceConfigurationExecutor(environment: ExecutionEnvironment) : AndroidConfigurationExecutorBase(environment) {
+  override val configuration = environment.runProfile as AndroidWatchFaceConfiguration
 
   @WorkerThread
   override fun doOnDevices(devices: List<IDevice>): RunContentDescriptor? {
@@ -45,10 +44,13 @@ class AndroidWatchFaceConfigurationExecutor(environment: ExecutionEnvironment) :
       throw ExecutionException("Debugging is allowed only for single device")
     }
     val console = TextConsoleBuilderFactory.getInstance().createBuilder(project).console
+    Disposer.register(project, console)
     val indicator = ProgressIndicatorProvider.getGlobalProgressIndicator()
     val applicationInstaller = getApplicationInstaller()
     val mode = if (isDebug) AppComponent.Mode.DEBUG else AppComponent.Mode.RUN
+    val processHandler = WatchFaceProcessHandler(console)
     devices.forEach { device ->
+      processHandler.addDevice(device)
       indicator?.checkCanceled()
       indicator?.text = "Installing app"
       val app = applicationInstaller.installAppOnDevice(device, appId, getApkPaths(device), configuration.installFlags) {
@@ -56,17 +58,21 @@ class AndroidWatchFaceConfigurationExecutor(environment: ExecutionEnvironment) :
       }
       val receiver = AndroidLaunchReceiver({ indicator?.isCanceled == true }, console)
       app.activateComponent(configuration.componentType, configuration.componentName!!, mode, receiver)
-      console.print("$ adb shell $SHOW_WATCH_FACE_COMMAND", ConsoleViewContentType.NORMAL_OUTPUT)
-      device.executeShellCommand(SHOW_WATCH_FACE_COMMAND, receiver, 5, TimeUnit.SECONDS)
+      console.printShellCommand(SHOW_WATCH_FACE)
+      device.executeShellCommand(SHOW_WATCH_FACE, receiver, 5, TimeUnit.SECONDS)
     }
-    indicator?.checkCanceled()
-    val runContentDescriptor = if (isDebug) {
-      getDebugSessionStarter().attachDebuggerToClient(devices.single(), console)
-    }
-    else {
-      invokeAndWaitIfNeeded { showRunContent(DefaultExecutionResult(console, EmptyProcessHandler()), environment) }
-    }
+    ProgressManager.checkCanceled()
+    return createRunContentDescriptor(devices, processHandler, console)
+  }
+}
 
-    return runContentDescriptor
+
+class WatchFaceProcessHandler(private val console: ConsoleView) : AndroidProcessHandlerForDevices() {
+
+  override fun destroyProcessOnDevice(device: IDevice) {
+    val receiver = AndroidConfigurationExecutorBase.AndroidLaunchReceiver({ false }, console)
+
+    console.printShellCommand(UNSET_WATCH_FACE)
+    device.executeShellCommand(UNSET_WATCH_FACE, receiver, 5, TimeUnit.SECONDS)
   }
 }
