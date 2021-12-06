@@ -175,7 +175,6 @@ private fun configureLayoutlibSceneManager(sceneManager: LayoutlibSceneManager,
     val reinflate = changeRequiresReinflate(showDecorations, isInteractive, requestPrivateClassLoader)
     setTransparentRendering(!showDecorations)
     setShrinkRendering(!showDecorations)
-    setUseImagePool(false)
     interactive = isInteractive
     isUsePrivateClassLoader = requestPrivateClassLoader
     setOnNewClassLoader(resetLiveLiteralsFound)
