@@ -60,7 +60,7 @@ internal fun ClassDescriptorImpl.createMethod(
     }
   }
 
-  return method.initialize(null, dispatchReceiver.thisAsReceiverParameter, emptyList(), emptyList(),
+  return method.initialize(null, dispatchReceiver.thisAsReceiverParameter, emptyList(),
                            valueParametersProvider(method), returnType, Modality.FINAL, DescriptorVisibilities.PUBLIC)
 }
 
@@ -95,7 +95,7 @@ internal fun ClassDescriptorImpl.createProperty(
     false,
     false) {}
 
-  property.setType(type, emptyList<TypeParameterDescriptor>(), this.thisAsReceiverParameter, null, emptyList())
+  property.setType(type, emptyList<TypeParameterDescriptor>(), this.thisAsReceiverParameter, null)
 
   val getter = PropertyGetterDescriptorImpl(
     property,
