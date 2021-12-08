@@ -1333,7 +1333,7 @@ public final class StudioFlags {
     "wear.os.virtual.device.pairing.assistant.enabled",
     "Enable the Wear OS virtual device pairing assistant",
     "Enable the Wear OS virtual device pairing assistant",
-    true);
+    false);
 
   public static final Flag<Boolean> PAIRED_DEVICES_TAB_ENABLED = Flag.create(
     DEVICE_MANAGER,
