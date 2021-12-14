@@ -954,17 +954,18 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
   private fun refresh(quickRefresh: Boolean = false): Job {
     LOG.debug("Refresh triggered. quickRefresh: $quickRefresh")
     val refreshTrigger: Throwable? = if (LOG.isDebugEnabled) Throwable() else null
-    return launch(uiThread) {
+    // Start a progress indicator so users are aware that a long task is running. Stop it by calling processFinish() if returning early.
+    val refreshProgressIndicator = BackgroundableProcessIndicator(
+      project,
+      message("refresh.progress.indicator.title"),
+      PerformInBackgroundOption.ALWAYS_BACKGROUND,
+      "",
+      "",
+      true
+    )
+    Disposer.register(this@ComposePreviewRepresentation, refreshProgressIndicator)
+    val refreshJob = launch(uiThread) {
       val startTime = System.nanoTime()
-      // Start a progress indicator so users are aware that a long task is running. Stop it by calling processFinish() if returning early.
-      val refreshProgressIndicator = BackgroundableProcessIndicator(
-        project,
-        message("refresh.progress.indicator.title"),
-        PerformInBackgroundOption.ALWAYS_BACKGROUND,
-        "",
-        "",
-        true
-      )
 
       /**
        * Check if `refreshProgressIndicator` is cancelled. If it is, stop it. Otherwise, update its text.
@@ -1075,6 +1076,12 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
         refreshProgressIndicator.processFinish()
       }
     }
+
+    refreshJob.invokeOnCompletion {
+      Disposer.dispose(refreshProgressIndicator)
+    }
+
+    return refreshJob
   }
 
   override fun getState(): PreviewRepresentationState {
