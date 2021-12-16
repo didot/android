@@ -13,20 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.profilers
+package com.android.tools.idea.lint.common
 
-import com.google.common.truth.Truth.assertThat
-import org.junit.Test
+import com.android.tools.idea.lint.common.LintBundle.Companion.message
+import com.android.tools.lint.checks.WrongConstructorDetector
 
-class PathUtilsTest {
-
-  @Test
-  fun `short path left alone`() {
-    assertThat(PathUtils.abbreviate("/a/b/c")).isEqualTo("/a/b/c")
-  }
-
-  @Test
-  fun `long path abbreviated`() {
-    assertThat(PathUtils.abbreviate("/a/b/c/d/e")).isEqualTo("/a/b/.../d/e")
-  }
-}
+class AndroidLintNotConstructorInspection : AndroidLintInspectionBase(
+  message("android.lint.inspections.not.constructor"), WrongConstructorDetector.ISSUE
+)

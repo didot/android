@@ -28,6 +28,7 @@ import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.swing.FakeUi
 import com.google.common.truth.Truth
 import com.intellij.testFramework.ApplicationRule
+import com.intellij.testFramework.DisposableRule
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.ui.SimpleColoredComponent
@@ -44,10 +45,13 @@ import javax.swing.JPanel
 import javax.swing.tree.DefaultMutableTreeNode
 
 @RunsInEdt
-class JetifierWarningDetailsFactoryTest {
+class JetifierWarningDetailsViewTest {
 
   @get:Rule
   val applicationRule: ApplicationRule = ApplicationRule()
+
+  @get:Rule
+  val disposableRule: DisposableRule = DisposableRule()
 
   @get:Rule
   val edtRule = EdtRule()
@@ -56,7 +60,7 @@ class JetifierWarningDetailsFactoryTest {
 
   @Test
   fun testCheckRequiredPageCreation() {
-    val page = JetifierWarningDetailsFactory(mockHandlers).createPage(JetifierUsageAnalyzerResult(JetifierUsedCheckRequired))
+    val page = JetifierWarningDetailsView(JetifierUsageAnalyzerResult(JetifierUsedCheckRequired), mockHandlers, disposableRule.disposable).pagePanel
 
     TreeWalker(page).descendants().filterIsInstance<JEditorPane>().single().let {
       val html = it.text.clearHtml()
@@ -76,7 +80,7 @@ class JetifierWarningDetailsFactoryTest {
     TreeWalker(page).descendants().filterIsInstance<JPanel>().single { it.name == "outdated-results-banner" }.let {
       Truth.assertThat(it.isVisible).isFalse()
     }
-    val declaredDependenciesList = TreeWalker(page).descendants().filterIsInstance<JBList<JetifierWarningDetailsFactory.DirectDependencyDescriptor>>().single()
+    val declaredDependenciesList = TreeWalker(page).descendants().filterIsInstance<JBList<JetifierWarningDetailsView.DirectDependencyDescriptor>>().single()
     Truth.assertThat(declaredDependenciesList.isEmpty).isTrue()
 
     val header = TreeWalker(page).descendants().filterIsInstance<SimpleColoredComponent>()
@@ -89,11 +93,12 @@ class JetifierWarningDetailsFactoryTest {
 
   @Test
   fun testJetifierCanBeRemovedPageCreation() {
-    val page = JetifierWarningDetailsFactory(mockHandlers).createPage(JetifierUsageAnalyzerResult(
+    val jetifierUsageAnalyzerResult = JetifierUsageAnalyzerResult(
       JetifierCanBeRemoved,
       lastCheckJetifierBuildTimestamp = 0,
       checkJetifierBuild = true
-    ))
+    )
+    val page = JetifierWarningDetailsView(jetifierUsageAnalyzerResult, mockHandlers, disposableRule.disposable).pagePanel
     page.size = Dimension(600, 400)
     val ui = FakeUi(page)
     ui.layoutAndDispatchEvents()
@@ -103,12 +108,12 @@ class JetifierWarningDetailsFactoryTest {
       Truth.assertThat(html).contains("<b>Jetifier flag can be removed</b>")
       Truth.assertThat(html).contains("This check found <b>0 declared dependencies</b> that require Jetifier in your project.")
 
-      val declaredDependenciesList = TreeWalker(page).descendants().filterIsInstance<JBList<JetifierWarningDetailsFactory.DirectDependencyDescriptor>>().single()
+      val declaredDependenciesList = TreeWalker(page).descendants().filterIsInstance<JBList<JetifierWarningDetailsView.DirectDependencyDescriptor>>().single()
       Truth.assertThat(declaredDependenciesList.isEmpty).isTrue()
 
       val header = TreeWalker(page).descendants().filterIsInstance<SimpleColoredComponent>()
         .single { it.name == "declared-dependencies-header" }
-      Truth.assertThat(header.toString()).startsWith("Declared Dependencies Requiring Jetifier (last updated ")
+      Truth.assertThat(header.toString()).startsWith("Declared Dependencies Requiring Jetifier (updated ")
 
       val dependenciesTree = TreeWalker(page).descendants().filterIsInstance<Tree>().single()
       Truth.assertThat(dependenciesTree.isEmpty).isTrue()
@@ -148,11 +153,12 @@ class JetifierWarningDetailsFactoryTest {
       ))
     ))
 
-    val page = JetifierWarningDetailsFactory(mockHandlers).createPage(JetifierUsageAnalyzerResult(
+    val jetifierUsageAnalyzerResult = JetifierUsageAnalyzerResult(
       JetifierRequiredForLibraries(checkJetifierResult),
       lastCheckJetifierBuildTimestamp = 0,
       checkJetifierBuild = true
-    ))
+    )
+    val page = JetifierWarningDetailsView(jetifierUsageAnalyzerResult, mockHandlers, disposableRule.disposable).pagePanel
     page.size = Dimension(600, 400)
     val ui = FakeUi(page)
     ui.layoutAndDispatchEvents()
@@ -176,7 +182,7 @@ class JetifierWarningDetailsFactoryTest {
       Truth.assertThat(it.isVisible).isFalse()
     }
 
-    val declaredDependenciesList = TreeWalker(page).descendants().filterIsInstance<JBList<JetifierWarningDetailsFactory.DirectDependencyDescriptor>>().single()
+    val declaredDependenciesList = TreeWalker(page).descendants().filterIsInstance<JBList<JetifierWarningDetailsView.DirectDependencyDescriptor>>().single()
     val declaredDependenciesListModel = declaredDependenciesList.model
     Truth.assertThat(declaredDependenciesListModel.size).isEqualTo(3)
 
@@ -190,7 +196,7 @@ class JetifierWarningDetailsFactoryTest {
 
     val header = TreeWalker(page).descendants().filterIsInstance<SimpleColoredComponent>()
       .single { it.name == "declared-dependencies-header" }
-    Truth.assertThat(header.toString()).startsWith("Declared Dependencies Requiring Jetifier (last updated ")
+    Truth.assertThat(header.toString()).startsWith("Declared Dependencies Requiring Jetifier (updated ")
     Truth.assertThat(declaredDependenciesListModel.getElementAt(1).fullName).isEqualTo("example:A:1.0")
     declaredDependenciesList.selectedIndex = 1
     Truth.assertThat(dependenciesTree.isEmpty).isFalse()
@@ -199,7 +205,7 @@ class JetifierWarningDetailsFactoryTest {
       .drop(1) // Skip root.
       .filterIsInstance(DefaultMutableTreeNode::class.java)
       .joinToString(separator = "\n") { node ->
-        val descriptor = node.userObject as JetifierWarningDetailsFactory.DependencyDescriptor
+        val descriptor = node.userObject as JetifierWarningDetailsView.DependencyDescriptor
         "${" ".repeat((node.level - 1) * 2)}[${descriptor.prefix}]${descriptor.fullName}"
       }
 
@@ -227,11 +233,12 @@ class JetifierWarningDetailsFactoryTest {
       ))
     ))
 
-    val page = JetifierWarningDetailsFactory(mockHandlers).createPage(JetifierUsageAnalyzerResult(
+    val jetifierUsageAnalyzerResult = JetifierUsageAnalyzerResult(
       JetifierRequiredForLibraries(checkJetifierResult),
       lastCheckJetifierBuildTimestamp = 0,
       checkJetifierBuild = true
-    ))
+    )
+    val page = JetifierWarningDetailsView(jetifierUsageAnalyzerResult, mockHandlers, disposableRule.disposable).pagePanel
     page.size = Dimension(600, 400)
     val ui = FakeUi(page)
     ui.layoutAndDispatchEvents()
@@ -255,11 +262,12 @@ class JetifierWarningDetailsFactoryTest {
       ))
     ))
 
-    val page = JetifierWarningDetailsFactory(mockHandlers).createPage(JetifierUsageAnalyzerResult(
+    val jetifierUsageAnalyzerResult = JetifierUsageAnalyzerResult(
       JetifierRequiredForLibraries(checkJetifierResult),
       lastCheckJetifierBuildTimestamp = 0,
       checkJetifierBuild = false
-    ))
+    )
+    val page = JetifierWarningDetailsView(jetifierUsageAnalyzerResult, mockHandlers, disposableRule.disposable).pagePanel
     page.size = Dimension(600, 400)
     val ui = FakeUi(page)
     ui.layoutAndDispatchEvents()
@@ -277,14 +285,14 @@ class JetifierWarningDetailsFactoryTest {
     }
   }
 
-
   @Test
   fun testResultsOutdatedWhenJetifierCanBeRemoved() {
-    val page = JetifierWarningDetailsFactory(mockHandlers).createPage(JetifierUsageAnalyzerResult(
+    val jetifierUsageAnalyzerResult = JetifierUsageAnalyzerResult(
       JetifierCanBeRemoved,
       lastCheckJetifierBuildTimestamp = 0,
       checkJetifierBuild = false
-    ))
+    )
+    val page = JetifierWarningDetailsView(jetifierUsageAnalyzerResult, mockHandlers, disposableRule.disposable).pagePanel
     page.size = Dimension(600, 400)
     val ui = FakeUi(page)
     ui.layoutAndDispatchEvents()

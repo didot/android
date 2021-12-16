@@ -29,6 +29,7 @@ import com.android.tools.idea.rendering.classloading.loaders.ClassLoaderLoader
 import com.android.tools.idea.rendering.classloading.loaders.DelegatingClassLoader
 import com.android.tools.idea.rendering.classloading.loaders.ListeningLoader
 import com.android.tools.idea.rendering.classloading.loaders.MultiLoader
+import com.android.tools.idea.rendering.classloading.loaders.MultiLoaderWithAffinity
 import com.android.tools.idea.rendering.classloading.loaders.NameRemapperLoader
 import com.android.tools.idea.rendering.classloading.loaders.ProjectSystemClassLoader
 import com.android.tools.idea.rendering.classloading.loaders.RecyclerViewAdapterLoader
@@ -67,14 +68,6 @@ fun createUrlClassLoader(paths: List<Path>, allowLock: Boolean = !SystemInfo.isW
     .setLogErrorOnMissingJar(false)
     .get()
 }
-
-private fun String.isSystemPrefix(): Boolean = startsWith("java.") ||
-                                               startsWith("javax.") ||
-                                               startsWith("android.") ||
-                                               startsWith("sun.") ||
-                                               startsWith("org.jetbrains.") ||
-                                               startsWith("com.android.")
-
 
 /**
  * [PseudoClassLocator] that uses the given [DelegatingClassLoader.Loader] to find the `.class` file.
@@ -278,18 +271,28 @@ internal class ModuleClassLoaderImpl(module: Module,
 
   init {
     // Project classes loading pipeline
-    val projectLoader = createProjectLoader(projectSystemLoader, onClassRewrite)
+    val projectLoader = if (!StudioFlags.COMPOSE_LIVE_EDIT_PREVIEW.get()) {
+      createProjectLoader(projectSystemLoader, onClassRewrite)
+    }
+    else {
+      MultiLoader(
+        createOptionalOverlayLoader(module, onClassRewrite),
+        createProjectLoader(projectSystemLoader, onClassRewrite)
+      )
+    }
     val nonProjectLoader = createNonProjectLoader(nonProjectTransforms,
                                                   binaryCache,
                                                   externalLibraries,
                                                   { _nonProjectLoadedClassNames.add(it) },
                                                   onClassRewrite)
-    loader = MultiLoader(
-      listOfNotNull(
-        createOptionalOverlayLoader(module, onClassRewrite),
-        projectLoader,
-        nonProjectLoader,
-        RecyclerViewAdapterLoader()))
+    val allLoaders = listOfNotNull(
+      projectLoader,
+      nonProjectLoader,
+      RecyclerViewAdapterLoader())
+    loader = if (StudioFlags.COMPOSE_USE_LOADER_WITH_AFFINITY.get())
+      MultiLoaderWithAffinity(allLoaders)
+    else
+      MultiLoader(allLoaders)
   }
 
   private fun recordOverlayLoadedClass(fqcn: String) {
@@ -300,8 +303,7 @@ internal class ModuleClassLoaderImpl(module: Module,
   /**
    * Creates an overlay loader. See [OverlayLoader].
    */
-  private fun createOptionalOverlayLoader(module: Module, onClassRewrite: (String, Long, Int) -> Unit): DelegatingClassLoader.Loader? {
-    if (!StudioFlags.COMPOSE_LIVE_EDIT_PREVIEW.get()) return null
+  private fun createOptionalOverlayLoader(module: Module, onClassRewrite: (String, Long, Int) -> Unit): DelegatingClassLoader.Loader {
     return createProjectLoader(ListeningLoader(OverlayLoader(overlayManager), onAfterLoad = { fqcn, _ ->
       recordOverlayLoadedClass(fqcn)
     }), onClassRewrite)

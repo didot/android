@@ -1169,7 +1169,7 @@ public final class StudioFlags {
     COMPOSE, "preview.element.picker.enable",
     "Enable @Preview picker",
     "If enabled, the picker for @Preview elements will be available",
-    true
+    false
   );
 
   public static final Flag<Boolean> COMPOSE_BLUEPRINT_MODE = Flag.create(
@@ -1274,6 +1274,11 @@ public final class StudioFlags {
     "inspectors bundled in local, snapshot builds of Android libraries, as opposed to those released through the normal process on maven.",
     false
   );
+
+  public static final Flag<Boolean> COMPOSE_USE_LOADER_WITH_AFFINITY = Flag.create(
+    COMPOSE, "preview.loader.affinity", "Enable the class loading affinity.",
+    "If enabled, the class loading will cache which class loaders are more likely to have the class.",
+    true);
   // endregion
 
   // region WorkManager Inspector
@@ -1328,7 +1333,7 @@ public final class StudioFlags {
     "wear.os.virtual.device.pairing.assistant.enabled",
     "Enable the Wear OS virtual device pairing assistant",
     "Enable the Wear OS virtual device pairing assistant",
-    true);
+    false);
 
   public static final Flag<Boolean> PAIRED_DEVICES_TAB_ENABLED = Flag.create(
     DEVICE_MANAGER,

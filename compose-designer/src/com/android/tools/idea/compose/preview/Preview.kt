@@ -100,6 +100,7 @@ import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.kotlin.idea.util.module
 import java.awt.Color
 import java.time.Duration
@@ -164,18 +165,18 @@ fun LayoutlibSceneManager.changeRequiresReinflate(showDecorations: Boolean, isIn
  *  [isLiveLiteralsEnabled] is false. If true, the classes are assumed to have this support.
  * @param resetLiveLiteralsFound callback called when the classes are about to be reloaded so the live literals state can be discarded.
  */
-private fun configureLayoutlibSceneManager(sceneManager: LayoutlibSceneManager,
-                                           showDecorations: Boolean,
-                                           isInteractive: Boolean,
-                                           requestPrivateClassLoader: Boolean,
-                                           isLiveLiteralsEnabled: Boolean,
-                                           onLiveLiteralsFound: () -> Unit,
-                                           resetLiveLiteralsFound: () -> Unit): LayoutlibSceneManager =
+@VisibleForTesting
+fun configureLayoutlibSceneManager(sceneManager: LayoutlibSceneManager,
+                                   showDecorations: Boolean,
+                                   isInteractive: Boolean,
+                                   requestPrivateClassLoader: Boolean,
+                                   isLiveLiteralsEnabled: Boolean,
+                                   onLiveLiteralsFound: () -> Unit,
+                                   resetLiveLiteralsFound: () -> Unit): LayoutlibSceneManager =
   sceneManager.apply {
     val reinflate = changeRequiresReinflate(showDecorations, isInteractive, requestPrivateClassLoader)
     setTransparentRendering(!showDecorations)
     setShrinkRendering(!showDecorations)
-    setUseImagePool(false)
     interactive = isInteractive
     isUsePrivateClassLoader = requestPrivateClassLoader
     setOnNewClassLoader(resetLiveLiteralsFound)
@@ -253,7 +254,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
   private val module = psiFile.module
   private val psiFilePointer = SmartPointerManager.createPointer(psiFile)
 
-  private val projectBuildStatusManager = ProjectBuildStatusManager(this, psiFile, LiveLiteralsPsiFileSnapshotFilter(this, psiFile))
+  private val projectBuildStatusManager = ProjectBuildStatusManager.create(this, psiFile, LiveLiteralsPsiFileSnapshotFilter(this, psiFile))
 
   /**
    * Frames per second limit for interactive preview.
@@ -953,17 +954,18 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
   private fun refresh(quickRefresh: Boolean = false): Job {
     LOG.debug("Refresh triggered. quickRefresh: $quickRefresh")
     val refreshTrigger: Throwable? = if (LOG.isDebugEnabled) Throwable() else null
-    return launch(uiThread) {
+    // Start a progress indicator so users are aware that a long task is running. Stop it by calling processFinish() if returning early.
+    val refreshProgressIndicator = BackgroundableProcessIndicator(
+      project,
+      message("refresh.progress.indicator.title"),
+      PerformInBackgroundOption.ALWAYS_BACKGROUND,
+      "",
+      "",
+      true
+    )
+    Disposer.register(this@ComposePreviewRepresentation, refreshProgressIndicator)
+    val refreshJob = launch(uiThread) {
       val startTime = System.nanoTime()
-      // Start a progress indicator so users are aware that a long task is running. Stop it by calling processFinish() if returning early.
-      val refreshProgressIndicator = BackgroundableProcessIndicator(
-        project,
-        message("refresh.progress.indicator.title"),
-        PerformInBackgroundOption.ALWAYS_BACKGROUND,
-        "",
-        "",
-        true
-      )
 
       /**
        * Check if `refreshProgressIndicator` is cancelled. If it is, stop it. Otherwise, update its text.
@@ -1074,6 +1076,12 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
         refreshProgressIndicator.processFinish()
       }
     }
+
+    refreshJob.invokeOnCompletion {
+      Disposer.dispose(refreshProgressIndicator)
+    }
+
+    return refreshJob
   }
 
   override fun getState(): PreviewRepresentationState {
