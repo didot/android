@@ -26,7 +26,6 @@ import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,21 +58,10 @@ public class GradleClassFileFinder extends ModuleBasedClassFileFinder {
   @NotNull
   private static Collection<VirtualFile> getCompilerOutputRoots(@NotNull GradleAndroidModel model) {
     IdeAndroidArtifact mainArtifactInfo = model.getMainArtifact();
-    File classesFolder = mainArtifactInfo.getClassesFolder();
     ImmutableList.Builder<VirtualFile> compilerOutputs = new ImmutableList.Builder<>();
 
-    //noinspection ConstantConditions
-    if (classesFolder != null) {
-      if (classesFolder.exists()) {
-        VirtualFile file = VfsUtil.findFileByIoFile(classesFolder, true);
-        if (file != null) {
-          compilerOutputs.add(file);
-        }
-      }
-    }
-
-    for (File additionalFolder : mainArtifactInfo.getAdditionalClassesFolders()) {
-      VirtualFile file = VfsUtil.findFileByIoFile(additionalFolder, true);
+    for (File classFolder : mainArtifactInfo.getClassesFolder()) {
+      VirtualFile file = VfsUtil.findFileByIoFile(classFolder, true);
       if (file != null) {
         compilerOutputs.add(file);
       }

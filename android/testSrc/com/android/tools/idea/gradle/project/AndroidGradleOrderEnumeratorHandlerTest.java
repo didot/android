@@ -16,7 +16,7 @@
 package com.android.tools.idea.gradle.project;
 
 import com.android.tools.idea.flags.StudioFlags;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
 import com.google.common.collect.Collections2;
 import com.intellij.openapi.module.Module;
@@ -24,7 +24,6 @@ import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.roots.ModuleRootModel;
 import com.intellij.openapi.roots.OrderEnumerationHandler;
 import com.intellij.openapi.roots.OrderRootType;
-import com.intellij.openapi.util.SystemInfoRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.util.HashSet;
 import java.util.List;
@@ -37,7 +36,6 @@ import java.util.Collection;
 import org.junit.Assert;
 
 import static com.android.tools.idea.io.FilePaths.pathToIdeaUrl;
-import static com.android.tools.idea.testing.TestProjectPaths.JAVA_LIB;
 import static com.android.tools.idea.testing.TestProjectPaths.KOTLIN_KAPT;
 import static com.android.tools.idea.testing.TestProjectPaths.PSD_SAMPLE_GROOVY;
 import static com.android.tools.idea.testing.TestProjectPaths.TEST_FIXTURES;
@@ -52,30 +50,27 @@ public class AndroidGradleOrderEnumeratorHandlerTest extends AndroidGradleTestCa
     Module module = getModule("app");
     Collection<String> result = getAmendedPaths(module, false);
 
-    AndroidModuleModel model = AndroidModuleModel.get(module);
-    assertContainsElements(result, pathToIdeaUrl(model.getSelectedVariant().getMainArtifact().getClassesFolder()));
-    assertContainsElements(result, Collections2.transform(model.getSelectedVariant().getMainArtifact().getAdditionalClassesFolders(),
+    GradleAndroidModel model = GradleAndroidModel.get(module);
+    assertContainsElements(result, Collections2.transform(model.getSelectedVariant().getMainArtifact().getClassesFolder(),
                                                           (input) -> input == null ? null : pathToIdeaUrl(input)));
     assertContainsElements(result, Collections2.transform(model.getSelectedVariant().getMainArtifact().getGeneratedResourceFolders(),
                                                           (input) -> input == null ? null : pathToIdeaUrl(input)));
 
-    assertDoesntContain(result, pathToIdeaUrl(model.getSelectedVariant().getUnitTestArtifact().getClassesFolder()));
-    Collection<String> unitTestAdditionalClassesFolders =
+    Collection<String> unitTestClassesFolders =
       Collections2.transform(
-        model.getSelectedVariant().getUnitTestArtifact().getAdditionalClassesFolders(),
+        model.getSelectedVariant().getUnitTestArtifact().getClassesFolder(),
         (input) -> input == null ? null : pathToIdeaUrl(input));
-    Collection<String> intersectionMainAndUnitTest = getIntersection(result, unitTestAdditionalClassesFolders);
+    Collection<String> intersectionMainAndUnitTest = getIntersection(result, unitTestClassesFolders);
     // Main artifact and unit test artifact may either share the same R.jar or none at all (see bug 133326990).
     if (!intersectionMainAndUnitTest.isEmpty()) {
       Assert.assertTrue(intersectionMainAndUnitTest.size() == 1);
       Assert.assertTrue(intersectionMainAndUnitTest.iterator().next().endsWith("R.jar!/"));
     }
 
-    assertDoesntContain(result, pathToIdeaUrl(model.getSelectedVariant().getAndroidTestArtifact().getClassesFolder()));
-    assertDoesntContain(result, Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getAdditionalClassesFolders(),
-                                                          (input) -> input == null ? null : pathToIdeaUrl(input)));
+    assertDoesntContain(result, Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getClassesFolder(),
+                                                       (input) -> input == null ? null : pathToIdeaUrl(input)));
     assertDoesntContain(result, Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getGeneratedResourceFolders(),
-                                                          (input) -> input == null ? null : pathToIdeaUrl(input)));
+                                                       (input) -> input == null ? null : pathToIdeaUrl(input)));
   }
 
   public void testAndroidProjectWithTestFixtures() throws Exception {
@@ -85,32 +80,27 @@ public class AndroidGradleOrderEnumeratorHandlerTest extends AndroidGradleTestCa
       Module module = getModule("lib");
       Set<String> result = new HashSet<>(getAmendedPaths(module, true));
 
-      AndroidModuleModel model = AndroidModuleModel.get(module);
+      GradleAndroidModel model = GradleAndroidModel.get(module);
 
       Set<String> expected = new HashSet<>();
       // Unit test
-      expected.add(pathToIdeaUrl(model.getSelectedVariant().getUnitTestArtifact().getClassesFolder()));
-
-      expected.addAll(Collections2.transform(model.getSelectedVariant().getUnitTestArtifact().getAdditionalClassesFolders(),
+      expected.addAll(Collections2.transform(model.getSelectedVariant().getUnitTestArtifact().getClassesFolder(),
                                              (input) -> input == null ? null : pathToIdeaUrl(input)));
 
       // Android Test
-      expected.add(pathToIdeaUrl(model.getSelectedVariant().getAndroidTestArtifact().getClassesFolder()));
-      expected.addAll(Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getAdditionalClassesFolders(),
+      expected.addAll(Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getClassesFolder(),
                                              (input) -> input == null ? null : pathToIdeaUrl(input)));
       expected.addAll(Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getGeneratedResourceFolders(),
                                              (input) -> input == null ? null : pathToIdeaUrl(input)));
 
       // Test Fixtures
-      expected.add(pathToIdeaUrl(model.getSelectedVariant().getTestFixturesArtifact().getClassesFolder()));
-      expected.addAll(Collections2.transform(model.getSelectedVariant().getTestFixturesArtifact().getAdditionalClassesFolders(),
+      expected.addAll(Collections2.transform(model.getSelectedVariant().getTestFixturesArtifact().getClassesFolder(),
                                              (input) -> input == null ? null : pathToIdeaUrl(input)));
       expected.addAll(Collections2.transform(model.getSelectedVariant().getTestFixturesArtifact().getGeneratedResourceFolders(),
                                              (input) -> input == null ? null : pathToIdeaUrl(input)));
 
       // Production
-      expected.add(pathToIdeaUrl(model.getSelectedVariant().getMainArtifact().getClassesFolder()));
-      expected.addAll(Collections2.transform(model.getSelectedVariant().getMainArtifact().getAdditionalClassesFolders(),
+      expected.addAll(Collections2.transform(model.getSelectedVariant().getMainArtifact().getClassesFolder(),
                                              (input) -> input == null ? null : pathToIdeaUrl(input)));
       expected.addAll(Collections2.transform(model.getSelectedVariant().getMainArtifact().getGeneratedResourceFolders(),
                                              (input) -> input == null ? null : pathToIdeaUrl(input)));
@@ -126,27 +116,23 @@ public class AndroidGradleOrderEnumeratorHandlerTest extends AndroidGradleTestCa
     Module module = getModule("app");
     Set<String> result = new HashSet<>(getAmendedPaths(module, true));
 
-    AndroidModuleModel model = AndroidModuleModel.get(module);
+    GradleAndroidModel model = GradleAndroidModel.get(module);
     Set<String> expected = new HashSet<>();
     // Unit test
-    expected.add(pathToIdeaUrl(model.getSelectedVariant().getUnitTestArtifact().getClassesFolder()));
-
-    expected.addAll(Collections2.transform(model.getSelectedVariant().getUnitTestArtifact().getAdditionalClassesFolders(),
-                                                          (input) -> input == null ? null : pathToIdeaUrl(input)));
+    expected.addAll(Collections2.transform(model.getSelectedVariant().getUnitTestArtifact().getClassesFolder(),
+                                           (input) -> input == null ? null : pathToIdeaUrl(input)));
 
     // Android Test
-    expected.add(pathToIdeaUrl(model.getSelectedVariant().getAndroidTestArtifact().getClassesFolder()));
-    expected.addAll(Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getAdditionalClassesFolders(),
-                                                          (input) -> input == null ? null : pathToIdeaUrl(input)));
+    expected.addAll(Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getClassesFolder(),
+                                           (input) -> input == null ? null : pathToIdeaUrl(input)));
     expected.addAll(Collections2.transform(model.getSelectedVariant().getAndroidTestArtifact().getGeneratedResourceFolders(),
-                                                          (input) -> input == null ? null : pathToIdeaUrl(input)));
+                                           (input) -> input == null ? null : pathToIdeaUrl(input)));
 
     // Production
-    expected.add(pathToIdeaUrl(model.getSelectedVariant().getMainArtifact().getClassesFolder()));
-    expected.addAll(Collections2.transform(model.getSelectedVariant().getMainArtifact().getAdditionalClassesFolders(),
-                                                          (input) -> input == null ? null : pathToIdeaUrl(input)));
+    expected.addAll(Collections2.transform(model.getSelectedVariant().getMainArtifact().getClassesFolder(),
+                                           (input) -> input == null ? null : pathToIdeaUrl(input)));
     expected.addAll(Collections2.transform(model.getSelectedVariant().getMainArtifact().getGeneratedResourceFolders(),
-                                                          (input) -> input == null ? null : pathToIdeaUrl(input)));
+                                           (input) -> input == null ? null : pathToIdeaUrl(input)));
 
     assertEquals(expected, result);
   }
@@ -167,20 +153,8 @@ public class AndroidGradleOrderEnumeratorHandlerTest extends AndroidGradleTestCa
                            pathToIdeaUrl(new File(baseDir, join("build", "resources", "main"))),
                            pathToIdeaUrl(new File(baseDir, join("build", "tmp", "kapt3", "classes", "main")))
     );
-  }
 
-  public void testJavaProjectWithTestOutputCorrect() throws Exception {
-    if (SystemInfoRt.isWindows) {
-      return; // TODO(b/162746378) failing on windows
-    }
-    loadProject(KOTLIN_KAPT);
-    Module module = getModule("javaLib");
-    List<String> result = getAmendedPaths(module, true);
-
-    VirtualFile baseFile = ProjectUtil.guessModuleDir(module);
-    assertNotNull(baseFile);
-    String baseDir = baseFile.getPath();
-
+    result = getAmendedPaths(module, true);
     assertSize(8, result);
     assertContainsElements(result,
                            pathToIdeaUrl(new File(baseDir, join("build", "classes", "java", "main"))),
