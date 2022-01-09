@@ -33,7 +33,6 @@ import com.android.annotations.concurrency.UiThread;
 import com.android.tools.idea.common.type.DesignerEditorFileType;
 import com.android.tools.idea.uibuilder.type.LayoutEditorFileType;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
@@ -216,7 +215,7 @@ public class DataModel implements Disposable {
   private static List<String> readFavoriteItems() {
     List<String> favorites = PropertiesComponent.getInstance().getList(FAVORITE_ITEMS);
     if (favorites == null) {
-      return Lists.newArrayList(
+      return List.of(
         TEXT_VIEW,
         BUTTON,
         IMAGE_VIEW,
