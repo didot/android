@@ -17,7 +17,6 @@ package org.jetbrains.android.exportSignedPackage;
 
 import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.help.AndroidWebHelpProvider;
-import com.google.common.collect.Sets;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.ide.wizard.CommitStepException;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
@@ -75,7 +74,7 @@ public class GradleSignStep extends ExportSignedPackageWizardStep {
 
     TIntArrayList lastSelectedIndices = new TIntArrayList(buildVariants.size());
     List<String> cachedVariants = properties.getList(PROPERTY_BUILD_VARIANTS);
-    Set<String> lastSelectedVariants = cachedVariants == null ? Collections.emptySet() : Sets.newHashSet(cachedVariants);
+    Set<String> lastSelectedVariants = cachedVariants == null ? Collections.emptySet() : Set.copyOf(cachedVariants);
 
     for (int i = 0; i < buildVariants.size(); i++) {
       String variant = buildVariants.get(i);
