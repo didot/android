@@ -271,8 +271,6 @@
     <option name="test" path="ActionManager" hit="Import the results of a test execution from an XML file" />
     <option name="the" path="ActionManager" hit="Import the results of a test execution from an XML file" />
     <option name="xml" path="ActionManager" hit="Import the results of a test execution from an XML file" />
-    <option name="annotations" path="ActionManager" hit="Infer Annotations..." />
-    <option name="infer" path="ActionManager" hit="Infer Annotations..." />
     <option name="infer" path="ActionManager" hit="Infer Nullity..." />
     <option name="nullity" path="ActionManager" hit="Infer Nullity..." />
     <option name="inline" path="ActionManager" hit="Inline Layout..." />

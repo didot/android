@@ -186,6 +186,10 @@ public class CpuCaptureStage extends Stage<Timeline> {
    */
   private final Timeline myTrackGroupTimeline = new DefaultTimeline();
 
+  private int myFrameSelectionCount = 0;
+  private int myAllFrameTogglingCount = 0;
+  private int myLifecycleTogglingCount = 0;
+
   /**
    * Create a capture stage that loads a given trace id. If a trace id is not found null will be returned.
    */
@@ -225,6 +229,7 @@ public class CpuCaptureStage extends Stage<Timeline> {
       profilers.getIdeServices(), captureFile, traceId, configuration, captureProcessNameHint, captureProcessIdHint);
 
     getMultiSelectionModel().addDependency(this)
+      .onChange(MultiSelectionModel.Aspect.SELECTIONS_CHANGED, this::onSelectionChanged)
       .onChange(MultiSelectionModel.Aspect.ACTIVE_SELECTION_CHANGED, this::onActiveSelectionChanged);
   }
 
@@ -477,7 +482,18 @@ public class CpuCaptureStage extends Stage<Timeline> {
       AndroidFrameTimelineEvent event = (AndroidFrameTimelineEvent)activeSelection;
       getTimeline().getViewRange().adjustToContain(event.getExpectedStartUs(),
                                                    Math.max(event.getExpectedEndUs(), event.getActualEndUs()));
+      trackFrameSelection();
     }
+  }
+
+  private void onSelectionChanged() {
+    if (getMultiSelectionModel().getActiveSelectionKey() instanceof AndroidFrameTimelineEvent) {
+      trackFrameSelection();
+    }
+  }
+
+  private void trackFrameSelection() {
+    getStudioProfilers().getIdeServices().getFeatureTracker().trackFrameSelectionPerTrace(++myFrameSelectionCount);
   }
 
   private static TrackGroupModel createInteractionTrackGroup(@NotNull StudioProfilers studioProfilers, @NotNull Timeline timeline) {
@@ -497,7 +513,7 @@ public class CpuCaptureStage extends Stage<Timeline> {
     return interaction;
   }
 
-  private static Stream<TrackGroupModel> createDisplayPipelineTrackGroups
+  private Stream<TrackGroupModel> createDisplayPipelineTrackGroups
         (@NotNull StudioProfilers profilers,
          @NotNull SystemTraceCpuCapture capture,
          @NotNull Timeline timeline,
@@ -597,10 +613,11 @@ public class CpuCaptureStage extends Stage<Timeline> {
     return frameLayer;
   }
 
-  private static TrackGroupModel createJankDetectionTrackGroup(@NotNull SystemTraceCpuCapture capture,
-                                                               @NotNull CpuSystemTraceData systemTraceData,
-                                                               @NotNull Timeline timeline,
-                                                               @NotNull MultiSelectionModel<CpuAnalyzable<?>> multiSelectionModel) {
+  private TrackGroupModel createJankDetectionTrackGroup(@NotNull SystemTraceCpuCapture capture,
+                                                        @NotNull CpuSystemTraceData systemTraceData,
+                                                        @NotNull Timeline timeline,
+                                                        @NotNull MultiSelectionModel<CpuAnalyzable<?>> multiSelectionModel) {
+    FeatureTracker featureTracker = getStudioProfilers().getIdeServices().getFeatureTracker();
     String toggleAllFrames = "All Frames";
     String toggleLifeCycle = "Lifecycle";
     TrackGroupModel.Builder displayBuilder = TrackGroupModel.newBuilder()
@@ -616,9 +633,13 @@ public class CpuCaptureStage extends Stage<Timeline> {
                         "<p><b>Composition</b>: Composition time by SurfaceFlinger (not controlled by your app process).</p>" +
                         "<p><b>Frames on display</b>: Duration of the frame presented on screen display.</p>")
       .setTitleHelpLink("Learn more", DISPLAY_HELP_LINK)
-      .addDisplayToggle(toggleAllFrames, false);
+      .addDisplayToggle(
+        toggleAllFrames, false,
+        () -> getStudioProfilers().getIdeServices().getFeatureTracker().trackAllFrameTogglingPerTrace(++myAllFrameTogglingCount));
     if (!systemTraceData.getAndroidFrameLayers().isEmpty()) {
-      displayBuilder.addDisplayToggle(toggleLifeCycle, false);
+      displayBuilder.addDisplayToggle(
+        toggleLifeCycle, false,
+        () -> getStudioProfilers().getIdeServices().getFeatureTracker().trackLifecycleTogglingPerTrace(++myLifecycleTogglingCount));
     }
     TrackGroupModel display = displayBuilder.build();
 

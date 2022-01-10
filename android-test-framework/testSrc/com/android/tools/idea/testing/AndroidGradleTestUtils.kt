@@ -40,6 +40,7 @@ import com.android.tools.idea.gradle.model.impl.IdeApiVersionImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTasksAndOutputInformationImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTypeContainerImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTypeImpl
+import com.android.tools.idea.gradle.model.impl.IdeCustomSourceDirectoryImpl
 import com.android.tools.idea.gradle.model.impl.IdeDependenciesImpl
 import com.android.tools.idea.gradle.model.impl.IdeDependenciesInfoImpl
 import com.android.tools.idea.gradle.model.impl.IdeJavaArtifactImpl
@@ -469,7 +470,8 @@ fun AndroidProjectStubBuilder.createMainSourceProviderForDefaultTestProjectStruc
     myAssetsDirectories = emptyList(),
     myJniLibsDirectories = emptyList(),
     myMlModelsDirectories = emptyList(),
-    myShadersDirectories = emptyList()
+    myShadersDirectories = emptyList(),
+    myCustomSourceDirectories = emptyList(),
   )
 }
 
@@ -513,7 +515,8 @@ private fun sourceProvider(name: String, rootDir: File): IdeSourceProviderImpl =
   myAssetsDirectories = listOf("assets"),
   myJniLibsDirectories = listOf("jniLibs"),
   myMlModelsDirectories = listOf("ml"),
-  myShadersDirectories = listOf("shaders")
+  myShadersDirectories = listOf("shaders"),
+  myCustomSourceDirectories = listOf(IdeCustomSourceDirectoryImpl("custom", rootDir, "custom")),
 )
 
 fun AndroidProjectStubBuilder.buildAgpProjectFlagsStub(): IdeAndroidGradlePluginProjectFlagsImpl =

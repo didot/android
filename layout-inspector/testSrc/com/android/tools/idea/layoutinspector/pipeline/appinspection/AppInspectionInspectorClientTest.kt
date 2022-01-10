@@ -70,8 +70,10 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo
 import com.intellij.execution.RunManager
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.testFramework.DisposableRule
 import com.intellij.ui.HyperlinkLabel
+import com.intellij.util.ui.UIUtil
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.android.facet.AndroidFacet
@@ -103,7 +105,7 @@ class AppInspectionInspectorClientTest {
 
   private val disposableRule = DisposableRule()
   private val inspectionRule = AppInspectionInspectorRule(disposableRule.disposable)
-  private val inspectorRule = LayoutInspectorRule(inspectionRule.createInspectorClientProvider(monitor)) { it == preferredProcess}
+  private val inspectorRule = LayoutInspectorRule(listOf(inspectionRule.createInspectorClientProvider(monitor))) { it == preferredProcess}
 
   @get:Rule
   val ruleChain = RuleChain.outerRule(inspectionRule).around(inspectorRule).around(disposableRule)!!
@@ -664,7 +666,7 @@ class AppInspectionInspectorClientTest {
 class AppInspectionInspectorClientWithUnsupportedApi29 {
   private val disposableRule = DisposableRule()
   private val inspectionRule = AppInspectionInspectorRule(disposableRule.disposable)
-  private val inspectorRule = LayoutInspectorRule(mock()) { false }
+  private val inspectorRule = LayoutInspectorRule(listOf(mock())) { false }
 
   @get:Rule
   val ruleChain = RuleChain.outerRule(inspectionRule).around(inspectorRule).around(disposableRule)!!
@@ -719,6 +721,9 @@ class AppInspectionInspectorClientWithUnsupportedApi29 {
                                                 sdkHandler = sdkHandler)
       client.connect()
       waitForCondition(1, TimeUnit.SECONDS) { client.state == InspectorClient.State.DISCONNECTED }
+      invokeAndWaitIfNeeded {
+        UIUtil.dispatchAllInvocationEvents()
+      }
       assertThat(banner.isVisible).isTrue()
       assertThat(banner.text.text).isEqualTo(API_29_BUG_MESSAGE)
     })
@@ -737,6 +742,9 @@ class AppInspectionInspectorClientWithUnsupportedApi29 {
                                                 sdkHandler = sdkHandler)
       client.connect()
       waitForCondition(1, TimeUnit.SECONDS) { client.state == InspectorClient.State.DISCONNECTED }
+      invokeAndWaitIfNeeded {
+        UIUtil.dispatchAllInvocationEvents()
+      }
       assertThat(banner.isVisible).isTrue()
       assertThat(banner.text.text).isEqualTo("$API_29_BUG_MESSAGE $API_29_BUG_UPGRADE")
     })
@@ -822,7 +830,7 @@ class AppInspectionInspectorClientWithFailingClientTest {
     `when`(it.updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.START_REQUEST_SENT)).thenThrow(RuntimeException("expected"))
   }
 
-  private val inspectorRule = LayoutInspectorRule(inspectionRule.createInspectorClientProvider(monitor)) {
+  private val inspectorRule = LayoutInspectorRule(listOf(inspectionRule.createInspectorClientProvider(monitor))) {
     it.name == MODERN_PROCESS.name
   }
 

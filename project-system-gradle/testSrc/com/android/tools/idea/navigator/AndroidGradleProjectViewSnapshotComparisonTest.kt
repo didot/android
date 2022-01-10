@@ -179,6 +179,11 @@ class AndroidGradleProjectViewSnapshotComparisonTest : AndroidGradleTestCase(), 
     }
   }
 
+  fun testCustomSourceType() {
+    val text = importSyncAndDumpProject(TestProjectToSnapshotPaths.CUSTOM_SOURCE_TYPE)
+    assertIsEqualToSnapshot(text)
+  }
+
   private fun importSyncAndDumpProject(
     projectDir: String,
     patch: ((projectRootPath: File) -> Unit)? = null,

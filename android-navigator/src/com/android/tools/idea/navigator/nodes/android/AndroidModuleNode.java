@@ -105,19 +105,19 @@ public class AndroidModuleNode extends AndroidViewModuleNode {
     NdkModuleModel ndkModuleModel = NdkModuleModel.get(facet.getModule());
 
     for (AndroidSourceType sourceType : sourcesByType.keySet()) {
-      if (sourceType == AndroidSourceType.CPP && ndkModuleModel != null) {
+      if (sourceType == AndroidSourceType.CPP.INSTANCE && ndkModuleModel != null) {
         // Native sources will be added separately from NativeAndroidGradleModel.
         continue;
       }
-      if (sourceType == AndroidSourceType.MANIFEST) {
+      if (sourceType == AndroidSourceType.MANIFEST.INSTANCE) {
         result.add(new AndroidManifestsGroupNode(project, facet, settings, sourcesByType.get(sourceType)));
         continue;
       }
-      if (sourceType == AndroidSourceType.RES || sourceType == GENERATED_RES) {
+      if (sourceType == AndroidSourceType.RES.INSTANCE || sourceType == GENERATED_RES.INSTANCE) {
         result.add(new AndroidResFolderNode(project, facet, sourceType, settings, sourcesByType.get(sourceType), projectViewPane));
         continue;
       }
-      if (sourceType == AndroidSourceType.SHADERS) {
+      if (sourceType == AndroidSourceType.SHADERS.INSTANCE) {
         if (androidModuleModel == null) {
           continue;
         }
@@ -157,12 +157,12 @@ public class AndroidModuleNode extends AndroidViewModuleNode {
     // as part of this source type.
     Set<VirtualFile> allSources = new HashSet<>();
 
-    for (AndroidSourceType sourceType : AndroidSourceType.values()) {
-      if (sourceType == AndroidSourceType.SHADERS && (androidModel == null)) {
+    for (AndroidSourceType sourceType : AndroidSourceType.BUILT_IN_TYPES) {
+      if (sourceType == AndroidSourceType.SHADERS.INSTANCE && (androidModel == null)) {
         continue;
       }
       Set<VirtualFile> sources;
-      if (sourceType == GENERATED_JAVA || sourceType == GENERATED_RES) {
+      if (sourceType == GENERATED_JAVA.INSTANCE || sourceType == GENERATED_RES.INSTANCE) {
         sources = getGeneratedSources(sourceType, providers);
       }
       else {
@@ -183,6 +183,13 @@ public class AndroidModuleNode extends AndroidViewModuleNode {
       }
 
       allSources.addAll(sources);
+    }
+
+    for (NamedIdeaSourceProvider provider : AndroidViewNodes.getSourceProviders(providers)) {
+      for (String customKey : provider.getCustom().keySet()) {
+        AndroidSourceType.Custom customType = new AndroidSourceType.Custom(customKey);
+        sourcesByType.putAll(customType, getSources(customType, providers));
+      }
     }
 
     return sourcesByType;
