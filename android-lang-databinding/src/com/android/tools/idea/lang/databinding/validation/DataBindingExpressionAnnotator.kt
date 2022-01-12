@@ -55,6 +55,7 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlTag
 import org.jetbrains.android.facet.AndroidFacet
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 
@@ -137,6 +138,8 @@ class DataBindingExpressionAnnotator : PsiDbVisitor(), Annotator {
     val androidFacet = AndroidFacet.getInstance(rootExpression) ?: return
     val attributeMatcher = AttributeTypeMatcher(dbExprType.type, androidFacet)
     val attributeSetterTypes = attribute.getAllSetterTypes()
+
+    @OptIn(IDEAPluginsCompatibilityAPI::class) // firstNotNullResult
     val tagName = attribute.parentOfType<XmlTag>()?.references?.firstNotNullResult { it.resolve() as? PsiClass }?.name
                   ?: SdkConstants.VIEW_TAG
     if (attributeSetterTypes.isNotEmpty() && attributeSetterTypes.none { attributeMatcher.matches(it.unwrapped.erasure()) }) {
@@ -184,6 +187,8 @@ class DataBindingExpressionAnnotator : PsiDbVisitor(), Annotator {
    * Returns the type that can be assigned to a two-way data binding expression.
    */
   private fun findAssignableTypeToBindingExpression(dbExpr: PsiElement, invertibleMethodNames: Set<String>): PsiModelClass? {
+
+    @OptIn(IDEAPluginsCompatibilityAPI::class) // firstNotNullResult
     val type = dbExpr.references.firstNotNullResult { (it as? ModelClassResolvable)?.resolvedType } ?: return null
     // Observable types can be assigned to its unwrapped directly.
     if (type.isLiveData || type.isObservableField || type.isStateFlow) {
@@ -234,6 +239,8 @@ class DataBindingExpressionAnnotator : PsiDbVisitor(), Annotator {
       .filterIsInstance<PsiMethodReference>()
       .mapNotNull { it.resolve() as? PsiMethod }
     if (dbMethods.isNotEmpty() && dbMethods.none { method -> isMethodMatchingAttribute(method, attributeMethods) }) {
+
+      @OptIn(IDEAPluginsCompatibilityAPI::class) // firstNotNullResult
       val listenerClassName = attribute.references
                                 .filterIsInstance<PsiParameterReference>()
                                 .firstNotNullResult { it.resolvedType.type.canonicalText } ?: "Listener"

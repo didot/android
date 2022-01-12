@@ -65,6 +65,7 @@ import org.jetbrains.kotlin.types.lowerIfFlexible
 import org.jetbrains.kotlin.types.typeUtil.builtIns
 import org.jetbrains.kotlin.types.upperIfFlexible
 import org.jetbrains.kotlin.util.OperatorNameConventions
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 
 
 open class ComposableCallChecker : CallChecker, AdditionalTypeChecker,
@@ -501,6 +502,7 @@ internal fun CallableDescriptor.isComposableCallable(bindingContext: BindingCont
   return arg.type.hasComposableAnnotation()
 }
 
+@OptIn(IDEAPluginsCompatibilityAPI::class) // getResolvedCall, getValueArgumentForExpression
 internal fun getArgumentDescriptor(
   argument: KtFunction,
   bindingContext: BindingContext

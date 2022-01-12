@@ -42,6 +42,7 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.getChildOfType
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
 /**
@@ -76,6 +77,8 @@ private class ComposeDelegateStateImportFixFactory : KotlinSingleIntentionAction
     val callExpression = diagnostic.psiElement.safeAs<KtCallExpression>()
                          ?: diagnostic.psiElement.getChildOfType()
                          ?: return null
+
+    @OptIn(IDEAPluginsCompatibilityAPI::class) // getResolvedCall
     val delegateType = callExpression.getResolvedCall(callExpression.analyze(BodyResolveMode.FULL))?.getReturnType() ?: return null
     return when {
       delegateType.isClassOrExtendsClass("androidx.compose.runtime.State") -> ComposeDelegateStateImportFixAction()

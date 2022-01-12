@@ -144,6 +144,7 @@ import com.intellij.util.ThreeState.YES
 import com.intellij.util.containers.toArray
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet
 import org.jetbrains.android.util.AndroidBundle
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 import java.awt.event.ActionEvent
 import java.io.File
@@ -1327,6 +1328,7 @@ class Java8DefaultRefactoringProcessor : AgpUpgradeComponentRefactoringProcessor
 
   override fun necessity() = standardPointNecessity(current, new, ACTIVATED_VERSION)
 
+  @OptIn(IDEAPluginsCompatibilityAPI::class) // firstNotNullResult
   override fun findComponentUsages(): Array<out UsageInfo> {
     fun usageType(model: LanguageLevelPropertyModel): UsageType? = when {
       model.psiElement != null -> EXISTING_DIRECTIVE_USAGE_TYPE

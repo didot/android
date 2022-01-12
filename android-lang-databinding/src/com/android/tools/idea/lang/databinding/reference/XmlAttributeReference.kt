@@ -23,6 +23,7 @@ import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.parentOfType
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlTag
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 
 /**
@@ -33,6 +34,8 @@ internal class XmlAttributeReference(element: PsiElement,
   override val resolvedType: PsiModelClass?
     get() {
       val tag = (resolve() as XmlAttribute).parentOfType<XmlTag>() ?: return null
+
+      @OptIn(IDEAPluginsCompatibilityAPI::class) // firstNotNullResult
       val viewClass = tag.references.firstNotNullResult { it.resolve() as? PsiClass } ?: return null
       return PsiModelClass(PsiTypesUtil.getClassType(viewClass), DataBindingMode.fromPsiElement(element))
     }

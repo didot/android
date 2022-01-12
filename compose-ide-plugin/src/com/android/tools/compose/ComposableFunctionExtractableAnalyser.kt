@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.psi.KtLambdaArgument
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.resolve.calls.model.ArgumentMatch
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 
 /**
  * Adds [COMPOSABLE_FQ_NAME] annotation to a function when it's extracted from a function annotated with [COMPOSABLE_FQ_NAME]
@@ -43,6 +44,8 @@ class ComposableFunctionExtractableAnalyser : AdditionalExtractableAnalyser {
    */
   private fun KtLambdaArgument.getComposableAnnotation(bindingContext: BindingContext): AnnotationDescriptor? {
     val callExpression = parent as KtCallExpression
+
+    @OptIn(IDEAPluginsCompatibilityAPI::class) // getResolvedCall
     val resolvedCall = callExpression.getResolvedCall(bindingContext)
     val argument = (resolvedCall?.getArgumentMapping(this) as? ArgumentMatch)?.valueParameter ?: return null
     return argument.type.annotations.findAnnotation(ComposeFqNames.Composable)

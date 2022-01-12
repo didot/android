@@ -40,6 +40,7 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.endOffset
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import org.jetbrains.kotlin.resolve.calls.callUtil.getParameterForArgument
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import java.lang.Integer.min
 import java.util.IdentityHashMap
 
@@ -347,6 +348,8 @@ class LambdaResolver(project: Project) : ComposeResolver(project) {
       val argumentParent = argument.parent
       val call = argumentParent as? KtCallExpression ?: argumentParent.parent as? KtCallExpression ?: return false
       val resolvedCall = call.resolveToCall() ?: return false
+
+      @OptIn(IDEAPluginsCompatibilityAPI::class) // getParameterForArgument
       val parameter = resolvedCall.getParameterForArgument(argument) ?: return false
       return parameter.type.annotations.hasAnnotation(COMPOSABLE_ANNOTATION_FQNAME)
     }
