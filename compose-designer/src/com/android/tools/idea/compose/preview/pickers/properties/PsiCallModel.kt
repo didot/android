@@ -44,6 +44,7 @@ import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.resolve.calls.model.ExpressionValueArgument
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.toUElement
 
@@ -86,6 +87,8 @@ class PsiCallPropertyModel internal constructor(
   companion object {
     fun fromPreviewElement(project: Project, previewElement: PreviewElement): PsiCallPropertyModel {
       val annotationEntry = previewElement.previewElementDefinitionPsi?.element as? KtAnnotationEntry
+
+      @OptIn(IDEAPluginsCompatibilityAPI::class) // getResolvedCall
       val resolvedCall = annotationEntry?.getResolvedCall(annotationEntry.analyze(BodyResolveMode.FULL))!!
       val defaultValues: Map<String, String?> = (annotationEntry.toUElement() as? UAnnotation)?.findPreviewDefaultValues() ?: kotlin.run {
         Logger.getInstance(PsiCallPropertyModel::class.java).warn("Could not obtain default values")

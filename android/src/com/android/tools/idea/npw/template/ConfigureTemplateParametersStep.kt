@@ -85,6 +85,7 @@ import com.intellij.ui.layout.CCFlags
 import com.intellij.ui.layout.panel
 import com.intellij.util.ui.JBUI
 import org.jetbrains.android.util.AndroidBundle.message
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 import java.awt.FlowLayout
 import java.awt.Font
@@ -331,6 +332,7 @@ class ConfigureTemplateParametersStep(model: RenderTemplateModel, title: String,
   private fun validateAllParameters(): String? {
     val sourceProvider = model.template.get().getSourceProvider()
 
+    @OptIn(IDEAPluginsCompatibilityAPI::class) // firstNotNullResult
     return parameters
       .filterIsInstance<StringParameter>()
       .filter { it.isVisibleAndEnabled }

@@ -31,6 +31,7 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 
 // Used to apply styles for calls to @Composable functions.
 class ComposableAnnotator : Annotator {
@@ -86,6 +87,7 @@ class ComposableAnnotator : Annotator {
         annotation.textAttributes = COMPOSABLE_CALL_TEXT_ATTRIBUTES_KEY
     }
 
+    @OptIn(IDEAPluginsCompatibilityAPI::class) // getResolvedCall
     private fun shouldStyleCall(bindingContext: BindingContext, element: KtCallExpression): Boolean {
         return element.getResolvedCall(bindingContext)?.isComposableInvocation() == true
     }

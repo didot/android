@@ -35,6 +35,7 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.resolve.calls.callUtil.getParameterForArgument
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameOrNull
 import org.jetbrains.kotlin.types.SimpleType
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 
 private const val LABEL_PARAMETER = "label"
 private const val COMPOSE_ANIMATION_PACKAGE_PREFIX = "androidx.compose.animation"
@@ -57,6 +58,7 @@ class UpdateTransitionLabelInspection : AbstractKotlinInspection() {
           if (resolvedExpression.resultingDescriptor.fqNameOrNull()?.asString() != UPDATE_TRANSITION_FQN) return
 
           // Finally, verify the updateTransition has the `label` parameter set, otherwise show a weak warning.
+          @OptIn(IDEAPluginsCompatibilityAPI::class) // getParameterForArgument
           if (expression.valueArguments.any { resolvedExpression.getParameterForArgument(it)?.name?.asString() == LABEL_PARAMETER }) {
             // This updateTransition call already has the label parameter set.
             return
@@ -100,6 +102,7 @@ class TransitionPropertiesLabelInspection : AbstractKotlinInspection() {
           }
 
           // Finally, verify the animate call has the `label` parameter set, otherwise show a weak warning.
+          @OptIn(IDEAPluginsCompatibilityAPI::class) // getParameterForArgument
           if (expression.valueArguments.any { resolvedExpression.getParameterForArgument(it)?.name?.asString() == LABEL_PARAMETER }) {
             // This Transition<T>.animate* call already has the label parameter set.
             return

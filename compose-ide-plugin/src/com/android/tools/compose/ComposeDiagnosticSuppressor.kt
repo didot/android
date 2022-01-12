@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.resolve.calls.callUtil.getCall
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.resolve.diagnostics.DiagnosticSuppressor
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 
 class ComposeDiagnosticSuppressor : DiagnosticSuppressor {
 
@@ -61,6 +62,8 @@ class ComposeDiagnosticSuppressor : DiagnosticSuppressor {
     }
     if (diagnostic.factory == Errors.NAMED_ARGUMENTS_NOT_ALLOWED) {
       if (bindingContext != null) {
+
+        @OptIn(IDEAPluginsCompatibilityAPI::class) // getCall, getResolvedCall
         val call = (diagnostic.psiElement.parent.parent.parent.parent as KtCallExpression)
           .getCall(bindingContext).getResolvedCall(bindingContext)
         if (call != null) {

@@ -54,6 +54,7 @@ import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtValueArgumentList
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
@@ -167,6 +168,7 @@ class IntDefCompletionContributorJava : CompletionContributor() {
  *
  * Returns values for the first encountered @IntDef annotation.
  */
+@OptIn(IDEAPluginsCompatibilityAPI::class) // firstNotNullResult
 private fun getIntDefValues(calleeElement: PsiElement?, argumentIndex: Int, argumentName: String?): List<String>? {
   when (calleeElement) {
     is PsiClass -> {

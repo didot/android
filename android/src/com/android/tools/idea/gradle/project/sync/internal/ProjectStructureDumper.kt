@@ -53,6 +53,7 @@ import org.jetbrains.android.facet.AndroidFacetConfiguration
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.config.CompilerSettings
 import org.jetbrains.kotlin.idea.facet.KotlinFacetConfiguration
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import java.io.File
 
 fun ProjectDumper.dumpProject(project: Project) {
@@ -370,6 +371,8 @@ private fun ProjectDumper.dump(compilerArguments: CommonCompilerArguments) {
     compilerArguments.disablePhases?.forEach { prop("- disablePhases") { it } }
     prop("dumpPerf") { compilerArguments.dumpPerf }
     prop("effectSystem") { compilerArguments.effectSystem.takeIf { it }?.toString() }
+
+    @OptIn(IDEAPluginsCompatibilityAPI::class) // experimental
     compilerArguments.experimental?.forEach { prop("- experimental") { it } }
     prop("intellijPluginRoot") { compilerArguments.intellijPluginRoot }
     prop("kotlinHome") { compilerArguments.kotlinHome }

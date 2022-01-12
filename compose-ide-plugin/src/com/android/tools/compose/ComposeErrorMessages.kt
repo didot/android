@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages
 import org.jetbrains.kotlin.diagnostics.rendering.DiagnosticFactoryToRendererMap
 import org.jetbrains.kotlin.diagnostics.rendering.Renderers
 import org.jetbrains.kotlin.diagnostics.rendering.Renderers.RENDER_TYPE_WITH_ANNOTATIONS
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 
 object ComposeErrorMessages : DefaultErrorMessages.Extension {
   private val MAP = DiagnosticFactoryToRendererMap("Compose")
@@ -73,6 +74,8 @@ object ComposeErrorMessages : DefaultErrorMessages.Extension {
       ComposeErrors.CONFLICTING_OVERLOADS,
       @Suppress("InvalidBundleOrProperty")
       ComposeBundle.message("errors.conflicting_overloads"),
+
+      @OptIn(IDEAPluginsCompatibilityAPI::class) // commaSeparated
       Renderers.commaSeparated(
         Renderers.FQ_NAMES_IN_TYPES_WITH_ANNOTATIONS
       )

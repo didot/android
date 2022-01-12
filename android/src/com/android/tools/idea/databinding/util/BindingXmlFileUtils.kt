@@ -21,6 +21,7 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlFile
 import com.intellij.psi.xml.XmlTag
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 
 /**
@@ -101,6 +102,8 @@ private fun XmlTag.findIdAttribute(name: String): XmlAttribute? {
   }?.let { validAttribute ->
     return validAttribute
   }
+
+  @OptIn(IDEAPluginsCompatibilityAPI::class) // firstNotNullResult
   return subTags.firstNotNullResult { tag ->
     tag.findIdAttribute(name)
   }
