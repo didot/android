@@ -4213,6 +4213,9 @@ public class ResourceFolderRepositoryTest extends AndroidTestCase {
     WriteAction.run(() -> {
       document.setText("<resources><string name='from_templates'>git</string></resources>");
       fileDocumentManager.saveDocument(document);
+
+      // in production the document will be committed asynchroniously by DocumentCommitThread
+      PsiDocumentManager.getInstance(getProject()).commitDocument(document);
     });
     waitForUpdates(repository);
     assertTrue(repository.hasResources(RES_AUTO, ResourceType.STRING, "from_templates"));
