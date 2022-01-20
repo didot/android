@@ -26,6 +26,7 @@ Android Studio Preview.app/Contents/bin/helpers/jb_declarative_formatters/type_v
 Android Studio Preview.app/Contents/bin/icons.db
 Android Studio Preview.app/Contents/bin/idea.properties
 Android Studio Preview.app/Contents/bin/inspect.sh
+Android Studio Preview.app/Contents/bin/libmacscreenmenu64.dylib
 Android Studio Preview.app/Contents/bin/libnst64.dylib
 Android Studio Preview.app/Contents/bin/lldb/helpers/jb_lldb_init.py
 Android Studio Preview.app/Contents/bin/lldb/helpers/jb_lldb_stepping.py
@@ -2455,8 +2456,8 @@ Android Studio Preview.app/Contents/plugins/android/resources/device-art-resourc
 Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/tv_720p/layout
 Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/tv_720p/shadow.png
 Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/watch_round/back.png
-Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/watch_round/mask.png
 Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/watch_round/fore.png
+Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/watch_round/mask.png
 Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/watch_round/shadow.png
 Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/watch_square/back.png
 Android Studio Preview.app/Contents/plugins/android/resources/device-art-resources/watch_square/fore.png
