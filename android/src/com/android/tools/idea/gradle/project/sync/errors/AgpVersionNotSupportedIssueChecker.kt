@@ -72,7 +72,7 @@ class AgpVersionNotSupportedIssueChecker: GradleIssueChecker {
       addQuickFix(AgpUpgradeQuickFix(version))
       addQuickFix(
         "See Android Studio & AGP compatibility options.",
-        OpenLinkQuickFix("https://android.devsite.corp.google.com/studio/releases#android_gradle_plugin_and_android_studio_compatibility")
+        OpenLinkQuickFix("https://developer.android.com/studio/releases#android_gradle_plugin_and_android_studio_compatibility")
       )
     }.composeBuildIssue()
   }
