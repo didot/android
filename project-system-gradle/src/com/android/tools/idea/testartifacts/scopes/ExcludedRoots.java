@@ -92,12 +92,6 @@ public class ExcludedRoots {
           myExcludedRoots.add(urlToFilePath(url));
         }
       }
-
-      GradleAndroidModel androidModuleModel = GradleAndroidModel.get(module);
-      if (androidModuleModel != null) {
-        IdeAndroidArtifact artifact = androidModuleModel.getMainArtifact();
-        myExcludedRoots.addAll(artifact.getAdditionalClassesFolders());
-      }
     }
   }
 
@@ -145,7 +139,9 @@ public class ExcludedRoots {
   private static void processFolders(@NotNull IdeBaseArtifact artifact,
                                      @NotNull GradleAndroidModel androidModel,
                                      @NotNull Consumer<File> action) {
-    action.accept(artifact.getClassesFolder());
+    for (File file : artifact.getClassesFolder()) {
+      action.accept(file);
+    }
     for (File file : artifact.getGeneratedSourceFolders()) {
       action.accept(file);
     }

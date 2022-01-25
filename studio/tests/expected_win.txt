@@ -1862,8 +1862,8 @@ android-studio/plugins/android/resources/device-art-resources/tv_720p/fore.png
 android-studio/plugins/android/resources/device-art-resources/tv_720p/layout
 android-studio/plugins/android/resources/device-art-resources/tv_720p/shadow.png
 android-studio/plugins/android/resources/device-art-resources/watch_round/back.png
-android-studio/plugins/android/resources/device-art-resources/watch_round/mask.png
 android-studio/plugins/android/resources/device-art-resources/watch_round/fore.png
+android-studio/plugins/android/resources/device-art-resources/watch_round/mask.png
 android-studio/plugins/android/resources/device-art-resources/watch_round/shadow.png
 android-studio/plugins/android/resources/device-art-resources/watch_square/back.png
 android-studio/plugins/android/resources/device-art-resources/watch_square/fore.png
