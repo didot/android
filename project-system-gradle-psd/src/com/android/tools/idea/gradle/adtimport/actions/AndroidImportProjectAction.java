@@ -32,6 +32,7 @@ import com.android.tools.idea.gradle.adtimport.AdtImportProvider;
 import com.android.tools.idea.gradle.adtimport.GradleImport;
 import com.android.tools.idea.gradle.project.ProjectImportUtil;
 import com.android.tools.idea.ui.validation.validators.ProjectImportPathValidator;
+import com.intellij.ide.impl.OpenProjectTask;
 import com.intellij.ide.impl.ProjectUtil;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.ide.util.newProjectWizard.AddModuleWizard;
@@ -260,7 +261,7 @@ public class AndroidImportProjectAction extends AnAction {
 
       boolean unitTestMode = ApplicationManager.getApplication().isUnitTestMode();
       ProjectManagerEx projectManager = ProjectManagerEx.getInstanceEx();
-      Project project = projectManager.newProject(wizard.getProjectName(), projectDirPath.getPath(), true, false);
+      Project project = projectManager.newProject(projectDirPath.toPath(), OpenProjectTask.build().asNewProject().withProjectName(wizard.getProjectName()));
       if (project == null) {
         return;
       }
