@@ -48,6 +48,8 @@ class AgpVersionNotSupportedIssueCheckerTest {
     assertThat(buildIssue.description).contains(expectedNotificationMessage)
     assertThat(buildIssue.quickFixes[0]).isInstanceOf(AgpUpgradeQuickFix::class.java)
     assertThat(buildIssue.quickFixes[1]).isInstanceOf(OpenLinkQuickFix::class.java)
+    assertThat((buildIssue.quickFixes[1] as OpenLinkQuickFix).link)
+      .isEqualTo("https://developer.android.com/studio/releases#android_gradle_plugin_and_android_studio_compatibility")
   }
 
   @Test
@@ -64,6 +66,8 @@ class AgpVersionNotSupportedIssueCheckerTest {
     assertThat(buildIssue.description).contains(expectedNotificationMessage)
     assertThat(buildIssue.quickFixes[0]).isInstanceOf(AgpUpgradeQuickFix::class.java)
     assertThat(buildIssue.quickFixes[1]).isInstanceOf(OpenLinkQuickFix::class.java)
+    assertThat((buildIssue.quickFixes[1] as OpenLinkQuickFix).link)
+      .isEqualTo("https://developer.android.com/studio/releases#android_gradle_plugin_and_android_studio_compatibility")
   }
 
   @Test
@@ -81,6 +85,8 @@ class AgpVersionNotSupportedIssueCheckerTest {
     assertThat(buildIssue.description).contains(expectedNotificationMessage)
     assertThat(buildIssue.quickFixes[0]).isInstanceOf(AgpUpgradeQuickFix::class.java)
     assertThat(buildIssue.quickFixes[1]).isInstanceOf(OpenLinkQuickFix::class.java)
+    assertThat((buildIssue.quickFixes[1] as OpenLinkQuickFix).link)
+      .isEqualTo("https://developer.android.com/studio/preview/features#agp-previews")
   }
 
   @Test
