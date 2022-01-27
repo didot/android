@@ -1176,7 +1176,7 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
       throw UnsupportedOperationException("com.android.builder.model.NativeVariantAbi is a model v1 concept")
 
     override fun nativeAndroidProjectFrom(project: com.android.builder.model.NativeAndroidProject,
-                                          ndkVersion: String): IdeNativeAndroidProjectImpl =
+                                          ndkVersion: String?): IdeNativeAndroidProjectImpl =
       throw UnsupportedOperationException("com.android.builder.model.NativeAndroidProject is a model v1 concept")
   }
 }

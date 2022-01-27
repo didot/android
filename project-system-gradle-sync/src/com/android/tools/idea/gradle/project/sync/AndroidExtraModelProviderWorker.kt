@@ -965,7 +965,7 @@ private fun createAndroidModule(
   val ideNativeAndroidProject = when (androidProjectResult) {
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V1Project ->
       nativeAndroidProject?.let {
-        modelCache.nativeAndroidProjectFrom(it, safeGet(androidProjectResult.androidProject::getNdkVersion, ""))
+        modelCache.nativeAndroidProjectFrom(it, safeGet(androidProjectResult.androidProject::getNdkVersion, null))
       }
     is AndroidExtraModelProviderWorker.AndroidProjectResult.V2Project ->
       if (nativeAndroidProject != null) {
