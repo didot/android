@@ -21,7 +21,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import icons.StudioIcons;
 import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Represents a binary file that can be imported into in Android Profiler.
@@ -42,7 +41,6 @@ public abstract class AndroidProfilerCaptureFileType implements INativeFileType 
     return false;
   }
 
-  @Nullable
   @Override
   public Icon getIcon() {
     return StudioIcons.Profiler.Files.PROFILER_CAPTURE;
