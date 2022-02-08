@@ -46,7 +46,9 @@
     <applicationService serviceInterface="com.intellij.openapi.updateSettings.UpdateStrategyCustomization"
                         serviceImplementation="com.android.tools.idea.AndroidStudioUpdateStrategyCustomization"
                         overrides="true"/>
-
+    <applicationService serviceInterface="com.intellij.openapi.updateSettings.impl.UpdateSettings"
+                        serviceImplementation="com.android.tools.idea.AndroidStudioUpdateSettings"
+                        overrides="true"/>
     <!-- overrides UTM-tracking implementation included from JavaIdePlugin.xml: -->
     <applicationService serviceImplementation="com.intellij.openapi.application.IdeUrlTrackingParametersProvider"
                         overrides="true"/>
