@@ -379,7 +379,7 @@ private fun ProjectDumper.dump(compilerArguments: CommonCompilerArguments) {
     prop("reportOutputFiles") { compilerArguments.reportOutputFiles.takeIf { it }?.toString() }
     prop("reportPerf") { compilerArguments.reportPerf.takeIf { it }?.toString() }
     prop("skipMetadataVersionCheck") { compilerArguments.skipMetadataVersionCheck.takeIf { it }?.toString() }
-    compilerArguments.optIn?.forEach { prop("- optIn") { it } }
+    compilerArguments.useExperimental?.forEach { prop("- useExperimental") { it } }
     compilerArguments.verbosePhases?.forEach { prop("- verbosePhases") { it } }
   }
 }
