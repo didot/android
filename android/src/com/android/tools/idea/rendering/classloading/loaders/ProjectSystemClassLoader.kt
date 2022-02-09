@@ -21,6 +21,8 @@ import com.intellij.util.containers.ContainerUtil
 import org.jetbrains.android.uipreview.ClassModificationTimestamp
 import org.jetbrains.android.uipreview.INTERNAL_PACKAGE
 import org.jetbrains.annotations.TestOnly
+import java.io.IOException
+import java.nio.file.Files
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
@@ -41,8 +43,6 @@ class ProjectSystemClassLoader(private val findClassVirtualFileImpl: (String) ->
    */
   private val virtualFileCache = ConcurrentHashMap<String, Pair<VirtualFile, ClassModificationTimestamp>>()
 
-  private val nonProjectFiles: MutableSet<String> = Collections.newSetFromMap(ContainerUtil.createConcurrentSoftMap())
-
   /**
    * [Sequence] of all the [VirtualFile]s and their associated [ClassModificationTimestamp] that have been loaded
    * by this [ProjectSystemClassLoader].
@@ -60,7 +60,7 @@ class ProjectSystemClassLoader(private val findClassVirtualFileImpl: (String) ->
    */
   fun findClassVirtualFile(fqcn: String): VirtualFile? {
     // Avoid loading a few well known system prefixes for the project class loader and also classes that have failed before.
-    if (fqcn.isSystemPrefix() || nonProjectFiles.contains(fqcn)) {
+    if (fqcn.isSystemPrefix()) {
       return null
     }
     val cachedVirtualFile = virtualFileCache[fqcn]
@@ -71,9 +71,6 @@ class ProjectSystemClassLoader(private val findClassVirtualFileImpl: (String) ->
     if (vFile != null) {
       virtualFileCache[fqcn] = Pair(vFile, ClassModificationTimestamp.fromVirtualFile(vFile))
     }
-    else {
-      nonProjectFiles.add(fqcn)
-    }
 
     return vFile
   }
@@ -83,14 +80,32 @@ class ProjectSystemClassLoader(private val findClassVirtualFileImpl: (String) ->
    */
   fun invalidateCaches() {
     virtualFileCache.clear()
-    nonProjectFiles.clear()
+  }
+
+  /**
+   * Reads the contents of this [VirtualFile] via NIO avoiding the VFS cache. This is needed when reading files
+   * that are generated outside of Studio, like `.class` files created by the build system so we read the freshest
+   * content.
+   */
+  private fun VirtualFile.readBytesUsingNio(): ByteArray? {
+    // Files in jar files can not be read using Files NIO
+    if (!isInLocalFileSystem) return null
+
+    try {
+      return Files.readAllBytes(toNioPath())
+    }
+    catch (_: UnsupportedOperationException) {}
+    catch (_: IOException) {}
+
+    return null
   }
 
   override fun loadClass(fqcn: String): ByteArray? = try {
-    findClassVirtualFile(fqcn)?.contentsToByteArray()
-  } catch (_: Throwable) {
-    null
-  }
+      val vFile = findClassVirtualFile(fqcn)
+      vFile?.readBytesUsingNio() ?: vFile?.contentsToByteArray()
+    } catch (_: Throwable) {
+      null
+    }
 
   /**
    * Injects the given [virtualFile] with the passed [fqcn] so it looks like loaded from the project. Only for testing.

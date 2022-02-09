@@ -111,18 +111,18 @@ private fun registerResources(module: Module) {
                                getPackageName(androidFacet)
                              },
                              repositoryManager.namespace)
-  }
 
-  AndroidDependenciesCache.getAllAndroidDependencies(module, false)
-    .distinct()
-    .forEach { facet ->
-      classRegistry.addLibrary(repositoryManager.appResources,
-                               idManager,
-                               ReadAction.compute<String?, RuntimeException> {
-                                 getPackageName(facet)
-                               },
-                               repositoryManager.namespace)
+    AndroidDependenciesCache.getAllAndroidDependencies(module, false)
+      .distinct()
+      .forEach { facet ->
+        classRegistry.addLibrary(repositoryManager.appResources,
+                                idManager,
+                                ReadAction.compute<String?, RuntimeException> {
+                                  getPackageName(facet)
+                                },
+                                repositoryManager.namespace)
     }
+  }
 
   module.getModuleSystem().getAndroidLibraryDependencies()
     .filter { it.hasResources }

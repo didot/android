@@ -24,10 +24,12 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Initialization code common between Android Studio and Android plugin in IntelliJ.
  */
+@SuppressWarnings("UnstableApiUsage")
 public class AndroidPluginInitializer implements ApplicationLoadListener {
   @Override
   public void beforeApplicationLoaded(@NotNull Application application, @NotNull String configPath) {
     AndroidStudioAnalytics.initialize(new AndroidStudioAnalyticsImpl());
     StudioProgressManagerAdapter.initialize();
+    ApkFacetCheckerInitializer.initializeApkFacetChecker();
   }
 }

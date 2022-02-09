@@ -57,7 +57,7 @@ class KotlinGradleAndroidModuleModelProjectDataService : AbstractProjectDataServ
                                   ?: return@forEach
                 GradleProjectImportHandler.getInstances(project).forEach { it.importBySourceSet(kotlinFacet, sourceSetNode) }
               }
-              return
+              continue
             }
 
             val ideModule = modelsProvider.findIdeModule(moduleData) ?: continue

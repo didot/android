@@ -223,6 +223,7 @@ class ModuleClassLoaderManager {
     var oldClassLoader: ModuleClassLoader? = null
     if (moduleClassLoader != null) {
       val invalidate =
+        Disposer.isDisposed(moduleClassLoader) ||
         !moduleClassLoader.isCompatible(parent, combinedProjectTransformations, combinedNonProjectTransformations) ||
         !moduleClassLoader.isUserCodeUpToDate
 
