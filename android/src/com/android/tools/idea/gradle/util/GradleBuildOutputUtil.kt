@@ -108,15 +108,6 @@ fun getOutputFilesFromListingFile(listingFile: String): List<File> {
   return emptyList()
 }
 
-private fun getOutputType(module: Module, configuration: AndroidRunConfigurationBase): OutputType {
-  return if (useSelectApksFromBundleBuilder(module, configuration, null)) {
-    OutputType.ApkFromBundle
-  }
-  else {
-    OutputType.Apk
-  }
-}
-
 fun Collection<IdeVariantBuildInformation>.variantOutputInformation(variantName: String): IdeBuildTasksAndOutputInformation? {
   return firstOrNull { it.variantName == variantName }?.buildInformation
 }
@@ -145,13 +136,6 @@ fun loadBuildOutputListingFile(listingFile: String): GenericBuiltArtifacts? {
 
   LOG.warn("Failed to read Json output file from ${listingFile}. Build may have failed.")
   return null
-}
-
-fun getBuildOutputListingFile(
-  outputType: OutputType,
-  variantBuildInformation: IdeBuildTasksAndOutputInformation?
-): String? {
-  return variantBuildInformation?.getOutputListingFile(outputType)
 }
 
 class LastBuildOrSyncService {
