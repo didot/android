@@ -17,7 +17,7 @@ package com.android.tools.idea.run;
 
 import static com.android.AndroidProjectTypes.PROJECT_TYPE_DYNAMIC_FEATURE;
 import static com.android.AndroidProjectTypes.PROJECT_TYPE_INSTANTAPP;
-import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getOutputFilesFromListingFile;
+import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getOutputFilesFromListingFileOrLogError;
 import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getOutputListingFile;
 import static com.android.tools.idea.gradle.util.GradleUtil.findModuleByGradlePath;
 import static com.android.tools.idea.gradle.util.GradleUtil.getGradlePath;
@@ -557,7 +557,7 @@ public class GradleApkProvider implements ApkProvider {
       String outputListingFile = GradleBuildOutputUtil
         .getOutputListingFile(androidModel.getSelectedVariant().getMainArtifact().getBuildInformation(),
                               OutputType.ApkFromBundle);
-      apkFiles = outputListingFile != null ? getOutputFilesFromListingFile(outputListingFile) : emptyList();
+      apkFiles = outputListingFile != null ? getOutputFilesFromListingFileOrLogError(outputListingFile) : emptyList();
     }
     else {
       apkFiles = collectApkFilesFromPostBuildModel(outputModelProvider,

@@ -28,7 +28,6 @@ import com.android.tools.idea.gradle.project.build.BuildContext
 import com.android.tools.idea.gradle.project.build.BuildStatus
 import com.android.tools.idea.gradle.project.build.GradleBuildListener
 import com.android.tools.idea.gradle.project.build.GradleBuildState
-import com.android.tools.idea.gradle.util.DynamicAppUtils.useSelectApksFromBundleBuilder
 import com.android.tools.idea.log.LogWrapper
 import com.android.tools.idea.projectsystem.getProjectSystem
 import com.android.tools.idea.run.AndroidRunConfigurationBase
@@ -83,7 +82,7 @@ fun getSingleApkOrParentFolderForRunConfiguration(
   else apks.map { it.parentFile }.singleOrNull()
 }
 
-fun getOutputFilesFromListingFile(listingFile: String): List<File> {
+fun getOutputFilesFromListingFileOrLogError(listingFile: String): List<File> {
   val builtArtifacts = loadFromFile(File(listingFile), LogWrapper(LOG))
   if (builtArtifacts != null) {
     val items = builtArtifacts.elements.map { File(it.outputFile) }
@@ -129,13 +128,7 @@ fun IdeBuildTasksAndOutputInformation.getOutputListingFile(outputType: OutputTyp
   }
 
 fun loadBuildOutputListingFile(listingFile: String): GenericBuiltArtifacts? {
-  val builtArtifacts = loadFromFile(File(listingFile), LogWrapper(LOG))
-  if (builtArtifacts != null) {
-    return builtArtifacts
-  }
-
-  LOG.warn("Failed to read Json output file from ${listingFile}. Build may have failed.")
-  return null
+  return loadFromFile(File(listingFile), LogWrapper(LOG))
 }
 
 class LastBuildOrSyncService {
