@@ -51,7 +51,7 @@ class ToggleButtonPropertyEditor(val model: ToggleButtonPropertyEditorModel) : J
       // This will update the selected state of the ActionButton:
       val context = DataManager.getInstance().getDataContext(button)
       val event = AnActionEvent(null, context, ActionPlaces.UNKNOWN, presentation, ActionManager.getInstance(), 0)
-      ActionUtil.performDumbAwareUpdate(false, action, event, false)
+      ActionUtil.performDumbAwareUpdate(action, event, false)
       if (model.focusRequest && !isFocusOwner) {
         button.requestFocusInWindow()
       }
