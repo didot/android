@@ -30,7 +30,6 @@ import com.android.tools.idea.stats.AndroidStudioUsageTracker;
 import com.android.tools.idea.stats.ConsentDialog;
 import com.android.tools.idea.stats.GcPauseWatcher;
 import com.google.common.base.Predicates;
-import com.intellij.analytics.AndroidStudioAnalytics;
 import com.intellij.concurrency.JobScheduler;
 import com.intellij.lang.injection.MultiHostInjector;
 import com.intellij.openapi.actionSystem.ActionManager;
@@ -116,7 +115,7 @@ public class AndroidStudioInitializer implements ActionConfigurationCustomizer {
    * sets up collection of Android Studio specific analytics.
    */
   private static void setupAnalytics() {
-    AndroidStudioAnalytics.getInstance().initializeAndroidStudioUsageTrackerAndPublisher();
+    //AndroidStudioAnalytics.getInstance().initializeAndroidStudioUsageTrackerAndPublisher();
 
     if (StudioFlags.NEW_CONSENT_DIALOG.get()) {
       ConsentDialog.showConsentDialogIfNeeded();
