@@ -53,6 +53,7 @@ import org.jetbrains.android.facet.AndroidFacetConfiguration
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.config.CompilerSettings
 import org.jetbrains.kotlin.idea.facet.KotlinFacetConfiguration
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 import java.io.File
 
 fun ProjectDumper.dumpProject(project: Project) {
@@ -393,6 +394,7 @@ private fun ProjectDumper.dump(compilerArguments: CommonCompilerArguments) {
     prop("reportOutputFiles") { compilerArguments.reportOutputFiles.takeIf { it }?.toString() }
     prop("reportPerf") { compilerArguments.reportPerf.takeIf { it }?.toString() }
     prop("skipMetadataVersionCheck") { compilerArguments.skipMetadataVersionCheck.takeIf { it }?.toString() }
+    @OptIn(IDEAPluginsCompatibilityAPI::class)
     compilerArguments.useExperimental?.forEach { prop("- useExperimental") { it } }
     compilerArguments.verbosePhases?.forEach { prop("- verbosePhases") { it } }
   }
