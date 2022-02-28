@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.gradle.project.build;
 
-import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getOutputFilesFromListingFile;
+import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getOutputFilesFromListingFileOrLogError;
 import static com.android.tools.idea.gradle.util.GradleBuildOutputUtil.getOutputListingFileOrLogError;
 import static com.android.tools.idea.gradle.util.GradleUtil.getGradlePath;
 
@@ -119,7 +119,7 @@ public class BuildsToPathsMapperImpl extends BuildsToPathsMapper {
       if (outputInformation != null) {
         String outputListingFile = getOutputListingFileOrLogError(outputInformation, outputType);
         if (outputListingFile != null) {
-          outputFiles = getOutputFilesFromListingFile(outputListingFile);
+          outputFiles = getOutputFilesFromListingFileOrLogError(outputListingFile);
         }
       }
       outputFolderOrFile =

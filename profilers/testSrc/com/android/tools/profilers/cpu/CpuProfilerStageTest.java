@@ -1087,19 +1087,12 @@ public final class CpuProfilerStageTest extends AspectObserver {
   }
 
   @Test
-  public void stopCapturingFailureShowsErrorBalloon() throws IOException, ExecutionException, InterruptedException {
-    myStage.setCapture(CpuProfilerTestUtils.getValidCapture());
-    // Try to parse a simpleperf trace with ART config. Parsing should fail.
-    ProfilingConfiguration config = new ArtSampledConfiguration("My Config");
-    myStage.getProfilerConfigModel().setProfilingConfiguration(config);
-
+  public void stopCapturingFailureShowsErrorBalloon() throws InterruptedException {
+    myStage.getProfilerConfigModel().setProfilingConfiguration(new SimpleperfConfiguration("My Config"));
     CpuProfilerTestUtils.startCapturing(myStage, myCpuService, myTransportService, true);
-    assertThat(myStage.getCapture()).isNotNull();
     CpuProfilerTestUtils.stopCapturing(myStage, myCpuService, myTransportService, false, null);
-    // Sanity check to see if we reached the final capture state
-    assertThat(myStage.getCaptureState()).isEqualTo(CpuProfilerStage.CaptureState.IDLE);
-    assertThat(myServices.getNotification()).isEqualTo(CpuProfilerNotifications.CAPTURE_STOP_FAILURE);
-    assertThat(myStage.getCapture()).isNull();
+    assertThat(myServices.getNotification()).isNotNull();
+    assertThat(myServices.getNotification().getTitle()).contains("Recording failed to stop");
   }
 
   @Test

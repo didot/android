@@ -30,7 +30,7 @@ import com.android.tools.idea.gradle.run.PostBuildModelProvider
 import com.android.tools.idea.gradle.util.BuildMode
 import com.android.tools.idea.gradle.util.GradleProjectSystemUtil.getGeneratedSourceFoldersToUse
 import com.android.tools.idea.gradle.util.OutputType
-import com.android.tools.idea.gradle.util.getOutputFilesFromListingFile
+import com.android.tools.idea.gradle.util.getOutputFilesFromListingFileOrLogError
 import com.android.tools.idea.gradle.util.getOutputListingFile
 import com.android.tools.idea.log.LogWrapper
 import com.android.tools.idea.model.AndroidManifestIndex
@@ -117,7 +117,7 @@ class GradleProjectSystem(val project: Project) : AndroidProjectSystem {
             .mainArtifact
             .buildInformation
             .getOutputListingFile(OutputType.Apk)
-            ?.let { getOutputFilesFromListingFile(it) }
+            ?.let { getOutputFilesFromListingFileOrLogError(it) }
             ?.asSequence()
             .orEmpty()
         }
