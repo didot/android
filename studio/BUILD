@@ -543,7 +543,7 @@ android_studio(
         ":com.google.urlassistant",
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
-    version_eap = True,
+    version_eap = False,
     version_full = "dev build",
     version_micro = 0,
     version_patch = 0,
