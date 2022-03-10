@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.gradle.project.sync.idea;
 
+import static com.android.SdkConstants.DOT_JAR;
 import static com.android.SdkConstants.GRADLE_PLUGIN_MINIMUM_VERSION;
 import static com.android.tools.idea.flags.StudioFlags.DISABLE_FORCED_UPGRADES;
 import static com.android.tools.idea.gradle.project.sync.IdeAndroidModelsKt.ideAndroidSyncErrorToException;
@@ -43,6 +44,7 @@ import static com.intellij.openapi.externalSystem.model.ProjectKeys.LIBRARY_DEPE
 import static com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil.find;
 import static com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil.findAll;
 import static com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil.isInProcessMode;
+import static com.intellij.openapi.util.text.StringUtil.endsWithIgnoreCase;
 import static com.intellij.util.ExceptionUtil.getRootCause;
 import static com.intellij.util.PathUtil.getJarPathForClass;
 import static java.util.Collections.emptyList;
@@ -203,12 +205,15 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
   private static final Key<Boolean> IS_ANDROID_PLUGIN_REQUESTING_KAPT_GRADLE_MODEL_KEY =
     Key.create("IS_ANDROID_PLUGIN_REQUESTING_KAPT_GRADLE_MODEL_KEY");
 
+  static final Key<Boolean> IS_JAR_WRAPPED_MODULE =
+    Key.create("JAR_WRAPPED_LIBRARY_MODULE");
+
   @NotNull private final CommandLineArgs myCommandLineArgs;
   @NotNull private final IdeaJavaModuleModelFactory myIdeaJavaModuleModelFactory;
 
   private @Nullable Project myProject;
   private boolean myIsModulePerSourceSetMode;
-  private final Map<GradleProjectPath, ModuleData> myModuleDataByGradlePath = new LinkedHashMap<>();
+  private final Map<GradleProjectPath, DataNode<? extends ModuleData>> myModuleDataByGradlePath = new LinkedHashMap<>();
 
   public AndroidGradleProjectResolver() {
     this(new CommandLineArgs(), new IdeaJavaModuleModelFactory());
@@ -273,9 +278,17 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
               projectIdentifier.getProjectPath(),
               sourceSet
             );
-            myModuleDataByGradlePath.put(gradleProjectPath, node.getData());
+            myModuleDataByGradlePath.put(gradleProjectPath, node);
           }
         });
+      } else {
+        // We may need to link modules without a source set
+        GradleProjectPath gradleProjectPath = new GradleProjectPath(
+          projectIdentifier.getBuildIdentifier().getRootDir().getPath(),
+          projectIdentifier.getProjectPath(),
+          null
+        );
+        myModuleDataByGradlePath.put(gradleProjectPath, moduleDataNode);
       }
     } else {
       if (moduleDataNode != null) {
@@ -284,7 +297,7 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
           projectIdentifier.getProjectPath(),
           IdeModuleSourceSet.MAIN
         );
-        myModuleDataByGradlePath.put(gradleProjectPath, moduleDataNode.getData());
+        myModuleDataByGradlePath.put(gradleProjectPath, moduleDataNode);
       }
     }
   }
@@ -429,6 +442,19 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
 
     // Ensure the kapt module is stored on the datanode so that dependency setup can use it
     moduleNode.putUserData(AndroidGradleProjectResolverKeys.KAPT_GRADLE_MODEL_KEY, kaptGradleModel);
+
+    if (androidModel == null) {
+      // Maybe set Jar wrapper marker for non-android modules
+      ExternalProject project = resolverCtx.getExtraProject(gradleModule, ExternalProject.class);
+      if (project != null && project.getArtifactsByConfiguration().size() == 1) {
+        Set<File> artifacts = project.getArtifactsByConfiguration().get("default");
+        if (artifacts != null) {
+          moduleNode.putUserData(IS_JAR_WRAPPED_MODULE, artifacts.stream()
+            .anyMatch(artifact -> artifact.isFile() && endsWithIgnoreCase(artifact.getName(), DOT_JAR)));
+        }
+      }
+    }
+
     patchMissingKaptInformationOntoModelAndDataNode(androidModel, moduleNode, kaptGradleModel);
 
     // Populate extra things
@@ -754,7 +780,7 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
       libraryFilePaths = LibraryFilePaths.getInstance(project);
     }
 
-    Function<GradleProjectPath, ModuleData> moduleDataLookup = (gradleProjectPath) -> {
+    Function<GradleProjectPath, DataNode<? extends ModuleData>> moduleDataLookup = (gradleProjectPath) -> {
       // In the case when model v2 is enabled and module per source set is disabled, we might get a query to resolve a dependency on
       // a testFixtures module. As testFixtures relies on module per source set, we resolve the dependency to the main module instead.
       if (!isModulePerSourceSetEnabled() && gradleProjectPath.getSourceSet() == IdeModuleSourceSet.TEST_FIXTURES) {
