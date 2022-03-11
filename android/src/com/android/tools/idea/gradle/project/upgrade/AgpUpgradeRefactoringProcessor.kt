@@ -586,6 +586,10 @@ class AgpUpgradeRefactoringProcessor(
             total?.let { indicator.fraction = seen.toDouble() / total.toDouble() }
           }
         }
+        // Ensure that we have the information about no-ops, which might also involve inspecting Psi directly (and thus should not be
+        // done on the EDT).
+        classpathRefactoringProcessor.initializeComponentCaches()
+        componentRefactoringProcessors.forEach { it.initializeComponentCaches() }
       },
       commandName, true, project)
   }
@@ -737,6 +741,13 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
       return _isAlwaysNoOpForProject!!
     }
 
+  internal fun initializeComponentCaches() {
+    runReadAction {
+      _isAlwaysNoOpForProject = computeIsAlwaysNoOpForProject()
+      _cachedUsages = findComponentUsages().toList()
+    }
+  }
+
   constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project) {
     this.current = current
     this.new = new
@@ -753,6 +764,10 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
 
   abstract fun necessity(): AgpUpgradeComponentNecessity
 
+  private var _cachedUsages = listOf<UsageInfo>()
+  internal val cachedUsages
+    get() = _cachedUsages
+
   public final override fun findUsages(): Array<out UsageInfo> {
     if (!hasParentProcessor) {
       projectBuildModel.reparse()
@@ -763,6 +778,7 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
       return UsageInfo.EMPTY_ARRAY
     }
     val usages = findComponentUsages()
+    _cachedUsages = usages.toList()
     val size = usages.size
     trackComponentUsage(FIND_USAGES, size, projectBuildModel.context.allRequestedFiles.size)
     LOG.info("found $size ${pluralize("usage", size)} for \"${this.commandName}\" refactoring")
