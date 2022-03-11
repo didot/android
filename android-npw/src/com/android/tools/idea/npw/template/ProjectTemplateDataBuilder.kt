@@ -67,12 +67,12 @@ class ProjectTemplateDataBuilder(val isNewProject: Boolean) {
   }
 
   private fun getBestKotlinVersion() : String {
-    // From https://github.com/JetBrains/intellij-kotlin/blob/master/project-wizard/idea/src/org/jetbrains/kotlin/tools/projectWizard/wizard/service/IdeaKotlinVersionProviderService.kt
-    val kotlinVersionFromCompiler = KotlinPluginLayout.getInstance().standaloneCompilerVersion
-      .takeUnless { it.contains("snapshot", ignoreCase = true) }
-      ?.substringBefore("-release")
+    val compilerVersion = KotlinPluginLayout.instance.standaloneCompilerVersion
+    if (!compilerVersion.isSnapshot) {
+      return compilerVersion.artifactVersion
+    }
 
-    return kotlinVersionFromCompiler ?: DEFAULT_KOTLIN_VERSION // The default version will only be used as a fallback
+    return DEFAULT_KOTLIN_VERSION // The default version will only be used as a fallback
   }
 
   /**
