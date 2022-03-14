@@ -16,10 +16,11 @@
 package com.android.tools.idea.gradle.project;
 
 import static com.android.tools.idea.gradle.project.sync.setup.module.ModuleFinder.EMPTY;
+import static com.android.tools.idea.projectsystem.ModuleSystemUtil.getHolderModule;
 
 import com.android.annotations.concurrency.GuardedBy;
-import com.android.tools.idea.gradle.model.IdeAndroidProjectType;
 import com.android.ide.common.repository.GradleVersion;
+import com.android.tools.idea.gradle.model.IdeAndroidProjectType;
 import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet;
 import com.android.tools.idea.gradle.project.facet.java.JavaFacet;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
@@ -85,6 +86,7 @@ public class ProjectStructure {
     ModuleFinder moduleFinder = new ModuleFinder(myProject);
 
     for (Module module : modules) {
+      if (getHolderModule(module) != module) continue;
       GradleFacet gradleFacet = GradleFacet.getInstance(module);
       if (gradleFacet != null) {
         String gradlePath = gradleFacet.getConfiguration().GRADLE_PROJECT_PATH;
@@ -148,7 +150,7 @@ public class ProjectStructure {
   }
 
   @NotNull
-  public ImmutableList<Module> getAppModules() {
+  public ImmutableList<Module> getAppHolderModules() {
     synchronized (myLock) {
       return ImmutableList.copyOf(myAppModules);
     }

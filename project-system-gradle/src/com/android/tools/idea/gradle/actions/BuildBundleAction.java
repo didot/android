@@ -49,7 +49,7 @@ public class BuildBundleAction extends DumbAwareAction {
   public void actionPerformed(AnActionEvent e) {
     Project project = e.getProject();
     if (isProjectBuildWithGradle(project)) {
-      List<Module> appModules = DynamicAppUtils.getModulesSupportingBundleTask(project);
+      List<Module> appModules = DynamicAppUtils.getAppHolderModulesSupportingBundleTask(project);
       if (appModules.size() > 0) {
         GradleBuildInvoker gradleBuildInvoker = GradleBuildInvoker.getInstance(project);
         GoToBundleLocationTask task = new GoToBundleLocationTask(project, appModules, ACTION_TEXT);
