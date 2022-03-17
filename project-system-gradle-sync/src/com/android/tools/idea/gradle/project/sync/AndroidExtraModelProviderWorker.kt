@@ -43,6 +43,8 @@ import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeVariantAbi
 import com.android.tools.idea.gradle.model.IdeSyncIssue
 import com.android.tools.idea.gradle.model.IdeUnresolvedDependencies
 import com.android.tools.idea.gradle.model.impl.IdeSyncIssueImpl
+import com.android.tools.idea.gradle.project.upgrade.ForcePluginUpgradeReason
+import com.android.tools.idea.gradle.project.upgrade.ForcePluginUpgradeReason.MAXIMUM
 import com.android.tools.idea.gradle.project.upgrade.ForcePluginUpgradeReason.MINIMUM
 import com.android.tools.idea.gradle.project.upgrade.ForcePluginUpgradeReason.NO_FORCE
 import com.android.tools.idea.gradle.project.upgrade.ForcePluginUpgradeReason.PREVIEW
@@ -287,6 +289,7 @@ internal class AndroidExtraModelProviderWorker(
     when (computeForcePluginUpgradeReason(agpVersion, latestKnown)) {
       MINIMUM -> throw AgpVersionTooOld(agpVersion)
       PREVIEW -> throw AgpVersionIncompatible(agpVersion)
+      MAXIMUM -> throw AgpVersionTooNew(agpVersion)
       NO_FORCE -> Unit
     }
   }

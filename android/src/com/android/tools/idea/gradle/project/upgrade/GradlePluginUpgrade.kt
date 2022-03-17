@@ -313,6 +313,7 @@ fun computeGradlePluginUpgradeState(
     // TODO(xof): in the cae of a -dev latestKnown and a preview from an earlier series, we should perhaps return the latest stable
     //  version from that series.  (During a -beta phase, there might not be any such version, though.)
     ForcePluginUpgradeReason.PREVIEW -> return GradlePluginUpgradeState(FORCE, latestKnown)
+    ForcePluginUpgradeReason.MAXIMUM -> return GradlePluginUpgradeState(FORCE, latestKnown)
     ForcePluginUpgradeReason.NO_FORCE -> Unit
   }
 
