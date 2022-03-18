@@ -306,7 +306,8 @@ internal fun modelCacheV1Impl(buildFolderPaths: BuildFolderPaths): ModelCache {
       projectPath = projectPath,
       variant = copyNewProperty(library::getProjectVariant),
       lintJar = copyNewProperty(library::getLintJar)?.path,
-      sourceSet = IdeModuleSourceSet.MAIN
+      sourceSet = IdeModuleSourceSet.MAIN,
+      artifact = null
     )
     return IdeModuleLibraryImpl(moduleLibraryCores.internCore(core))
   }
@@ -317,7 +318,8 @@ internal fun modelCacheV1Impl(buildFolderPaths: BuildFolderPaths): ModelCache {
       projectPath = projectPath,
       variant = null,
       lintJar = null,
-      sourceSet = IdeModuleSourceSet.MAIN
+      sourceSet = IdeModuleSourceSet.MAIN,
+      artifact = null
     )
     return IdeModuleLibraryImpl(moduleLibraryCores.internCore(core))
   }
@@ -490,7 +492,8 @@ internal fun modelCacheV1Impl(buildFolderPaths: BuildFolderPaths): ModelCache {
       projectPath = projectPath,
       variant = variantName,
       lintJar = null,
-      sourceSet = IdeModuleSourceSet.MAIN
+      sourceSet = IdeModuleSourceSet.MAIN,
+      artifact = null
     )
     return IdeModuleLibraryImpl(moduleLibraryCores.internCore(core))
   }

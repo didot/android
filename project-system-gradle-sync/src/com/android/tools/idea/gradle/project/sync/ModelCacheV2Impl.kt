@@ -491,14 +491,16 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
     buildId: String,
     variant: String?,
     lintJar: File?,
-    isTestFixturesComponent: Boolean
+    isTestFixturesComponent: Boolean,
+    artifact: File?
   ): IdeLibrary {
     val core = IdeModuleLibraryCore(
       buildId = buildId,
       projectPath = projectPath,
       variant = variant,
       lintJar = lintJar?.path,
-      sourceSet = if (isTestFixturesComponent) IdeModuleSourceSet.TEST_FIXTURES else IdeModuleSourceSet.MAIN
+      sourceSet = if (isTestFixturesComponent) IdeModuleSourceSet.TEST_FIXTURES else IdeModuleSourceSet.MAIN,
+      artifact = artifact
     )
     return IdeModuleLibraryImpl(moduleLibraryCores.internCore(core))
   }
@@ -521,12 +523,13 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
       variant: String?,
       lintJar: File?,
       buildId: String,
-      isTestFixturesComponent: Boolean
+      isTestFixturesComponent: Boolean,
+      artifact: File?
     ) {
       if (!visited.contains(artifactAddress)) {
         visited.add(artifactAddress)
         librariesById.computeIfAbsent(artifactAddress) {
-          libraryFrom(projectPath, buildNameMap[buildId]!!.absolutePath, variant, lintJar, isTestFixturesComponent)
+          libraryFrom(projectPath, buildNameMap[buildId]!!.absolutePath, variant, lintJar, isTestFixturesComponent, artifact)
         }
       }
     }
@@ -536,10 +539,9 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
         val projectInfo = identifier.projectInfo!!
         val variantNameResolver = getVariantNameResolver(buildNameMap[projectInfo.buildId]!!, projectInfo.projectPath)
         // TODO(b/203750717): Model this explicitly in the tooling model.
-        val variantName = variantNameResolver(
-          projectInfo.buildType,
-          { dimension -> projectInfo.productFlavors[dimension] ?: error("$dimension attribute not found. Library: ${identifier.key}") }
-        )
+        val variantName = variantNameResolver(projectInfo.buildType) {
+          dimension -> projectInfo.productFlavors[dimension] ?: error("$dimension attribute not found. Library: ${identifier.key}")
+        }
         createModuleLibrary(
           visited,
           projectInfo.projectPath, // this should always be non-null as this is a module library
@@ -547,7 +549,8 @@ internal fun modelCacheV2Impl(buildRootDirectory: File?): ModelCache {
           variantName,
           identifier.lintJar,
           projectInfo.buildId,
-          projectInfo.isTestFixtures
+          projectInfo.isTestFixtures,
+          identifier.artifact
         )
       }
     }

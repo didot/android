@@ -189,6 +189,7 @@ class IdeV2ModelSnapshotComparisonTest : GradleIntegrationTest, SnapshotComparis
  */
 private val PROPERTIES_TO_SKIP = setOf(
   "/Level2Dependencies/AndroidLibraries/AndroidLibrary/LintJars",
+  "/Level2Dependencies/dependencies/moduleDependencies/target/artifact",
   "/ModelSyncFile",
   "/ModelSyncFile/Type",
   "/ModelSyncFile/TaskName",
