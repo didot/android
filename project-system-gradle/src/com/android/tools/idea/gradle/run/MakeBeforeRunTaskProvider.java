@@ -285,13 +285,15 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
       NdkModuleModel ndkModel = NdkModuleModel.get(module);
       AndroidModuleModel androidModel = AndroidModuleModel.get(module);
       if (ndkModel != null && androidModel != null) {
-        String selectedVariantName = androidModel.getSelectedVariant().getName();
-        Set<String> availableAbis = ndkModel.getSyncedVariantAbis().stream()
-          .filter(it -> it.getVariant().equals(selectedVariantName))
-          .map(it -> it.getAbi())
-          .collect(Collectors.toSet());
-        if (!availableAbis.containsAll(abis)) {
-          return SyncNeeded.NATIVE_VARIANTS_SYNC_NEEDED;
+        if (ndkModel.getNdkModel().getNeedsAbiSyncBeforeRun()) {
+          String selectedVariantName = androidModel.getSelectedVariant().getName();
+          Set<String> availableAbis = ndkModel.getSyncedVariantAbis().stream()
+            .filter(it -> it.getVariant().equals(selectedVariantName))
+            .map(it -> it.getAbi())
+            .collect(Collectors.toSet());
+          if (!availableAbis.containsAll(abis)) {
+            return SyncNeeded.NATIVE_VARIANTS_SYNC_NEEDED;
+          }
         }
       }
     }
