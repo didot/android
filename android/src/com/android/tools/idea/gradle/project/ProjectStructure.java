@@ -24,7 +24,6 @@ import com.android.tools.idea.gradle.model.IdeAndroidProjectType;
 import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.gradle.project.sync.setup.module.ModuleFinder;
-import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -43,8 +42,10 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
+import kotlin.text.StringsKt;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.gradle.util.GradleConstants;
 
 public class ProjectStructure {
@@ -85,19 +86,19 @@ public class ProjectStructure {
     ModuleManager moduleManager = ModuleManager.getInstance(myProject);
     Module[] modules = moduleManager.getModules();
     ModuleFinder moduleFinder = new ModuleFinder(myProject);
+    List<Module> mainModules = Arrays.stream(moduleManager.getModules())
+      .filter(ProjectStructure::isAndroidOrJavaMainSourceSetModuleBySourceSetName)
+      .collect(Collectors.toList());
 
-
-    Set<Module> accessibleModules = Arrays.stream(modules)
-      .filter(it -> ExternalSystemApiUtil.isExternalSystemAwareModule(GradleConstants.SYSTEM_ID, it))
+    Set<Module> mainModulesAccessibleFromMainModules = mainModules.stream()
       .flatMap(it -> Arrays.stream(ModuleRootManager.getInstance(it).getDependencies()))
+      .filter(ProjectStructure::isAndroidOrJavaMainSourceSetModuleBySourceSetName)
       .collect(Collectors.toSet());
 
-    List<Module> leafModules =
-      Arrays.stream(modules)
-        .filter(it -> ExternalSystemApiUtil.isExternalSystemAwareModule(GradleConstants.SYSTEM_ID, it))
-        .filter(it -> !accessibleModules.contains(it) || isAppOrFeature(it))
-        .map(ModuleSystemUtil::getHolderModule)
-        .distinct()
+    List<Module> leafHolderModules =
+      mainModules.stream()
+        .filter(it -> !mainModulesAccessibleFromMainModules.contains(it) || isAppOrFeature(it))
+        .map(ProjectStructure::getHolder)
         .collect(Collectors.toList());
 
     for (Module module : modules) {
@@ -122,7 +123,7 @@ public class ProjectStructure {
 
       // "Leaf" modules include app modules and the non-app modules that no other modules depend on.
       myLeafModules.clear();
-      myLeafModules.addAll(leafModules);
+      myLeafModules.addAll(leafHolderModules);
 
       myAppModules.clear();
       myAppModules.addAll(appModules);
@@ -181,6 +182,29 @@ public class ProjectStructure {
       myLeafModules.clear();
       myModuleFinderRef.set(EMPTY);
     }
+  }
+
+  @Nullable
+  private static Module getHolder(@NotNull Module module) {
+    if (!ExternalSystemApiUtil.isExternalSystemAwareModule(GradleConstants.SYSTEM_ID, module)) return null;
+    if (GradleConstants.GRADLE_SOURCE_SET_MODULE_TYPE_KEY.equals(ExternalSystemApiUtil.getExternalModuleType(module))) {
+      String moduleName = module.getName();
+      int lastDot  = moduleName.lastIndexOf('.');
+      if (lastDot > 0) {
+        String holderModuleName = moduleName.substring(0, lastDot);
+        Module holder = ModuleManager.getInstance(module.getProject()).findModuleByName(holderModuleName);
+        if (holder != null) return holder;
+      }
+    }
+    return module;
+  }
+
+  private static boolean isAndroidOrJavaMainSourceSetModuleBySourceSetName(@NotNull Module module) {
+    if (!ExternalSystemApiUtil.isExternalSystemAwareModule(GradleConstants.SYSTEM_ID, module)) return false;
+    if (!GradleConstants.GRADLE_SOURCE_SET_MODULE_TYPE_KEY.equals(ExternalSystemApiUtil.getExternalModuleType(module))) return false;
+    String moduleId = ExternalSystemApiUtil.getExternalProjectId(module);
+    if (moduleId == null) return false;
+    return "main".equals(StringsKt.substringAfterLast(moduleId, ":", ""));
   }
 
   public static class AndroidPluginVersionsInProject {
