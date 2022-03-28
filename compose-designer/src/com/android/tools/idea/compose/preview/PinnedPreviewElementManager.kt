@@ -84,10 +84,9 @@ class PinnedPreviewElementManagerImpl internal constructor(val project: Project)
         CachedValueProvider.Result.createSingleDependency(
           DumbService.getInstance(project).runReadActionInSmartMode(
             Computable<Collection<PsiElement>> {
-              KotlinAnnotationsIndex.getInstance().get(COMPOSE_PREVIEW_ANNOTATION_NAME, project, GlobalSearchScope.projectScope(project))
+              KotlinAnnotationsIndex.get(COMPOSE_PREVIEW_ANNOTATION_NAME, project, GlobalSearchScope.projectScope(project))
             }), PsiModificationTracker.SERVICE.getInstance(project).forLanguage(KotlinLanguage.INSTANCE))
       }.asSequence()
-
 
       val foundPreviewElementPaths: Set<String> by lazy {
         kotlinAnnotations
