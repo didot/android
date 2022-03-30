@@ -25,11 +25,11 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.jvm.JvmPrimitiveType
-import org.jetbrains.kotlin.types.error.ErrorTypeKind
-import org.jetbrains.kotlin.types.error.ErrorUtils
+import org.jetbrains.kotlin.types.ErrorUtils.createUnresolvedType
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.types.typeUtil.makeNullable
+import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
 
 /**
  * Return kotlin type with nullability info.
@@ -85,5 +85,8 @@ private fun KotlinBuiltIns.getKotlinClassType(
 }
 
 private fun FqName.getUnresolvedType(): KotlinType {
-  return ErrorUtils.createErrorType(ErrorTypeKind.UNRESOLVED_TYPE, this.toString())
+  val presentableName = this.toString()
+
+  @OptIn(IDEAPluginsCompatibilityAPI::class)
+  return createUnresolvedType(presentableName, emptyList())
 }
