@@ -35,6 +35,7 @@ import com.android.tools.idea.gradle.project.model.AndroidModuleModel
 import com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys
 import com.android.tools.idea.io.FilePaths
 import com.android.tools.idea.projectsystem.gradle.GradleProjectPath
+import com.android.utils.FileUtils
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.externalSystem.model.DataNode
@@ -59,6 +60,7 @@ import com.intellij.openapi.util.io.FileUtil.sanitizeFileName
 import com.intellij.openapi.util.io.FileUtil.toSystemIndependentName
 import org.gradle.tooling.model.UnsupportedMethodException
 import org.jetbrains.plugins.gradle.model.data.GradleSourceSetData
+import org.jetbrains.plugins.gradle.service.project.GradleProjectResolver
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolverUtil
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolverUtil.linkProjectLibrary
 import org.jetbrains.plugins.gradle.settings.GradleExecutionWorkspace
@@ -304,11 +306,30 @@ private class AndroidDependenciesSetupContext(
     return node.getUserData(AndroidGradleProjectResolver.IS_JAR_WRAPPED_MODULE) ?: false
   }
 
+  private fun attemptToMatchDependencyByArtifact(
+    gradlePath: GradleProjectPath,
+    projectDataNode: DataNode<ProjectData>,
+    artifact: File
+  ) : ModuleLibraryWorkItem? {
+    // Obtain the two maps we need from the project data node.
+    val artifactMap = projectDataNode.getUserData(GradleProjectResolver.CONFIGURATION_ARTIFACTS)
+    val resolvedSourceSetMap = projectDataNode.getUserData(GradleProjectResolver.RESOLVED_SOURCE_SETS)
+    if (artifactMap == null || resolvedSourceSetMap == null) return null
+
+    return artifactMap[FileUtils.toSystemIndependentPath(artifact.path)]?.let { id ->
+      resolvedSourceSetMap[id]?.let { pair ->
+        ModuleLibraryWorkItem(gradlePath, pair.first.data)
+      }
+    }
+  }
+
   private fun createModuleLibraryWorkItem(library: IdeModuleLibrary): ModuleLibraryWorkItem? {
     if (library.projectPath.isEmpty()) return null
     val targetModuleGradlePath = computeModuleIdForLibraryTarget(library)
     val targetData = gradleProjectPathToModuleData(targetModuleGradlePath)
     if (targetData == null) {
+      val dependency = library.artifact?.let { attemptToMatchDependencyByArtifact(targetModuleGradlePath, projectDataNode, it) }
+      if (dependency != null) return dependency
       // See if we have a module without a source set that we should depend on
       // This will be the case for wrapped jars
       val nonSourceSetDataNode = targetModuleGradlePath.copy(sourceSet = null)
