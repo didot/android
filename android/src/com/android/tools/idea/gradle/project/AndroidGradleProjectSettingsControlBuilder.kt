@@ -175,7 +175,7 @@ class AndroidGradleProjectSettingsControlBuilder(val myInitialSettings: GradlePr
         selectedSdk = resolvedJdk.name
     }
     myInitialJdkName = selectedSdk
-    myGradleJdkComboBox!!.setSelectedGradleJvmReference(sdkLookupProvider, checkedProject, externalProjectPath, selectedSdk)
+    myGradleJdkComboBox!!.setSelectedGradleJvmReference(sdkLookupProvider, externalProjectPath, selectedSdk)
   }
 
   private fun recreateGradleJdkComboBox(project: Project, sdksModel: ProjectSdksModel) {
