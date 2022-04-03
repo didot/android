@@ -83,7 +83,7 @@ private class ComposeUnresolvedFunctionFixFactory : KotlinSingleIntentionActionF
     // Composable function usually starts with uppercase first letter.
     if (name.isBlank() || !name[0].isUpperCase()) return null
 
-    val ktCreateCallableFromUsageFix = CreateCallableFromUsageFix(unresolvedCall) { listOfNotNull(createNewComposeFunctionInfo(name, it)) }
+    val ktCreateCallableFromUsageFix = CreateCallableFromUsageFix(unresolvedCall) { listOfNotNull(createNewComposeFunctionInfo(name, unresolvedCall)) }
 
     // Since CreateCallableFromUsageFix is no longer an 'open' class, we instead use delegation to customize the text.
     return object : IntentionAction by ktCreateCallableFromUsageFix {
