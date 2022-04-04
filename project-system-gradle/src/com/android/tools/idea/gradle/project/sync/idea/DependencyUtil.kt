@@ -316,7 +316,7 @@ private class AndroidDependenciesSetupContext(
     val resolvedSourceSetMap = projectDataNode.getUserData(GradleProjectResolver.RESOLVED_SOURCE_SETS)
     if (artifactMap == null || resolvedSourceSetMap == null) return null
 
-    return artifactMap[FileUtils.toSystemIndependentPath(artifact.path)]?.let { id ->
+    return artifactMap[ExternalSystemApiUtil.toCanonicalPath(artifact.path)]?.let { id ->
       resolvedSourceSetMap[id]?.let { pair ->
         ModuleLibraryWorkItem(gradlePath, pair.first.data)
       }
