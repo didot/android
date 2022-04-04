@@ -41,6 +41,9 @@ import com.android.tools.idea.testing.TestModuleUtil;
 import com.intellij.openapi.externalSystem.service.notification.NotificationData;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ModuleRootManager;
+import com.intellij.openapi.roots.impl.OrderEntryUtil;
+import com.intellij.openapi.roots.libraries.Library;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.LeakHunter;
 import java.io.File;
@@ -158,6 +161,11 @@ public class DependencySetupTest extends GradleSyncIntegrationTestCase {
 
     String localJarName = "Gradle: " + localJarModule.getName() + ".local";
     assertAbout(libraryDependencies()).that(localJarModule).hasDependency(localJarName, COMPILE, true);
+
+    Module[] moduleDependencies =
+      ModuleRootManager.getInstance(ModuleSystemUtil.getMainModule(TestModuleUtil.findAppModule(getProject()))).getModuleDependencies();
+    assertSize(1, moduleDependencies);
+    assertEquals(localJarModule, moduleDependencies[0]);
   }
 
   public void testWithInterModuleDependencies() throws Exception {

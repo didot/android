@@ -1565,10 +1565,9 @@ private fun setupDataNodesForSelectedVariant(
 private fun createGradleProjectPathToModuleDataMap(
   buildId: String,
   moduleNodes: Collection<DataNode<ModuleData>>
-): Map<GradleProjectPath, ModuleData> {
+): Map<GradleProjectPath, DataNode<out ModuleData>> {
   return moduleNodes
-    .map { moduleDataNode -> moduleDataNode.data }
-    .associateBy { moduleData -> GradleProjectPath(buildId, moduleData.id, IdeModuleSourceSet.MAIN) }
+    .associateBy { moduleData -> GradleProjectPath(buildId, moduleData.data.id, IdeModuleSourceSet.MAIN) }
 }
 
 fun injectBuildOutputDumpingBuildViewManager(

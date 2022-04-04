@@ -73,11 +73,12 @@ public class ForcedGradlePluginUpgradeTest extends PlatformTestCase {
     }
   }
 
-  public void testUpgradeNotNeeded() {
+  public void testNewerThanLatestKnown() {
     GradleVersion latestPluginVersion = GradleVersion.parse("2.0.0");
 
     boolean upgraded = GradlePluginUpgrade.versionsShouldForcePluginUpgrade(GradleVersion.parse("3.0.0"), latestPluginVersion);
-    assertFalse(upgraded);
+    assertTrue(upgraded);
+    // Can't "upgrade" down from a newer version.
     verifyNoInteractions(myAssistantInvoker);
     verifyNoInteractions(myProcessor);
     assertThat(mySyncMessages.getReportedMessages()).isEmpty();

@@ -165,9 +165,9 @@ public class DynamicAppUtils {
   }
 
   @NotNull
-  public static List<Module> getModulesSupportingBundleTask(@NotNull Project project) {
-    return ProjectStructure.getInstance(project).getAppModules().stream()
-      .filter(module -> supportsBundleTask(module))
+  public static List<Module> getAppHolderModulesSupportingBundleTask(@NotNull Project project) {
+    return ProjectStructure.getInstance(project).getAppHolderModules().stream()
+      .filter(DynamicAppUtils::supportsBundleTask)
       .collect(Collectors.toList());
   }
 

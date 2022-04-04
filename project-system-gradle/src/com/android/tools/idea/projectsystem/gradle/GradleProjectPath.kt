@@ -27,7 +27,7 @@ import com.android.tools.idea.gradle.util.getGradleProjectPath as getGradleProje
 data class GradleProjectPath(
   val buildRoot: @SystemIndependent String,
   val path: String,
-  val sourceSet: IdeModuleSourceSet
+  val sourceSet: IdeModuleSourceSet?
 ) {
   constructor (buildRoot: File, path: String, sourceSet: IdeModuleSourceSet): this(
     FileUtils.toSystemIndependentPath(buildRoot.path),

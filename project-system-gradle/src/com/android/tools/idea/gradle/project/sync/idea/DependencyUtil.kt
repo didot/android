@@ -35,7 +35,9 @@ import com.android.tools.idea.gradle.project.model.AndroidModuleModel
 import com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys
 import com.android.tools.idea.io.FilePaths
 import com.android.tools.idea.projectsystem.gradle.GradleProjectPath
+import com.android.utils.FileUtils
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.externalSystem.model.DataNode
 import com.intellij.openapi.externalSystem.model.ExternalSystemException
 import com.intellij.openapi.externalSystem.model.ProjectKeys
@@ -58,6 +60,7 @@ import com.intellij.openapi.util.io.FileUtil.sanitizeFileName
 import com.intellij.openapi.util.io.FileUtil.toSystemIndependentName
 import org.gradle.tooling.model.UnsupportedMethodException
 import org.jetbrains.plugins.gradle.model.data.GradleSourceSetData
+import org.jetbrains.plugins.gradle.service.project.GradleProjectResolver
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolverUtil
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolverUtil.linkProjectLibrary
 import org.jetbrains.plugins.gradle.settings.GradleExecutionWorkspace
@@ -90,7 +93,7 @@ data class AdditionalArtifactsPaths(val sources: SourcesPath, val javadoc: Javad
  */
 @JvmOverloads
 fun DataNode<ModuleData>.setupAndroidDependenciesForModule(
-  gradleProjectPathToModuleData: (GradleProjectPath) -> ModuleData?,
+  gradleProjectPathToModuleData: (GradleProjectPath) -> DataNode<out ModuleData>?,
   additionalArtifactsMapper: (ArtifactId) -> AdditionalArtifactsPaths,
   variant: IdeVariant? = null,
   project: Project?
@@ -206,7 +209,7 @@ fun computeModuleIdForLibraryTarget(
 private class AndroidDependenciesSetupContext(
   private val moduleDataNode: DataNode<out ModuleData>,
   private val projectDataNode: DataNode<ProjectData>,
-  private val gradleProjectPathToModuleData: (GradleProjectPath) -> ModuleData?,
+  private val gradleProjectPathToModuleData: (GradleProjectPath) -> DataNode<out ModuleData>?,
   private val additionalArtifactsMapper: (ArtifactId) -> AdditionalArtifactsPaths?,
   private val processedLibraries: MutableMap<String, LibraryDependencyData>,
   private val processedModuleDependencies: MutableMap<GradleProjectPath, ModuleDependencyData>,
@@ -299,13 +302,51 @@ private class AndroidDependenciesSetupContext(
     }
   }
 
+  private fun isWrappedJar(node: DataNode<out ModuleData>) : Boolean {
+    return node.getUserData(AndroidGradleProjectResolver.IS_JAR_WRAPPED_MODULE) ?: false
+  }
+
+  private fun attemptToMatchDependencyByArtifact(
+    gradlePath: GradleProjectPath,
+    projectDataNode: DataNode<ProjectData>,
+    artifact: File
+  ) : ModuleLibraryWorkItem? {
+    // Obtain the two maps we need from the project data node.
+    val artifactMap = projectDataNode.getUserData(GradleProjectResolver.CONFIGURATION_ARTIFACTS)
+    val resolvedSourceSetMap = projectDataNode.getUserData(GradleProjectResolver.RESOLVED_SOURCE_SETS)
+    if (artifactMap == null || resolvedSourceSetMap == null) return null
+
+    return artifactMap[ExternalSystemApiUtil.toCanonicalPath(artifact.path)]?.let { id ->
+      resolvedSourceSetMap[id]?.let { pair ->
+        ModuleLibraryWorkItem(gradlePath, pair.first.data)
+      }
+    }
+  }
+
   private fun createModuleLibraryWorkItem(library: IdeModuleLibrary): ModuleLibraryWorkItem? {
     if (library.projectPath.isEmpty()) return null
     val targetModuleGradlePath = computeModuleIdForLibraryTarget(library)
-    val targetData =
-      (gradleProjectPathToModuleData(targetModuleGradlePath)
-       ?: error("Cannot find module with id: $targetModuleGradlePath")) // uncomment and see what we gte in IdeaProject
-    return ModuleLibraryWorkItem(targetModuleGradlePath, targetData)
+    val targetData = gradleProjectPathToModuleData(targetModuleGradlePath)
+    if (targetData == null) {
+      val dependency = library.artifact?.let { attemptToMatchDependencyByArtifact(targetModuleGradlePath, projectDataNode, it) }
+      if (dependency != null) return dependency
+      // See if we have a module without a source set that we should depend on
+      // This will be the case for wrapped jars
+      val nonSourceSetDataNode = targetModuleGradlePath.copy(sourceSet = null)
+      val newTargetData = gradleProjectPathToModuleData(nonSourceSetDataNode)
+      if (newTargetData != null && isWrappedJar(newTargetData)) {
+        return ModuleLibraryWorkItem(nonSourceSetDataNode, newTargetData.data)
+      }
+      // We can not satisfy the dependency we obtained from the model, log a warning but avoid crashing the IDE.
+      if (newTargetData == null) {
+        val exception = ExternalSystemException(
+          "Could not match dependency with project path ${targetModuleGradlePath.path} and source set ${targetModuleGradlePath.sourceSet}")
+        logger<AndroidGradleProjectResolver>().warnInProduction(exception)
+      }
+      return null
+    }
+
+    return ModuleLibraryWorkItem(targetModuleGradlePath, targetData.data)
   }
 
   fun setupForArtifact(artifact: IdeBaseArtifact, scope: DependencyScope) {
@@ -411,7 +452,7 @@ private fun getExtraSdkLibraries(
 //****************************************************************************************************************************
 
 fun DataNode<ModuleData>.setupAndroidDependenciesForMpss(
-  gradleProjectPathToModuleData: (GradleProjectPath) -> ModuleData?,
+  gradleProjectPathToModuleData: (GradleProjectPath) -> DataNode<out ModuleData>?,
   additionalArtifactsMapper: (ArtifactId) -> AdditionalArtifactsPaths,
   androidModel: AndroidModuleModel,
   variant: IdeVariant,

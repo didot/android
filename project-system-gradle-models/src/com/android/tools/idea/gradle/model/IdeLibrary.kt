@@ -167,4 +167,9 @@ interface IdeModuleLibrary: IdeLibrary {
    * Returns the sourceSet associated with the library.
    */
   val sourceSet: IdeModuleSourceSet
+
+  /**
+   * The artifact that this module dependency is targeting, this is only populated when V2 models are used
+   */
+  val artifact: File?
 }
