@@ -30,14 +30,13 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class MavenPoms {
+public final class MavenPoms {
   private static final Logger LOG = Logger.getInstance(MavenPoms.class);
 
   private MavenPoms() {
   }
 
-  @NotNull
-  public static List<PsArtifactDependencySpec> findDependenciesInPomFile(@Nullable File pomFilePath) {
+  public static @NotNull List<PsArtifactDependencySpec> findDependenciesInPomFile(@Nullable File pomFilePath) {
     if (pomFilePath == null || !pomFilePath.isFile()) {
       return Collections.emptyList();
     }
@@ -70,8 +69,7 @@ public class MavenPoms {
     return dependencies;
   }
 
-  @Nullable
-  private static PsArtifactDependencySpec createSpec(@NotNull Element dependencyElement) {
+  private static @Nullable PsArtifactDependencySpec createSpec(@NotNull Element dependencyElement) {
     String artifactId = null;
     String groupId = null;
     String version = null;
@@ -89,7 +87,7 @@ public class MavenPoms {
         version = textOf(childElement);
       }
       else if ("optional".equals(name)) {
-        optional = Boolean.valueOf(textOf(childElement));
+        optional = Boolean.parseBoolean(textOf(childElement));
       }
       else if ("scope".equals(name)) {
         scope = textOf(childElement);
@@ -102,8 +100,7 @@ public class MavenPoms {
     return null;
   }
 
-  @Nullable
-  private static String textOf(@NotNull Element e) {
+  private static @Nullable String textOf(@NotNull Element e) {
     return nullize(e.getText(), true);
   }
 }
