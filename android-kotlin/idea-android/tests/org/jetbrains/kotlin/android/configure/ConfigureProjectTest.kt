@@ -28,6 +28,7 @@ import com.intellij.testFramework.RunsInEdt
 import org.jetbrains.android.refactoring.setAndroidxProperties
 import org.jetbrains.kotlin.android.InTextDirectivesUtils.findStringWithPrefixes
 import org.jetbrains.kotlin.android.KotlinTestUtils.assertEqualsToFile
+import org.jetbrains.kotlin.idea.compiler.configuration.IdeKotlinVersion
 import org.jetbrains.kotlin.idea.configuration.createConfigureKotlinNotificationCollector
 import org.jetbrains.kotlin.idea.core.util.toPsiFile
 import org.junit.Assert
@@ -81,8 +82,8 @@ abstract class ConfigureProjectTest {
     }
 
     val configurator = KotlinAndroidGradleModuleConfigurator()
-    configurator.configureModule(projectRule.module, buildFile.toPsiFile(project)!!, true, version, collector, mutableListOf())
-    configurator.configureModule(projectRule.module, buildFile.toPsiFile(project)!!, false, version, collector, mutableListOf())
+    configurator.configureModule(projectRule.module, buildFile.toPsiFile(project)!!, true, IdeKotlinVersion.get(version), collector, mutableListOf())
+    configurator.configureModule(projectRule.module, buildFile.toPsiFile(project)!!, false, IdeKotlinVersion.get(version), collector, mutableListOf())
 
     collector.showNotification()
 
