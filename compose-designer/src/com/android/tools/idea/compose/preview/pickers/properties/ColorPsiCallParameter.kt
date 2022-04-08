@@ -2,7 +2,7 @@ package com.android.tools.idea.compose.preview.pickers.properties
 
 import com.android.tools.adtui.actions.componentToRestoreFocusTo
 import com.android.tools.adtui.actions.locationFromEvent
-import com.android.tools.idea.compose.preview.message
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.pickers.properties.editingsupport.ColorValidation
 import com.android.tools.idea.res.colorToStringWithAlpha
 import com.android.tools.idea.res.parseColor
