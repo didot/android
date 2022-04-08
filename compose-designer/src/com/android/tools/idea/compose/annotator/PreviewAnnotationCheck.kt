@@ -28,10 +28,10 @@ import com.android.tools.idea.compose.annotator.check.common.Unknown
 import com.android.tools.idea.compose.annotator.check.device.DeviceSpecCheckState
 import com.android.tools.idea.compose.annotator.check.device.DeviceSpecCheckStateKey
 import com.android.tools.idea.compose.annotator.check.device.DeviceSpecRule
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.PARAMETER_DEVICE
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec
 import com.android.tools.idea.compose.preview.getContainingComposableUMethod
-import com.android.tools.idea.compose.preview.message
 import com.android.tools.idea.compose.preview.pickers.properties.AvailableDevicesKey
 import com.android.tools.idea.compose.preview.pickers.properties.utils.DEFAULT_DEVICE_ID
 import com.android.tools.idea.compose.preview.pickers.properties.utils.DEFAULT_DEVICE_ID_WITH_PREFIX

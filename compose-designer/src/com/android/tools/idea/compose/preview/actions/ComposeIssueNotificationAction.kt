@@ -18,15 +18,13 @@ package com.android.tools.idea.compose.preview.actions
 import com.android.flags.ifEnabled
 import com.android.tools.adtui.InformationPopup
 import com.android.tools.adtui.common.ColoredIconGenerator
-import com.android.tools.idea.actions.DESIGN_SURFACE
-import com.android.tools.idea.common.error.IssuePanelService
-import com.android.tools.idea.common.error.setIssuePanelVisibilityNoTracking
 import com.android.tools.idea.common.actions.ActionButtonWithToolTipDescription
+import com.android.tools.idea.common.error.IssuePanelService
 import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.compose.preview.COMPOSE_PREVIEW_MANAGER
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.ComposePreviewManager
 import com.android.tools.idea.compose.preview.findComposePreviewManagersForContext
-import com.android.tools.idea.compose.preview.message
 import com.android.tools.idea.editors.fast.FastPreviewManager
 import com.android.tools.idea.editors.fast.fastPreviewManager
 import com.android.tools.idea.editors.shortcuts.asString
@@ -35,7 +33,6 @@ import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.ProjectSystemBuildManager
 import com.android.tools.idea.projectsystem.ProjectSystemService
 import com.android.tools.idea.projectsystem.requestBuild
-import com.intellij.analysis.problemsView.toolWindow.ProblemsView
 import com.intellij.icons.AllIcons
 import com.intellij.ide.DataManager
 import com.intellij.notification.EventLog
@@ -55,7 +52,6 @@ import com.intellij.openapi.actionSystem.ex.CustomComponentAction
 import com.intellij.openapi.actionSystem.impl.ActionButtonWithText
 import com.intellij.openapi.actionSystem.impl.PresentationFactory
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiFile
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.registry.Registry
@@ -69,6 +65,7 @@ import com.intellij.ui.components.AnActionLink
 import com.intellij.util.Alarm
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
+import org.jetbrains.annotations.VisibleForTesting
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Insets
@@ -80,7 +77,6 @@ import javax.swing.JComponent
 import javax.swing.JToolTip
 import javax.swing.SwingConstants
 import javax.swing.border.Border
-import org.jetbrains.annotations.VisibleForTesting
 
 private val GREEN_REFRESH_BUTTON =
   ColoredIconGenerator.generateColoredIcon(
