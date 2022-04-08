@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.compose.preview.runconfiguration
 
-import com.android.tools.idea.compose.preview.message
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.util.isValidComposePreview
 import com.intellij.execution.lineMarker.ExecutorAction
 import com.intellij.execution.lineMarker.RunLineMarkerContributor

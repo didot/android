@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.compose.preview.actions
 
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.findComposePreviewManagersForContext
-import com.android.tools.idea.compose.preview.message
 import com.android.tools.idea.compose.preview.fast.FastPreviewSurface
 import com.android.tools.idea.editors.fast.ManualDisabledReason
 import com.android.tools.idea.editors.fast.fastPreviewManager

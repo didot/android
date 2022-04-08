@@ -17,7 +17,7 @@ package com.android.tools.idea.compose.preview.pickers.properties.editingsupport
 
 import com.android.tools.adtui.model.stdui.EDITOR_NO_ERROR
 import com.android.tools.adtui.model.stdui.EditingErrorCategory
-import com.android.tools.idea.compose.preview.message
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 
 /**
  * Validates that [editedValue] corresponds to a valid Float number.

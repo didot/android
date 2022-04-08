@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.compose.preview.runconfiguration
 
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.hasPreviewElements
-import com.android.tools.idea.compose.preview.message
 import com.android.tools.idea.gradle.project.build.invoker.TestCompileType
 import com.android.tools.idea.run.AndroidRunConfiguration
 import com.android.tools.idea.run.AndroidRunConfigurationBase

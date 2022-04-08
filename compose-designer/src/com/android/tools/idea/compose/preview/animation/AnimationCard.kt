@@ -17,8 +17,8 @@ package com.android.tools.idea.compose.preview.animation
 
 import com.android.tools.adtui.TabularLayout
 import com.android.tools.idea.common.surface.DesignSurface
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.animation.timeline.ElementState
-import com.android.tools.idea.compose.preview.message
 import com.google.wireless.android.sdk.stats.ComposeAnimationToolingEvent
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.ui.AnActionButton
