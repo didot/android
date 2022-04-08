@@ -28,6 +28,7 @@ import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.common.surface.DesignSurfaceScrollPane
 import com.android.tools.idea.common.surface.InteractionManager
 import com.android.tools.idea.common.surface.layout.MatchParentLayoutManager
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.editors.build.ProjectBuildStatusManager
 import com.android.tools.idea.editors.build.ProjectStatus
 import com.android.tools.idea.editors.notifications.NotificationPanel

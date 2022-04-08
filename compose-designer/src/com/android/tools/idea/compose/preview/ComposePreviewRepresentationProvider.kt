@@ -23,6 +23,7 @@ import com.android.tools.idea.common.actions.ActionButtonWithToolTipDescription
 import com.android.tools.idea.common.editor.ToolbarActionGroups
 import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.common.type.DesignerTypeRegistrar
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.actions.ComposeNotificationGroup
 import com.android.tools.idea.compose.preview.actions.GroupSwitchAction
 import com.android.tools.idea.compose.preview.actions.ShowDebugBoundaries

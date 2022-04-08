@@ -19,6 +19,7 @@ import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.model.NopSelectionModel
 import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.common.surface.InteractionHandler
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.actions.PreviewSurfaceActionManager
 import com.android.tools.idea.compose.preview.scene.COMPOSE_SCREEN_VIEW_PROVIDER
 import com.android.tools.idea.compose.preview.scene.ComposeSceneComponentProvider

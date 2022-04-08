@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.compose.preview
 
+import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.util.ComposePreviewElementInstance
 import com.intellij.openapi.Disposable
 import com.intellij.psi.PsiFile
