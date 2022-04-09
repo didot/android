@@ -18,6 +18,7 @@ package com.android.tools.idea.gradle.util;
 import static com.android.tools.idea.sdk.IdeSdks.MAC_JDK_CONTENT_PATH;
 import static com.android.tools.idea.ui.GuiTestingService.isInTestingMode;
 
+import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.util.StudioPathManager;
 import com.google.common.annotations.VisibleForTesting;
@@ -34,6 +35,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import org.jetbrains.android.download.AndroidProfilerDownloader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -99,12 +101,39 @@ public class EmbeddedDistributionPaths {
 
   @NotNull
   public File findEmbeddedProfilerTransform() {
+    final String path = "plugins/android/resources/profilers-transform.jar";
     if (StudioPathManager.isRunningFromSources()) {
       // Development build
       return StudioPathManager.resolvePathFromSourcesRoot("bazel-bin/tools/base/profiler/transform/profilers-transform.jar").toFile();
     } else {
-      return new File(PathManager.getHomePath(), "plugins/android/resources/profilers-transform.jar");
+      @Nullable File file = getOptionalIjPath(path);
+      if (file != null && file.exists()) {
+        return file;
+      }
+      return new File(PathManager.getHomePath(), path);
     }
+  }
+
+  public String findEmbeddedInstaller() {
+    final String path = "plugins/android/resources/installer";
+    if (StudioPathManager.isRunningFromSources()) {
+      // Development mode
+      assert IdeInfo.getInstance().isAndroidStudio(): "Bazel paths exist only in AndroidStudio development mode";
+      return StudioPathManager.resolvePathFromSourcesRoot("bazel-bin/tools/base/deploy/installer/android-installer").toAbsolutePath().toString();
+    } else {
+      File file = getOptionalIjPath(path);
+      if (file != null && file.exists()) {
+        return file.getAbsolutePath();
+      }
+    }
+    return new File(PathManager.getHomePath(), path).getAbsolutePath();
+  }
+
+  @Nullable
+  private File getOptionalIjPath(String path) {
+    // IJ does not bundle some large resources from android plugin, and downloads them on demand.
+    AndroidProfilerDownloader.getInstance().makeSureComponentIsInPlace();
+    return AndroidProfilerDownloader.getInstance().getHostDir(path);
   }
 
   /**
