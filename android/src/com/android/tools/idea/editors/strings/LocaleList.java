@@ -20,7 +20,6 @@ import com.android.tools.idea.rendering.FlagManager;
 import com.intellij.ui.ListSpeedSearch;
 import com.intellij.ui.SimpleListCellRenderer;
 import com.intellij.ui.components.JBList;
-import com.intellij.util.Function;
 import java.util.Collection;
 import org.jetbrains.annotations.NotNull;
 
@@ -35,6 +34,6 @@ final class LocaleList extends JBList<Locale> {
     setFixedCellHeight(20);
     setName("localeList");
 
-    new ListSpeedSearch(this, (Function<Object, String>)object -> Locale.getLocaleLabel((Locale)object, false));
+    new ListSpeedSearch<>(this, object -> Locale.getLocaleLabel(object, false));
   }
 }
