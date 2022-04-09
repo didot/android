@@ -28,6 +28,7 @@ import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.run.ApkInfo;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Computable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -52,8 +53,9 @@ public class DeployTask extends AbstractDeployTask {
                     @NotNull Collection<ApkInfo> packages,
                     String userInstallOptions,
                     boolean installOnAllUsers,
-                    boolean alwaysInstallWithPm) {
-    super(project, packages, false, alwaysInstallWithPm);
+                    boolean alwaysInstallWithPm,
+                    Computable<String> installPathProvider) {
+    super(project, packages, false, alwaysInstallWithPm, installPathProvider);
     if (userInstallOptions != null && !userInstallOptions.isEmpty()) {
       userInstallOptions = userInstallOptions.trim();
       this.userInstallOptions = userInstallOptions.split("\\s");
