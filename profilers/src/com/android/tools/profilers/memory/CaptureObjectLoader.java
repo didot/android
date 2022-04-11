@@ -62,7 +62,7 @@ public class CaptureObjectLoader {
       }
     }, MoreExecutors.directExecutor());
 
-    myExecutorService.submit(task);
+    myExecutorService.execute(task);
     return task;
   }
 

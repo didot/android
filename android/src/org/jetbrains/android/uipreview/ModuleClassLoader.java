@@ -419,7 +419,7 @@ public final class ModuleClassLoader extends DelegatingClassLoader implements Mo
   public void dispose() {
     isDisposed.set(true);
     myImpl.dispose();
-    ourDisposeService.submit(() -> {
+    ourDisposeService.execute(() -> {
       waitForCoroutineThreadToStop();
 
       Set<ThreadLocal<?>> threadLocals = TrackingThreadLocal.clearThreadLocals(this);
