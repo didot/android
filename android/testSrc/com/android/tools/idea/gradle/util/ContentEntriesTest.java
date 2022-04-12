@@ -23,7 +23,7 @@ import com.intellij.openapi.roots.ContentEntry;
 import com.intellij.openapi.roots.ModifiableRootModel;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.PlatformTestCase;
+import com.intellij.testFramework.HeavyPlatformTestCase;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,7 +34,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Tests for {@link ContentEntries}.
  */
-public class ContentEntriesTest extends PlatformTestCase {
+public class ContentEntriesTest extends HeavyPlatformTestCase {
   public void testFindContentEntryWithFileInContentEntry() {
     List<ContentEntry> contentEntries = new ArrayList<>();
     ContentEntry contentEntry = createContentEntry(getModule());
