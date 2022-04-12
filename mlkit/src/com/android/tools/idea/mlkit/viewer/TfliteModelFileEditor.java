@@ -38,7 +38,6 @@ import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.openapi.application.ApplicationNamesInfo;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorLocation;
 import com.intellij.openapi.fileEditor.FileEditorState;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.module.Module;
@@ -886,12 +885,6 @@ public class TfliteModelFileEditor extends UserDataHolderBase implements FileEdi
   @Nullable
   @Override
   public BackgroundEditorHighlighter getBackgroundHighlighter() {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public FileEditorLocation getCurrentLocation() {
     return null;
   }
 
