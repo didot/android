@@ -125,6 +125,9 @@ public class NlComponentTreeTest extends LayoutTestCase {
         componentStack = null;
       }
     }
+    catch (Throwable e) {
+      addSuppressedException(e);
+    }
     finally {
       super.tearDown();
     }
