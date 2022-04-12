@@ -217,6 +217,9 @@ public abstract class AndroidTestCase extends AndroidTestBase {
 
       getAndroidCodeStyleSettings().USE_CUSTOM_SETTINGS = myUseCustomSettings;
     }
+    catch (Throwable e) {
+      addSuppressedException(e);
+    }
     finally {
       try {
         myFixture.tearDown();

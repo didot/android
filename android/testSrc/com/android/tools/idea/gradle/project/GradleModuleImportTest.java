@@ -413,6 +413,9 @@ b/145809317 */
         });
       }
     }
+    catch (Throwable e) {
+      addSuppressedException(e);
+    }
     finally {
       super.tearDown();
     }
