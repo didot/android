@@ -213,6 +213,9 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
       try {
         assertEquals(0, ProjectManager.getInstance().getOpenProjects().length);
       }
+      catch (Throwable e) {
+        addSuppressedException(e);
+      }
       finally {
         //noinspection ThrowFromFinallyBlock
         // Added more logging because of http://b/184293946

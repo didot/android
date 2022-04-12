@@ -60,6 +60,9 @@ public class ComponentHelpActionTest extends AndroidTestCase {
       myAction = null;
       myTagName = null;
     }
+    catch (Throwable e) {
+      addSuppressedException(e);
+    }
     finally {
       super.tearDown();
     }
