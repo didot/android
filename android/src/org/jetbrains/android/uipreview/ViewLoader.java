@@ -48,7 +48,7 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.util.Ref;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -144,13 +144,13 @@ public class ViewLoader {
     // right namespace.
     if (CLASS_RECYCLER_VIEW_ADAPTER.newName().equals(className)) {
       className = RecyclerViewHelper.CN_ANDROIDX_CUSTOM_ADAPTER;
-      constructorSignature = ArrayUtil.EMPTY_CLASS_ARRAY;
-      constructorArgs = ArrayUtil.EMPTY_OBJECT_ARRAY;
+      constructorSignature = ArrayUtilRt.EMPTY_CLASS_ARRAY;
+      constructorArgs = ArrayUtilRt.EMPTY_OBJECT_ARRAY;
     }
     else if (CLASS_RECYCLER_VIEW_ADAPTER.oldName().equals(className)) {
       className = RecyclerViewHelper.CN_SUPPORT_CUSTOM_ADAPTER;
-      constructorSignature = ArrayUtil.EMPTY_CLASS_ARRAY;
-      constructorArgs = ArrayUtil.EMPTY_OBJECT_ARRAY;
+      constructorSignature = ArrayUtilRt.EMPTY_CLASS_ARRAY;
+      constructorArgs = ArrayUtilRt.EMPTY_OBJECT_ARRAY;
     }
     return loadClass(className, constructorSignature, constructorArgs, false);
   }
