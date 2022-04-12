@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -36,8 +37,8 @@ public class CombinerDataSource implements Function<OutputStream, Exception> {
   public CombinerDataSource(@NotNull InputStream inputA, @NotNull InputStream inputB) {
     ImmutableList<String> combined;
     try {
-      List<String> linesA = CharStreams.readLines(new InputStreamReader(inputA));
-      List<String> linesB = CharStreams.readLines(new InputStreamReader(inputB));
+      List<String> linesA = CharStreams.readLines(new InputStreamReader(inputA, StandardCharsets.UTF_8));
+      List<String> linesB = CharStreams.readLines(new InputStreamReader(inputB, StandardCharsets.UTF_8));
 
       Collections.shuffle(linesA);
       Collections.shuffle(linesB);
@@ -72,7 +73,7 @@ public class CombinerDataSource implements Function<OutputStream, Exception> {
   @Override
   public Exception apply(OutputStream stream) {
     //noinspection IOResourceOpenedButNotSafelyClosed (Closed by the caller)
-    PrintStream printStream = new PrintStream(stream);
+    PrintStream printStream = new PrintStream(stream, false, StandardCharsets.UTF_8);
     myCombined.forEach(printStream::println);
 
     return null;
