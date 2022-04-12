@@ -29,7 +29,6 @@ import com.intellij.ide.structureView.StructureViewBuilder;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorLocation;
 import com.intellij.openapi.fileEditor.FileEditorState;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.UserDataHolderBase;
@@ -258,12 +257,6 @@ public class ManifestEditor extends UserDataHolderBase implements FileEditor {
   @Nullable
   @Override
   public BackgroundEditorHighlighter getBackgroundHighlighter() {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public FileEditorLocation getCurrentLocation() {
     return null;
   }
 

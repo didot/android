@@ -18,7 +18,6 @@ package com.android.tools.idea.editors.strings;
 import com.intellij.codeHighlighting.BackgroundEditorHighlighter;
 import com.intellij.ide.structureView.StructureViewBuilder;
 import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorLocation;
 import com.intellij.openapi.fileEditor.FileEditorState;
 import com.intellij.openapi.fileEditor.FileEditorStateLevel;
 import com.intellij.openapi.util.UserDataHolderBase;
@@ -121,12 +120,6 @@ public class StringResourceEditor extends UserDataHolderBase implements FileEdit
   @Nullable
   @Override
   public BackgroundEditorHighlighter getBackgroundHighlighter() {
-    return null;
-  }
-
-  @Nullable
-  @Override
-  public FileEditorLocation getCurrentLocation() {
     return null;
   }
 
