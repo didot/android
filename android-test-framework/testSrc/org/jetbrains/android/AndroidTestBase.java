@@ -131,13 +131,18 @@ public abstract class AndroidTestBase extends UsefulTestCase {
       return DisposerExplorer.VisitResult.CONTINUE;
     });
     if (!firstLeak.isNull()) {
-      Disposable disposable = firstLeak.get();
-      Disposable parent = DisposerExplorer.getParent(disposable);
-      String baseMsg = "Undisposed object '" + disposable + "' of type '" + disposable.getClass().getName() + "'";
-      if (parent == null) {
+        Disposable root = firstLeak.get();
+        StringBuilder disposerChain = new StringBuilder(root.toString());
+        Disposable parent;
+        while ((parent = DisposerExplorer.getParent(root)) != null) {
+          root = parent;
+          disposerChain.append(" <- ").append(root);
+        }
+      String baseMsg = "Undisposed object of type " + root.getClass().getName() + ": " + disposerChain.append(" (root)") + "'";
+      if (DisposerExplorer.getParent(firstLeak.get()) == null) {
         throw new RuntimeException(
           baseMsg + ", registered as a root disposable (see cause for creation trace)",
-          DisposerExplorer.getTrace(disposable));
+          DisposerExplorer.getTrace(firstLeak.get()));
       } else {
         throw new RuntimeException(baseMsg + ", with parent '" + parent + "' of type '" + parent.getClass().getName() + "'");
       }
