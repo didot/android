@@ -17,13 +17,11 @@ package com.android.tools.idea.assistant;
 
 import com.android.tools.idea.assistant.datamodel.ActionData;
 import com.android.tools.idea.assistant.view.StatefulButtonMessage;
-import com.google.common.collect.Lists;
+import com.intellij.facet.ProjectFacetManager;
 import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -72,9 +70,6 @@ public abstract class AssistActionStateManager {
   }
 
   public static List<Module> getAndroidModules(@NotNull Project project) {
-    return Lists.newArrayList(ModuleManager.getInstance(project).getModules())
-      .stream()
-      .filter(module -> AndroidFacet.getInstance(module) != null)
-      .collect(Collectors.toList());
+    return ProjectFacetManager.getInstance(project).getModulesWithFacet(AndroidFacet.ID);
   }
 }
