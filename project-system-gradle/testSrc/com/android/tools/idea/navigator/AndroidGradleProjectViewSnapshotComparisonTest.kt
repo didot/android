@@ -18,6 +18,7 @@
 package com.android.tools.idea.navigator
 
 import com.android.testutils.TestUtils
+import com.android.tools.idea.IdeInfo
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
 import com.android.tools.idea.gradle.project.sync.snapshots.SnapshotContext
 import com.android.tools.idea.gradle.project.sync.snapshots.SyncedProjectTest
@@ -166,6 +167,10 @@ class AndroidGradleProjectViewSnapshotComparisonTest : AndroidGradleTestCase(), 
   }
 
   fun testMissingImlIsIgnored() {
+    if (!IdeInfo.getInstance().isAndroidStudio) {
+      // No IML files => no linked gradle projects => gradle import should not be invoked. The test should hang in IDEA (and it does)
+      return
+    }
     addJdk8ToTableButUseCurrent()
     try {
       prepareGradleProject(TestProjectToSnapshotPaths.SIMPLE_APPLICATION_CORRUPTED_MISSING_IML_40, "testMissingImlIsIgnored_Test")
