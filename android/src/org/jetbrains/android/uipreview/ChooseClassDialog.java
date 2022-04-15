@@ -71,7 +71,7 @@ public class ChooseClassDialog extends DialogWrapper implements ListSelectionLis
 
     new DoubleClickListener() {
       @Override
-      protected boolean onDoubleClick(MouseEvent e) {
+      protected boolean onDoubleClick(@NotNull MouseEvent e) {
         if (myList.getSelectedValue() != null) {
           close(OK_EXIT_CODE);
           return true;
