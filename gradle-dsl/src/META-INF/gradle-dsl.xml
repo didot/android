@@ -18,8 +18,6 @@
   </extensions>
 
   <extensions defaultExtensionNs="com.android.tools.idea.gradle.dsl">
-    <transformerFactory implementation="com.android.tools.idea.gradle.dsl.parser.groovy.GroovyDslTransformerFactory"/>
-    <transformerFactory implementation="com.android.tools.idea.gradle.dsl.parser.kotlin.KotlinDslTransformerFactory"/>
     <transformerFactory implementation="com.android.tools.idea.gradle.dsl.parser.toml.TomlDslTransformerFactory"/>
   </extensions>
 
