@@ -45,7 +45,7 @@ public final class AndroidPlugin {
     UsageTracker.setIdeBrand(AndroidStudioEvent.IdeBrand.INTELLIJ);
   }
 
-  private static void setUpActionsUnderFlag(ActionManager actionManager) {
+  private static void setUpActionsUnderFlag(@NotNull ActionManager actionManager) {
     // TODO: Once the StudioFlag is removed, the configuration type registration should move to the
     // android-plugin.xml file.
     if (StudioFlags.RUNDEBUG_ANDROID_BUILD_BUNDLE_ENABLED.get()) {

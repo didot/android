@@ -15,6 +15,7 @@ import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.popup.Balloon;
+import com.intellij.openapi.util.NlsContexts;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.wm.WindowManager;
@@ -496,7 +497,7 @@ public class ColorPicker extends JPanel implements ColorListener, DocumentListen
 
   @Nullable
   public static Color showDialog(Component parent,
-                                 String caption,
+                                 @NlsContexts.DialogTitle String caption,
                                  @Nullable Color preselectedColor,
                                  boolean enableOpacity,
                                  @Nullable ColorPickerListener[] listeners,
@@ -1081,7 +1082,7 @@ public class ColorPicker extends JPanel implements ColorListener, DocumentListen
     private final boolean myOpacityInPercent;
 
     public ColorPickerDialog(Component parent,
-                             String caption,
+                             @NlsContexts.DialogTitle String caption,
                              @Nullable Color preselectedColor,
                              boolean enableOpacity,
                              @Nullable ColorPickerListener[] listeners,
