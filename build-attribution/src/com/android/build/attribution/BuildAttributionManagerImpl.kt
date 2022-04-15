@@ -45,7 +45,7 @@ import java.io.File
 import java.util.UUID
 
 class BuildAttributionManagerImpl(
-  val project: Project
+  private val project: Project
 ) : BuildAttributionManager {
   private val log: Logger get() = Logger.getInstance("Build Analyzer")
   private val taskContainer = TaskContainer()
