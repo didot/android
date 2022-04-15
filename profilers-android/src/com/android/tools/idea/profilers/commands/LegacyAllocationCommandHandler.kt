@@ -30,10 +30,10 @@ import java.util.function.BiFunction
 import java.util.function.Consumer
 
 class LegacyAllocationCommandHandler(val device: IDevice,
-                                     val eventQueue: BlockingDeque<Common.Event>,
-                                     val byteCache: MutableMap<String, ByteString>,
-                                     val fetchExecutor: Executor,
-                                     val legacyTrackerSupplier: BiFunction<IDevice, Int, LegacyAllocationTracker>)
+                                     private val eventQueue: BlockingDeque<Common.Event>,
+                                     private val byteCache: MutableMap<String, ByteString>,
+                                     private val fetchExecutor: Executor,
+                                     private val legacyTrackerSupplier: BiFunction<IDevice, Int, LegacyAllocationTracker>)
   : TransportProxy.ProxyCommandHandler {
 
   // Per-process cache of LegacyAllocationTracker and AllocationsInfo (keyed by pid)
@@ -52,7 +52,7 @@ class LegacyAllocationCommandHandler(val device: IDevice,
 
   private fun enableAllocations(command: Commands.Command) {
     val requestTime = command.startAllocTracking.requestTime
-    var statusBuilder = Memory.TrackStatus.newBuilder()
+    val statusBuilder = Memory.TrackStatus.newBuilder()
     if (myInProgressTrackingInfo.containsKey(command.pid)) {
       statusBuilder.setStatus(Memory.TrackStatus.Status.IN_PROGRESS)
     }
@@ -104,7 +104,7 @@ class LegacyAllocationCommandHandler(val device: IDevice,
 
   private fun disableAllocations(command: Commands.Command) {
     val requestTime = command.stopAllocTracking.requestTime
-    var statusBuilder = Memory.TrackStatus.newBuilder()
+    val statusBuilder = Memory.TrackStatus.newBuilder()
     if (!myInProgressTrackingInfo.containsKey(command.pid)) {
       statusBuilder.setStatus(Memory.TrackStatus.Status.NOT_ENABLED)
     }

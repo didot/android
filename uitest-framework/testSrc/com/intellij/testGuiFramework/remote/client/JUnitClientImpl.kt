@@ -36,8 +36,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-class JUnitClientImpl(val host: String, val port: Int, initHandlers: Array<ClientHandler>? = null) : JUnitClient {
-
+class JUnitClientImpl(host: String, port: Int, initHandlers: Array<ClientHandler>? = null) : JUnitClient {
   private val LOG = Logger.getInstance(JUnitClientImpl::class.java)
   private val RECEIVE_THREAD = "JUnit Client Receive Thread"
   private val SEND_THREAD = "JUnit Client Send Thread"
@@ -97,7 +96,7 @@ class JUnitClientImpl(val host: String, val port: Int, initHandlers: Array<Clien
     keepAliveThread.cancel()
   }
 
-  inner class ClientReceiveThread(val connection: Socket, val objectInputStream: ObjectInputStream) : Thread(RECEIVE_THREAD) {
+  inner class ClientReceiveThread(private val connection: Socket, private val objectInputStream: ObjectInputStream) : Thread(RECEIVE_THREAD) {
     override fun run() {
       try{
         while (!connection.isClosed) {
@@ -120,7 +119,7 @@ class JUnitClientImpl(val host: String, val port: Int, initHandlers: Array<Clien
     override fun write(b: Int) {}
   }
 
-  inner class ClientSendThread(val connection: Socket, val objectOutputStream: ObjectOutputStream) : Thread(SEND_THREAD) {
+  inner class ClientSendThread(private val connection: Socket, private val objectOutputStream: ObjectOutputStream) : Thread(SEND_THREAD) {
     override fun run() {
       try {
         while (!connection.isClosed) {
@@ -172,7 +171,7 @@ class JUnitClientImpl(val host: String, val port: Int, initHandlers: Array<Clien
     }
   }
 
-  inner class KeepAliveThread(val connection: Socket, private val objectOutputStream: ObjectOutputStream) : Thread(KEEP_ALIVE_THREAD) {
+  inner class KeepAliveThread(private val connection: Socket, private val objectOutputStream: ObjectOutputStream) : Thread(KEEP_ALIVE_THREAD) {
     private val myExecutor = Executors.newSingleThreadScheduledExecutor()
     private var hasCancelled = false
     override fun run() {

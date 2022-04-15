@@ -45,7 +45,7 @@ final public class ProcessHandlerLaunchStatus implements LaunchStatus {
    */
   private boolean myTerminated;
 
-  private List<BooleanSupplier> launchTerminationConditions = ContainerUtil.createLockFreeCopyOnWriteList();
+  private final List<BooleanSupplier> launchTerminationConditions = ContainerUtil.createLockFreeCopyOnWriteList();
 
   /**
    * Constructs with a given process handler.

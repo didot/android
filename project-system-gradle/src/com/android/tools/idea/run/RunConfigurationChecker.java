@@ -36,7 +36,7 @@ import org.jetbrains.annotations.NotNull;
 @Service
 public final class RunConfigurationChecker  {
   @NotNull private final Project myProject;
-  @NotNull private AtomicBoolean myCheckPerformed = new AtomicBoolean();
+  @NotNull private final AtomicBoolean myCheckPerformed = new AtomicBoolean();
 
   @SuppressWarnings("unused") // Instantiated by IDEA
   public RunConfigurationChecker(@NotNull Project project) {
