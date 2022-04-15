@@ -45,7 +45,7 @@ import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
 
-const val RESOURCE_EXPLORER_TOOL_WINDOW_ID = "Resources Explorer"
+internal const val RESOURCE_EXPLORER_TOOL_WINDOW_ID = "Resources Explorer"
 
 private const val STRIPE_TITLE = "Resource Manager"
 

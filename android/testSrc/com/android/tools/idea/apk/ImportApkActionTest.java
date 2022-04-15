@@ -126,7 +126,7 @@ public class ImportApkActionTest extends HeavyPlatformTestCase {
     }
   }
 
-  private static class RecentProjectsManagerStub extends RecentProjectsManager {
+  private static final class RecentProjectsManagerStub extends RecentProjectsManager {
     @NotNull private String myLastProjectLocation;
 
     RecentProjectsManagerStub(@NotNull String lastProjectLocation) {
