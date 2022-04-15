@@ -493,13 +493,13 @@ public abstract class AndroidTestCase extends AndroidTestBase {
   }
 
   protected final static class MyAdditionalModuleData {
-    final AndroidModuleFixtureBuilder myModuleFixtureBuilder;
+    final AndroidModuleFixtureBuilder<?> myModuleFixtureBuilder;
     final String myDirName;
     final int myProjectType;
     final boolean myIsMainModuleDependency;
 
     private MyAdditionalModuleData(
-      @NotNull AndroidModuleFixtureBuilder moduleFixtureBuilder, @NotNull String dirName, int projectType, boolean isMainModuleDependency) {
+      @NotNull AndroidModuleFixtureBuilder<?> moduleFixtureBuilder, @NotNull String dirName, int projectType, boolean isMainModuleDependency) {
       myModuleFixtureBuilder = moduleFixtureBuilder;
       myDirName = dirName;
       myProjectType = projectType;
@@ -558,7 +558,7 @@ public abstract class AndroidTestCase extends AndroidTestBase {
     }
   }
 
-  public static void removeFacetOn(@NotNull Disposable disposable, @NotNull Facet facet) {
+  public static void removeFacetOn(@NotNull Disposable disposable, @NotNull Facet<?> facet) {
     Disposer.register(disposable, () -> WriteAction.run(() -> {
       Module module = facet.getModule();
       if (!module.isDisposed()) {

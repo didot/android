@@ -134,7 +134,7 @@ public class AndroidXmlCodeStylePanel extends CodeStyleAbstractPanel {
   public abstract static class MyFileSpecificPanel<T extends AndroidXmlCodeStyleSettings.MySettings> extends JPanel {
     private JPanel myPanel;
     private JPanel myAdditionalOptionsPanel;
-    private JComboBox myWrapAttributesCombo;
+    private JComboBox<CodeStyleSettings.WrapStyle> myWrapAttributesCombo;
 
     protected JBCheckBox myInsertLineBreakBeforeFirstAttributeCheckBox;
     protected JBCheckBox myInsertLineBreakBeforeNamespaceDeclarationCheckBox;

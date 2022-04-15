@@ -672,7 +672,7 @@ public class AndroidGradleTests {
 
   public static void prepareProjectForImportCore(@NotNull File srcRoot,
                                                  @NotNull File projectRoot,
-                                                 @NotNull ThrowableConsumer<File, IOException> patcher)
+                                                 @NotNull ThrowableConsumer<? super File, ? extends IOException> patcher)
     throws IOException {
     TestCase.assertTrue(srcRoot.getPath(), srcRoot.exists());
 

@@ -245,7 +245,7 @@ public class AndroidFacetEditorTab extends FacetEditorTab {
       }
     });
 
-    myUpdateProjectPropertiesCombo.setModel(new DefaultComboBoxModel(new Object[]{"", Boolean.TRUE.toString(), Boolean.FALSE.toString()}));
+    myUpdateProjectPropertiesCombo.setModel(new DefaultComboBoxModel<>(new String[]{"", Boolean.TRUE.toString(), Boolean.FALSE.toString()}));
     myUpdateProjectPropertiesCombo.setRenderer(SimpleListCellRenderer.create(
       "No", value -> value.isEmpty() ? "Ask" : Boolean.parseBoolean(value) ? "Yes" : "No"));
     buildImportedOptionsList();
