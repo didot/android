@@ -32,7 +32,6 @@ import com.android.tools.idea.res.FloatResources
 import com.android.tools.idea.res.resolve
 import com.android.tools.idea.uibuilder.model.createChild
 import com.google.common.annotations.VisibleForTesting
-import com.google.common.collect.Lists
 import com.google.wireless.android.sdk.stats.NavEditorEvent
 import com.intellij.ide.util.TreeClassChooserFactory
 import com.intellij.openapi.application.ApplicationManager
@@ -272,7 +271,7 @@ open class AddArgumentDialog(private val existingComponent: NlComponent?, privat
     when {
       selectedType == Type.BOOLEAN && !isArray -> {
         (dialogUI.myDefaultValuePanel.layout as CardLayout).show(dialogUI.myDefaultValuePanel, "comboDefaultValue")
-        defaultValueComboModel.update(Lists.newArrayList<String?>(null, "true", "false"))
+        defaultValueComboModel.update(listOf(null, "true", "false"))
       }
       selectedType == Type.CUSTOM_ENUM && !isArray -> {
         (dialogUI.myDefaultValuePanel.layout as CardLayout).show(dialogUI.myDefaultValuePanel, "comboDefaultValue")
