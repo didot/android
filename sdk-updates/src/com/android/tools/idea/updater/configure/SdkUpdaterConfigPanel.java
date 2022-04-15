@@ -93,7 +93,6 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -586,8 +585,7 @@ public class SdkUpdaterConfigPanel implements Disposable {
           return;
         }
 
-        boolean traversalBackward = "TRAVERSAL_BACKWARD".equals(getCause(e));
-        if (traversalBackward) {
+        if (e.getCause() == FocusEvent.Cause.TRAVERSAL_BACKWARD) {
           backwardAction.doAction(table);
         }
         else {
@@ -595,23 +593,6 @@ public class SdkUpdaterConfigPanel implements Disposable {
         }
       }
     });
-  }
-
-  @Nullable
-  private static String getCause(@NotNull FocusEvent event) {
-    try {
-      // TODO: replace this with event.getCause() when JDK8 is no longer supported
-      Method getCause = event.getClass().getDeclaredMethod("getCause");
-      Object enumValue = getCause.invoke(event);
-      if (enumValue == null) {
-        return null;
-      }
-      return enumValue.toString();
-    }
-    catch (ReflectiveOperationException ex) {
-      Logger.getInstance(SdkUpdaterConfigPanel.class).warn(ex);
-      return null;
-    }
   }
 
   /**
