@@ -200,9 +200,7 @@
     </group>
     <group id="Internal.Android.Gradle" internal="true">
       <action id="Android.FixAndroidRunConfigurations"
-              class="com.android.tools.idea.projectsystem.gradle.actions.FixAndroidRunConfigurationsAction"
-              text="Fix Android Run Configurations"
-              description="Add &quot;Gradle-aware Make&quot; launch task to Android Run Configuration(s) if it is missing">
+              class="com.android.tools.idea.projectsystem.gradle.actions.FixAndroidRunConfigurationsAction">
       </action>
       <add-to-group group-id="Internal.Android" anchor="last"/>
     </group>
