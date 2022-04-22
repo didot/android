@@ -25,7 +25,7 @@ import com.intellij.openapi.util.SimpleModificationTracker
  * A project-wide modification tracker whose modification count is a value incremented by any modifications of
  * corresponding navigation resource files.
  */
-class ProjectNavigationResourceModificationTracker(val project: Project) : ModificationTracker {
+class ProjectNavigationResourceModificationTracker(project: Project) : ModificationTracker {
   private val navigationModificationTracker = SimpleModificationTracker()
 
   init {
