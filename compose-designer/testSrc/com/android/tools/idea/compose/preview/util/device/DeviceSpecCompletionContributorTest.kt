@@ -99,13 +99,12 @@ internal class DeviceSpecCompletionContributorTest {
   fun prefixCompletion() {
     // Blank, should provide all possible options
     fixture.completeDeviceSpec("$caret")
-    assertEquals(6, fixture.lookupElementStrings!!.size)
+    assertEquals(5, fixture.lookupElementStrings!!.size)
     assertEquals("id:pixel_5", fixture.lookupElementStrings!![0])
-    assertEquals("spec:", fixture.lookupElementStrings!![1]) // Driven by Live Template
-    assertEquals("spec:width=360dp,height=640dp", fixture.lookupElementStrings!![2])
-    assertEquals("spec:width=673dp,height=841dp", fixture.lookupElementStrings!![3])
-    assertEquals("spec:width=1280dp,height=800dp", fixture.lookupElementStrings!![4])
-    assertEquals("spec:width=1920dp,height=1080dp", fixture.lookupElementStrings!![5])
+    assertEquals("spec:width=360dp,height=640dp", fixture.lookupElementStrings!![1])
+    assertEquals("spec:width=673dp,height=841dp", fixture.lookupElementStrings!![2])
+    assertEquals("spec:width=1280dp,height=800dp", fixture.lookupElementStrings!![3])
+    assertEquals("spec:width=1920dp,height=1080dp", fixture.lookupElementStrings!![4])
 
     // 'pix' should only match the default device (pixel_5)
     fixture.completeDeviceSpec("pix$caret")
@@ -123,45 +122,16 @@ internal class DeviceSpecCompletionContributorTest {
 
     // completion for 'spec' prefix
     fixture.completeDeviceSpec("spe$caret")
-    assertEquals(5, fixture.lookupElementStrings!!.size)
-    assertEquals("spec:", fixture.lookupElementStrings!![0]) // Driven by Live Template
-    assertEquals("spec:width=360dp,height=640dp", fixture.lookupElementStrings!![1])
-    assertEquals("spec:width=673dp,height=841dp", fixture.lookupElementStrings!![2])
-    assertEquals("spec:width=1280dp,height=800dp", fixture.lookupElementStrings!![3])
-    assertEquals("spec:width=1920dp,height=1080dp", fixture.lookupElementStrings!![4])
-  }
-
-  @Test
-  fun parameterCompletion() {
-    fixture.completeDeviceSpec("spec:$caret")
-    assertEquals(5, fixture.lookupElementStrings!!.size)
-    assertEquals("chinSize", fixture.lookupElementStrings!![0])
-    assertEquals("dpi", fixture.lookupElementStrings!![1])
-    assertEquals("height", fixture.lookupElementStrings!![2])
-    assertEquals("isRound", fixture.lookupElementStrings!![3])
-    assertEquals("width", fixture.lookupElementStrings!![4])
-
-    fixture.completeDeviceSpec("spec:width=1080px,$caret")
     assertEquals(4, fixture.lookupElementStrings!!.size)
-    assertEquals("chinSize", fixture.lookupElementStrings!![0])
-    assertEquals("dpi", fixture.lookupElementStrings!![1])
-    assertEquals("height", fixture.lookupElementStrings!![2])
-    assertEquals("isRound", fixture.lookupElementStrings!![3])
+    assertEquals("spec:width=360dp,height=640dp", fixture.lookupElementStrings!![0])
+    assertEquals("spec:width=673dp,height=841dp", fixture.lookupElementStrings!![1])
+    assertEquals("spec:width=1280dp,height=800dp", fixture.lookupElementStrings!![2])
+    assertEquals("spec:width=1920dp,height=1080dp", fixture.lookupElementStrings!![3])
 
-    fixture.completeDeviceSpec("spec:width=1080px,heigh$caret")
-    fixture.checkResult("spec:width=1080px,height=1920px")
-
-    fixture.completeDeviceSpec("spec:width=1080dp,heigh$caret")
-    fixture.checkResult("spec:width=1080dp,height=1920dp")
-
-    fixture.completeDeviceSpec("spec:width=1080dp,isRoun$caret")
-    fixture.checkResult("spec:width=1080dp,isRound=false")
-
-    fixture.completeDeviceSpec("spec:width=1080dp,chinSiz$caret")
-    fixture.checkResult("spec:width=1080dp,chinSize=0dp")
-
-    // No parameters starting with 'spe'
+    // no completion when within a parameter
     fixture.completeDeviceSpec("spec:width=300dp,spe$caret")
+    assertEquals(0, fixture.lookupElementStrings!!.size)
+    fixture.completeDeviceSpec("spec:width=300dp,height$caret")
     assertEquals(0, fixture.lookupElementStrings!!.size)
   }
 }

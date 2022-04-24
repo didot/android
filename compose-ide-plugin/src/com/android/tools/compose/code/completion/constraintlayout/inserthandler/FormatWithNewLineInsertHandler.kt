@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.compose.completion.inserthandler
+package com.android.tools.compose.code.completion.constraintlayout.inserthandler
 
+import com.android.tools.compose.code.completion.constraintlayout.InsertionFormat
 import com.intellij.codeInsight.completion.InsertHandler
 import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.lookup.LookupElement
@@ -31,7 +32,7 @@ import com.intellij.psi.PsiDocumentManager
  *
  * Applies the new line with [IdeActions.ACTION_EDITOR_ENTER] and moves the caret at the end of the new line.
  */
-class FormatWithNewLineInsertHandler(private val format: InsertionFormat) : InsertHandler<LookupElement> {
+internal class FormatWithNewLineInsertHandler(private val format: InsertionFormat) : InsertHandler<LookupElement> {
   override fun handleInsert(context: InsertionContext, item: LookupElement) {
     val literal = format.insertableString
     with(context) {

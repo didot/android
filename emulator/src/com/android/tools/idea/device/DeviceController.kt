@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.device
 
-import com.android.annotations.concurrency.AnyThread
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.utils.Base128InputStream
 import com.android.utils.Base128OutputStream
@@ -97,7 +96,6 @@ class DeviceController(
   }
 
   interface DeviceClipboardListener {
-    @AnyThread
     fun onDeviceClipboardChanged(text: String)
   }
 }

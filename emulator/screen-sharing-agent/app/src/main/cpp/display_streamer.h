@@ -22,7 +22,6 @@
 #include <atomic>
 #include <mutex>
 
-#include "accessors/display_manager.h"
 #include "accessors/window_manager.h"
 #include "common.h"
 #include "geom.h"
@@ -42,12 +41,7 @@ public:
   // the app-level orientation according to the previously set display orientation.
   void SetVideoOrientation(int32_t orientation);
 
-  // Sets the maximum resolution of the display video stream.
-  void SetMaxVideoResolution(Size max_video_resolution);
-
-  // Returns the cached version of DisplayInfo.
-  DisplayInfo GetDisplayInfo();
-
+  void SetVideoResolution(Size max_video_resolution);
   void Shutdown();
 
 private:
@@ -69,13 +63,12 @@ private:
 
   DisplayRotationWatcher display_rotation_watcher_;
   int display_id_;
+  Size max_video_resolution_;
   int socket_fd_;
   int64_t presentation_timestamp_offset_;
   std::atomic<bool> stopped_;
 
   std::mutex mutex_;
-  DisplayInfo display_info_;  // GUARDED_BY(mutex_)
-  Size max_video_resolution_;  // GUARDED_BY(mutex_)
   int32_t video_orientation_;   // GUARDED_BY(mutex_)
   AMediaCodec* running_codec_;  // GUARDED_BY(mutex_)
 

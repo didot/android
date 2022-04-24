@@ -15,20 +15,21 @@
  */
 package com.android.tools.idea.npw;
 
-import static com.android.tools.idea.gradle.npw.project.GradleAndroidModuleTemplate.createDefaultTemplateAt;
-import static org.junit.Assert.assertEquals;
-
 import com.android.tools.idea.projectsystem.AndroidModulePaths;
 import com.android.tools.idea.projectsystem.NamedModuleTemplate;
 import com.google.common.collect.ImmutableList;
-import java.io.File;
 import org.junit.Test;
+
+import java.io.File;
+
+import static com.android.tools.idea.gradle.npw.project.GradleAndroidModuleTemplate.createDefaultTemplateAt;
+import static org.junit.Assert.assertEquals;
 
 public final class GradleModuleTemplateTest {
 
   @Test
   public void testDefaultSourceSetAtCurrentDir() {
-    NamedModuleTemplate moduleTemplate = createDefaultTemplateAt(new File("."));
+    NamedModuleTemplate moduleTemplate = createDefaultTemplateAt(".", "");
     AndroidModulePaths paths = moduleTemplate.getPaths();
 
     assertEquals("main", moduleTemplate.getName());
@@ -45,7 +46,7 @@ public final class GradleModuleTemplateTest {
     // AndroidModuleTemplate are not expected to do validation of its file path, so no exception is expected
     // (This is not a requirement, but helps the UI to bind with a field that can temporarily hold an invalid value)
     for (String str : new String[] {":", "<", ">", "?", "\0"}) {
-      assertEquals(createDefaultTemplateAt(new File(str)).getPaths().getModuleRoot(), new File(str));
+      assertEquals(createDefaultTemplateAt(str, "").getPaths().getModuleRoot(), new File(str));
     }
   }
 }

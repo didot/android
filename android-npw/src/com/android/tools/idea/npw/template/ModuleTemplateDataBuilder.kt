@@ -81,8 +81,6 @@ class ModuleTemplateDataBuilder(
   var apis: ApiTemplateData? = null
   var category: Category? = null
   var isMaterial3: Boolean = false
-  var useGenericLocalTests: Boolean = true
-  var useGenericInstrumentedTests: Boolean = true
 
   /**
    * Adds common module roots template values like [rootDir], [srcDir], etc
@@ -232,9 +230,7 @@ class ModuleTemplateDataBuilder(
     apis!!,
     viewBindingSupport = viewBindingSupport,
     category!!,
-    isMaterial3,
-    useGenericLocalTests = useGenericLocalTests,
-    useGenericInstrumentedTests = useGenericInstrumentedTests
+    isMaterial3
   )
 }
 
@@ -251,7 +247,7 @@ fun getExistingModuleTemplateDataBuilder(module: Module): ModuleTemplateDataBuil
   return ModuleTemplateDataBuilder(projectStateBuilder, true, project.isViewBindingSupported()).apply {
     name = "Fake module state"
     packageName = ""
-    val paths = GradleAndroidModuleTemplate.createDefaultModuleTemplate(project, name!!).paths
+    val paths = GradleAndroidModuleTemplate.createDefaultTemplateAt(project.basePath!!, name!!).paths
     setModuleRoots(paths, projectTemplateDataBuilder.topOut!!.path, name!!, packageName!!)
     isLibrary = false
     formFactor = FormFactor.Mobile

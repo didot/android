@@ -80,7 +80,7 @@ public class AndroidLibraryTest extends AndroidGradleTestCase {
     requestSyncAndWait();
 
     // Create a Wizard and add an Activity to the lib module
-    NamedModuleTemplate template = GradleAndroidModuleTemplate.createDefaultModuleTemplate(project, "");
+    NamedModuleTemplate template = GradleAndroidModuleTemplate.createDefaultTemplateAt(project.getProjectFilePath(), "");
     RenderTemplateModel render = RenderTemplateModel.fromFacet(
       libAndroidFacet, "com.example", template, "command", new ProjectSyncInvoker.DefaultProjectSyncInvoker(), true,
       NEW_MODULE

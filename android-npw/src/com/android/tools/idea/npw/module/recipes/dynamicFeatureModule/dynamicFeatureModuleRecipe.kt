@@ -21,10 +21,9 @@ import com.android.SdkConstants.FN_BUILD_GRADLE
 import com.android.tools.idea.npw.dynamicapp.DeviceFeatureModel
 import com.android.tools.idea.npw.dynamicapp.DownloadInstallKind
 import com.android.tools.idea.npw.model.NewProjectModel
-import com.android.tools.idea.npw.module.recipes.addInstrumentedTests
 import com.android.tools.idea.npw.module.recipes.addKotlinIfNeeded
 import com.android.tools.idea.npw.module.recipes.addTestDependencies
-import com.android.tools.idea.npw.module.recipes.addLocalTests
+import com.android.tools.idea.npw.module.recipes.addTests
 import com.android.tools.idea.npw.module.recipes.androidModule.buildGradle
 import com.android.tools.idea.npw.module.recipes.createDefaultDirectories
 import com.android.tools.idea.npw.module.recipes.dynamicFeatureModule.res.values.stringsXml
@@ -41,7 +40,7 @@ fun RecipeExecutor.generateDynamicFeatureModule(
   deviceFeatures: Collection<DeviceFeatureModel>,
   useGradleKts: Boolean
 ) {
-  val (projectData, srcOut, _, manifestOut, instrumentedTestOut, localTestOut, _, moduleOut) = moduleData
+  val (projectData, srcOut, _, manifestOut, testOut, unitTestOut, _, moduleOut) = moduleData
   val apis = moduleData.apis
   val (buildApi, targetApi,  minApi, appCompatVersion) = apis
   val useAndroidX = moduleData.projectTemplateData.androidXSupport
@@ -80,8 +79,7 @@ fun RecipeExecutor.generateDynamicFeatureModule(
 
   save(manifestXml, manifestOut.resolve(FN_ANDROID_MANIFEST_XML))
   save(gitignore(), moduleOut.resolve(".gitignore"))
-  addLocalTests(packageName, localTestOut, language)
-  addInstrumentedTests(packageName, useAndroidX, false, instrumentedTestOut, language)
+  addTests(packageName, useAndroidX, false, testOut, unitTestOut, language)
   addTestDependencies()
   addDependency("com.android.support:support-annotations:${appCompatVersion}.+", "androidTestCompile")
 

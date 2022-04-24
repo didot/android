@@ -17,7 +17,6 @@ package com.android.tools.idea.gradle.project.sync.errors
 
 import com.android.SdkConstants.GRADLE_PLUGIN_MINIMUM_VERSION
 import com.android.Version
-import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.gradle.project.build.output.TestMessageEventConsumer
 import com.android.tools.idea.gradle.project.sync.quickFixes.OpenLinkQuickFix
 import com.android.tools.idea.testing.AndroidProjectRule
@@ -88,11 +87,11 @@ class AgpVersionNotSupportedIssueCheckerTest {
 
   @Test
   fun testCheckIssueIncompatiblePreview() {
-    val latestKnown = GradleVersion.parseAndroidGradlePluginVersion(Version.ANDROID_GRADLE_PLUGIN_VERSION)
     val expectedNotificationMessage =
       "The project is using an incompatible preview version (AGP 7.1.0-beta01) of the Android Gradle plugin."
     val error = "The project is using an incompatible preview version (AGP 7.1.0-beta01) of the Android Gradle plugin. " +
-                "Current compatible ${if (latestKnown.isPreview) "preview " else ""}version is AGP $latestKnown."
+                "Current compatible preview version is AGP ${Version.ANDROID_GRADLE_PLUGIN_VERSION}."
+
     val issueData = GradleIssueData(":", Throwable(error), null, null)
     val buildIssue = agpVersionNotSupportedIssueChecker.check(issueData)
 
@@ -116,37 +115,6 @@ class AgpVersionNotSupportedIssueCheckerTest {
         "",
         TestMessageEventConsumer()
       )).isEqualTo(true)
-  }
-
-  @Test
-  fun testCheckIssueTooNewHandled() {
-    assertThat(
-      agpVersionNotSupportedIssueChecker.consumeBuildOutputFailureMessage(
-        "Build failed with Exception",
-        "The project is using an incompatible version (AGP 99.0.0) of the Android Gradle plugin. " +
-        "Latest supported version is AGP ${Version.ANDROID_GRADLE_PLUGIN_VERSION}.",
-        null,
-        null,
-        "",
-        TestMessageEventConsumer()
-      )
-    ).isTrue()
-  }
-
-  @Test
-  fun testCheckIssueIncompatiblePreviewHandled() {
-    val latestKnown = GradleVersion.parseAndroidGradlePluginVersion(Version.ANDROID_GRADLE_PLUGIN_VERSION)
-    assertThat(
-      agpVersionNotSupportedIssueChecker.consumeBuildOutputFailureMessage(
-        "Build failed with Exception",
-        "The project is using an incompatible preview version (AGP 4.1.0-alpha01) of the Android Gradle plugin. " +
-        "Current compatible ${if (latestKnown.isPreview) "preview " else ""} version is AGP $latestKnown.",
-        null,
-        null,
-        "",
-        TestMessageEventConsumer()
-      )
-    ).isTrue()
   }
 
   @Test

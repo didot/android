@@ -231,21 +231,8 @@ fun RecipeExecutor.copyMipmapFile(destination: File, file: String) {
   copy(resource("mipmap-xxxhdpi/$file"), destination.resolve("mipmap-xxxhdpi/$file"))
 }
 
-fun RecipeExecutor.addLocalTests(
-  packageName: String, localTestOut: File, language: Language
-) {
-  val ext = language.extension
-  save(
-    if (language == Language.Kotlin)
-      exampleUnitTestKt(packageName)
-    else
-      exampleUnitTestJava(packageName),
-    localTestOut.resolve("ExampleUnitTest.$ext")
-  )
-}
-
-fun RecipeExecutor.addInstrumentedTests(
-  packageName: String, useAndroidX: Boolean, isLibraryProject: Boolean, instrumentedTestOut: File, language: Language
+fun RecipeExecutor.addTests(
+  packageName: String, useAndroidX: Boolean, isLibraryProject: Boolean, testOut: File, unitTestOut: File, language: Language
 ) {
   val ext = language.extension
   save(
@@ -253,7 +240,14 @@ fun RecipeExecutor.addInstrumentedTests(
       exampleInstrumentedTestKt(packageName, useAndroidX, isLibraryProject)
     else
       exampleInstrumentedTestJava(packageName, useAndroidX, isLibraryProject),
-    instrumentedTestOut.resolve("ExampleInstrumentedTest.$ext")
+    testOut.resolve("ExampleInstrumentedTest.$ext")
+  )
+  save(
+    if (language == Language.Kotlin)
+      exampleUnitTestKt(packageName)
+    else
+      exampleUnitTestJava(packageName),
+    unitTestOut.resolve("ExampleUnitTest.$ext")
   )
 }
 

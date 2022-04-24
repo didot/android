@@ -25,7 +25,6 @@ import static com.intellij.util.ui.update.Update.HIGH_PRIORITY;
 import static com.intellij.util.ui.update.Update.LOW_PRIORITY;
 
 import com.android.annotations.concurrency.GuardedBy;
-import com.android.ide.common.rendering.api.ILayoutLog;
 import com.android.ide.common.rendering.api.RenderSession;
 import com.android.ide.common.rendering.api.ResourceReference;
 import com.android.ide.common.rendering.api.ResourceValue;
@@ -1152,16 +1151,10 @@ public class LayoutlibSceneManager extends SceneManager {
 
             if (exception != null) {
               if (result == null || !result.getRenderResult().isSuccess()) {
-                // Do not ignore ClassNotFoundException on inflate
-                if (exception instanceof ClassNotFoundException) {
-                  logger.addMessage(RenderProblem.createPlain(ERROR,
-                                                              "Error inflating the preview",
-                                                              logger.getProject(),
-                                                              logger.getLinkManager(), exception));
-                }
-                else {
-                  logger.error(ILayoutLog.TAG_INFLATE, "Error inflating the preview", exception, null, null);
-                }
+                logger.addMessage(RenderProblem.createPlain(ERROR,
+                                                            "Error inflating the preview",
+                                                            logger.getProject(),
+                                                            logger.getLinkManager(), exception));
               }
               Logger.getInstance(LayoutlibSceneManager.class).warn(exception);
             }

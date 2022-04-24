@@ -84,7 +84,7 @@ object MaterialIconsUtils {
   }
 
   /**
-   * @see [MaterialIconsMetadata.toJsonText]
+   * @see [MaterialIconsMetadata.parse]
    * @return The [MaterialIconsMetadata] parsed from the URL provided.
    */
   fun getMetadata(url: URL): MaterialIconsMetadata? {
