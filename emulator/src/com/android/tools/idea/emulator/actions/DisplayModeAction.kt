@@ -46,7 +46,7 @@ internal sealed class DisplayModeAction(val mode: DisplayModeValue) : AbstractEm
   }
 
   override fun update(event: AnActionEvent) {
-    event.presentation.isEnabled = hasDisplayModes(event)
+    event.presentation.isEnabled = hasDisplayModes(event) && isEmulatorConnected(event)
   }
 
   class Desktop : DisplayModeAction(DisplayModeValue.DESKTOP)
@@ -59,7 +59,7 @@ internal sealed class DisplayModeAction(val mode: DisplayModeValue) : AbstractEm
 }
 
 internal fun hasDisplayModes(event: AnActionEvent): Boolean =
-  isEmulatorConnected(event) && (getEmulatorController(event)?.emulatorConfig?.displayModes?.isNotEmpty() ?: false)
+  getEmulatorController(event)?.emulatorConfig?.displayModes?.isNotEmpty() ?: false
 
 internal fun getCurrentDisplayMode(event: AnActionEvent) =
   getEmulatorView(event)?.displayMode?.displayModeId ?: DisplayModeValue.UNRECOGNIZED
