@@ -48,6 +48,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.project.ex.ProjectManagerEx;
@@ -70,6 +71,8 @@ import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture;
 import com.intellij.testFramework.fixtures.JavaTestFixtureFactory;
 import com.intellij.testFramework.fixtures.TestFixtureBuilder;
 import com.intellij.util.Consumer;
+import com.intellij.util.indexing.IndexingFlag;
+import com.intellij.util.indexing.UnindexedFilesUpdater;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryNotEmptyException;
@@ -288,6 +291,17 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
     assertFalse(androidProjectInfo.isLegacyIdeaAndroidProject());
 
     Module[] modules = ModuleManager.getInstance(project).getModules();
+
+    ApplicationManager.getApplication().invokeAndWait(new Runnable() {
+      @Override
+      public void run() {
+        // TODO: [VD] a dirty hack to reindex created android project
+        IndexingFlag.cleanupProcessedFlag();
+        DumbService dumbService = DumbService.getInstance(project);
+        dumbService.queueTask(new UnindexedFilesUpdater(project));
+        dumbService.completeJustSubmittedTasks();
+      }
+    });
 
     myAndroidFacet = AndroidGradleTests.findAndroidFacetForTests(project, modules, chosenModuleName);
   }
