@@ -15,37 +15,351 @@
  */
 package com.android.tools.idea.compose.preview.actions
 
-import com.android.tools.idea.common.actions.IssueNotificationAction
+import com.android.flags.ifEnabled
+import com.android.tools.adtui.InformationPopup
+import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.compose.preview.COMPOSE_PREVIEW_MANAGER
+import com.android.tools.idea.compose.preview.ComposePreviewManager
 import com.android.tools.idea.compose.preview.fast.FastPreviewManager
+import com.android.tools.idea.compose.preview.fast.fastPreviewManager
 import com.android.tools.idea.compose.preview.message
+import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.projectsystem.ProjectSystemBuildManager
+import com.android.tools.idea.projectsystem.ProjectSystemService
+import com.android.tools.idea.projectsystem.requestBuild
 import com.intellij.icons.AllIcons
-import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.notification.EventLog
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DataContext
+import com.intellij.openapi.actionSystem.DataProvider
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
+import com.intellij.openapi.actionSystem.Presentation
+import com.intellij.openapi.actionSystem.ex.CustomComponentAction
+import com.intellij.openapi.actionSystem.impl.ActionButtonWithText
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.Key
 import com.intellij.ui.AnimatedIcon
-import icons.StudioIcons
+import com.intellij.ui.EditorNotifications
+import com.intellij.ui.JBColor
+import com.intellij.ui.RoundedLineBorder
+import com.intellij.ui.components.AnActionLink
+import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
+import org.jetbrains.annotations.VisibleForTesting
+import java.awt.Color
+import java.awt.Dimension
+import java.awt.Insets
+import java.lang.ref.WeakReference
 import javax.swing.Icon
+import javax.swing.JComponent
+import javax.swing.SwingConstants
+import javax.swing.border.Border
 
-private const val COMPOSE_ISSUE_NOTIFICATION_ACTION = "Android.Designer.ComposeIssueNotificationAction"
-
-class ComposeIssueNotificationAction : IssueNotificationAction() {
-  override fun getNoErrorsIconAndDescription(event: AnActionEvent): Pair<Icon?, String?> {
-    return event.getData(COMPOSE_PREVIEW_MANAGER)?.let {
-      when {
-        it.status().hasSyntaxErrors -> AllIcons.General.Error to message("notification.syntax.errors")
-        it.status().isRefreshing -> AnimatedIcon.Default() to message("notification.preview.refreshing")
-        it.status().isOutOfDate -> AllIcons.General.Warning to message("notification.preview.out.of.date")
-        it.status().hasRuntimeErrors -> StudioIcons.Common.ERROR to message("notification.runtime.errors")
-        event.project?.let { project -> FastPreviewManager.getInstance(project).isCompiling } ?: false ->
-          AnimatedIcon.Default() to message("notification.preview.fast.compile")
-        else -> AllIcons.General.InspectionsOK to message("notification.preview.up.to.date")
-      }
-    } ?: super.getNoErrorsIconAndDescription(event)
+/**
+ * Utility getter that indicates if the project needs a build. This is the case if the previews build is not valid, like after a clean or
+ * cancelled, or if it has failed.
+ */
+private val Project.needsBuild: Boolean
+  get() {
+    val lastBuildResult = ProjectSystemService.getInstance(project = this).projectSystem.getBuildManager().getLastBuildResult()
+    return lastBuildResult.status == ProjectSystemBuildManager.BuildStatus.CANCELLED ||
+           lastBuildResult.status == ProjectSystemBuildManager.BuildStatus.FAILED ||
+           lastBuildResult.mode == ProjectSystemBuildManager.BuildMode.CLEAN
   }
 
+private const val ACTION_BACKGROUND_ALPHA = 0x30
+private const val ACTION_BORDER_ALPHA = 0xC8
+private const val ACTION_BORDER_ARC_SIZE = 5
+private const val ACTION_BORDER_THICKNESS = 1
+
+/**
+ * Represents the Compose Preview status to be notified to the user.
+ */
+private sealed class ComposePreviewStatusNotification(
+  val icon: Icon?,
+  val title: String,
+  val description: String,
+  /** When true, the refresh icon will be displayed next to the notification chip. */
+  val hasRefreshIcon: Boolean = false,
+  val presentation: Presentation? = null
+) {
   companion object {
-    @JvmStatic
-    fun getInstance(): ComposeIssueNotificationAction =
-      ActionManager.getInstance().getAction(COMPOSE_ISSUE_NOTIFICATION_ACTION) as ComposeIssueNotificationAction
+    val PRESENTATION = Key<Presentation>("ComposePreviewStatusNotificationPresentation")
+
+    /**
+     * When not null, this will define the text alignment in the notification chip. One of [SwingConstants.LEADING] or
+     * [SwingConstants.TRAILING].
+     */
+    val TEXT_ALIGNMENT = Key<Int>("ComposePreviewStatusNotificationTextAlignment")
+  }
+
+  /**
+   * Enum representing the different UI color states that the action might have for the border and background.
+   */
+  enum class Presentation(baseColorLight: Int, baseColorDark: Int = baseColorLight) {
+    Error(0xFF0000),
+    Warning(0xFDFF00);
+
+    val color = JBColor(UIUtil.toAlpha(Color(baseColorLight), ACTION_BACKGROUND_ALPHA),
+                        UIUtil.toAlpha(Color(baseColorDark), ACTION_BACKGROUND_ALPHA))
+    val border = RoundedLineBorder(UIUtil.toAlpha(color, ACTION_BORDER_ALPHA),
+                                   ACTION_BORDER_ARC_SIZE,
+                                   ACTION_BORDER_THICKNESS)
+  }
+
+
+  /**
+   * The Preview found a syntax error and paused the updates.
+   */
+  object SyntaxError : ComposePreviewStatusNotification(
+    AllIcons.General.Error,
+    message("notification.syntax.errors.title"),
+    message("notification.syntax.errors.description"),
+    false,
+    Presentation.Error)
+
+  /**
+   * The Preview found a compilation error and paused the updates.
+   */
+  object NeedsBuild : ComposePreviewStatusNotification(
+    AllIcons.General.Error,
+    message("notification.needs.build.broken.title"),
+    message("notification.needs.build.broken.description"),
+    true,
+    Presentation.Warning)
+
+  /**
+   * The Preview is refreshing.
+   */
+  class Refreshing(detailsMessage: String = message("notification.preview.refreshing.description"))
+    : ComposePreviewStatusNotification(
+    AnimatedIcon.Default(),
+    message("notification.preview.refreshing.title"),
+    detailsMessage)
+
+  /**
+   * The Preview is out of date. This state will not happen if Fast Preview is enabled.
+   */
+  object OutOfDate : ComposePreviewStatusNotification(
+    AllIcons.General.Warning,
+    message("notification.preview.out.of.date.title"),
+    message("notification.preview.out.of.date.description"),
+    true,
+    Presentation.Warning)
+
+  /**
+   * The Preview is compiling.
+   */
+  object FastPreviewCompiling : ComposePreviewStatusNotification(
+    AnimatedIcon.Default(),
+    message("notification.preview.fast.compile.title"),
+    message("notification.preview.fast.compile.description"))
+
+  /**
+   * The Preview has failed to compile a fast change.
+   */
+  object FastPreviewFailed : ComposePreviewStatusNotification(
+    AllIcons.General.InspectionsPause,
+    message("notification.preview.fast.disabled.reason.compiler.error.title"),
+    message("notification.preview.fast.disabled.reason.compiler.error.description"),
+    true,
+    Presentation.Error)
+
+  /**
+   * The Preview is fully up to date.
+   */
+  object UpToDate : ComposePreviewStatusNotification(
+    AllIcons.General.InspectionsOK,
+    message("notification.preview.up.to.date.title"),
+    message("notification.preview.up.to.date.description"))
+}
+
+private fun ComposePreviewManager.getStatusInfo(project: Project): ComposePreviewStatusNotification {
+  val previewStatus = status()
+ return when {
+    // Refresh status
+   previewStatus.interactiveMode == ComposePreviewManager.InteractiveMode.STARTING ->
+      ComposePreviewStatusNotification.Refreshing(message("notification.interactive.preview.starting"))
+    previewStatus.interactiveMode == ComposePreviewManager.InteractiveMode.STOPPING ->
+      ComposePreviewStatusNotification.Refreshing(message("notification.interactive.preview.stopping"))
+    previewStatus.isRefreshing -> ComposePreviewStatusNotification.Refreshing()
+
+    // Build/Syntax errors
+    project.needsBuild -> ComposePreviewStatusNotification.NeedsBuild
+    previewStatus.hasSyntaxErrors -> ComposePreviewStatusNotification.SyntaxError
+
+    !FastPreviewManager.getInstance(project).isEnabled && previewStatus.isOutOfDate -> ComposePreviewStatusNotification.OutOfDate
+
+    // Fast preview refresh/failures
+    project.fastPreviewManager.isAutoDisabled -> ComposePreviewStatusNotification.FastPreviewFailed
+    project.fastPreviewManager.isCompiling -> ComposePreviewStatusNotification.FastPreviewCompiling
+
+    // Up-to-date
+    else -> ComposePreviewStatusNotification.UpToDate
   }
 }
+
+/**
+ * [AnAction] that will show the Event Log.
+ */
+private class ShowEventLogAction : AnAction() {
+  override fun actionPerformed(e: AnActionEvent) {
+    val project = e.project ?: return
+    EventLog.getEventLog(project)?.activate(null)
+  }
+}
+
+/**
+ * [AnAction] that re-enable the Fast Preview if disabled.
+ */
+private class ReEnableFastPreview(private val allowAutoDisable: Boolean = true) : AnAction() {
+  override fun actionPerformed(e: AnActionEvent) {
+    val project = e.project ?: return
+    if (!allowAutoDisable) {
+      project.fastPreviewManager.allowAutoDisable = false
+    }
+    project.fastPreviewManager.enable()
+    PlatformCoreDataKeys.VIRTUAL_FILE.getData(e.dataContext)?.let {
+      EditorNotifications.getInstance(project).updateNotifications(it)
+    }
+  }
+}
+
+/**
+ * [AnAction] that re-enable the Fast Preview if disabled.
+ */
+private class BuildAndRefresh(composePreviewManager: ComposePreviewManager) : AnAction() {
+  private val composePreviewManager = WeakReference(composePreviewManager)
+  override fun actionPerformed(e: AnActionEvent) {
+    val file = composePreviewManager.get()?.previewedFile ?: return
+    file.project.requestBuild(file.virtualFile)
+  }
+}
+
+/**
+ * Creates a new [AnActionLink] with the given [text]. The returned [AnActionLink] will use the given [delegateDataContext] to obtain
+ * the associated information when calling into the [action].
+ */
+fun actionLink(text: String, action: AnAction, delegateDataContext: DataContext): AnActionLink =
+  AnActionLink(text, action).apply {
+    dataProvider = DataProvider { dataId -> delegateDataContext.getData(dataId) }
+  }
+
+/**
+ * Action that reports the current state of the Compose Preview. Local issues for a given preview are reported as part of the preview itself
+ * and not in this action.
+ * This action reports:
+ * - State of Live Edit or preview out of date if Live Edit is disabled
+ * - Syntax errors
+ *
+ * Clicking on the action will open a pop-up with additional details and action buttons.
+ */
+@VisibleForTesting
+class ComposeIssueNotificationAction : AnAction(), CustomComponentAction, Disposable {
+  override fun createCustomComponent(presentation: Presentation, place: String): JComponent =
+    object : ActionButtonWithText(this, presentation, place, Dimension(0, 0)) {
+      private val insets = JBUI.insets(3)
+      private val actionPresentation: ComposePreviewStatusNotification.Presentation?
+        get() = myPresentation.getClientProperty(ComposePreviewStatusNotification.PRESENTATION)
+      val textAlignment: Int
+        get() = myPresentation.getClientProperty(ComposePreviewStatusNotification.TEXT_ALIGNMENT) ?: SwingConstants.LEADING
+
+      override fun isBackgroundSet(): Boolean =
+        actionPresentation != null || super.isBackgroundSet()
+
+      override fun getBackground(): Color? =
+        actionPresentation?.color ?: super.getBackground()
+
+      override fun getBorder(): Border =
+        actionPresentation?.border ?: JBUI.Borders.empty()
+
+      override fun getMargins(): Insets = insets
+
+    }.apply {
+      setHorizontalTextPosition(textAlignment)
+      font = UIUtil.getLabelFont(UIUtil.FontSize.NORMAL)
+      foreground = UIUtil.getLabelDisabledForeground()
+    }
+
+  override fun displayTextInToolbar(): Boolean = true
+
+  override fun update(e: AnActionEvent) {
+    val composePreviewManager = e.getData(COMPOSE_PREVIEW_MANAGER) ?: return
+    val project = e.project ?: return
+    val presentation = e.presentation
+    composePreviewManager.getStatusInfo(project).let {
+      presentation.icon = it.icon
+      presentation.text = it.title
+      presentation.description = it.description
+      presentation.putClientProperty(ComposePreviewStatusNotification.PRESENTATION, it.presentation)
+      presentation.putClientProperty(ComposePreviewStatusNotification.TEXT_ALIGNMENT,
+                                     if (it.hasRefreshIcon) SwingConstants.TRAILING else SwingConstants.LEADING)
+    }
+  }
+
+  /**
+   * The currently opened popup.
+   */
+  private var popup: InformationPopup? = null
+
+  override fun actionPerformed(e: AnActionEvent) {
+    val composePreviewManager = e.getData(COMPOSE_PREVIEW_MANAGER) ?: return
+    val project = e.project ?: return
+    composePreviewManager.getStatusInfo(project).let {
+      val isAutoDisabled = it is ComposePreviewStatusNotification.FastPreviewFailed && project.fastPreviewManager.isAutoDisabled
+      popup = InformationPopup(
+        null,
+        it.description,
+        listOfNotNull(
+          StudioFlags.COMPOSE_FAST_PREVIEW.ifEnabled { ToggleFastPreviewAction() }
+        ),
+        listOfNotNull(
+          if (it is ComposePreviewStatusNotification.NeedsBuild)
+            actionLink(message("fast.preview.disabled.notification.reenable.action.title"), BuildAndRefresh(composePreviewManager), e.dataContext)
+          else null,
+          if (isAutoDisabled)
+            actionLink(message("fast.preview.disabled.notification.reenable.action.title"), ReEnableFastPreview(), e.dataContext)
+          else null,
+          if (isAutoDisabled)
+            actionLink(message("fast.preview.disabled.notification.stop.autodisable.action.title"), ReEnableFastPreview(false), e.dataContext)
+          else null,
+          if (it is ComposePreviewStatusNotification.FastPreviewFailed)
+            actionLink(message("fast.preview.disabled.notification.show.details.action.title"), ShowEventLogAction(), e.dataContext)
+          else null
+        )).also { newPopup ->
+        Disposer.register(this, newPopup)
+        newPopup.showPopup(e.inputEvent)
+      }
+    }
+  }
+
+  override fun dispose() {}
+}
+
+/**
+ * [ForceCompileAndRefreshAction] where the visibility is controlled by the [ComposePreviewStatusNotification.hasRefreshIcon].
+ */
+private class ForceCompileAndRefreshActionForNotification(surface: DesignSurface): ForceCompileAndRefreshAction(surface) {
+  override fun update(e: AnActionEvent) {
+    super.update(e)
+
+    val project = e.project ?: return
+
+    e.getData(COMPOSE_PREVIEW_MANAGER)?.getStatusInfo(project)?.let {
+      e.presentation.isVisible = it.hasRefreshIcon
+    }
+  }
+}
+
+/**
+ * [DefaultActionGroup] that shows the notification chip and the [ForceCompileAndRefreshActionForNotification] button when applicable.
+ */
+class ComposeNotificationGroup(surface: DesignSurface) : DefaultActionGroup(
+  listOf(
+    ComposeIssueNotificationAction(),
+    ForceCompileAndRefreshActionForNotification(surface))
+)

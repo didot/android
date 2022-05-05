@@ -16,10 +16,9 @@
 package com.android.tools.idea.compose.preview.fast
 
 import com.android.flags.junit.RestoreFlagRule
-import com.android.flags.junit.SetFlagRule
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
-import com.android.tools.idea.editors.literals.FastPreviewApplicationConfiguration
+import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.run.deployment.liveedit.runWithCompileLock
 import com.android.tools.idea.testing.AndroidProjectRule
@@ -41,6 +40,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
@@ -65,16 +65,14 @@ fun nopCompileDaemonFactory(onCalled: (String) -> Unit): (String) -> CompilerDae
 }
 
 internal class FastPreviewManagerTest {
-  @get:Rule
   val projectRule = AndroidProjectRule.inMemory()
   private val project: Project
     get() = projectRule.project
 
   @get:Rule
-  val fastPreviewFlagRule = SetFlagRule(StudioFlags.COMPOSE_FAST_PREVIEW, true)
-
-  @get:Rule
-  val restoreLiteralsFlagRule = RestoreFlagRule(StudioFlags.COMPOSE_LIVE_LITERALS)
+  val chainRule: RuleChain = RuleChain
+    .outerRule(projectRule)
+    .around(FastPreviewRule())
 
   @Test
   fun `pre-start daemon`() {
@@ -246,7 +244,7 @@ internal class FastPreviewManagerTest {
     // Check, disabling Live Literals disables the compiler flag.
     run {
       compilationRequests.clear()
-      StudioFlags.COMPOSE_LIVE_LITERALS.override(false)
+      LiveEditApplicationConfiguration.getInstance().mode = LiveEditApplicationConfiguration.LiveEditMode.DISABLED
       try {
         val file2 = projectRule.fixture.addFileToProject("testB.kt", """
           fun emptyB() {}
@@ -261,7 +259,7 @@ internal class FastPreviewManagerTest {
       """.trimIndent(), requestParameters)
       }
       finally {
-        StudioFlags.COMPOSE_LIVE_LITERALS.clearOverride()
+        LiveEditApplicationConfiguration.getInstance().resetDefault()
       }
     }
 
@@ -378,7 +376,7 @@ internal class FastPreviewManagerTest {
     manager.compileRequest(file, projectRule.module).first.also { result ->
       assertTrue(result.toString(), result is CompilationResult.RequestException)
       assertFalse("FastPreviewManager should have been disable after a failure", manager.isEnabled)
-      assertTrue("Auto disable should not be persisted", FastPreviewApplicationConfiguration.getInstance().isEnabled)
+      assertTrue("Auto disable should not be persisted", LiveEditApplicationConfiguration.getInstance().liveEditPreviewEnabled)
       assertEquals(
         "DisableReason(title=Unable to compile using Preview Live Edit, description=Unable to process request, throwable=java.lang.IllegalStateException: Unable to process request)",
         manager.disableReason.toString())
@@ -391,7 +389,7 @@ internal class FastPreviewManagerTest {
     manager.compileRequest(file, projectRule.module).first.also { result ->
       assertTrue(result.toString(), result is CompilationResult.RequestException)
       assertTrue(manager.isEnabled)
-      assertTrue(FastPreviewApplicationConfiguration.getInstance().isEnabled)
+      assertTrue(LiveEditApplicationConfiguration.getInstance().liveEditPreviewEnabled)
       assertNull(manager.disableReason)
     }
   }

@@ -61,6 +61,8 @@ import com.android.tools.idea.gradle.model.impl.IdeViewBindingOptionsImpl
 import com.android.tools.idea.gradle.model.impl.ndk.v2.IdeNativeAbiImpl
 import com.android.tools.idea.gradle.model.impl.ndk.v2.IdeNativeModuleImpl
 import com.android.tools.idea.gradle.model.impl.ndk.v2.IdeNativeVariantImpl
+import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeAndroidProject
+import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeVariantAbi
 import com.android.tools.idea.gradle.model.ndk.v2.NativeBuildSystem
 import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
@@ -70,7 +72,9 @@ import com.android.tools.idea.gradle.project.importing.GradleProjectImporter
 import com.android.tools.idea.gradle.project.importing.withAfterCreate
 import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.gradle.project.model.GradleModuleModel
+import com.android.tools.idea.gradle.project.model.NdkModel
 import com.android.tools.idea.gradle.project.model.NdkModuleModel
+import com.android.tools.idea.gradle.project.model.V1NdkModel
 import com.android.tools.idea.gradle.project.model.V2NdkModel
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.GradleSyncState
@@ -166,6 +170,8 @@ import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.util.firstNotNullResult
 import org.jetbrains.annotations.SystemDependent
 import org.jetbrains.annotations.SystemIndependent
+import org.jetbrains.kotlin.idea.gradleJava.configuration.CompilerArgumentsCacheMergeManager
+import org.jetbrains.kotlin.idea.gradleTooling.arguments.CompilerArgumentsCacheHolder
 import org.jetbrains.plugins.gradle.model.DefaultGradleExtension
 import org.jetbrains.plugins.gradle.model.DefaultGradleExtensions
 import org.jetbrains.plugins.gradle.model.ExternalProject
@@ -176,15 +182,19 @@ import org.jetbrains.plugins.gradle.model.data.GradleSourceSetData
 import org.jetbrains.plugins.gradle.service.project.data.ExternalProjectDataCache
 import org.jetbrains.plugins.gradle.service.project.data.GradleExtensionsDataService
 import org.jetbrains.plugins.gradle.util.GradleConstants
+import org.jetbrains.plugins.gradle.util.isBuildSrcModule
+import org.jetbrains.plugins.gradle.util.setBuildSrcModule
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.isAccessible
 
 data class AndroidProjectModels(
   val androidProject: IdeAndroidProjectImpl,
   val variants: Collection<IdeVariantCoreImpl>,
-  val ndkModel: V2NdkModel?
+  val ndkModel: NdkModel?
 )
 
 typealias AndroidProjectBuilderCore = (
@@ -237,7 +247,14 @@ data class JavaModuleModelBuilder(
   override val version: String? = null,
   override val gradleVersion: String? = null,
   val buildable: Boolean = true,
+  val isBuildSrc: Boolean = false
 ) : ModuleModelBuilder() {
+
+  init {
+    assert(!isBuildSrc || gradlePath.dropWhile { c -> c != ':' }.startsWith(":buildSrc")) {
+      "buildSrc modules must have a Gradle path starting with \":buildSrc\""
+    }
+  }
 
   constructor (gradlePath: String, buildable: Boolean = true) : this(gradlePath, groupId = null, version = null, null, buildable)
 
@@ -295,7 +312,7 @@ interface AndroidProjectStubBuilder {
   fun testFixturesArtifact(variant: String): IdeAndroidArtifactCoreImpl?
   val androidProject: IdeAndroidProjectImpl
   val variants: List<IdeVariantCoreImpl>
-  val ndkModel: V2NdkModel?
+  val ndkModel: NdkModel?
   val internedModels: InternedModels
 }
 
@@ -353,7 +370,7 @@ data class AndroidProjectBuilder(
     { emptyList() },
   val androidProject: AndroidProjectStubBuilder.() -> IdeAndroidProjectImpl = { buildAndroidProjectStub() },
   val variants: AndroidProjectStubBuilder.() -> List<IdeVariantCoreImpl> = { buildVariantStubs() },
-  val ndkModel: AndroidProjectStubBuilder.() -> V2NdkModel? = { null }
+  val ndkModel: AndroidProjectStubBuilder.() -> NdkModel? = { null }
 ) {
   fun withBuildId(buildId: AndroidProjectStubBuilder.() -> String) =
     copy(buildId = buildId)
@@ -496,7 +513,7 @@ data class AndroidProjectBuilder(
         override fun testFixturesArtifact(variant: String): IdeAndroidArtifactCoreImpl? = testFixturesArtifactStub(variant)
         override val variants: List<IdeVariantCoreImpl> = variants()
         override val androidProject: IdeAndroidProjectImpl = androidProject()
-        override val ndkModel: V2NdkModel? = ndkModel()
+        override val ndkModel: NdkModel? = ndkModel()
         override val internedModels: InternedModels get() = internedModels
       }
       return AndroidProjectModels(
@@ -1303,7 +1320,8 @@ private fun setupTestProjectFromAndroidModelCore(
           version = moduleBuilder.version,
           imlBasePath = imlBasePath,
           moduleBasePath = moduleBasePath,
-          buildable = moduleBuilder.buildable
+          buildable = moduleBuilder.buildable,
+          isBuildSrc = moduleBuilder.isBuildSrc
         )
     }
     projectDataNode.addChild(moduleDataNode)
@@ -1352,7 +1370,7 @@ private fun createAndroidModuleDataNode(
   androidProject: IdeAndroidProjectImpl,
   variants: Collection<IdeVariantCoreImpl>,
   libraryResolver: IdeLibraryModelResolver,
-  ndkModel: V2NdkModel?,
+  ndkModel: NdkModel?,
   selectedVariantName: String,
   selectedAbiName: String?
 ): DataNode<ModuleData> {
@@ -1402,25 +1420,48 @@ private fun createAndroidModuleDataNode(
     )
   )
 
-  if (ndkModel != null) {
-    val selectedAbiName = selectedAbiName
-      ?: ndkModel.abiByVariantAbi.keys.firstOrNull { it.variant == selectedVariantName }?.abi
-      ?: error(
-        "Cannot determine the selected ABI for module '$qualifiedModuleName' with the selected variant '$selectedVariantName'"
+  when(ndkModel) {
+    is V2NdkModel -> {
+      val selectedAbiName = selectedAbiName
+        ?: ndkModel.abiByVariantAbi.keys.firstOrNull { it.variant == selectedVariantName }?.abi
+        ?: error(
+          "Cannot determine the selected ABI for module '$qualifiedModuleName' with the selected variant '$selectedVariantName'"
+        )
+      moduleDataNode.addChild(
+        DataNode<NdkModuleModel>(
+          AndroidProjectKeys.NDK_MODEL,
+          NdkModuleModel(
+            qualifiedModuleName,
+            moduleBasePath,
+            selectedVariantName,
+            selectedAbiName,
+            ndkModel
+          ),
+          null
+        )
       )
-    moduleDataNode.addChild(
-      DataNode<NdkModuleModel>(
-        AndroidProjectKeys.NDK_MODEL,
-        NdkModuleModel(
-          qualifiedModuleName,
-          moduleBasePath,
-          selectedVariantName,
-          selectedAbiName,
-          ndkModel
-        ),
-        null
+    }
+    is V1NdkModel -> {
+      val selectedAbiName = selectedAbiName
+        ?: ndkModel.nativeVariantAbis.firstOrNull { it.variantName == selectedVariantName }?.abi
+        ?: error(
+          "Cannot determine the selected ABI for module '$qualifiedModuleName' with the selected variant '$selectedVariantName'"
+        )
+      moduleDataNode.addChild(
+        DataNode<NdkModuleModel>(
+          AndroidProjectKeys.NDK_MODEL,
+          NdkModuleModel(
+            qualifiedModuleName,
+            moduleBasePath,
+            selectedVariantName,
+            selectedAbiName,
+            ndkModel.androidProject,
+            ndkModel.nativeVariantAbis
+          ),
+          null
+        )
       )
-    )
+    }
   }
 
   fun IdeBaseArtifact.setup() {
@@ -1456,7 +1497,8 @@ private fun createJavaModuleDataNode(
   version: String?,
   imlBasePath: File,
   moduleBasePath: File,
-  buildable: Boolean
+  buildable: Boolean,
+  isBuildSrc: Boolean
 ): DataNode<ModuleData> {
 
   val moduleDataNode = createGradleModuleDataNode(
@@ -1467,7 +1509,9 @@ private fun createJavaModuleDataNode(
     version = version,
     imlBasePath = imlBasePath,
     moduleBasePath = moduleBasePath
-  )
+  ).also {
+    if (isBuildSrc) it.data.setBuildSrcModule()
+  }
 
   moduleDataNode.addDefaultJdk()
 
@@ -1484,6 +1528,7 @@ private fun createJavaModuleDataNode(
       ).also {
         it.group = groupId
         it.version = version
+        if (isBuildSrc) it.setBuildSrcModule()
       },
       null
     )
@@ -1730,7 +1775,7 @@ fun prepareGradleProject(projectSourceRoot: File, projectPath: File, projectPatc
   AndroidGradleTests.prepareProjectForImportCore(projectSourceRoot, projectPath, projectPatcher)
 }
 
-data class OpenPreparedProjectOptions(
+data class OpenPreparedProjectOptions @JvmOverloads constructor(
   val verifyOpened: (Project) -> Unit = ::verifySyncedSuccessfully,
   val outputHandler: (String) -> Unit = {},
   val syncExceptionHandler: (Exception) -> Unit = { e ->
@@ -1762,9 +1807,20 @@ private fun <T> openPreparedProject(
   // Use per-project code style settings so we never modify the IDE defaults.
   CodeStyleSettingsManager.getInstance().USE_PER_PROJECT_SETTINGS = true;
 
+  fun clearKotlinPluginCompilerArgumentCaches() {
+    val privateCache = CompilerArgumentsCacheHolder::class.memberProperties.single { it.name == "cacheAwareWithMergeByIdentifier" }
+    privateCache.isAccessible = true
+    (privateCache.get(CompilerArgumentsCacheMergeManager.compilerArgumentsCacheHolder) as MutableMap<*, *>).clear()
+  }
+
   fun body(): T {
     val project = runInEdtAndGet {
       PlatformTestUtil.dispatchAllEventsInIdeEventQueue();
+
+      // This method is used to simulate what happens when the IDE is restarted before re-opening a project in order to catch issues
+      // that cannot be reproduced otherwise.
+      clearKotlinPluginCompilerArgumentCaches()
+
       val project = GradleProjectImporter.withAfterCreate(
         afterCreate = { project -> injectSyncOutputDumper(project, project, options.outputHandler, options.syncExceptionHandler) }
       ) {

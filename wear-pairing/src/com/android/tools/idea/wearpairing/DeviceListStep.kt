@@ -194,7 +194,22 @@ class DeviceListStep(model: WearDevicePairingModel, private val project: Project
 
         JPanel().apply {
           layout = GridBagLayout()
-          if (index > 0 && value.isDisabled() && !model.getElementAt(index - 1).isDisabled()) {
+          if (value.isDisabled() && (index == 0 || !model.getElementAt(index - 1).isDisabled())) {
+            if (index == 0) {
+              add(
+                JBLabel("No compatible devices are available to pair.", SwingConstants.CENTER).apply {
+                  isOpaque = true
+                  foreground = UIUtil.getLabelDisabledForeground()
+                  background = UIUtil.getListBackground()
+                  border = empty(32, 16)
+                },
+                GridBagConstraints().apply {
+                  gridwidth = GridBagConstraints.REMAINDER
+                  fill = GridBagConstraints.HORIZONTAL
+                  gridy = 0
+                }
+              )
+            }
             add(
               JBLabel("Unavailable devices").apply {
                 isOpaque = true
@@ -204,6 +219,7 @@ class DeviceListStep(model: WearDevicePairingModel, private val project: Project
               GridBagConstraints().apply {
                 gridwidth = GridBagConstraints.REMAINDER
                 fill = GridBagConstraints.HORIZONTAL
+                gridy = 1
               }
             )
           }
@@ -213,7 +229,7 @@ class DeviceListStep(model: WearDevicePairingModel, private val project: Project
             },
             GridBagConstraints().apply {
               gridx = 0
-              gridy = 1
+              gridy = 2
             }
           )
           add(
@@ -243,11 +259,12 @@ class DeviceListStep(model: WearDevicePairingModel, private val project: Project
               fill = GridBagConstraints.HORIZONTAL
               weightx = 1.0
               gridx = 1
-              gridy = 1
+              gridy = 2
             }
           )
 
           val rightIcon = when {
+            StudioFlags.WEAR_OS_VIRTUAL_DEVICE_PAIRING_ASSISTANT_ENABLED.get() -> null
             WearPairingManager.isPaired(value.deviceID) -> StudioIcons.LayoutEditor.Toolbar.INSERT_HORIZ_CHAIN
             value.isDisabled() -> AllIcons.General.ShowInfos
             else -> null
@@ -259,7 +276,7 @@ class DeviceListStep(model: WearDevicePairingModel, private val project: Project
               },
               GridBagConstraints().apply {
                 gridx = 2
-                gridy = 1
+                gridy = 2
               }
             )
           }

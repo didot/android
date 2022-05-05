@@ -21,7 +21,9 @@ import static com.android.tools.idea.gradle.project.sync.IdeAndroidModelsKt.ideA
 import static com.android.tools.idea.gradle.project.sync.Modules.createUniqueModuleId;
 import static com.android.tools.idea.gradle.project.sync.SimulatedSyncErrors.simulateRegisteredSyncError;
 import static com.android.tools.idea.gradle.project.sync.errors.GradleDistributionInstallIssueCheckerKt.COULD_NOT_INSTALL_GRADLE_DISTRIBUTION_PREFIX;
+import static com.android.tools.idea.gradle.project.sync.idea.AndroidExtraModelProviderConfiguratorKt.configureAndGetExtraModelProvider;
 import static com.android.tools.idea.gradle.project.sync.idea.DependencyUtilKt.findSourceSetDataForArtifact;
+import static com.android.tools.idea.gradle.project.sync.idea.KotlinPropertiesKt.preserveKotlinUserDataInDataNodes;
 import static com.android.tools.idea.gradle.project.sync.idea.SdkSyncUtil.syncAndroidSdks;
 import static com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys.ANDROID_MODEL;
 import static com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys.GRADLE_MODULE_MODEL;
@@ -30,8 +32,6 @@ import static com.android.tools.idea.gradle.project.sync.idea.data.service.Andro
 import static com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys.PROJECT_CLEANUP_MODEL;
 import static com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys.SYNC_ISSUE;
 import static com.android.tools.idea.gradle.project.sync.idea.issues.GradleWrapperImportCheck.validateGradleWrapper;
-import static com.android.tools.idea.gradle.project.upgrade.GradlePluginUpgrade.displayForceUpdatesDisabledMessage;
-import static com.android.tools.idea.gradle.project.upgrade.ProjectUpgradeNotificationKt.expireProjectUpgradeNotifications;
 import static com.android.tools.idea.gradle.util.AndroidGradleSettings.ANDROID_HOME_JVM_ARG;
 import static com.android.tools.idea.gradle.util.GradleUtil.GRADLE_SYSTEM_ID;
 import static com.android.utils.BuildScriptUtil.findGradleSettingsFile;
@@ -85,6 +85,7 @@ import com.android.tools.idea.gradle.project.sync.common.CommandLineArgs;
 import com.android.tools.idea.gradle.project.sync.idea.data.model.ProjectCleanupModel;
 import com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys;
 import com.android.tools.idea.gradle.project.sync.idea.issues.JdkImportCheck;
+import com.android.tools.idea.gradle.project.upgrade.AssistantInvoker;
 import com.android.tools.idea.gradle.util.AndroidGradleSettings;
 import com.android.tools.idea.gradle.util.LocalProperties;
 import com.android.tools.idea.io.FilePaths;
@@ -150,6 +151,8 @@ import org.gradle.tooling.model.idea.IdeaModule;
 import org.gradle.tooling.model.idea.IdeaProject;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.kotlin.idea.gradleTooling.KotlinGradleModel;
+import org.jetbrains.kotlin.idea.gradleTooling.KotlinMPPGradleModel;
 import org.jetbrains.kotlin.idea.gradleTooling.model.kapt.KaptGradleModel;
 import org.jetbrains.kotlin.idea.gradleTooling.model.kapt.KaptModelBuilderService;
 import org.jetbrains.kotlin.idea.gradleTooling.model.kapt.KaptSourceSetModel;
@@ -180,6 +183,16 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
     CACHED_VARIANTS_FROM_PREVIOUS_GRADLE_SYNCS =
     com.intellij.openapi.externalSystem.model.Key.create(VariantProjectDataNodes.class, 1 /* not used */);
 
+  /**
+   * Stores a collection of internal in-memory properties used by Kotlin 1.6.20 IDE plugin so that they can be restored when the data node
+   * tree is re-used to re-import a build variant it represents.
+   * <p>
+   * NOTE: This key/data is not directly processed by any data importers.
+   */
+  @NotNull public static final com.intellij.openapi.externalSystem.model.Key<KotlinProperties>
+    KOTLIN_PROPERTIES =
+    com.intellij.openapi.externalSystem.model.Key.create(KotlinProperties.class, 1 /* not used */);
+
   public static final GradleVersion MINIMUM_SUPPORTED_VERSION = GradleVersion.parse(GRADLE_PLUGIN_MINIMUM_VERSION);
   public static final String BUILD_SYNC_ORPHAN_MODULES_NOTIFICATION_GROUP_NAME = "Build sync orphan modules";
 
@@ -195,6 +208,7 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
   private final Map<GradleProjectPath, DataNode<? extends ModuleData>> myModuleDataByGradlePath = new LinkedHashMap<>();
   private final Map<String, GradleProjectPath> myGradlePathByModuleId = new LinkedHashMap<>();
   private IdeResolvedLibraryTable myResolvedModuleDependencies = null;
+  private final List<Long> myKotlinCacheOriginIdentifiers = new ArrayList<>();
 
   public AndroidGradleProjectResolver() {
     this(new CommandLineArgs());
@@ -216,6 +230,7 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
     // Similarly for KAPT.
     projectResolverContext.putUserData(IS_ANDROID_PLUGIN_REQUESTING_KAPT_GRADLE_MODEL_KEY, true);
     myResolvedModuleDependencies = null;
+    myKotlinCacheOriginIdentifiers.clear();
     super.setProjectResolverContext(projectResolverContext);
   }
 
@@ -236,6 +251,8 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
     patchLanguageLevels(moduleDataNode, gradleModule, androidModels != null ? androidModels.getAndroidProject() : null);
 
     registerModuleData(gradleModule, moduleDataNode);
+    recordKotlinCacheOriginIdentifiers(gradleModule);
+
     return moduleDataNode;
   }
 
@@ -260,6 +277,22 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
           myGradlePathByModuleId.put(node.getData().getId(), gradleProjectPath);
         }
       });
+    }
+  }
+
+  private void recordKotlinCacheOriginIdentifiers(@NotNull IdeaModule gradleModule) {
+    var mppModel = resolverCtx.getExtraProject(gradleModule, KotlinMPPGradleModel.class);
+    var kotlinModel = resolverCtx.getExtraProject(gradleModule, KotlinGradleModel.class);
+    if (mppModel != null && kotlinModel != null) {
+      if (mppModel.getPartialCacheAware().getCacheOriginIdentifier() != kotlinModel.getPartialCacheAware().getCacheOriginIdentifier()) {
+        throw new IllegalStateException("Mpp and Kotlin model cacheOriginIdentifier's do not match");
+      }
+    }
+    var cacheOriginIdentifier = 0L;
+    if (mppModel != null) cacheOriginIdentifier = mppModel.getPartialCacheAware().getCacheOriginIdentifier();
+    if (kotlinModel != null) cacheOriginIdentifier = kotlinModel.getPartialCacheAware().getCacheOriginIdentifier();
+    if (cacheOriginIdentifier != 0L) {
+      myKotlinCacheOriginIdentifiers.add(cacheOriginIdentifier);
     }
   }
 
@@ -758,6 +791,7 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
   @SuppressWarnings("UnstableApiUsage")
   @Override
   public void resolveFinished(@NotNull DataNode<ProjectData> projectDataNode) {
+    preserveKotlinUserDataInDataNodes(projectDataNode, myKotlinCacheOriginIdentifiers);
     disableOrphanModuleNotifications();
   }
 
@@ -791,24 +825,21 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
       throw ideAndroidSyncErrorToException(syncError);
     }
 
-    IdeUnresolvedLibraryTableImpl ideLibraryTable = resolverCtx.getModels().getModel(IdeUnresolvedLibraryTableImpl.class);
-    // If there is no ide library table it is not an Android project.
-    if (ideLibraryTable != null) {
-      // Special mode sync to fetch additional native variants.
-      for (IdeaModule gradleModule : gradleProject.getModules()) {
-        IdeAndroidNativeVariantsModels nativeVariants = resolverCtx.getExtraProject(gradleModule, IdeAndroidNativeVariantsModels.class);
-        if (nativeVariants != null) {
-          projectDataNode.createChild(NATIVE_VARIANTS,
-                                      new IdeAndroidNativeVariantsModelsWrapper(
-                                        GradleProjectResolverUtil.getModuleId(resolverCtx, gradleModule),
-                                        nativeVariants
-                                      ));
-        }
-      }
-      if (isAndroidGradleProject()) {
-        projectDataNode.createChild(PROJECT_CLEANUP_MODEL, ProjectCleanupModel.getInstance());
+    // This is used in the special mode sync to fetch additional native variants.
+    for (IdeaModule gradleModule : gradleProject.getModules()) {
+      IdeAndroidNativeVariantsModels nativeVariants = resolverCtx.getExtraProject(gradleModule, IdeAndroidNativeVariantsModels.class);
+      if (nativeVariants != null) {
+        projectDataNode.createChild(NATIVE_VARIANTS,
+                                    new IdeAndroidNativeVariantsModelsWrapper(
+                                      GradleProjectResolverUtil.getModuleId(resolverCtx, gradleModule),
+                                      nativeVariants
+                                    ));
       }
     }
+    if (isAndroidGradleProject()) {
+      projectDataNode.createChild(PROJECT_CLEANUP_MODEL, ProjectCleanupModel.getInstance());
+    }
+
     super.populateProjectExtraModels(gradleProject, projectDataNode);
   }
 
@@ -822,10 +853,10 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
     throw new UnsupportedOperationException("getExtraProjectModelClasses() is not used when getModelProvider() is overridden.");
   }
 
-  @NotNull
+  @Nullable
   @Override
   public ProjectImportModelProvider getModelProvider() {
-    return AndroidExtraModelProviderConfigurator.configureAndGetExtraModelProvider(getProject(), resolverCtx);
+    return configureAndGetExtraModelProvider(resolverCtx);
   }
 
   @Override
@@ -848,7 +879,9 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
     validateGradleWrapper(projectPath);
 
     displayInternalWarningIfForcedUpgradesAreDisabled();
-    expireProjectUpgradeNotifications(project);
+    if (project != null) {
+      project.getService(AssistantInvoker.class).expireProjectUpgradeNotifications(project);
+    }
 
     if (IdeInfo.getInstance().isAndroidStudio()) {
       // Don't execute in IDEA in order to avoid conflicting behavior with IDEA's proxy support in gradle project.
@@ -952,7 +985,7 @@ public final class AndroidGradleProjectResolver extends AbstractProjectResolverE
     if (DISABLE_FORCED_UPGRADES.get()) {
       Project project = getProject();
       if (project != null) {
-        displayForceUpdatesDisabledMessage(project);
+        project.getService(AssistantInvoker.class).displayForceUpdatesDisabledMessage(project);
       }
     }
   }

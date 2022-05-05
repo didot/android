@@ -21,6 +21,7 @@ import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.panels.VerticalLayout
+import org.jetbrains.annotations.VisibleForTesting
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSeparator
@@ -28,15 +29,39 @@ import javax.swing.JSeparator
 /**
  * A dialog box that allows adding and editing body rules.
  */
-class BodyRuleDialog(private val saveAction: (RuleData.TransformationRuleData) -> Unit) : DialogWrapper(false) {
+class BodyRuleDialog(
+  transformation: RuleData.TransformationRuleData?,
+  private val saveAction: (RuleData.TransformationRuleData) -> Unit
+) : DialogWrapper(false) {
 
-  private val findTextArea = JBTextArea("Find body goes here...")
-  private val replaceTextArea = JBTextArea("Replace body goes here...")
-  private val regexCheckBox = JBCheckBox("Regex")
+  @VisibleForTesting
+  val findTextArea = JBTextArea("Find body goes here...")
+
+  @VisibleForTesting
+  val replaceTextArea = JBTextArea("Replace body goes here...")
+
+  @VisibleForTesting
+  val regexCheckBox = JBCheckBox("Regex")
 
   init {
     title = "New Header Rule"
+    transformation?.let { applySavedBody(it) }
     init()
+  }
+
+  private fun applySavedBody(bodyRule: RuleData.TransformationRuleData) {
+    when (bodyRule) {
+      is RuleData.BodyModifiedRuleData -> {
+        findTextArea.text = bodyRule.targetText
+        replaceTextArea.text = bodyRule.newText
+        regexCheckBox.isSelected = bodyRule.isRegex
+      }
+      is RuleData.BodyReplacedRuleData -> {
+        findTextArea.text = ""
+        replaceTextArea.text = bodyRule.body
+        regexCheckBox.isSelected = false
+      }
+    }
   }
 
   override fun createNorthPanel() = JPanel(VerticalLayout(18)).apply {

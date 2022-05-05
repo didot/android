@@ -21,7 +21,6 @@ import com.android.testutils.TestUtils.getSdk
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.idea.Projects.getBaseDirPath
 import com.android.tools.idea.gradle.npw.project.GradleAndroidModuleTemplate
-import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker.Request
 import com.android.tools.idea.npw.model.render
 import com.android.tools.idea.npw.module.recipes.androidModule.generateAndroidModule
 import com.android.tools.idea.npw.module.recipes.androidProject.androidProjectRecipe
@@ -131,7 +130,7 @@ data class ProjectChecker(
     refreshProjectFiles()
     if (syncProject) {
       assertEquals(projectRoot, getBaseDirPath(this))
-      AndroidGradleTests.importProject(this, Request.testRequest())
+      AndroidGradleTests.importProject(this)
     }
   }
 
@@ -161,7 +160,7 @@ data class ProjectChecker(
       throw IOException("Unable to create directory '$projectRoot'.")
     }
 
-    val moduleRoot = GradleAndroidModuleTemplate.createDefaultTemplateAt(projectRoot.path, moduleName).paths.moduleRoot!!
+    val moduleRoot = GradleAndroidModuleTemplate.createDefaultTemplateAt(File(projectRoot.path, moduleName)).paths.moduleRoot!!
 
     val appTitle = "Template Test App Title"
 

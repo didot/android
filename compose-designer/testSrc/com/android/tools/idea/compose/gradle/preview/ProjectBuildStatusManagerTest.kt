@@ -17,12 +17,12 @@ package com.android.tools.idea.compose.gradle.preview
 
 import com.android.flags.junit.SetFlagRule
 import com.android.tools.idea.compose.gradle.ComposeGradleProjectRule
-
 import com.android.tools.idea.compose.preview.ProjectBuildStatusManager
 import com.android.tools.idea.compose.preview.ProjectStatus
 import com.android.tools.idea.compose.preview.PsiFileSnapshotFilter
 import com.android.tools.idea.compose.preview.SIMPLE_COMPOSE_PROJECT_PATH
 import com.android.tools.idea.compose.preview.SimpleComposeAppPaths
+import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.flags.StudioFlags
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.command.WriteCommandAction
@@ -37,9 +37,11 @@ import com.intellij.testFramework.RunsInEdt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.Executor
@@ -50,13 +52,21 @@ class ProjectBuildStatusManagerTest {
 
   @get:Rule
   val fastPreviewFlagRule = SetFlagRule(StudioFlags.COMPOSE_FAST_PREVIEW, false)
-  @get:Rule
-  val liveLiteralsFlagRule = SetFlagRule(StudioFlags.COMPOSE_LIVE_LITERALS, true)
 
   @get:Rule
   val projectRule = ComposeGradleProjectRule(SIMPLE_COMPOSE_PROJECT_PATH)
   val project: Project
     get() = projectRule.project
+
+  @Before
+  fun setup() {
+    LiveEditApplicationConfiguration.getInstance().mode = LiveEditApplicationConfiguration.LiveEditMode.LIVE_LITERALS
+  }
+
+  @After
+  fun tearDown() {
+    LiveEditApplicationConfiguration.getInstance().resetDefault()
+  }
 
   @RunsInEdt
   @Test
@@ -72,7 +82,7 @@ class ProjectBuildStatusManagerTest {
       projectRule.fixture.file,
       scope = CoroutineScope(Executor { command -> command.run() }.asCoroutineDispatcher()))
     assertTrue("Project must compile correctly", projectRule.build().isBuildSuccessful)
-    assertTrue("Builds status is not Ready after successful build", statusManager.status is ProjectStatus.Ready)
+    assertTrue("Builds status is not Ready after successful build", statusManager.status == ProjectStatus.Ready)
 
     // Status of files created after a build should be NeedsBuild until a new build happens
     val newFile = projectRule.fixture.addFileToProject("${SimpleComposeAppPaths.APP_SIMPLE_APPLICATION_DIR}/newFile", "")
@@ -136,7 +146,7 @@ class ProjectBuildStatusManagerTest {
 
     assertEquals(ProjectStatus.NeedsBuild, statusManager.status)
     projectRule.buildAndAssertIsSuccessful()
-    assertTrue("Builds status is not Ready after successful build", statusManager.status is ProjectStatus.Ready)
+    assertTrue("Builds status is not Ready after successful build", statusManager.status == ProjectStatus.Ready)
   }
 
   /**

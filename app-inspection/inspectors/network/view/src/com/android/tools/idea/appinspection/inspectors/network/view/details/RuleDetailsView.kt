@@ -20,10 +20,11 @@ import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.common.AdtUiUtils
 import com.android.tools.adtui.common.borderLight
 import com.android.tools.adtui.common.primaryContentBackground
+import com.android.tools.adtui.model.stdui.DefaultCommonComboBoxModel
+import com.android.tools.adtui.stdui.CommonComboBox
 import com.android.tools.idea.appinspection.inspectors.network.model.rules.RuleData
 import com.android.tools.idea.appinspection.inspectors.network.view.rules.createDecoratedTable
 import com.intellij.openapi.roots.ui.componentsList.components.ScrollablePanel
-import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.panels.VerticalLayout
@@ -39,6 +40,7 @@ import javax.swing.JPanel
 
 private const val MINIMUM_DETAILS_VIEW_WIDTH = 400
 const val TEXT_LABEL_WIDTH = 220
+const val NUMBER_LABEL_WIDTH = 80
 
 /**
  * View to display a single network interception rule and its detailed information.
@@ -74,27 +76,23 @@ class RuleDetailsView : JPanel() {
   }
 
   private fun updateRuleInfo(detailsPanel: ScrollablePanel, rule: RuleData) {
-    detailsPanel.add(createKeyValuePair("Name") {
-      createTextField(rule.name, TEXT_LABEL_WIDTH) { text ->
-        rule.name = text
-      }
-    })
-    detailsPanel.add(createCategoryPanel("Origin", listOf(
-      createKeyValuePair("Host url") {
-        createTextField(rule.criteria.host, TEXT_LABEL_WIDTH) { text ->
-          rule.criteria.apply {
-            host = text
-          }
+    detailsPanel.add(
+      createKeyValuePair(
+        "Name",
+        createTextField(rule.name, TEXT_LABEL_WIDTH) { text ->
+          rule.name = text
         }
-      }
-    )))
+      )
+    )
+
+    detailsPanel.add(createOriginCategoryPanel(rule))
 
     detailsPanel.add(createCategoryPanel("Header rules", listOf(
-      createHeaderRulesTable(rule)
+      createRulesTable(rule.headerRuleTableModel)
     )))
 
     detailsPanel.add(createCategoryPanel("Body rules", listOf(
-      createBodyRulesTable(rule)
+      createRulesTable(rule.bodyRuleTableModel)
     )))
 
     TreeWalker(detailsPanel).descendantStream().forEach { (it as? JComponent)?.isOpaque = false }
@@ -102,12 +100,73 @@ class RuleDetailsView : JPanel() {
     detailsPanel.isOpaque
   }
 
-  private fun <Item> createRulesTable(model: ListTableModel<Item>, createDialog: (selectedItem: Item?) -> DialogWrapper): JComponent {
+  private fun createOriginCategoryPanel(rule: RuleData): JPanel {
+    val protocolComboBox = CommonComboBox(DefaultCommonComboBoxModel("", listOf("https", "http"))).apply {
+      isEditable = false
+      selectedIndex = 0
+      addActionListener {
+        rule.criteria.protocol = selectedItem?.toString() ?: ""
+      }
+    }
+    val urlTextField = createTextField(rule.criteria.host, TEXT_LABEL_WIDTH) { text ->
+      rule.criteria.apply {
+        host = text
+      }
+    }
+    val portTextField = createTextField(rule.criteria.host, NUMBER_LABEL_WIDTH) { text -> rule.criteria.port = text }
+    val pathTextField = createTextField(rule.criteria.host, TEXT_LABEL_WIDTH) { text -> rule.criteria.path = text }
+    val queryTextField = createTextField(rule.criteria.host, TEXT_LABEL_WIDTH) { text -> rule.criteria.query = text }
+    val methodComboBox = CommonComboBox(DefaultCommonComboBoxModel("", listOf("GET", "POST"))).apply {
+      isEditable = false
+      selectedIndex = 0
+      addActionListener {
+        rule.criteria.method = selectedItem?.toString() ?: ""
+      }
+    }
+    return createCategoryPanel("Origin", listOf(
+      createKeyValuePair("Protocol", protocolComboBox),
+      createKeyValuePair("Host url", urlTextField),
+      createKeyValuePair("Port", portTextField),
+      createKeyValuePair("Path", pathTextField),
+      createKeyValuePair("Query", queryTextField),
+      createKeyValuePair("Method", methodComboBox)
+    ))
+  }
+
+  private fun createRulesTable(model: ListTableModel<RuleData.TransformationRuleData>): JComponent {
     val table = TableView(model)
     val decorator = ToolbarDecorator.createDecorator(table)
 
+    val addRowAction: (RuleData.TransformationRuleData) -> Unit = { newItem ->
+      model.addRow(newItem)
+      val index = table.convertRowIndexToView(model.rowCount - 1)
+      table.selectionModel.setSelectionInterval(index, index)
+    }
     decorator.setAddAction {
-      createDialog(null).show()
+      when (model) {
+        is RuleData.HeaderRulesTableModel -> HeaderRuleDialog(null, addRowAction).show()
+        is RuleData.BodyRulesTableModel -> BodyRuleDialog(null, addRowAction).show()
+      }
+    }
+
+    val replaceRowAction: (RuleData.TransformationRuleData) -> Unit = { newItem ->
+      val selectedItem = table.selectedObject
+      val replaceIndex = model.items.indexOf(selectedItem)
+      if (replaceIndex != -1) {
+        model.items = model.items.map {
+          if (it == selectedItem) newItem else it
+        }
+        model.fireTableRowsUpdated(replaceIndex, replaceIndex)
+        val tableIndex = table.convertRowIndexToView(replaceIndex)
+        table.selectionModel.setSelectionInterval(tableIndex, tableIndex)
+      }
+    }
+    decorator.setEditAction {
+      val selectedItem = table.selectedObject
+      when (model) {
+        is RuleData.HeaderRulesTableModel -> HeaderRuleDialog(selectedItem, replaceRowAction).show()
+        is RuleData.BodyRulesTableModel -> BodyRuleDialog(selectedItem, replaceRowAction).show()
+      }
     }
 
     val container = ScrollablePanel(TabularLayout("*", "200px"))
@@ -115,23 +174,5 @@ class RuleDetailsView : JPanel() {
       border = BorderFactory.createLineBorder(borderLight)
     }, TabularLayout.Constraint(0, 0))
     return JBScrollPane().apply { setViewportView(container) }
-  }
-
-  private fun createHeaderRulesTable(rule: RuleData): JComponent {
-    val model = rule.headerRuleTableModel
-    return createRulesTable(model) {
-      HeaderRuleDialog { headerRule ->
-        model.addRow(headerRule)
-      }
-    }
-  }
-
-  private fun createBodyRulesTable(rule: RuleData): JComponent {
-    val model = rule.bodyRuleTableModel
-    return createRulesTable(model) {
-      BodyRuleDialog { bodyRule ->
-        model.addRow(bodyRule)
-      }
-    }
   }
 }

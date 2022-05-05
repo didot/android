@@ -352,7 +352,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> NELE_USE_SHARED_ISSUE_PANEL_FOR_DESIGN_TOOLS = Flag.create(
     NELE, "use.shared.issue.panel.for.design.tools", "Enabled shared issue panels",
     "Use a shared issue panel to display the issue for all design tools",
-    false);
+    true);
 
   public static final Flag<Boolean> NELE_SHOW_VISUAL_LINT_ISSUE_IN_COMMON_PROBLEMS_PANEL = Flag.create(
     NELE, "show.issue.in.common.panel", "Enable showing issues in common problems panel.",
@@ -408,7 +408,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> NELE_VISUAL_LINT = Flag.create(
     NELE, "visual.lint", "Enable visual linting for layouts",
     "Enable all the various tools related to visual linting of layouts.",
-    false);
+    true);
 
   public static final Flag<Boolean> NELE_VISUAL_LINT_TOGGLE_ISSUE_LAYOUTS = Flag.create(
     NELE, "visual.lint.toggle.issue.layouts", "Checkbox to show the the layouts with issue only.",
@@ -768,7 +768,7 @@ public final class StudioFlags {
     "Enable gathering and display of recomposition counts in the layout inspector.", true);
   public static final Flag<Boolean> DYNAMIC_LAYOUT_INSPECTOR_ENABLE_RECOMPOSITION_HIGHLIGHTS = Flag.create(
     LAYOUT_INSPECTOR, "dynamic.layout.inspector.enable.recomposition.highlights", "Enable recomposition highlights",
-    "Enable recomposition highlights on the image in the layout inspector.", false);
+    "Enable recomposition highlights on the image in the layout inspector.", true);
   //endregion
 
   //region Embedded Emulator
@@ -805,8 +805,8 @@ public final class StudioFlags {
 
   //region Device Mirroring
   private static final FlagGroup DEVICE_MIRRORING = new FlagGroup(FLAGS, "device.mirroring", "Device Mirroring");
-  public static final Flag<Boolean> DEVICE_MIRRORING_ENABLED = Flag.create(
-    DEVICE_MIRRORING, "enabled", "Enable Mirroring of Physical Devices",
+  public static final Flag<Boolean> DEVICE_MIRRORING_ENABLED_BY_DEFAULT = Flag.create(
+    DEVICE_MIRRORING, "enabled", "Enable Mirroring of Physical Devices by Default",
     "Mirrors displays of connected physical devices",
     false);
   public static final Flag<Boolean> DEVICE_MIRRORING_STANDALONE_EMULATORS = Flag.create(
@@ -814,9 +814,17 @@ public final class StudioFlags {
     "Treats standalone emulators the same as physical devices for the purpose of display mirroring",
     false);
   public static final Flag<Boolean> DEVICE_CLIPBOARD_SYNCHRONIZATION_ENABLED = Flag.create(
-    DEVICE_MIRRORING, "clipboard.synchronization.enabled", "Enable Clipboard Syncronization with Mirrored Physical Devices",
+    DEVICE_MIRRORING, "clipboard.synchronization.enabled", "Enable Clipboard Synchronization with Mirrored Physical Devices",
     "Synchronizes clipboard contents between the host computer and the mirrored physical devices",
-    false);
+    true);
+  public static final Flag<String> DEVICE_MIRRORING_AGENT_LOG_LEVEL = Flag.create(
+    DEVICE_MIRRORING, "agent.log.level", "On Device Logging Level for Mirroring",
+    "The log level used by the screen sharing agent, one of \"verbose\", \"debug\", \"info\", \"warn\" or \"error\"",
+    "debug");
+  public static final Flag<String> DEVICE_MIRRORING_VIDEO_CODEC = Flag.create(
+    DEVICE_MIRRORING, "video.codec", "Video Codec Used for Mirroring of Physical Devices",
+    "The name of a video codec, e.g. \"vp8\" or \"vp9\"",
+    "vp8");
   //endregion
 
   //region Refactorings
@@ -1120,24 +1128,10 @@ public final class StudioFlags {
     true
   );
 
-  public static final Flag<Boolean> COMPOSE_LIVE_LITERALS = Flag.create(
-    COMPOSE, "preview.live.literals",
-    "Enable the live literals",
-    "If enabled, the live literals feature is enabled",
-    true
-  );
-
-  public static final Flag<Boolean> COMPOSE_DEPLOY_LIVE_LITERALS = Flag.create(
-    COMPOSE, "deploy.live.literals.deploy",
-    "Enable live literals deploy",
-    "If enabled, literals within Composable functions are instantly deployed to device",
-    true
-  );
-
-  public static final Flag<Boolean> COMPOSE_DEPLOY_LIVE_EDIT = Flag.create(
-    COMPOSE, "deploy.live.edit.deploy",
-    "Enable live edits deploy",
-    "If enabled, edits within Kotlin and Composable functions are instantly deployed to device",
+  public static final Flag<Boolean> COMPOSE_DEPLOY_LIVE_EDIT_ADVANCED_SETTINGS_MENU = Flag.create(
+    COMPOSE, "deploy.live.edit.deploy.advanced.settings",
+    "Enable live edit deploy settings menu",
+    "If enabled, advanced Live Edit settings menu will be visible",
     false
   );
 
@@ -1263,7 +1257,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> COMPOSE_FAST_PREVIEW = Flag.create(
     COMPOSE, "preview.fast.reload.enabled", "Enable the Compose fast-reload preview",
     "If enabled, the preview enabled the fast-reload feature.",
-    false);
+    true);
 
   public static final Flag<Boolean> COMPOSE_FAST_PREVIEW_DAEMON_DEBUG = Flag.create(
     COMPOSE, "preview.fast.reload.debug.daemon", "Starts the Live Edit daemon in debug mode",
@@ -1411,7 +1405,39 @@ public final class StudioFlags {
       "enabled",
       "Enabled",
       "Enable App Insights tool window and highlighting support.",
-      false);
+      true);
   // endregion App Insights
+
+  // region App Links Assistant
+  private static final FlagGroup APP_LINKS_ASSISTANT = new FlagGroup(FLAGS, "applinksassistant", "App Links Assistant");
+  public static final Flag<Boolean> KOTLIN_INTENT_HANDLING =
+    Flag.create(APP_LINKS_ASSISTANT, "kotlin.intent.handling", "Kotlin Intent Handling",
+                "Support adding logic for intent handling in Kotlin.", false);
+  // endregion App Links Assistant
+
+  // region GOOGLE_PLAY_SDK_INDEX
+  private static final FlagGroup GOOGLE_PLAY_SDK_INDEX = new FlagGroup(FLAGS, "google.play.sdk.index", "Google Play SDK Index");
+  public static final Flag<Boolean> SHOW_SDK_INDEX_MESSAGES = Flag.create(
+    GOOGLE_PLAY_SDK_INDEX, "show.sdk.index.messages", "Show SDK Index messages",
+    "Show messages related to Google Play SDK Index",
+    true
+  );
+  public static final Flag<Boolean> INCLUDE_LINKS_TO_SDK_INDEX = Flag.create(
+    GOOGLE_PLAY_SDK_INDEX, "include.links.to.sdk.index", "Include links to SDK Index",
+    "Whether or not links to Google Play SDK Index should be included in the SDK Index messages",
+    true
+  );
+  public static final Flag<Boolean> SHOW_SDK_INDEX_CRITICAL_ISSUES = Flag.create(
+    GOOGLE_PLAY_SDK_INDEX, "show.sdk.critical.issues", "Show SDK Index critical issues",
+    "Whether or not critical issues from library authors should be shown",
+    false
+  );
+  public static final Flag<Boolean> SHOW_SDK_INDEX_POLICY_ISSUES = Flag.create(
+    GOOGLE_PLAY_SDK_INDEX, "show.sdk.policy.issues", "Show SDK Index policy issues",
+    "Whether or not show issues when libraries are not policy complaint",
+    false
+  );
+  // endregion GOOGLE_PLAY_SDK_INDEX
+
   private StudioFlags() { }
 }

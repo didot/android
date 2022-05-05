@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.run.deployment.liveedit
 
-import com.android.tools.idea.editors.literals.EditEvent
 import com.android.tools.idea.editors.literals.FunctionState
+import com.android.tools.idea.editors.liveedit.LiveEditAdvancedConfiguration
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.command.WriteCommandAction
@@ -47,6 +47,9 @@ class BasicCompileTest {
     myProject = projectRule.project
     files["A.kt"] = projectRule.fixture.configureByText("A.kt", "fun foo() : String { return \"I am foo\"} fun bar() = 1")
     files["CallA.kt"] = projectRule.fixture.configureByText("CallA.kt", "fun callA() : String { return foo() }")
+
+    files["InlineTarget.kt"] = projectRule.fixture.configureByText("InlineTarget.kt", "inline fun it1() : String { return \"I am foo\"}")
+    files["CallInlineTarget.kt"] = projectRule.fixture.configureByText("CallInlineTarget.kt", "fun callInlineTarget() : String { return it1() }")
 
     files["Composable.kt"] = projectRule.fixture.configureByText("Composable.kt", "package androidx.compose.runtime \n" +
                                                                         "@Target(AnnotationTarget.FUNCTION, AnnotationTarget.TYPE)\n" +
@@ -114,6 +117,20 @@ class BasicCompileTest {
   }
 
   @Test
+  fun inlineTarget() {
+    var state = readFunctionState(files["CallInlineTarget.kt"])
+    try {
+      compile(files["CallInlineTarget.kt"], "callInlineTarget", state, useInliner = false).singleOutput()
+      Assert.fail("Expecting LiveEditUpdateException")
+    } catch (e: LiveEditUpdateException) {
+      Assert.assertEquals(LiveEditUpdateException.Error.UNABLE_TO_INLINE, e.error)
+    }
+    var output = compile(files["CallInlineTarget.kt"], "callInlineTarget", state, useInliner = true).singleOutput()
+    var returnedValue = invokeStatic("callInlineTarget", loadClass(output))
+    Assert.assertEquals("I am foo", returnedValue)
+  }
+
+  @Test
   fun lambdaChange() {
     var output = compile(files["HasLambda.kt"], "hasLambda").singleOutput()
     Assert.assertEquals(1, output.supportClasses.size)
@@ -155,13 +172,14 @@ class BasicCompileTest {
     Assert.assertEquals(1, returnedValue)
   }
 
-  private fun compile(file: PsiFile?, functionName: String, state: FunctionState? = null) :
+  private fun compile(file: PsiFile?, functionName: String, state: FunctionState? = null, useInliner: Boolean = false) :
         List<AndroidLiveEditCodeGenerator.CodeGeneratorOutput> {
-    return compile(file!!, findFunction(file, functionName), state)
+    return compile(file!!, findFunction(file, functionName), state, useInliner)
   }
 
-  private fun compile(file: PsiFile, function: KtNamedFunction, state: FunctionState? = null) :
+  private fun compile(file: PsiFile, function: KtNamedFunction, state: FunctionState? = null, useInliner: Boolean = false) :
         List<AndroidLiveEditCodeGenerator.CodeGeneratorOutput> {
+    LiveEditAdvancedConfiguration.getInstance().useInlineAnalysis = useInliner
     val output = mutableListOf<AndroidLiveEditCodeGenerator.CodeGeneratorOutput>()
     AndroidLiveEditCodeGenerator(myProject).compile(
       listOf(AndroidLiveEditCodeGenerator.CodeGeneratorInput(file, function, state?: readFunctionState(file))), output)

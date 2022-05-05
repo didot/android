@@ -63,6 +63,7 @@ studio_plugin(
         "//tools/adt/idea/utp:libstudio.android-test-plugin-result-listener-gradle-proto",
         "//tools/base/deploy/deployer:deploy_java_proto",
         "//tools/base/deploy/deployer:libjava_sites",
+        "//tools/base/lint:liblint-checks-proto",
         "//tools/adt/idea/debuggers:libjava_sites",
         "//tools/base/deploy/deployer:libjava_version",
         "//tools/vendor/google/game-tools/main:game-tools-protos",
@@ -577,6 +578,19 @@ py_test(
 )
 
 py_test(
+    name = "test_updater",
+    srcs = ["tests/test_updater.py"],
+    data = [
+        ":android-studio.linux.zip",
+        ":android-studio.mac.zip",
+        ":android-studio.mac_arm.zip",
+        ":android-studio.win.zip",
+        ":updater",
+        ":updater.jar",
+    ],
+)
+
+py_test(
     name = "startup_test",
     srcs = [
         "tests/startup_test.py",
@@ -736,5 +750,6 @@ iml_module(
         "//tools/base/perf-logger:studio.perf-logger[module, test]",
         "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
+        "//tools/adt/idea/as-driver:as-driver.utils[module, test]",
     ],
 )

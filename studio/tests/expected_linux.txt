@@ -480,7 +480,7 @@ android-studio/lib/asm-commons-7.1.jar
 android-studio/lib/asm-tree-7.1.jar
 android-studio/lib/asm-util-7.1.jar
 android-studio/lib/bootstrap.jar
-android-studio/lib/build-marker-AI-213.7172.25.2113.__BUILD_NUMBER__
+android-studio/lib/build-marker-AI-213.7172.25.2211.__BUILD_NUMBER__
 android-studio/lib/byte-buddy-agent.jar
 android-studio/lib/cds/classesLogAgent.jar
 android-studio/lib/classpath.txt
@@ -1959,6 +1959,7 @@ android-studio/plugins/android/lib/libandroid-core-proto.jar
 android-studio/plugins/android/lib/libapp-processes-proto.jar
 android-studio/plugins/android/lib/libjava_sites.jar
 android-studio/plugins/android/lib/libjava_version.jar
+android-studio/plugins/android/lib/liblint-checks-proto.lib.jar
 android-studio/plugins/android/lib/libstudio.android-test-plugin-host-device-info-proto.jar
 android-studio/plugins/android/lib/libstudio.android-test-plugin-host-retention-proto.jar
 android-studio/plugins/android/lib/libstudio.android-test-plugin-result-listener-gradle-proto.jar
@@ -2361,6 +2362,7 @@ android-studio/plugins/design-tools/resources/layoutlib/data/fonts/DroidSans.ttf
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/DroidSansMono.ttf
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/NotoColorEmoji.ttf
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/NotoColorEmojiFlags.ttf
+android-studio/plugins/design-tools/resources/layoutlib/data/fonts/NotoColorEmojiLegacy.ttf
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/NotoNaskhArabic-Bold.ttf
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/NotoNaskhArabic-Regular.ttf
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/NotoNaskhArabicUI-Bold.ttf
@@ -2559,7 +2561,7 @@ android-studio/plugins/design-tools/resources/layoutlib/data/fonts/SourceSansPro
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/SourceSansPro-SemiBoldItalic.ttf
 android-studio/plugins/design-tools/resources/layoutlib/data/fonts/fonts.xml
 android-studio/plugins/design-tools/resources/layoutlib/data/framework_res.jar
-android-studio/plugins/design-tools/resources/layoutlib/data/icu/icudt68l.dat
+android-studio/plugins/design-tools/resources/layoutlib/data/icu/icudt70l.dat
 android-studio/plugins/design-tools/resources/layoutlib/data/layoutlib-extensions.jar
 android-studio/plugins/design-tools/resources/layoutlib/data/linux/lib64/libandroid_runtime.so
 android-studio/plugins/design-tools/resources/layoutlib/data/linux/lib64/libc++.so

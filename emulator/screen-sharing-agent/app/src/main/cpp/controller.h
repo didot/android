@@ -20,7 +20,6 @@
 #include <vector>
 
 #include <accessors/clipboard_manager.h>
-#include <accessors/input_manager.h>
 #include <accessors/key_character_map.h>
 #include "accessors/pointer_helper.h"
 #include "base128_input_stream.h"
@@ -71,7 +70,6 @@ private:
   Base128InputStream input_stream_;
   Base128OutputStream output_stream_;
   std::thread thread_;
-  InputManager* input_manager_;  // Owned.
   PointerHelper* pointer_helper_;  // Owned.
   JObjectArray pointer_properties_;  // MotionEvent.PointerProperties[]
   JObjectArray pointer_coordinates_;  // MotionEvent.PointerCoords[]
@@ -82,8 +80,10 @@ private:
 
   ClipboardListener clipboard_listener_;
   ClipboardManager* clipboard_manager_;  // Not owned.
-  std::atomic<int> max_synced_clipboard_length_;
-  std::atomic<bool> setting_clipboard_;
+  std::mutex clipboard_mutex_;
+  int max_synced_clipboard_length_;  // GUARDED_BY(clipboard_mutex_)
+  std::string last_clipboard_text_;  // GUARDED_BY(clipboard_mutex_)
+  bool setting_clipboard_;  // GUARDED_BY(clipboard_mutex_)
 
   DISALLOW_COPY_AND_ASSIGN(Controller);
 };

@@ -16,7 +16,7 @@
 package com.android.tools.idea.gradle.variant.view;
 
 import static com.android.tools.idea.gradle.project.sync.idea.GradleSyncExecutor.ALWAYS_SKIP_SYNC;
-import static com.android.tools.idea.projectsystem.ModuleSystemUtil.getHolderModule;
+import static com.android.tools.idea.gradle.project.sync.idea.KotlinPropertiesKt.restoreKotlinUserDataFromDataNodes;
 import static com.android.tools.idea.projectsystem.ModuleSystemUtil.isHolderModule;
 import static com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_VARIANT_SELECTION_CHANGED_BY_USER;
 import static com.intellij.util.ThreeState.YES;
@@ -55,7 +55,6 @@ import com.intellij.util.containers.ContainerUtil;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Stream;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -211,6 +210,7 @@ public class BuildVariantUpdater {
       DataNode<ProjectData> variantProjectDataNode = VariantSwitcher.findAndSetupSelectedCachedVariantData(data, variantsExpectedAfterSwitch);
       if (variantProjectDataNode != null) {
         disableKotlinCompilerPluginImportHandlers(project); // TODO(b/215522894)
+        restoreKotlinUserDataFromDataNodes(variantProjectDataNode);
         setupCachedVariant(project, variantProjectDataNode, invokeVariantSelectionChangeListeners);
         return true;
       }

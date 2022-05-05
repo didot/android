@@ -17,13 +17,13 @@ package com.android.tools.idea.compose.preview.fast
 
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.compose.preview.PREVIEW_NOTIFICATION_GROUP_ID
-import com.android.tools.idea.compose.preview.PreviewPowerSaveManager
 import com.android.tools.idea.compose.preview.message
 import com.android.tools.idea.compose.preview.util.toDisplayString
 import com.android.tools.idea.compose.preview.util.toLogString
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
-import com.android.tools.idea.editors.literals.FastPreviewApplicationConfiguration
+import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
+import com.android.tools.idea.editors.powersave.PreviewPowerSaveManager
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId
 import com.android.tools.idea.projectsystem.getModuleSystem
@@ -357,7 +357,7 @@ class FastPreviewManager private constructor(
 
   /**
    * If true, it means that Fast Preview is disabled only for this session. If Studio is restarted, we will use the persisted configuration
-   * valid in [FastPreviewApplicationConfiguration].
+   * valid in [LiveEditApplicationConfiguration].
    */
   private var disableForThisSession = false
 
@@ -365,13 +365,19 @@ class FastPreviewManager private constructor(
    * Returns true when the feature is enabled
    */
   val isEnabled: Boolean
-    get() = !disableForThisSession && FastPreviewApplicationConfiguration.getInstance().isEnabled
+    get() = !disableForThisSession && LiveEditApplicationConfiguration.getInstance().isLiveEditPreview
 
   /**
    * Returns the reason why the Fast Preview was disabled, if available.
    */
   var disableReason: DisableReason? = null
     private set
+
+  /**
+   * Returns true if the service is auto disabled and was not manually disabled by the user.
+   */
+  val isAutoDisabled: Boolean
+    get() = !isEnabled && disableReason != null && disableReason != ManualDisabledReason
 
   /**
    * Allow auto disable. If set to true, the Fast Preview might disable itself automatically if there is a compiler failure.
@@ -475,7 +481,7 @@ class FastPreviewManager private constructor(
         is CompilationResult.DaemonStartFailure -> DisableReason(title = message("fast.preview.disabled.reason.unable.start"),
                                                                  throwable = result.e)
         is CompilationResult.DaemonError -> DisableReason(
-          title = message("fast.preview.disabled.reason.unable.compile.compiler.error"),
+          title = message("fast.preview.disabled.reason.unable.compile.compiler.error.title"),
           description = message("fast.preview.disabled.reason.unable.compile.compiler.error.description"))
         is CompilationResult.CompilationAborted -> null
         is CompilationResult.Success -> throw IllegalStateException("Result is not an error, no disable reason")
@@ -542,20 +548,20 @@ class FastPreviewManager private constructor(
     if (newReason && reason != ManualDisabledReason && reason.hasLongDescription) {
       // Log long description to the event log.
       Notification(PREVIEW_NOTIFICATION_GROUP_ID,
-                   message("fast.preview.disabled.reason.unable.compile.compiler.error"),
+                   message("fast.preview.disabled.reason.unable.compile.compiler.error.description"),
                    reason.longDescriptionString(),
                    NotificationType.WARNING)
         .notify(project)
       disableForThisSession = true
     }
-    else FastPreviewApplicationConfiguration.getInstance().isEnabled = false
+    else LiveEditApplicationConfiguration.getInstance().liveEditPreviewEnabled = false
   }
 
   /** Enables the Fast Preview. */
   fun enable() {
     disableReason = null
     disableForThisSession = false
-    FastPreviewApplicationConfiguration.getInstance().isEnabled = StudioFlags.COMPOSE_FAST_PREVIEW.get()
+    LiveEditApplicationConfiguration.getInstance().liveEditPreviewEnabled = StudioFlags.COMPOSE_FAST_PREVIEW.get()
   }
 
   override fun dispose() {
@@ -594,3 +600,6 @@ class FastPreviewManager private constructor(
     private val FAST_PREVIEW_MANAGER_TOPIC = Topic("Fast Preview Manager Topic", CompileListener::class.java)
   }
 }
+
+internal val Project.fastPreviewManager: FastPreviewManager
+  get() = FastPreviewManager.getInstance(this)

@@ -21,6 +21,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <cstdlib>
 
 #include "log.h"
@@ -28,6 +29,7 @@
 namespace screensharing {
 
 using namespace std;
+using namespace std::chrono;
 
 namespace {
 
@@ -56,7 +58,9 @@ int CreateAndConnectSocket(const char* socket_name) {
 }  // namespace
 
 Agent::Agent(const vector<string>& args)
-    : max_video_resolution_(Size(numeric_limits<int32_t>::max(), numeric_limits<int32_t>::max())) {
+    : max_video_resolution_(Size(numeric_limits<int32_t>::max(), numeric_limits<int32_t>::max())),
+      initial_video_orientation_(-1),
+      codec_name_("vp8") {
   assert(instance_ == nullptr);
   instance_ = this;
 
@@ -64,10 +68,16 @@ Agent::Agent(const vector<string>& args)
     auto arg = args[i];
     if (arg.rfind("--log=", 0) == 0) {
       auto value = arg.substr(sizeof("--log=") - 1, arg.size());
-      if (value == "debug") {
+      if (value == "verbose") {
+        Log::SetLevel(Log::Level::VERBOSE);
+      } else if (value == "debug") {
         Log::SetLevel(Log::Level::DEBUG);
       } else if (value == "info") {
         Log::SetLevel(Log::Level::INFO);
+      } else if (value == "warn") {
+        Log::SetLevel(Log::Level::WARN);
+      } else if (value == "error") {
+        Log::SetLevel(Log::Level::ERROR);
       } else {
         InvalidCommandLineArgument(arg);
       }
@@ -81,7 +91,17 @@ Agent::Agent(const vector<string>& args)
       } else {
         InvalidCommandLineArgument(arg);
       }
-    } else {
+    } else if (arg.rfind("--orientation=", 0) == 0) {
+      char* ptr;
+      auto orientation = strtoul(arg.c_str() + sizeof("--orientation=") - 1, &ptr, 10);
+      if (*ptr == '\0') {
+        initial_video_orientation_ = orientation & 0x03;
+      } else {
+        InvalidCommandLineArgument(arg);
+      }
+    } else if (arg.rfind("--codec=", 0) == 0) {
+      codec_name_ = arg.substr(sizeof("--codec=") - 1, arg.size());
+    } else if (!arg.empty()) {  // For some unclear reason some command line arguments are empty strings.
       InvalidCommandLineArgument(arg);
     }
   }
@@ -93,7 +113,8 @@ Agent::~Agent() {
 }
 
 void Agent::Run() {
-  display_streamer_ = new DisplayStreamer(display_id_, max_video_resolution_, CreateAndConnectSocket(SOCKET_NAME));
+  display_streamer_ = new DisplayStreamer(
+      display_id_, codec_name_, max_video_resolution_, initial_video_orientation_, CreateAndConnectSocket(SOCKET_NAME));
   controller_ = new Controller(CreateAndConnectSocket(SOCKET_NAME));
   Log::D("Created video and control sockets");
   controller_->Start();
@@ -109,8 +130,15 @@ void Agent::SetVideoOrientation(int32_t orientation) {
 void Agent::SetMaxVideoResolution(Size max_video_resolution) {
   if (instance_ != nullptr) {
     instance_->max_video_resolution_ = max_video_resolution;
-    instance_->display_streamer_->SetVideoResolution(max_video_resolution);
+    instance_->display_streamer_->SetMaxVideoResolution(max_video_resolution);
   }
+}
+
+DisplayInfo Agent::GetDisplayInfo() {
+  if (instance_ == nullptr || instance_->display_streamer_ == nullptr) {
+    Log::Fatal("Display information has not been obtained yet");
+  }
+  return instance_->display_streamer_->GetDisplayInfo();
 }
 
 void Agent::Shutdown() {
@@ -125,6 +153,16 @@ void Agent::ShutdownInternal() {
   }
   if (display_streamer_ != nullptr) {
     display_streamer_->Shutdown();
+  }
+}
+
+int64_t Agent::GetLastTouchEventTime() {
+  return instance_ == nullptr ? 0 : instance_->last_touch_time_millis_.load();
+}
+
+void Agent::RecordTouchEvent() {
+  if (instance_ != nullptr) {
+    instance_->last_touch_time_millis_.store(duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
   }
 }
 

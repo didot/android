@@ -37,8 +37,14 @@ public:
   // the app-level orientation according to the previously set display orientation.
   static void SetVideoOrientation(int32_t orientation);
   static void SetMaxVideoResolution(Size max_video_resolution);
+  static DisplayInfo GetDisplayInfo();
 
   static void Shutdown();
+
+  // Returns the timestamp of the end of last simulated touch event in milliseconds according to the monotonic clock.
+  static int64_t GetLastTouchEventTime();
+  // Records the timestamp of the last simulated touch event in milliseconds according to the monotonic clock.
+  static void RecordTouchEvent();
 
 private:
   void ShutdownInternal();
@@ -49,8 +55,11 @@ private:
 
   int32_t display_id_ = 0;
   Size max_video_resolution_;
+  int32_t initial_video_orientation_;  // In quadrants counterclockwise.
+  std::string codec_name_;
   DisplayStreamer* display_streamer_ = nullptr;
   Controller* controller_ = nullptr;
+  std::atomic_int64_t last_touch_time_millis_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(Agent);
 };

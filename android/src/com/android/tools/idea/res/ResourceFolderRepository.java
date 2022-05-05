@@ -31,7 +31,6 @@ import static com.android.resources.base.ResourceSerializationUtil.createPersist
 import static com.android.resources.base.ResourceSerializationUtil.writeResourcesToStream;
 import static com.android.tools.idea.res.AndroidFileChangeListener.isRelevantFile;
 import static com.android.tools.idea.res.IdeResourcesUtil.getResourceTypeForResourceTag;
-import static com.android.tools.idea.res.ResourceUpdateTracer.pathForLogging;
 import static com.android.utils.TraceUtils.getSimpleId;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -69,6 +68,7 @@ import com.android.tools.idea.configurations.ConfigurationManager;
 import com.android.tools.idea.util.FileExtensions;
 import com.android.utils.Base128InputStream;
 import com.android.utils.SdkUtils;
+import com.android.utils.TraceUtils;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Maps;
@@ -285,6 +285,9 @@ public final class ResourceFolderRepository extends LocalResourceRepository impl
     loader.load();
 
     Disposer.register(myFacet, updateExecutor::shutdownNow);
+    ResourceUpdateTracer.logDirect(() ->
+      TraceUtils.getSimpleId(this) + " " + pathForLogging(resourceDir) + " created for module " + facet.getModule().getName()
+    );
   }
 
   @NotNull
@@ -739,6 +742,14 @@ public final class ResourceFolderRepository extends LocalResourceRepository impl
     });
   }
 
+  private @NotNull String pathForLogging(@NotNull VirtualFile virtualFile) {
+    return ResourceUpdateTracer.pathForLogging(virtualFile, getProject());
+  }
+
+  private @Nullable String pathForLogging(@Nullable PsiFile file) {
+    return file == null ? null : pathForLogging(file.getVirtualFile());
+  }
+
   /**
    * Runs the given update action on {@link #updateExecutor} in a read action.
    * All update actions are executed in the same order they were scheduled.
@@ -877,7 +888,7 @@ public final class ResourceFolderRepository extends LocalResourceRepository impl
                 // record all items (unlike the myItems map) so we need to remove the map
                 // items manually, can't just do map.remove(item.getName(), item)
                 List<ResourceItem> mapItems = idMultimap.get(id);
-                if (mapItems != null && !mapItems.isEmpty()) {
+                if (!mapItems.isEmpty()) {
                   List<ResourceItem> toDelete = new ArrayList<>(mapItems.size());
                   for (ResourceItem mapItem : mapItems) {
                     if (mapItem instanceof PsiResourceItem && ((PsiResourceItem)mapItem).getSourceFile() == psiResourceFile) {
@@ -2056,7 +2067,6 @@ public final class ResourceFolderRepository extends LocalResourceRepository impl
         return null;
       }
       List<ResourceItem> items = map.get(name);
-      assert items != null;
       if (tag != null) {
         // Only PsiResourceItems can match.
         for (ResourceItem resourceItem : items) {

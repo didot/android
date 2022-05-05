@@ -78,6 +78,7 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.tree.TreeModelAdapter
 import com.intellij.util.ui.tree.TreeUtil
 import java.awt.BorderLayout
+import java.lang.Exception
 import javax.swing.BoxLayout
 import javax.swing.Icon
 import javax.swing.JButton
@@ -123,8 +124,16 @@ class ToolWindowModel(
   )
 
   sealed class UIState{
-    abstract val runEnabled: Boolean
-    abstract val showLoadingState: Boolean
+    protected abstract val controlsEnabledState: ControlsEnabledState
+    val runEnabled: Boolean
+      get() = controlsEnabledState.runEnabled
+    val comboEnabled: Boolean
+      get() = controlsEnabledState.comboEnabled
+    protected abstract val layoutState: LayoutState
+    val showLoadingState: Boolean
+      get() = layoutState.showLoadingState
+    val showTree: Boolean
+      get() = layoutState.showTree
     abstract val runTooltip: String
     open val loadingText: String = ""
     open val statusMessage: StatusMessage? = null
@@ -133,8 +142,8 @@ class ToolWindowModel(
       if (this === other) return true
       if (other !is UIState) return false
 
-      if (runEnabled != other.runEnabled) return false
-      if (showLoadingState != other.showLoadingState) return false
+      if (controlsEnabledState != other.controlsEnabledState) return false
+      if (layoutState != other.layoutState) return false
       if (runTooltip != other.runTooltip) return false
       if (loadingText != other.loadingText) return false
       if (statusMessage != other.statusMessage) return false
@@ -143,8 +152,8 @@ class ToolWindowModel(
     }
 
     override fun hashCode(): Int {
-      var result = runEnabled.hashCode()
-      result = 31 * result + showLoadingState.hashCode()
+      var result = controlsEnabledState.hashCode()
+      result = 31 * result + layoutState.hashCode()
       result = 31 * result + runTooltip.hashCode()
       result = 31 * result + loadingText.hashCode()
       result = 31 * result + (statusMessage?.hashCode() ?: 0)
@@ -152,36 +161,36 @@ class ToolWindowModel(
     }
 
     object ReadyToRun : UIState() {
-      override val runEnabled = true
-      override val showLoadingState = false
+      override val controlsEnabledState = ControlsEnabledState.BOTH
+      override val layoutState = LayoutState.READY
       override val runTooltip = ""
     }
     object Loading : UIState() {
-      override val runEnabled = false
-      override val showLoadingState = true
+      override val controlsEnabledState = ControlsEnabledState.NEITHER
+      override val layoutState = LayoutState.LOADING
       override val runTooltip = ""
       override val loadingText = "Loading"
     }
     object RunningUpgrade : UIState() {
-      override val runEnabled = false
-      override val showLoadingState = true
+      override val controlsEnabledState = ControlsEnabledState.NEITHER
+      override val layoutState = LayoutState.LOADING
       override val runTooltip = ""
       override val loadingText = "Running Upgrade"
     }
     object RunningSync : UIState() {
-      override val runEnabled = false
-      override val showLoadingState = true
+      override val controlsEnabledState = ControlsEnabledState.NEITHER
+      override val layoutState = LayoutState.LOADING
       override val runTooltip = ""
       override val loadingText = "Running Sync"
     }
     object AllDone : UIState() {
-      override val runEnabled = false
-      override val showLoadingState = false
+      override val controlsEnabledState = ControlsEnabledState.NO_RUN
+      override val layoutState = LayoutState.HIDE_TREE
       override val runTooltip = "Nothing to do for this upgrade."
     }
     object ProjectFilesNotCleanWarning : UIState() {
-      override val runEnabled = true
-      override val showLoadingState = false
+      override val controlsEnabledState = ControlsEnabledState.BOTH
+      override val layoutState = LayoutState.READY
       override val loadingText = ""
       override val statusMessage = StatusMessage(Severity.WARNING, "Uncommitted changes in build files.")
       override val runTooltip = "There are uncommitted changes in project build files.  Before upgrading, " +
@@ -189,8 +198,8 @@ class ToolWindowModel(
                                  "can be handled separately."
     }
     object AgpVersionNotLocatedError : UIState() {
-      override val runEnabled = false
-      override val showLoadingState = false
+      override val controlsEnabledState = ControlsEnabledState.NO_RUN
+      override val layoutState = LayoutState.READY
       override val loadingText = ""
       override val statusMessage = StatusMessage(
         Severity.ERROR,
@@ -204,10 +213,39 @@ class ToolWindowModel(
     class InvalidVersionError(
       override val statusMessage: StatusMessage
     ) : UIState() {
-      override val runEnabled = false
-      override val showLoadingState = false
+      override val controlsEnabledState = ControlsEnabledState.NO_RUN
+      override val layoutState = LayoutState.READY
       override val runTooltip: String
         get() = statusMessage.text
+    }
+    class CaughtException(
+      override val statusMessage: StatusMessage
+    ): UIState() {
+      override val controlsEnabledState = ControlsEnabledState.NEITHER
+      override val layoutState = LayoutState.HIDE_TREE
+      override val runTooltip: String
+        get() = statusMessage.text
+    }
+    class SyncFailed(
+      val errorMessage: String
+    ): UIState() {
+      override val controlsEnabledState = ControlsEnabledState.NEITHER
+      override val layoutState = LayoutState.HIDE_TREE
+      override val statusMessage: StatusMessage = StatusMessage(Severity.ERROR, errorMessage.lines().first())
+      override val runTooltip: String
+        get() = statusMessage.text
+    }
+
+    enum class ControlsEnabledState(val runEnabled: Boolean, val comboEnabled: Boolean) {
+      BOTH(true, true),
+      NO_RUN(false, true),
+      NEITHER(false, false),
+    }
+
+    enum class LayoutState(val showLoadingState: Boolean, val showTree: Boolean) {
+      READY(false, true),
+      LOADING(true, false),
+      HIDE_TREE(false, false),
     }
   }
 
@@ -273,13 +311,15 @@ class ToolWindowModel(
   }
 
   override fun syncStarted(project: Project) = uiState.set(UIState.RunningSync)
-  override fun syncFailed(project: Project, errorMessage: String) = syncFinished()
+  override fun syncFailed(project: Project, errorMessage: String) = syncFinished(success = false, errorMessage = errorMessage)
   override fun syncSucceeded(project: Project) = syncFinished()
   override fun syncSkipped(project: Project) = syncFinished()
 
-  private fun syncFinished() {
-    uiState.set(UIState.Loading)
-    refresh(true)
+  private fun syncFinished(success: Boolean = true, errorMessage: String = "") {
+    when (success) {
+      true -> uiState.set(UIState.Loading).also { refresh(true) }
+      false -> uiState.set(UIState.SyncFailed(errorMessage))
+    }
   }
 
   override fun dispose() {
@@ -433,7 +473,13 @@ class ToolWindowModel(
         //TODO (mlazeba/xof): usages view run button should set our state to running again.
         processor.usageView?.close()
         processor.setPreviewUsages(showPreview)
-        processor.run()
+        try {
+          processor.run()
+        }
+        catch(e: Exception) {
+          processor.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.INTERNAL_ERROR)
+          uiState.set(UIState.CaughtException(StatusMessage(Severity.ERROR, e.message ?: "Unknown error")))
+        }
       }
     }
   }
@@ -473,6 +519,26 @@ class ToolWindowModel(
         }
       init {
         selectedValue = Java8DefaultRefactoringProcessor.NoLanguageLevelAction.ACCEPT_NEW_DEFAULT
+      }
+    }
+    is R8FullModeDefaultRefactoringProcessor -> object : DefaultStepPresentation(processor), StepUiWithComboSelectorPresentation {
+      override val label: String = "Action on no android.enableR8.fullMode property: "
+      override val pageHeader: String
+        get() = processor.commandName
+      override val treeText: String
+        get() = processor.noPropertyPresentAction.toString()
+      override val elements: List<R8FullModeDefaultRefactoringProcessor.NoPropertyPresentAction>
+        get() = listOf(
+          R8FullModeDefaultRefactoringProcessor.NoPropertyPresentAction.ACCEPT_NEW_DEFAULT,
+          R8FullModeDefaultRefactoringProcessor.NoPropertyPresentAction.INSERT_OLD_DEFAULT
+        )
+      override var selectedValue: Any
+        get() = processor.noPropertyPresentAction
+        set(value) {
+          if (value is R8FullModeDefaultRefactoringProcessor.NoPropertyPresentAction) processor.noPropertyPresentAction = value
+        }
+      init {
+        selectedValue = R8FullModeDefaultRefactoringProcessor.NoPropertyPresentAction.ACCEPT_NEW_DEFAULT
       }
     }
     is GradlePluginsRefactoringProcessor -> object : DefaultStepPresentation(processor) {
@@ -536,7 +602,7 @@ class ContentManagerImpl(val project: Project): ContentManager {
     private val myBindings = BindingsManager()
     private val myListeners = ListenerManager()
 
-    val tree = CheckboxTree(UpgradeAssistantTreeCellRenderer(), null).apply {
+    val tree: CheckboxTree = CheckboxTree(UpgradeAssistantTreeCellRenderer(), null).apply {
       model = this@View.model.treeModel
       isRootVisible = false
       selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
@@ -547,7 +613,8 @@ class ContentManagerImpl(val project: Project): ContentManager {
       isEnabled = !this@View.model.uiState.get().showLoadingState
       myListeners.listen(this@View.model.uiState) { uiState ->
         isEnabled = !uiState.showLoadingState
-        if (uiState.showLoadingState) {
+        treePanel.isVisible = uiState.showTree
+        if (!uiState.showTree) {
           selectionModel.clearSelection()
           refreshDetailsPanel()
         }
@@ -593,9 +660,9 @@ class ContentManagerImpl(val project: Project): ContentManager {
         }
       }
     ).apply {
-      isEnabled = !this@View.model.uiState.get().showLoadingState
+      isEnabled = this@View.model.uiState.get().comboEnabled
       myListeners.listen(this@View.model.uiState) { uiState ->
-        isEnabled = !uiState.showLoadingState
+        isEnabled = uiState.comboEnabled
       }
 
       // Need to register additional key listeners to the textfield that would hide main combo-box popup.
@@ -684,6 +751,11 @@ class ContentManagerImpl(val project: Project): ContentManager {
       myListeners.listen(this@View.model.uiState) { refreshDetailsPanel() }
     }
 
+    val treePanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
+      add(ScrollPaneFactory.createScrollPane(tree, SideBorder.NONE), BorderLayout.WEST)
+      add(JSeparator(SwingConstants.VERTICAL), BorderLayout.CENTER)
+    }
+
     val content = JBLoadingPanel(BorderLayout(), contentManager).apply {
       val controlsPanel = makeTopComponent()
       val topPanel = JBPanel<JBPanel<*>>().apply {
@@ -692,10 +764,6 @@ class ContentManagerImpl(val project: Project): ContentManager {
         add(JSeparator(SwingConstants.HORIZONTAL))
       }
       add(topPanel, BorderLayout.NORTH)
-      val treePanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
-        add(ScrollPaneFactory.createScrollPane(tree, SideBorder.NONE), BorderLayout.WEST)
-        add(JSeparator(SwingConstants.VERTICAL), BorderLayout.CENTER)
-      }
       add(treePanel, BorderLayout.WEST)
       add(detailsPanel, BorderLayout.CENTER)
 
@@ -753,10 +821,32 @@ class ContentManagerImpl(val project: Project): ContentManager {
     private fun refreshDetailsPanel() {
       detailsPanel.removeAll()
       val selectedStep = (tree.selectionPath?.lastPathComponent as? DefaultMutableTreeNode)?.userObject
+      val uiState = this@View.model.uiState.get()
       val label = HtmlLabel().apply { name = "content" }
       setUpAsHtmlLabel(label)
       when {
-        this@View.model.uiState.get() is ToolWindowModel.UIState.AllDone -> {
+        uiState is ToolWindowModel.UIState.CaughtException -> {
+          val sb = StringBuilder()
+          sb.append("<div><b>Caught exception</b></div>")
+          sb.append("<p>Something went wrong (an internal exception occured).  The status message is:<br/>")
+          sb.append(uiState.statusMessage.text)
+          sb.append("</p>")
+          sb.append("<p>You should revert to a known-good state before doing anything else.</p>")
+          label.text = sb.toString()
+          detailsPanel.add(label)
+        }
+        uiState is ToolWindowModel.UIState.SyncFailed -> {
+          val sb = StringBuilder()
+          sb.append("<div><b>Sync Failed</b></div>")
+          sb.append("<p>The project failed to sync with the IDE.  The error message from sync is:</p>")
+          sb.append("<pre>\n")
+          sb.append(uiState.errorMessage)
+          sb.append("\n</pre>")
+          sb.append("<p>You should revert to a known-good state before doing anything else.</p>")
+          label.text = sb.toString()
+          detailsPanel.add(label)
+        }
+        uiState is ToolWindowModel.UIState.AllDone -> {
           val sb = StringBuilder()
           sb.append("<div><b>Nothing to do</b></div>")
           sb.append("<p>Project build files are up-to-date for Android Gradle Plugin version ${this@View.model.current}.")

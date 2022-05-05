@@ -20,8 +20,10 @@
 
 #include <thread>
 
-#include "accessors/motion_event.h"
+#include "accessors/input_manager.h"
 #include "accessors/key_event.h"
+#include "accessors/motion_event.h"
+#include "accessors/service_manager.h"
 #include "accessors/window_manager.h"
 #include "agent.h"
 #include "jvm.h"
@@ -61,6 +63,23 @@ int Utf8CharacterCount(const string& str) {
   return count;
 }
 
+Point AdjustedDisplayCoordinates(int32_t x, int32_t y, const DisplayInfo& display_info) {
+  auto size = display_info.NaturalSize();
+  switch (display_info.rotation) {
+    case 1:
+      return { y, size.width - x };
+
+    case 2:
+      return { size.width - x, size.height - y };
+
+    case 3:
+      return { size.height - y, x };
+
+    default:
+      return { x, y };
+  }
+}
+
 }  // namespace
 
 Controller::Controller(int socket_fd)
@@ -68,7 +87,6 @@ Controller::Controller(int socket_fd)
       input_stream_(socket_fd, BUFFER_SIZE),
       output_stream_(socket_fd, BUFFER_SIZE),
       thread_(),
-      input_manager_(),
       pointer_helper_(),
       motion_event_start_time_(0),
       key_character_map_(),
@@ -84,13 +102,9 @@ Controller::Controller(int socket_fd)
 Controller::~Controller() {
   input_stream_.Close();
   StopClipboardSync();
-  if (clipboard_manager_ != nullptr) {
-    clipboard_manager_->RemoveClipboardListener(&clipboard_listener_);
-  }
   if (thread_.joinable()) {
     thread_.join();
   }
-  delete input_manager_;
   delete pointer_helper_;
   delete key_character_map_;
   close(socket_fd_);
@@ -114,7 +128,6 @@ void Controller::Shutdown() {
 }
 
 void Controller::Initialize() {
-  input_manager_ = new InputManager(jni_);
   pointer_helper_ = new PointerHelper(jni_);
   pointer_properties_ = pointer_helper_->NewPointerPropertiesArray(MotionEventMessage::MAX_POINTERS);
   pointer_coordinates_ = pointer_helper_->NewPointerCoordsArray(MotionEventMessage::MAX_POINTERS);
@@ -131,6 +144,7 @@ void Controller::Initialize() {
   pointer_properties_.MakeGlobal();
   pointer_coordinates_.MakeGlobal();
 
+  ServiceManager::GetService(jni_, "settings");  // Wait for the "settings" service to initialize.
   // Keep the screen on as long as the device has power.
   stay_on_.Set(num_to_string<BATTERY_PLUGGED_AC | BATTERY_PLUGGED_USB | BATTERY_PLUGGED_WIRELESS>::value);
   // Turn off "Auto-rotate screen".
@@ -208,11 +222,14 @@ void Controller::ProcessMotionEvent(const MotionEventMessage& message) {
     motion_event_start_time_ = 0;
   }
 
+  DisplayInfo display_info = Agent::GetDisplayInfo();
+
   for (auto& pointer : message.get_pointers()) {
     JObject properties = pointer_properties_.GetElement(jni_, event.pointer_count);
     pointer_helper_->SetPointerId(properties, pointer.pointer_id);
     JObject coordinates = pointer_coordinates_.GetElement(jni_, event.pointer_count);
-    pointer_helper_->SetPointerCoords(coordinates, pointer.x, pointer.y);
+    Point point = AdjustedDisplayCoordinates(pointer.x, pointer.y, display_info);
+    pointer_helper_->SetPointerCoords(coordinates, point.x, point.y);
     float pressure =
         (action == AMOTION_EVENT_ACTION_POINTER_UP && event.pointer_count == action >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT) ? 0 : 1;
     pointer_helper_->SetPointerPressure(coordinates, pressure);
@@ -225,7 +242,7 @@ void Controller::ProcessMotionEvent(const MotionEventMessage& message) {
   // They have to be converted to a sequence of pointer-specific events.
   if (action == AMOTION_EVENT_ACTION_DOWN) {
     for (int i = 1; event.pointer_count = i, i < message.get_pointers().size(); i++) {
-      input_manager_->InjectInputEvent(event.ToJava(), InputEventInjectionSync::NONE);
+      InputManager::InjectInputEvent(jni_, event.ToJava(), InputEventInjectionSync::NONE);
       event.action = AMOTION_EVENT_ACTION_POINTER_DOWN | (i << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT);
     }
   }
@@ -233,12 +250,13 @@ void Controller::ProcessMotionEvent(const MotionEventMessage& message) {
     for (int i = event.pointer_count; --i > 1;) {
       event.action = AMOTION_EVENT_ACTION_POINTER_UP | (i << AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT);
       pointer_helper_->SetPointerPressure(pointer_coordinates_.GetElement(jni_, i), 0);
-      input_manager_->InjectInputEvent(event.ToJava(), InputEventInjectionSync::NONE);
+      InputManager::InjectInputEvent(jni_, event.ToJava(), InputEventInjectionSync::NONE);
       event.pointer_count = i;
     }
     event.action = AMOTION_EVENT_ACTION_UP;
   }
-  input_manager_->InjectInputEvent(event.ToJava(), InputEventInjectionSync::NONE);
+  Agent::RecordTouchEvent();
+  InputManager::InjectInputEvent(jni_, event.ToJava(), InputEventInjectionSync::NONE);
 
   if (event.action == AMOTION_EVENT_ACTION_UP) {
     // This event may have started an app. Update the app-level display orientation.
@@ -247,7 +265,7 @@ void Controller::ProcessMotionEvent(const MotionEventMessage& message) {
 }
 
 void Controller::ProcessKeyboardEvent(const KeyEventMessage& message) {
-  int64_t now = UptimeMillis();
+  int64_t now = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
   KeyEvent event(jni_);
   event.down_time_millis = now;
   event.event_time_millis = now;
@@ -257,11 +275,11 @@ void Controller::ProcessKeyboardEvent(const KeyEventMessage& message) {
   event.meta_state = message.get_meta_state();
   event.source = KeyCharacterMap::VIRTUAL_KEYBOARD;
   JObject key_event = event.ToJava();
-  input_manager_->InjectInputEvent(key_event, InputEventInjectionSync::NONE);
+  InputManager::InjectInputEvent(jni_, key_event, InputEventInjectionSync::NONE);
   if (action == KeyEventMessage::ACTION_DOWN_AND_UP) {
     event.action = AKEY_EVENT_ACTION_UP;
     key_event = event.ToJava();
-    input_manager_->InjectInputEvent(key_event, InputEventInjectionSync::NONE);
+    InputManager::InjectInputEvent(jni_, key_event, InputEventInjectionSync::NONE);
   }
 }
 
@@ -276,7 +294,7 @@ void Controller::ProcessTextInput(const TextInputMessage& message) {
     auto len = event_array.GetLength();
     for (int i = 0; i < len; i++) {
       JObject key_event = event_array.GetElement(i);
-      input_manager_->InjectInputEvent(key_event, InputEventInjectionSync::NONE);
+      InputManager::InjectInputEvent(jni_, key_event, InputEventInjectionSync::NONE);
     }
   }
 }
@@ -299,37 +317,62 @@ void Controller::ProcessSetMaxVideoResolution(const SetMaxVideoResolutionMessage
 }
 
 void Controller::StartClipboardSync(const StartClipboardSyncMessage& message) {
-  int old_synced_clipboard_length = max_synced_clipboard_length_.exchange(message.get_max_synced_length());
-  clipboard_manager_ = ClipboardManager::GetInstance(jni_);
-  setting_clipboard_ = true;
-  clipboard_manager_->SetText(jni_, message.get_text());
-  if (old_synced_clipboard_length == 0) {
-    clipboard_manager_->AddClipboardListener(&clipboard_listener_);
+  {
+    scoped_lock lock(clipboard_mutex_);
+    if (message.get_text() != last_clipboard_text_) {
+      last_clipboard_text_ = message.get_text();
+      setting_clipboard_ = true;
+    }
+    clipboard_manager_ = ClipboardManager::GetInstance(jni_);
+    if (setting_clipboard_) {
+      clipboard_manager_->SetText(jni_, message.get_text());
+    }
+    setting_clipboard_ = false;
+    bool was_stopped = max_synced_clipboard_length_ == 0;
+    max_synced_clipboard_length_ = message.get_max_synced_length();
+    if (was_stopped) {
+      clipboard_manager_->AddClipboardListener(&clipboard_listener_);
+    }
   }
-  setting_clipboard_ = false;
 }
 
 void Controller::StopClipboardSync() {
-  max_synced_clipboard_length_ = 0;
+  scoped_lock lock(clipboard_mutex_);
+  if (max_synced_clipboard_length_ != 0) {
+    clipboard_manager_ = ClipboardManager::GetInstance(jni_);
+    clipboard_manager_->RemoveClipboardListener(&clipboard_listener_);
+    max_synced_clipboard_length_ = 0;
+    last_clipboard_text_.resize(0);
+  }
 }
 
 void Controller::OnPrimaryClipChanged() {
-  if (setting_clipboard_) {
-    return;
-  }
-  // Can't use jni_ because this method may be called on an arbitrary thread.
-  auto text = clipboard_manager_->GetText(Jvm::GetJni());
-  int max_length = max_synced_clipboard_length_;
-  if (!text.empty() && text.size() <= max_length * UTF8_MAX_BYTES_PER_CHARACTER && Utf8CharacterCount(text) <= max_length) {
-    ClipboardChangedMessage message(move(text));
-    try {
-      message.Serialize(output_stream_);
-      output_stream_.Flush();
-    } catch (StreamClosedException& e) {
-      // The stream has been closed - ignore.
-    } catch (EndOfFile& e) {
-      // The socket has been closed - ignore.
+  string text;
+  {
+    scoped_lock lock(clipboard_mutex_);
+    if (setting_clipboard_) {
+      return;
     }
+    // Cannot use jni_ because this method may be called on an arbitrary thread.
+    text = clipboard_manager_->GetText(Jvm::GetJni());
+    if (text.empty() || text == last_clipboard_text_) {
+      return;
+    }
+    int max_length = max_synced_clipboard_length_;
+    if (text.size() > max_length * UTF8_MAX_BYTES_PER_CHARACTER || Utf8CharacterCount(text) > max_length) {
+      return;
+    }
+    last_clipboard_text_ = text;
+  }
+
+  ClipboardChangedMessage message(move(text));
+  try {
+    message.Serialize(output_stream_);
+    output_stream_.Flush();
+  } catch (StreamClosedException& e) {
+    // The stream has been closed - ignore.
+  } catch (EndOfFile& e) {
+    // The socket has been closed - ignore.
   }
 }
 

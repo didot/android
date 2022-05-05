@@ -24,7 +24,6 @@
 #include <chrono>
 #include <cmath>
 
-#include "accessors/display_manager.h"
 #include "accessors/surface_control.h"
 #include "agent.h"
 #include "jvm.h"
@@ -36,6 +35,8 @@ using namespace std;
 using namespace std::chrono;
 
 namespace {
+
+constexpr int MAX_SUBSEQUENT_ERRORS = 10;
 
 struct CodecOutputBuffer {
   explicit CodecOutputBuffer(AMediaCodec* codec)
@@ -55,9 +56,13 @@ struct CodecOutputBuffer {
   [[nodiscard]] bool Deque(int64_t timeout_us) {
     index = AMediaCodec_dequeueOutputBuffer(codec, &info, timeout_us);
     if (index < 0) {
+      if (++consequent_error_count >= MAX_SUBSEQUENT_ERRORS) {
+        Log::Fatal("AMediaCodec_dequeueOutputBuffer returned %ld, terminating due to too many errors", static_cast<long>(index));
+      }
       Log::D("AMediaCodec_dequeueOutputBuffer returned %ld", static_cast<long>(index));
       return false;
     }
+    consequent_error_count = 0;
     if (Log::IsEnabled(Log::Level::VERBOSE)) {
       Log::V("CodecOutputBuffer::Deque: index:%ld offset:%d size:%d flags:0x%x, presentationTimeUs:%" PRId64,
              static_cast<long>(index), info.offset, info.size, info.flags, info.presentationTimeUs);
@@ -83,17 +88,42 @@ struct CodecOutputBuffer {
   AMediaCodecBufferInfo info;
   uint8_t* buffer;
   size_t size;
+  static int consequent_error_count;
 };
 
-constexpr const char* MIMETYPE_VIDEO_AVC = "video/avc";
+int CodecOutputBuffer::consequent_error_count = 0;
+
+struct CodecDescriptor {
+  const char* name;
+  const char* mime_type;
+};
+
+CodecDescriptor supported_codecs[] = {
+    { "vp8", "video/x-vnd.on2.vp8" },  // See android.media.MediaFormat.MIMETYPE_VIDEO_VP8
+    { "vp9", "video/x-vnd.on2.vp9" },  // See android.media.MediaFormat.MIMETYPE_VIDEO_VP9
+    { "h264", "video/avc" }  // See See android.media.MediaFormat.MIMETYPE_VIDEO_AVC
+};
+
 constexpr int COLOR_FormatSurface = 0x7F000789;  // See android.media.MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
 constexpr int BIT_RATE = 8000000;
 constexpr int I_FRAME_INTERVAL_SECONDS = 10;
 constexpr int REPEAT_FRAME_DELAY_MILLIS = 100;
+constexpr int CHANNEL_HEADER_LENGTH = 20;
 
-AMediaFormat* createMediaFormat() {
+CodecDescriptor* FindCodecDescriptor(const string& codec_name) {
+  int n = sizeof(supported_codecs) / sizeof(*supported_codecs);
+  for (int i = 0; i < n; ++i) {
+    CodecDescriptor* codec = supported_codecs + i;
+    if (codec->name == codec_name) {
+      return codec;
+    }
+  }
+  return nullptr;
+}
+
+AMediaFormat* createMediaFormat(const char* mimetype) {
   AMediaFormat* media_format = AMediaFormat_new();
-  AMediaFormat_setString(media_format, AMEDIAFORMAT_KEY_MIME, MIMETYPE_VIDEO_AVC);
+  AMediaFormat_setString(media_format, AMEDIAFORMAT_KEY_MIME, mimetype);
   AMediaFormat_setInt32(media_format, AMEDIAFORMAT_KEY_COLOR_FORMAT, COLOR_FormatSurface);
   // Does not affect the actual frame rate, but must be present.
   AMediaFormat_setInt32(media_format, AMEDIAFORMAT_KEY_FRAME_RATE, 60);
@@ -130,29 +160,53 @@ void ConfigureDisplay(const SurfaceControl& surface_control, jobject display_tok
 
 }  // namespace
 
-DisplayStreamer::DisplayStreamer(int display_id, Size max_video_resolution, int socket_fd)
+DisplayStreamer::DisplayStreamer(int display_id, string codec_name, Size max_video_resolution, int initial_video_orientation, int socket_fd)
     : display_rotation_watcher_(this),
       display_id_(display_id),
-      max_video_resolution_(max_video_resolution),
+      codec_name_(move(codec_name)),
       socket_fd_(socket_fd),
       presentation_timestamp_offset_(0),
       stopped_(),
-      video_orientation_(-1),
+      display_info_(),
+      max_video_resolution_(max_video_resolution),
+      video_orientation_(initial_video_orientation),
       running_codec_() {
   assert(socket_fd > 0);
 }
 
 void DisplayStreamer::Run() {
   Jni jni = Jvm::GetJni();
+
+  const CodecDescriptor* codec_descriptor = FindCodecDescriptor(codec_name_);
+  if (codec_descriptor == nullptr) {
+    Log::Fatal("Codec %s is not supported", codec_name_.c_str());
+  }
+  AMediaCodec* codec = AMediaCodec_createEncoderByType(codec_descriptor->mime_type);
+  if (codec == nullptr) {
+    Log::Fatal("Unable to create a %s encoder", codec_descriptor->name);
+  }
+  Log::D("Using %s video encoder", codec_descriptor->name);
+  AMediaFormat* media_format = createMediaFormat(codec_descriptor->mime_type);
+
+  string header;
+  header.reserve(CHANNEL_HEADER_LENGTH);
+  header.append(codec_descriptor->name);
+  // Pad with spaces to the fixed length.
+  while (header.length() < CHANNEL_HEADER_LENGTH) {
+    header.insert(header.end(), ' ');
+  }
+  write(socket_fd_, header.c_str(), header.length());
+
   WindowManager::WatchRotation(jni, &display_rotation_watcher_);
-  VideoPacketHeader packet_header = { .frame_number = 1 };
-  AMediaFormat* media_format = createMediaFormat();
   SurfaceControl surface_control(jni);
+  VideoPacketHeader packet_header = { .frame_number = 1 };
 
   while (!stopped_) {
-    AMediaCodec* codec = AMediaCodec_createEncoderByType(MIMETYPE_VIDEO_AVC);
     if (codec == nullptr) {
-      Log::Fatal("Unable to create AMediaCodec");
+      codec = AMediaCodec_createEncoderByType(codec_descriptor->mime_type);
+      if (codec == nullptr) {
+        Log::Fatal("Unable to create a %s encoder", codec_descriptor->name);
+      }
     }
     bool secure = android_get_device_api_level() < 31;  // Creation of secure displays is not allowed on API 31+.
     JObject display = surface_control.CreateDisplay("screen-sharing-agent", secure);
@@ -164,6 +218,7 @@ void DisplayStreamer::Run() {
     ANativeWindow* surface = nullptr;
     {
       scoped_lock lock(mutex_);
+      display_info_ = display_info;
       int32_t extra_rotation = video_orientation_ >= 0 ? NormalizeRotation(video_orientation_ - display_info.rotation) : 0;
       Size video_size = ComputeVideoSize(display_info.logical_size.Rotated(extra_rotation), max_video_resolution_);
       Log::D("DisplayStreamer::Run: video_size=%dx%d, video_orientation=%d, display_orientation=%d",
@@ -187,6 +242,7 @@ void DisplayStreamer::Run() {
     StopCodec();
     surface_control.DestroyDisplay(display);
     AMediaCodec_delete(codec);
+    codec = nullptr;
     ANativeWindow_release(surface);
     if (end_of_stream) {
       break;
@@ -218,12 +274,17 @@ void DisplayStreamer::SetVideoOrientation(int32_t orientation) {
   }
 }
 
-void DisplayStreamer::SetVideoResolution(Size max_video_resolution) {
+void DisplayStreamer::SetMaxVideoResolution(Size max_video_resolution) {
   scoped_lock lock(mutex_);
   if (max_video_resolution_ != max_video_resolution) {
     max_video_resolution_ = max_video_resolution;
     StopCodecUnlocked();
   }
+}
+
+DisplayInfo DisplayStreamer::GetDisplayInfo() {
+  scoped_lock lock(mutex_);
+  return display_info_;
 }
 
 void DisplayStreamer::Shutdown() {
@@ -243,6 +304,10 @@ bool DisplayStreamer::ProcessFramesUntilStopped(AMediaCodec* codec, VideoPacketH
     end_of_stream = codec_buffer.IsEndOfStream();
     if (!IsCodecRunning()) {
       return false;
+    }
+    int64_t delta = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count() - Agent::GetLastTouchEventTime();
+    if (delta < 1000) {
+      Log::D("Video packet of %d bytes at %lld ms since last touch event", codec_buffer.info.size, delta);
     }
     packet_header->origination_timestamp_us = duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
     if (codec_buffer.IsConfig()) {
@@ -289,7 +354,7 @@ bool DisplayStreamer::IsCodecRunning() {
 
 DisplayStreamer::DisplayRotationWatcher::DisplayRotationWatcher(DisplayStreamer* display_streamer)
     : display_streamer(display_streamer),
-      display_rotation() {
+      display_rotation(-1) {
 }
 
 DisplayStreamer::DisplayRotationWatcher::~DisplayRotationWatcher() {
@@ -297,8 +362,8 @@ DisplayStreamer::DisplayRotationWatcher::~DisplayRotationWatcher() {
 }
 
 void DisplayStreamer::DisplayRotationWatcher::OnRotationChanged(int32_t new_rotation) {
-  Log::D("DisplayRotationWatcher::OnRotationChanged: new_rotation=%d", new_rotation);
   auto old_rotation = display_rotation.exchange(new_rotation);
+  Log::D("DisplayRotationWatcher::OnRotationChanged: new_rotation=%d old_rotation=%d", new_rotation, old_rotation);
   if (new_rotation != old_rotation) {
     display_streamer->StopCodec();
   }

@@ -15,14 +15,16 @@
  */
 package com.android.tools.idea.run.deployment.liveedit;
 
+import static com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration.LiveEditMode.LIVE_EDIT;
+import static com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration.LiveEditMode.DISABLED;
 import static com.android.tools.idea.run.deployment.liveedit.ErrorReporterKt.errorMessage;
-import static com.android.tools.idea.run.deployment.liveedit.ErrorReporterKt.reportDeployerError;
 
 import com.android.annotations.Nullable;
 import com.android.annotations.Trace;
 import com.android.ddmlib.Client;
 import com.android.ddmlib.IDevice;
 import com.android.sdklib.AndroidVersion;
+import com.android.tools.analytics.UsageTracker;
 import com.android.tools.deployer.AdbClient;
 import com.android.tools.deployer.AdbInstaller;
 import com.android.tools.deployer.Installer;
@@ -30,17 +32,20 @@ import com.android.tools.deployer.MetricsRecorder;
 import com.android.tools.deployer.tasks.LiveUpdateDeployer;
 import com.android.tools.idea.editors.literals.EditState;
 import com.android.tools.idea.editors.literals.EditStatus;
-import com.android.tools.idea.editors.literals.FunctionState;
+import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration;
 import com.android.tools.idea.editors.literals.LiveEditService;
 import com.android.tools.idea.editors.literals.LiveLiteralsMonitorHandler;
 import com.android.tools.idea.editors.literals.LiveLiteralsService;
 import com.android.tools.idea.editors.literals.EditEvent;
 import com.android.tools.idea.flags.StudioFlags;
-import com.android.tools.idea.editors.liveedit.LiveEditConfig;
+import com.android.tools.idea.editors.liveedit.LiveEditAdvancedConfiguration;
 import com.android.tools.idea.log.LogWrapper;
 import com.android.tools.idea.run.AndroidSessionInfo;
 import com.android.tools.idea.run.deployment.AndroidExecutionTarget;
+import com.android.tools.idea.run.deployment.liveedit.AndroidLiveEditCodeGenerator.CodeGeneratorOutput;
 import com.android.tools.idea.util.StudioPathManager;
+import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
+import com.google.wireless.android.sdk.stats.LiveEditEvent;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.impl.ActionToolbarImpl;
 import com.intellij.openapi.application.ApplicationManager;
@@ -49,15 +54,14 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.psi.PsiFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
@@ -194,12 +198,20 @@ public class AndroidLiveEditDeployMonitor {
 
     // This method is invoked on the listener executor thread in LiveEditService and does not block the UI thread.
     public void onLiteralsChanged(EditEvent event) {
+      if (!LiveEditApplicationConfiguration.Companion.getInstance().isLiveEditDevice()) {
+        return;
+      }
+
       if (StringUtil.isEmpty(applicationId)) {
         return;
       }
 
+      if (editStatus.get().getEditState() == EditState.ERROR) {
+        return;
+      }
+
       changedMethodQueue.add(event);
-      methodChangesExecutor.schedule(this::processChanges, LiveEditConfig.getInstance().getRefreshRateMs(), TimeUnit.MILLISECONDS);
+      methodChangesExecutor.schedule(this::processChanges, LiveEditAdvancedConfiguration.getInstance().getRefreshRateMs(), TimeUnit.MILLISECONDS);
     }
 
     private void processChanges() {
@@ -226,7 +238,7 @@ public class AndroidLiveEditDeployMonitor {
 
       if (!handleChangedMethods(project, applicationId, copy)) {
         changedMethodQueue.addAll(copy);
-        methodChangesExecutor.schedule(this::processChanges, LiveEditConfig.getInstance().getRefreshRateMs(), TimeUnit.MILLISECONDS);
+        methodChangesExecutor.schedule(this::processChanges, LiveEditAdvancedConfiguration.getInstance().getRefreshRateMs(), TimeUnit.MILLISECONDS);
       }
     }
   }
@@ -245,14 +257,8 @@ public class AndroidLiveEditDeployMonitor {
     // TODO: Don't use Live Literal's reporting
     LiveLiteralsService.getInstance(project).liveLiteralsMonitorStopped(deviceId + "#" + applicationId);
 
-    // Live Edit will eventually replace Live Literals. They conflict with each other the only way the enable
-    // one is to to disable the other.
-    if (StudioFlags.COMPOSE_DEPLOY_LIVE_LITERALS.get()) {
-      LOGGER.info("Live Edit disabled because %s is enabled.", StudioFlags.COMPOSE_DEPLOY_LIVE_LITERALS.getId());
-      return null;
-    }
-    if (!StudioFlags.COMPOSE_DEPLOY_LIVE_EDIT.get()) {
-      LOGGER.info("Live Edit disabled because %s is disabled.", StudioFlags.COMPOSE_DEPLOY_LIVE_EDIT.getId());
+    if (!LiveEditApplicationConfiguration.Companion.getInstance().isLiveEditDevice()) {
+      LOGGER.info("Live Edit on device disabled via settings.");
       return null;
     }
 
@@ -313,11 +319,12 @@ public class AndroidLiveEditDeployMonitor {
                                        List<EditEvent> changes) {
     LOGGER.info("Change detected for project %s targeting app %s", project.getName(), packageName);
 
+    LiveEditEvent.Builder event = LiveEditEvent.newBuilder();
+
     long start = System.nanoTime();
     long compileFinish, pushFinish;
 
-    ArrayList<AndroidLiveEditCodeGenerator.CodeGeneratorOutput> compiled = new ArrayList<>();
-    LiveEditUpdateException exception = null;
+    ArrayList<CodeGeneratorOutput> compiled = new ArrayList<>();
     try {
       // Check that Jetpack Compose plugin is enabled otherwise inline linking will fail with
       // unclear BackendException
@@ -325,44 +332,83 @@ public class AndroidLiveEditDeployMonitor {
       checkIwiAvailable();
       List<AndroidLiveEditCodeGenerator.CodeGeneratorInput> inputs = changes.stream().map(
         change ->
-          new AndroidLiveEditCodeGenerator.CodeGeneratorInput(change.getFile(), change.getNamedFunction(), change.getFunctionState()))
+          new AndroidLiveEditCodeGenerator.CodeGeneratorInput(change.getFile(), change.getElement(), change.getFunctionState()))
         .collect(Collectors.toList());
       if (!new AndroidLiveEditCodeGenerator(project).compile(inputs, compiled)) {
         return false;
       }
     } catch (LiveEditUpdateException e) {
-      // We need to do this because currently error reporting requires an AdbClient object, which we don't create until we push.
-      // Once compilation error reporting does *not* require device knowledge, this should be removed.
-      exception = e;
-      LOGGER.error(e, "Error while compiling");
-    } finally {
-      compileFinish = System.nanoTime();
+      updateEditStatus(new EditStatus(EditState.PAUSED, errorMessage(e)));
+      return true;
     }
 
-    String deployEventKey = Integer.toString(changes.hashCode());
-    try {
-      pushUpdates(project, packageName, deployEventKey, compiled, exception);
-    } finally {
-      pushFinish = System.nanoTime();
+    // Ignore FunctionType.NONE, since those are changes to non-function elements. Counting any change to a non-function as a non-compose
+    // change might make the data useless, as a lot of "noisy" class-level/file-level PSI events are generated along with function edits.
+    event.setHasNonCompose(compiled.stream().anyMatch(c -> c.getFunctionType() == AndroidLiveEditCodeGenerator.FunctionType.KOTLIN));
+
+    compileFinish = System.nanoTime();
+    event.setCompileDurationMs(TimeUnit.NANOSECONDS.toMillis(compileFinish - start));
+    LOGGER.info("LiveEdit compile completed in %dms", event.getCompileDurationMs());
+
+    Optional<LiveUpdateDeployer.UpdateLiveEditError> error = deviceIterator(project, packageName)
+      .map(device -> pushUpdatesToDevice(packageName, device, compiled))
+      .flatMap(List::stream)
+      .findFirst();
+
+    if (error.isPresent()) {
+      updateEditStatus(new EditStatus(EditState.ERROR, error.get().getMessage()));
+      event.setStatus(errorToStatus(error.get()));
+    } else {
+      updateEditStatus(LiveEditService.UP_TO_DATE_STATUS);
+      event.setStatus(LiveEditEvent.Status.SUCCESS);
     }
 
-    long compileDurationMs = TimeUnit.NANOSECONDS.toMillis(compileFinish - start);
-    long pushDurationMs = TimeUnit.NANOSECONDS.toMillis(pushFinish - compileFinish);
-    LOGGER.info("LiveEdit completed in %dms (compile: %dms, push: %dms)", compileDurationMs + pushDurationMs, compileDurationMs,
-                pushDurationMs);
+    pushFinish = System.nanoTime();
+    event.setPushDurationMs(TimeUnit.NANOSECONDS.toMillis(pushFinish - compileFinish));
+    LOGGER.info("LiveEdit push completed in %dms", event.getPushDurationMs());
 
-    LiveEditUpdateException e = exception;
+    logLiveEditEvent(event);
+    return true;
+  }
+
+  private static LiveEditEvent.Status errorToStatus(LiveUpdateDeployer.UpdateLiveEditError error) {
+    switch(error.getType()) {
+      case ADDED_METHOD:
+        return LiveEditEvent.Status.UNSUPPORTED_ADDED_METHOD;
+      case REMOVED_METHOD:
+        return LiveEditEvent.Status.UNSUPPORTED_REMOVED_METHOD;
+      case ADDED_CLASS:
+        return LiveEditEvent.Status.UNSUPPORTED_ADDED_CLASS;
+      case ADDED_FIELD:
+      case MODIFIED_FIELD:
+        return LiveEditEvent.Status.UNSUPPORTED_ADDED_FIELD;
+      case REMOVED_FIELD:
+        return LiveEditEvent.Status.UNSUPPORTED_REMOVED_FIELD;
+      case MODIFIED_SUPER:
+      case ADDED_INTERFACE:
+      case REMOVED_INTERFACE:
+        return LiveEditEvent.Status.UNSUPPORTED_MODIFY_INHERITANCE;
+      default:
+        return LiveEditEvent.Status.UNKNOWN;
+    }
+  }
+
+  private static final Random random = new Random();
+  private static void logLiveEditEvent(LiveEditEvent.Builder event) {
+    // Because LiveEdit could conceivably run every time the user stops typing, we log only 10% of events.
+    if (random.nextDouble() < 0.1) {
+      UsageTracker.log(AndroidStudioEvent.newBuilder().setCategory(AndroidStudioEvent.EventCategory.DEPLOYMENT)
+                         .setKind(AndroidStudioEvent.EventKind.LIVE_EDIT_EVENT).setLiveEditEvent(event));
+    }
+  }
+
+  private void updateEditStatus(EditStatus status) {
     editStatusChanged(editStatus.getAndUpdate(editStatus -> {
       if (editStatus.getEditState() == LiveEditService.DISABLED_STATUS.getEditState()) {
         return LiveEditService.DISABLED_STATUS;
       }
-      if (e != null) {
-        return new EditStatus(EditState.PAUSED, errorMessage(e));
-      }
-      return LiveEditService.UP_TO_DATE_STATUS;
+      return status;
     }));
-
-    return true;
   }
 
   private static Stream<IDevice> deviceIterator(Project project, String packageName) {
@@ -380,64 +426,41 @@ public class AndroidLiveEditDeployMonitor {
       .filter(AndroidLiveEditDeployMonitor::supportLiveEdits);
   }
 
-  private void pushUpdates(Project project,
-                           String packageName,
-                           String deployEventKey,
-                           List<AndroidLiveEditCodeGenerator.CodeGeneratorOutput> updates,
-                           LiveEditUpdateException exception) {
-    deviceIterator(project, packageName)
-      .map(d -> new AdbClient(d, LOGGER))
-      .forEach(adb -> {
-        if (exception != null) {
-          onCompileFailCallBack(project, adb, packageName, deployEventKey, errorMessage(exception));
-          return;
+  private static List<LiveUpdateDeployer.UpdateLiveEditError> pushUpdatesToDevice(
+      String packageName, IDevice device, List<CodeGeneratorOutput> updates) {
+    AdbClient adb = new AdbClient(device, LOGGER);
+    MetricsRecorder metrics = new MetricsRecorder();
+    Installer installer = new AdbInstaller(getLocalInstaller(), adb, metrics.getDeployMetrics(), LOGGER, AdbInstaller.Mode.DAEMON);
+    LiveUpdateDeployer deployer = new LiveUpdateDeployer();
+
+    // TODO: Batch multiple updates in one LiveEdit operation; listening to all PSI events means multiple class events can be
+    //  generated from a single keystroke, leading to multiple LEs and multiple recomposes.
+    List<LiveUpdateDeployer.UpdateLiveEditError> results = new ArrayList<>();
+    updates.forEach(update -> {
+      boolean useDebugMode = LiveEditAdvancedConfiguration.getInstance().getUseDebugMode();
+      boolean usePartialRecompose = LiveEditAdvancedConfiguration.getInstance().getUsePartialRecompose() &&
+                                    update.getFunctionType() == AndroidLiveEditCodeGenerator.FunctionType.COMPOSABLE;
+      LiveUpdateDeployer.UpdateLiveEditsParam param =
+        new LiveUpdateDeployer.UpdateLiveEditsParam(
+          update.getClassName(), update.getMethodName(), update.getMethodDesc(),
+          usePartialRecompose,
+          update.getOffSet().getStart(),
+          update.getOffSet().getEnd(),
+          update.getClassData(),
+          update.getSupportClasses(), useDebugMode);
+
+
+      if (useDebugMode) {
+        writeDebugToTmp(update.getClassName().replaceAll("/", ".") + ".class", update.getClassData());
+        for (String supportClassName : update.getSupportClasses().keySet()) {
+          byte[] bytecode = update.getSupportClasses().get(supportClassName);
+          writeDebugToTmp(supportClassName.replaceAll("/", ".") + ".class", bytecode);
         }
-
-        MetricsRecorder metrics = new MetricsRecorder();
-
-        Installer installer = new AdbInstaller(getLocalInstaller(), adb, metrics.getDeployMetrics(), LOGGER, AdbInstaller.Mode.DAEMON);
-        LiveUpdateDeployer deployer = new LiveUpdateDeployer();
-
-        updates.forEach(update -> onCompileSuccessCallBack(project, adb, packageName, deployEventKey, deployer, installer, update));
-    });
-  }
-
-  private static void onCompileSuccessCallBack(
-    Project project, AdbClient adb, String packageName, String deployEventKey, LiveUpdateDeployer deployer, Installer installer,
-    AndroidLiveEditCodeGenerator.CodeGeneratorOutput update) {
-    boolean useDebugMode = LiveEditConfig.getInstance().getUseDebugMode();
-    boolean usePartialRecompose = LiveEditConfig.getInstance().getUsePartialRecompose() &&
-                                  update.getFunctionType() == AndroidLiveEditCodeGenerator.FunctionType.COMPOSABLE;
-    LiveUpdateDeployer.UpdateLiveEditsParam param =
-      new LiveUpdateDeployer.UpdateLiveEditsParam(
-        update.getClassName(), update.getMethodName(), update.getMethodDesc(),
-        usePartialRecompose,
-        update.getOffSet().getStart(),
-        update.getOffSet().getEnd(),
-        update.getClassData(),
-        update.getSupportClasses(), useDebugMode);
-
-
-    if (useDebugMode) {
-      writeDebugToTmp(update.getClassName().replaceAll("/", ".")+ ".class", update.getClassData());
-      for (String supportClassName : update.getSupportClasses().keySet()) {
-        byte[] bytecode = update.getSupportClasses().get(supportClassName);
-        writeDebugToTmp(supportClassName.replaceAll("/", ".")+ ".class", bytecode);
       }
-    }
 
-    String deviceId = adb.getSerial() + "#" + packageName;
-    LiveLiteralsService.getInstance(project).liveLiteralPushStarted(deviceId, deployEventKey);
-
-    List<LiveUpdateDeployer.UpdateLiveEditError> results = deployer.updateLiveEdit(installer, adb, packageName, param);
-    for (LiveUpdateDeployer.UpdateLiveEditError result : results ) {
-      reportDeployerError(result);
-    }
-
-    LiveLiteralsService.getInstance(project).liveLiteralPushed(
-      deviceId, deployEventKey,results.stream().map(
-        r -> new LiveLiteralsMonitorHandler.Problem(LiveLiteralsMonitorHandler.Problem.Severity.ERROR, r.msg))
-        .collect(Collectors.toList()));
+      results.addAll(deployer.updateLiveEdit(installer, adb, packageName, param));
+    });
+    return results;
   }
 
   private static void writeDebugToTmp(String name, byte[] data) {
@@ -453,15 +476,6 @@ public class AndroidLiveEditDeployMonitor {
     catch (IOException e) {
       LOGGER.info("Unable to write debug file '%s'", path.toAbsolutePath());
     }
-  }
-
-  private static void onCompileFailCallBack(
-    Project project, AdbClient adb, String packageName, String deployEventKey, String errorMessage) {
-    String deviceId = adb.getSerial() + "#" + packageName;
-    LiveLiteralsService.getInstance(project).liveLiteralPushStarted(deviceId, deployEventKey);
-    List< LiveLiteralsMonitorHandler.Problem> e = new ArrayList<>();
-    e.add(new LiveLiteralsMonitorHandler.Problem(LiveLiteralsMonitorHandler.Problem.Severity.ERROR, errorMessage));
-    LiveLiteralsService.getInstance(project).liveLiteralPushed(deviceId, deployEventKey, e);
   }
 
   private static boolean supportLiveEdits(IDevice device) {

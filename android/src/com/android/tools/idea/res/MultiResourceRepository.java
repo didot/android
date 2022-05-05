@@ -25,6 +25,7 @@ import com.android.ide.common.resources.SingleNamespaceResourceRepository;
 import com.android.ide.common.resources.configuration.FolderConfiguration;
 import com.android.resources.ResourceType;
 import com.android.resources.aar.AarResourceRepository;
+import com.android.utils.TraceUtils;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
@@ -117,6 +118,9 @@ public abstract class MultiResourceRepository extends LocalResourceRepository im
   protected void setChildren(@NotNull List<? extends LocalResourceRepository> localResources,
                              @NotNull Collection<? extends AarResourceRepository> libraryResources,
                              @NotNull Collection<? extends ResourceRepository> otherResources) {
+    ResourceUpdateTracer.logDirect(() ->
+        TraceUtils.getSimpleId(this) + ".setChildren([" + TraceUtils.getSimpleIds(localResources) + "], ...)");
+
     synchronized (ITEM_MAP_LOCK) {
       for (LocalResourceRepository child : myLocalResources) {
         child.removeParent(this);
@@ -408,7 +412,7 @@ public abstract class MultiResourceRepository extends LocalResourceRepository im
     // possible that the repository that triggered cache invalidation is not in myLeafsByNamespace.
     // In such a case we don't need to do anything.
     ImmutableList<SingleNamespaceResourceRepository> leafs = myLeafsByNamespace.get(namespace);
-    if (leafs != null && leafs.contains(repository)) {
+    if (leafs.contains(repository)) {
       // Update myUnreconciledResources only if myCachedMaps is used for this namespace.
       if (leafs.size() != 1) {
         for (ResourceType type : types) {
@@ -517,9 +521,9 @@ public abstract class MultiResourceRepository extends LocalResourceRepository im
     }
 
     @Override
-    @Nullable
-    public List<ResourceItem> get(@Nullable String key) {
-      return myMap.get(key);
+    public @NotNull List<ResourceItem> get(@Nullable String key) {
+      List<ResourceItem> items = myMap.get(key);
+      return items == null ? ImmutableList.of() : items;
     }
 
     @Override
@@ -552,14 +556,13 @@ public abstract class MultiResourceRepository extends LocalResourceRepository im
     }
 
     @Override
-    @Nullable
-    public List<ResourceItem> removeAll(@Nullable Object key) {
+    public @NotNull List<ResourceItem> removeAll(@Nullable Object key) {
       //noinspection SuspiciousMethodCalls
       List<ResourceItem> removed = myMap.remove(key);
       if (removed != null) {
         mySize -= removed.size();
       }
-      return removed;
+      return removed == null ? ImmutableList.of() : removed;
     }
 
     @SuppressWarnings("UnusedReturnValue")
@@ -657,12 +660,12 @@ public abstract class MultiResourceRepository extends LocalResourceRepository im
     }
 
     @Override
-    public List<ResourceItem> replaceValues(@Nullable String key, @NotNull Iterable<? extends ResourceItem> values) {
+    public @NotNull List<ResourceItem> replaceValues(@Nullable String key, @NotNull Iterable<? extends ResourceItem> values) {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public Map<String, Collection<ResourceItem>> asMap() {
+    public @NotNull Map<String, Collection<ResourceItem>> asMap() {
       //noinspection unchecked
       return (Map<String, Collection<ResourceItem>>)(Map<String, ?>)myMap;
     }
