@@ -246,12 +246,6 @@ public class ApkEditor extends UserDataHolderBase implements FileEditor, ApkView
 
   @Nullable
   @Override
-  public BackgroundEditorHighlighter getBackgroundHighlighter() {
-    return null;
-  }
-
-  @Nullable
-  @Override
   public StructureViewBuilder getStructureViewBuilder() {
     return null;
   }
