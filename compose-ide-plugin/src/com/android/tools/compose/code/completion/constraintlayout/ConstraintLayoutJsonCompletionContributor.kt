@@ -16,11 +16,13 @@
 package com.android.tools.compose.code.completion.constraintlayout
 
 import com.android.tools.compose.code.completion.constraintlayout.provider.AnchorablesProvider
+import com.android.tools.compose.code.completion.constraintlayout.provider.ClearOptionsProvider
 import com.android.tools.compose.code.completion.constraintlayout.provider.ConstraintIdsProvider
 import com.android.tools.compose.code.completion.constraintlayout.provider.ConstraintSetFieldsProvider
 import com.android.tools.compose.code.completion.constraintlayout.provider.ConstraintSetNamesProvider
 import com.android.tools.compose.code.completion.constraintlayout.provider.ConstraintsProvider
 import com.android.tools.compose.code.completion.constraintlayout.provider.EnumValuesCompletionProvider
+import com.android.tools.compose.code.completion.constraintlayout.provider.TransitionFieldsProvider
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.getModuleSystem
 import com.intellij.codeInsight.completion.CompletionContributor
@@ -38,6 +40,9 @@ private const val CONSTRAINT_SET_LIST_PROPERTY_DEPTH = BASE_DEPTH_FOR_LITERAL_IN
 /** Depth for a literal of a property of a ConstraintSet. With respect to the ConstraintSets root element. */
 private const val CONSTRAINT_SET_PROPERTY_DEPTH = CONSTRAINT_SET_LIST_PROPERTY_DEPTH + BASE_DEPTH_FOR_LITERAL_IN_PROPERTY
 
+/** Depth for a literal of a property of a Transition. With respect to the Transitions root element. */
+private const val TRANSITION_PROPERTY_DEPTH = CONSTRAINT_SET_PROPERTY_DEPTH
+
 /** Depth for a literal of a property of a Constraints block. With respect to the ConstraintSets root element. */
 internal const val CONSTRAINT_BLOCK_PROPERTY_DEPTH = CONSTRAINT_SET_PROPERTY_DEPTH + BASE_DEPTH_FOR_LITERAL_IN_PROPERTY
 
@@ -49,6 +54,7 @@ internal const val CONSTRAINT_BLOCK_PROPERTY_DEPTH = CONSTRAINT_SET_PROPERTY_DEP
  */
 class ConstraintLayoutJsonCompletionContributor : CompletionContributor() {
   init {
+    // region ConstraintSets
     extend(
       CompletionType.BASIC,
       // Complete field names in ConstraintSets
@@ -95,6 +101,13 @@ class ConstraintLayoutJsonCompletionContributor : CompletionContributor() {
     )
     extend(
       CompletionType.BASIC,
+      // Complete a clear option within the 'clear' array
+      jsonStringValue()
+        .insideClearArray(),
+      ClearOptionsProvider
+    )
+    extend(
+      CompletionType.BASIC,
       // Complete non-numeric dimension values for width & height
       jsonStringValue()
         .withPropertyParentAtLevel(BASE_DEPTH_FOR_LITERAL_IN_PROPERTY, Dimension.values().map { it.keyWord }),
@@ -107,6 +120,27 @@ class ConstraintLayoutJsonCompletionContributor : CompletionContributor() {
         .withPropertyParentAtLevel(BASE_DEPTH_FOR_LITERAL_IN_PROPERTY, KeyWords.Visibility),
       EnumValuesCompletionProvider(VisibilityMode::class)
     )
+    //endregion
+
+    //region Transitions
+    extend(
+      CompletionType.BASIC,
+      // Complete fields of a Transition block
+      jsonPropertyName()
+        .withTransitionsParentAtLevel(TRANSITION_PROPERTY_DEPTH),
+      TransitionFieldsProvider
+    )
+    extend(
+      CompletionType.BASIC,
+      // Complete existing ConstraintSet names for `from` and `to` Transition properties
+      jsonStringValue()
+        .withPropertyParentAtLevel(BASE_DEPTH_FOR_LITERAL_IN_PROPERTY, listOf(TransitionField.From.keyWord, TransitionField.To.keyWord))
+        .withTransitionsParentAtLevel(TRANSITION_PROPERTY_DEPTH),
+      // TODO(b/207030860): Guarantee that provided names for 'from' or 'to' are distinct from each other,
+      //  ie: both shouldn't reference the same ConstraintSet
+      ConstraintSetNamesProvider
+    )
+    //endregion
   }
 
   override fun fillCompletionVariants(parameters: CompletionParameters, result: CompletionResultSet) {

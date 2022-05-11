@@ -25,8 +25,8 @@ import com.android.tools.idea.compose.preview.ComposePreviewRepresentation
 import com.android.tools.idea.compose.preview.PreviewElementProvider
 import com.android.tools.idea.compose.preview.SIMPLE_COMPOSE_PROJECT_PATH
 import com.android.tools.idea.compose.preview.SimpleComposeAppPaths
-import com.android.tools.idea.compose.preview.fast.CompilationResult
 import com.android.tools.idea.compose.preview.util.PreviewElement
+import com.android.tools.idea.editors.fast.CompilationResult
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
 import com.android.tools.idea.testing.deleteLine
@@ -278,6 +278,94 @@ class ComposePreviewRepresentationGradleTest {
 
     val thirdRender = findSceneViewRenderWithName("TwoElementsPreview")
     ImageDiffUtil.assertImageSimilar("testImage", firstRender, thirdRender, 10.0, 20)
+  }
+
+  @Test
+  fun `MultiPreview annotation changes are reflected in the previews without rebuilding`() {
+    val vFile = project.guessProjectDir()!!
+      .findFileByRelativePath(SimpleComposeAppPaths.APP_OTHER_PREVIEWS.path)!!
+    val otherPreviewsFile = runReadAction { PsiManager.getInstance(project).findFile(vFile)!! }
+
+    // Add an annotation class annotated with Preview in OtherPreviews.kt
+    invokeAndWaitIfNeeded {
+      fixture.openFileInEditor(otherPreviewsFile.virtualFile)
+    }
+    runWriteActionAndWait {
+      fixture.moveCaret("|@Preview")
+      fixture.editor.executeAndSave {
+        insertText("@Preview\nannotation class MyAnnotation\n\n")
+      }
+      PsiDocumentManager.getInstance(projectRule.project).commitAllDocuments()
+      FileDocumentManager.getInstance().saveAllDocuments()
+    }
+
+    invokeAndWaitIfNeeded {
+      fixture.openFileInEditor(psiMainFile.virtualFile)
+    }
+
+    runAndWaitForRefresh(Duration.ofSeconds(15)) {
+      // Annotate DefaultPreview with the new MultiPreview annotation class
+      runWriteActionAndWait {
+        fixture.moveCaret("|@Preview")
+        fixture.editor.executeAndSave {
+          insertText("@MyAnnotation\n")
+        }
+        PsiDocumentManager.getInstance(projectRule.project).commitAllDocuments()
+        FileDocumentManager.getInstance().saveAllDocuments()
+      }
+    }
+    invokeAndWaitIfNeeded {
+      fakeUi.root.validate()
+    }
+
+    assertEquals(
+      """
+        DefaultPreview - MyAnnotation 1
+        DefaultPreview
+        TwoElementsPreview
+        NavigatablePreview
+        OnlyATextNavigation
+      """.trimIndent(),
+      fakeUi.findAllComponents<SceneViewPeerPanel>()
+        .filter { it.isShowing }.joinToString("\n") { it.displayName })
+
+    // Modify the Preview annotating MyAnnotation
+    invokeAndWaitIfNeeded {
+      fixture.openFileInEditor(otherPreviewsFile.virtualFile)
+    }
+    runWriteActionAndWait {
+      fixture.moveCaret("@Preview|")
+      fixture.editor.executeAndSave {
+        insertText("(name = \"newName\")")
+      }
+      PsiDocumentManager.getInstance(projectRule.project).commitAllDocuments()
+      FileDocumentManager.getInstance().saveAllDocuments()
+    }
+
+    invokeAndWaitIfNeeded {
+      fixture.openFileInEditor(psiMainFile.virtualFile)
+    }
+
+    runAndWaitForRefresh(Duration.ofSeconds(15)) {
+      // Simulate what happens when changing to the MainActivity.kt tab in the editor
+      // TODO(b/232092986) This is actually not a tab change, but currently we don't have a better way
+      //  of simulating it, and this is the only relevant consequence of changing tabs for this test.
+      composePreviewRepresentation.onActivate()
+    }
+    invokeAndWaitIfNeeded {
+      fakeUi.root.validate()
+    }
+
+    assertEquals(
+      """
+        DefaultPreview - newName
+        DefaultPreview
+        TwoElementsPreview
+        NavigatablePreview
+        OnlyATextNavigation
+      """.trimIndent(),
+      fakeUi.findAllComponents<SceneViewPeerPanel>()
+        .filter { it.isShowing }.joinToString("\n") { it.displayName })
   }
 
   @Test

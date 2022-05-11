@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,30 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.compose.preview.fast
+package com.android.tools.idea.editors.fast
 
 import com.android.ide.common.repository.GradleVersion
-import com.android.tools.idea.compose.preview.PREVIEW_NOTIFICATION_GROUP_ID
-import com.android.tools.idea.compose.preview.message
-import com.android.tools.idea.compose.preview.util.toDisplayString
-import com.android.tools.idea.compose.preview.util.toLogString
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
+import com.android.tools.idea.editors.fast.FastPreviewBundle.message
 import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.editors.powersave.PreviewPowerSaveManager
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId
 import com.android.tools.idea.projectsystem.getModuleSystem
-import com.android.tools.idea.projectsystem.gradle.GradleClassFinderUtil
 import com.android.tools.idea.rendering.classloading.ProjectConstantRemapper
 import com.android.tools.idea.run.deployment.liveedit.LiveEditUpdateException
-import com.android.tools.idea.util.StudioPathManager
 import com.google.common.cache.CacheBuilder
 import com.google.common.hash.Hashing
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.Module
@@ -45,7 +39,6 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.psi.PsiFile
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.messages.Topic
@@ -57,17 +50,36 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.time.withTimeout
 import kotlinx.coroutines.withContext
-import org.jetbrains.android.sdk.AndroidPlatform
-import org.jetbrains.android.uipreview.getLibraryDependenciesJars
+import org.apache.commons.lang.time.DurationFormatUtils
 import org.jetbrains.annotations.TestOnly
-import java.io.FileNotFoundException
+import java.io.PrintWriter
+import java.io.StringWriter
 import java.nio.file.Files
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.streams.toList
 
 /** Default version of the runtime to use if the dependency resolution fails when looking for the daemon. */
 private val DEFAULT_RUNTIME_VERSION = GradleVersion.parse("1.1.0-alpha02")
+
+/**
+ * Converts the [Throwable] stacktrace to a string.
+ */
+private fun Throwable.toLogString(): String {
+  val exceptionStackWriter = StringWriter()
+  printStackTrace(PrintWriter(exceptionStackWriter))
+
+  return exceptionStackWriter.toString()
+}
+
+/**
+ * Converts the given duration to a display string that contains minutes (if the duration is greater than 60s), seconds and
+ * milliseconds.
+ */
+private fun Duration.toDisplayString(): String {
+  val durationMs = toMillis()
+  val durationFormat = if (durationMs >= 60_000) "mm 'm' ss 's' SSS 'ms'" else "ss 's' SSS 'ms'"
+  return DurationFormatUtils.formatDuration(durationMs, durationFormat, false)
+}
 
 data class DisableReason(val title: String, val description: String? = null, val throwable: Throwable? = null) {
   /**
@@ -191,30 +203,6 @@ private class DaemonRegistry(
 }
 
 /**
- * Default class path locator that returns the classpath for the module source code (excluding dependencies).
- */
-private fun defaultModuleCompileClassPathLocator(module: Module): List<String> =
-  GradleClassFinderUtil.getModuleCompileOutputs(module, true)
-    .filter { it.exists() }
-    .map { it.absolutePath.toString() }
-    .toList()
-
-/**
- * Default class path locator that returns the classpath containing the dependencies of [module] to pass to the compiler.
- */
-private fun defaultModuleDependenciesCompileClassPathLocator(module: Module): List<String> {
-  val libraryDeps = module.getLibraryDependenciesJars()
-    .map { it.toString() }
-
-  val bootclassPath = AndroidPlatform.getInstance(module)
-                        ?.target
-                        ?.bootClasspath ?: listOf()
-  // The Compose plugin is included as part of the fat daemon jar so no need to specify it
-
-  return (libraryDeps + bootclassPath)
-}
-
-/**
  * Default runtime version locator that, for a given [Module], returns the version of the runtime that
  * should be used.
  */
@@ -224,51 +212,7 @@ private fun defaultRuntimeVersionLocator(module: Module): GradleVersion =
     ?.version ?: DEFAULT_RUNTIME_VERSION
 
 /**
- * Finds the `kotlin-compiler-daemon` jar for the given [version] that is included as part of the plugin.
- * This method does not check the path actually exists.
- */
-private fun findDaemonPath(version: String): String {
-  val homePath = FileUtil.toSystemIndependentName(PathManager.getHomePath())
-  val jarRootPath = if (StudioPathManager.isRunningFromSources()) {
-    StudioPathManager.resolvePathFromSourcesRoot("tools/adt/idea/compose-designer/lib/").toString()
-  }
-  else {
-    // When running as part of the distribution, we allow also to override the path to the daemon via a system property.
-    System.getProperty("preview.live.edit.daemon.path", FileUtil.join(homePath, "plugins/design-tools/resources/"))
-  }
-
-  return FileUtil.join(jarRootPath, "kotlin-compiler-daemon-$version.jar")
-}
-
-/**
- * Default daemon factory to be used in production. This factory will instantiate [OutOfProcessCompilerDaemonClientImpl] for the
- * given version.
- * This factory will try to find a daemon for the given specific version or fallback to a stable one if the specific one
- * is not found. For example, for `1.1.0-alpha02`, this factory will try to locate the jar for the daemon
- * `kotlin-compiler-daemon-1.1.0-alpha02.jar`. If not found, it will alternatively try `kotlin-compiler-daemon-1.1.0.jar` since
- * it should be compatible.
- */
-private fun defaultDaemonFactory(version: String,
-                                 log: Logger,
-                                 scope: CoroutineScope,
-                                 moduleClassPathLocator: (Module) -> List<String>,
-                                 moduleDependenciesClassPathLocator: (Module) -> List<String>): CompilerDaemonClient {
-  // Prepare fallback versions
-  val daemonPath = linkedSetOf(
-    version,
-    "${version.substringBeforeLast("-")}-fallback", // Find the fallback artifact for this same version
-    "${version.substringBeforeLast(".")}.0-fallback",  // Find the fallback artifact for the same major version, e.g. 1.1
-    "${version.substringBefore(".")}.0.0-fallback"  // Find the fallback artifact for the same major version, e.g. 1
-  ).asSequence().map {
-    log.debug("Looking for kotlin daemon version '${version}'")
-    findDaemonPath(it)
-  }.find { FileUtil.exists(it) } ?: throw FileNotFoundException("Unable to find kotlin daemon for version '$version'")
-  log.info("Starting daemon $daemonPath")
-  return OutOfProcessCompilerDaemonClientImpl(daemonPath, scope, log, moduleClassPathLocator, moduleDependenciesClassPathLocator)
-}
-
-/**
- * Same as [defaultDaemonFactory] but it returns a [CompilerDaemonClient] that uses the in-process compiler. This is the same
+ * Returns a [CompilerDaemonClient] that uses the in-process compiler. This is the same
  * compiler used by the Emulator Live Edit.
  */
 private fun embeddedDaemonFactory(project: Project, log: Logger): CompilerDaemonClient {
@@ -304,15 +248,13 @@ private fun createCompileRequestId(files: Collection<PsiFile>, module: Module): 
 
 private val DEFAULT_MAX_CACHED_REQUESTS = Integer.getInteger("preview.fast.max.cached.requests", 5)
 
+private const val FAST_PREVIEW_NOTIFICATION_GROUP_ID = "Fast Preview Notification"
+
 /**
  * Service that talks to the compiler daemon and manages the daemons and compilation requests.
  *
  * @param project [Project] this manager is working with
  * @param alternativeDaemonFactory Optional daemon factory to use if the default one should not be used. Mainly for testing.
- * @param moduleClassPathLocator A method that given a [Module] returns the classpath for the module source to be passed to the
- *  compiler. This will contain the classes that are part of the project.
- * @param moduleDependenciesClassPathLocator A method that given a [Module] returns the classpath containing all dependencies of that module
- *  to be passed to the compiler when making compilation requests for it.
  * @param moduleRuntimeVersionLocator A method that given a [Module] returns the [GradleVersion] of the Compose runtime that should
  *  be used. This is useful when locating the specific kotlin compiler daemon.
  * @param maxCachedRequests Maximum number of cached requests to store by this manager. If 0, caching is disabled.
@@ -320,9 +262,7 @@ private val DEFAULT_MAX_CACHED_REQUESTS = Integer.getInteger("preview.fast.max.c
 @Service
 class FastPreviewManager private constructor(
   private val project: Project,
-  alternativeDaemonFactory: ((String) -> CompilerDaemonClient)? = null,
-  private val moduleClassPathLocator: (Module) -> List<String> = ::defaultModuleCompileClassPathLocator,
-  private val moduleDependenciesClassPathLocator: (Module) -> List<String> = ::defaultModuleDependenciesCompileClassPathLocator,
+  alternativeDaemonFactory: ((String, Project, Logger, CoroutineScope) -> CompilerDaemonClient)? = null,
   private val moduleRuntimeVersionLocator: (Module) -> GradleVersion = ::defaultRuntimeVersionLocator,
   maxCachedRequests: Int = DEFAULT_MAX_CACHED_REQUESTS) : Disposable {
 
@@ -336,11 +276,8 @@ class FastPreviewManager private constructor(
     get() = _isDisposed.get()
 
   private val scope = AndroidCoroutineScope(this, workerThread)
-  private val daemonFactory = alternativeDaemonFactory ?: {
-    if (StudioFlags.COMPOSE_FAST_PREVIEW_USE_IN_PROCESS_DAEMON.get())
-      embeddedDaemonFactory(project, log)
-    else
-      defaultDaemonFactory(it, log, scope, moduleClassPathLocator, moduleDependenciesClassPathLocator)
+  private val daemonFactory: ((String) -> CompilerDaemonClient) = { version ->
+    alternativeDaemonFactory?.invoke(version, project, log, scope) ?: embeddedDaemonFactory(project, log)
   }
   private val daemonRegistry = DaemonRegistry(scope, daemonFactory).also {
     Disposer.register(this@FastPreviewManager, it)
@@ -495,7 +432,7 @@ class FastPreviewManager private constructor(
         message("event.log.fast.preview.build.successful", durationString)
       else
         message("event.log.fast.preview.build.failed", durationString)
-      Notification(PREVIEW_NOTIFICATION_GROUP_ID,
+      Notification(FAST_PREVIEW_NOTIFICATION_GROUP_ID,
                    buildMessage,
                    if (result.isSuccess) NotificationType.INFORMATION else NotificationType.WARNING)
         .notify(project)
@@ -547,7 +484,7 @@ class FastPreviewManager private constructor(
 
     if (newReason && reason != ManualDisabledReason && reason.hasLongDescription) {
       // Log long description to the event log.
-      Notification(PREVIEW_NOTIFICATION_GROUP_ID,
+      Notification(FAST_PREVIEW_NOTIFICATION_GROUP_ID,
                    message("fast.preview.disabled.reason.unable.compile.compiler.error.description"),
                    reason.longDescriptionString(),
                    NotificationType.WARNING)
@@ -580,15 +517,11 @@ class FastPreviewManager private constructor(
 
     @TestOnly
     fun getTestInstance(project: Project,
-                        daemonFactory: (String) -> CompilerDaemonClient,
-                        moduleClassPathLocator: (Module) -> List<String> = ::defaultModuleDependenciesCompileClassPathLocator,
-                        moduleDependenciesClassPathLocator: (Module) -> List<String> = ::defaultModuleDependenciesCompileClassPathLocator,
+                        daemonFactory: (String, Project, Logger, CoroutineScope) -> CompilerDaemonClient,
                         moduleRuntimeVersionLocator: (Module) -> GradleVersion = ::defaultRuntimeVersionLocator,
                         maxCachedRequests: Int = DEFAULT_MAX_CACHED_REQUESTS): FastPreviewManager =
       FastPreviewManager(project = project,
                          alternativeDaemonFactory = daemonFactory,
-                         moduleClassPathLocator = moduleClassPathLocator,
-                         moduleDependenciesClassPathLocator = moduleDependenciesClassPathLocator,
                          moduleRuntimeVersionLocator = moduleRuntimeVersionLocator,
                          maxCachedRequests = maxCachedRequests)
 
@@ -601,5 +534,5 @@ class FastPreviewManager private constructor(
   }
 }
 
-internal val Project.fastPreviewManager: FastPreviewManager
+val Project.fastPreviewManager: FastPreviewManager
   get() = FastPreviewManager.getInstance(this)

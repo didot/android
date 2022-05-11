@@ -13,17 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.compose.preview.fast
+package com.android.tools.idea.instrumentation.threading;
 
-import kotlinx.coroutines.Deferred
+import com.android.tools.instrumentation.threading.agent.ThreadingCheckerHook;
 
-/**
- * Interface to be implemented by surfaces (like the Preview) that support FastPreview.
- */
-interface FastPreviewSurface {
-  /**
-   * Request a fast preview refresh. The result [Deferred] will contain the result of the compilation or the method
-   * will return null if the compilation request could not be scheduled (e.g. the code has syntax errors).
-   */
-  fun requestFastPreviewRefreshAsync(): Deferred<CompilationResult?>
+class ThreadingCheckerHookImpl implements ThreadingCheckerHook {
+
+  @Override
+  public void verifyOnUiThread() {
+    // TODO: implement this
+  }
 }

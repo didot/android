@@ -16,11 +16,11 @@
 package com.android.tools.idea.compose.preview
 
 import com.android.tools.idea.compose.gradle.preview.ProjectBuildStatusManagerTest
-import com.android.tools.idea.compose.preview.fast.BlockingDaemonClient
-import com.android.tools.idea.compose.preview.fast.FastPreviewManager
-import com.android.tools.idea.compose.preview.fast.FastPreviewRule
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers
+import com.android.tools.idea.editors.fast.BlockingDaemonClient
+import com.android.tools.idea.editors.fast.FastPreviewManager
+import com.android.tools.idea.editors.fast.FastPreviewRule
 import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.projectsystem.ProjectSystemBuildManager
 import com.android.tools.idea.testing.AndroidProjectRule
@@ -60,7 +60,7 @@ class ProjectBuildStatusManagerTest {
       scope = CoroutineScope(Executor { command -> command.run() }.asCoroutineDispatcher()))
 
     val blockingDaemon = BlockingDaemonClient()
-    val fastPreviewManager = FastPreviewManager.getTestInstance(project, { blockingDaemon }).also {
+    val fastPreviewManager = FastPreviewManager.getTestInstance(project, { _, _, _, _ -> blockingDaemon }).also {
       Disposer.register(projectRule.fixture.testRootDisposable, it)
     }
 

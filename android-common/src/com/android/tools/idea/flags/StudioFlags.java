@@ -309,7 +309,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> NELE_VISUALIZATION_MULTIPLE_CUSTOM = Flag.create(
     NELE, "visualization.multiple.custom", "Multiple Custom Categories in Layout Validation Tool",
     "Allow to create or delete multiple custom categories in Layout Validation Tool",
-    false);
+    true);
 
   public static final Flag<Boolean> NELE_SOURCE_CODE_EDITOR = Flag.create(
     NELE, "show.source.code.editor", "New Source Code Editor",
@@ -1439,5 +1439,11 @@ public final class StudioFlags {
   );
   // endregion GOOGLE_PLAY_SDK_INDEX
 
+  // region App DIAGNOSTICS_SUMMARY
+  private static final FlagGroup DIAGNOSTICS_SUMMARY = new FlagGroup(FLAGS, "diagnosticssummary", "Diagnostics Summary");
+  public static final Flag<Boolean> ENABLE_DIAGNOSTICS_SUMMARY_MENU =
+    Flag.create(DIAGNOSTICS_SUMMARY, "enable.diagnostics.summary.menu", "Enable Diagnostics Summary Menu",
+                "Enable the diagnostic summary menu item.", false);
+  // endregion DIAGNOSTICS_SUMMARY
   private StudioFlags() { }
 }

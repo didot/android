@@ -228,6 +228,7 @@ studio_plugin(
             "//tools/base/ninepatch:studio.android.sdktools.ninepatch",
             "//tools/base/perflib:studio.android.sdktools.perflib",
             "//tools/base/resource-repository:studio.android.sdktools.resource-repository",
+            "//tools/base/threading-agent:studio.android.sdktools.threading-agent",
             "//tools/base/tracer:studio.android.sdktools.tracer",
             "//tools/base/usb-devices:studio.usb-devices",
             "//tools/base/zipflinger:studio.android.sdktools.zipflinger",
@@ -556,9 +557,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 1,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 

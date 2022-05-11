@@ -42,12 +42,17 @@ final class Ipv4Address extends Key {
 
   @Override
   public @NotNull ConnectionType getConnectionType() {
-    return ConnectionType.WI_FI;
+    return ConnectionType.UNKNOWN;
   }
 
   @Override
   public @NotNull SerialNumber getSerialNumber() {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean isPersistent() {
+    return false;
   }
 
   @Override

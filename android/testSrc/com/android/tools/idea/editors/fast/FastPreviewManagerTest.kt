@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.idea.compose.preview.fast
+package com.android.tools.idea.editors.fast
 
-import com.android.flags.junit.RestoreFlagRule
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.run.deployment.liveedit.runWithCompileLock
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.intellij.mock.MockPsiFile
 import com.intellij.openapi.application.runReadAction
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.psi.PsiFile
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -57,9 +57,9 @@ private object NopCompilerDaemonClient : CompilerDaemonClient {
   override fun dispose() {}
 }
 
-fun nopCompileDaemonFactory(onCalled: (String) -> Unit): (String) -> CompilerDaemonClient {
-  return {
-    onCalled(it)
+fun nopCompileDaemonFactory(onCalled: (String) -> Unit): (String, Project, Logger, CoroutineScope) -> CompilerDaemonClient {
+  return { version, _, _, _ ->
+    onCalled(version)
     NopCompilerDaemonClient
   }
 }
@@ -120,7 +120,7 @@ internal class FastPreviewManagerTest {
     val scope = AndroidCoroutineScope(projectRule.testRootDisposable)
     val blockingDaemon = BlockingDaemonClient()
     val manager = FastPreviewManager.getTestInstance(project,
-                                                     daemonFactory = { blockingDaemon },
+                                                     daemonFactory = { _, _, _, _ -> blockingDaemon },
                                                      moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -147,7 +147,7 @@ internal class FastPreviewManagerTest {
     val scope = AndroidCoroutineScope(projectRule.testRootDisposable)
     val blockingDaemon = BlockingDaemonClient()
     val manager = FastPreviewManager.getTestInstance(project,
-                                                     daemonFactory = { blockingDaemon },
+                                                     daemonFactory = { _, _, _, _ -> blockingDaemon },
                                                      moduleRuntimeVersionLocator = { TEST_VERSION },
                                                      maxCachedRequests = 0).also {
       Disposer.register(projectRule.testRootDisposable, it)
@@ -180,7 +180,7 @@ internal class FastPreviewManagerTest {
     }
     val blockingDaemon = BlockingDaemonClient()
     val manager = FastPreviewManager.getTestInstance(project,
-                                                     daemonFactory = { blockingDaemon },
+                                                     daemonFactory = { _, _, _, _ -> blockingDaemon },
                                                      moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -211,7 +211,7 @@ internal class FastPreviewManagerTest {
     val compilationRequests = mutableListOf<List<String>>()
     val manager = FastPreviewManager.getTestInstance(
       project,
-      daemonFactory = {
+      daemonFactory = { _, _, _, _ ->
         object : CompilerDaemonClient by NopCompilerDaemonClient {
           override suspend fun compileRequest(files: Collection<PsiFile>,
                                               module: Module,
@@ -224,8 +224,6 @@ internal class FastPreviewManagerTest {
           }
         }
       },
-      moduleClassPathLocator = { listOf("b/c/Test.class") },
-      moduleDependenciesClassPathLocator = { listOf("A.jar") },
       moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -233,7 +231,7 @@ internal class FastPreviewManagerTest {
     assertTrue(manager.compileRequest(file, projectRule.module).first == CompilationResult.Success)
     run {
       val requestParameters = compilationRequests.single().joinToString("\n")
-        .replace(Regex("/.*/overlay\\d+"), "/tmp/overlay0") // Overlay directories are random
+        .replace(Regex("\n.*overlay\\d+"), "\n/tmp/overlay0") // Overlay directories are random
       assertEquals("""
       /src/test.kt
       light_idea_test_case
@@ -251,7 +249,7 @@ internal class FastPreviewManagerTest {
         """.trimIndent())
         assertTrue(manager.compileRequest(listOf(file2), projectRule.module).first == CompilationResult.Success)
         val requestParameters = compilationRequests.single().joinToString("\n")
-          .replace(Regex("/.*/overlay\\d+"), "/tmp/overlay0") // Overlay directories are random
+          .replace(Regex("\n.*overlay\\d+"), "\n/tmp/overlay0") // Overlay directories are random
         assertEquals("""
         /src/testB.kt
         light_idea_test_case
@@ -270,7 +268,7 @@ internal class FastPreviewManagerTest {
     """.trimIndent())
       assertTrue(manager.compileRequest(listOf(file, file2), projectRule.module).first == CompilationResult.Success)
       val requestParameters = compilationRequests.single().joinToString("\n")
-        .replace(Regex("/.*/overlay\\d+"), "/tmp/overlay0") // Overlay directories are random
+        .replace(Regex("\n.*overlay\\d+"), "\n/tmp/overlay0") // Overlay directories are random
       assertEquals("""
       /src/test.kt
       /src/testC.kt
@@ -287,11 +285,9 @@ internal class FastPreviewManagerTest {
     """.trimIndent())
     val manager = FastPreviewManager.getTestInstance(
       project,
-      daemonFactory = {
+      daemonFactory = { _, _, _, _ ->
         throw IllegalStateException("Unable to start compiler")
       },
-      moduleClassPathLocator = { listOf("b/c/Test.class") },
-      moduleDependenciesClassPathLocator = { listOf("A.jar") },
       moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -306,7 +302,7 @@ internal class FastPreviewManagerTest {
     """.trimIndent())
     val manager = FastPreviewManager.getTestInstance(
       project,
-      daemonFactory = {
+      daemonFactory = { _, _, _, _ ->
         object : CompilerDaemonClient by NopCompilerDaemonClient {
           override suspend fun compileRequest(files: Collection<PsiFile>,
                                               module: Module,
@@ -316,8 +312,6 @@ internal class FastPreviewManagerTest {
           }
         }
       },
-      moduleClassPathLocator = { listOf("b/c/Test.class") },
-      moduleDependenciesClassPathLocator = { listOf("A.jar") },
       moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -332,7 +326,7 @@ internal class FastPreviewManagerTest {
     """.trimIndent())
     val manager = FastPreviewManager.getTestInstance(
       project,
-      daemonFactory = {
+      daemonFactory = { _, _, _, _ ->
         object : CompilerDaemonClient by NopCompilerDaemonClient {
           override suspend fun compileRequest(files: Collection<PsiFile>,
                                               module: Module,
@@ -340,8 +334,6 @@ internal class FastPreviewManagerTest {
                                               indicator: ProgressIndicator): CompilationResult = CompilationResult.DaemonError(-1)
         }
       },
-      moduleClassPathLocator = { listOf("b/c/Test.class") },
-      moduleDependenciesClassPathLocator = { listOf("A.jar") },
       moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -356,7 +348,7 @@ internal class FastPreviewManagerTest {
     """.trimIndent())
     val manager = FastPreviewManager.getTestInstance(
       project,
-      daemonFactory = {
+      daemonFactory = { _, _, _, _ ->
         object : CompilerDaemonClient by NopCompilerDaemonClient {
           override suspend fun compileRequest(files: Collection<PsiFile>,
                                               module: Module,
@@ -366,8 +358,6 @@ internal class FastPreviewManagerTest {
           }
         }
       },
-      moduleClassPathLocator = { listOf("b/c/Test.class") },
-      moduleDependenciesClassPathLocator = { listOf("A.jar") },
       moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -405,7 +395,7 @@ internal class FastPreviewManagerTest {
     }
     val manager = FastPreviewManager.getTestInstance(
       project,
-      daemonFactory = {
+      daemonFactory = { _, _, _, _ ->
         object : CompilerDaemonClient by NopCompilerDaemonClient {
           override suspend fun compileRequest(files: Collection<PsiFile>,
                                               module: Module,
@@ -428,8 +418,6 @@ internal class FastPreviewManagerTest {
           }
         }
       },
-      moduleClassPathLocator = { listOf("b/c/Test.class") },
-      moduleDependenciesClassPathLocator = { listOf("A.jar") },
       moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -456,7 +444,7 @@ internal class FastPreviewManagerTest {
   @Test
   fun `verify listener parent disposable`() {
     val manager = FastPreviewManager.getTestInstance(project,
-                                                     daemonFactory = { NopCompilerDaemonClient },
+                                                     daemonFactory = { _, _, _, _ -> NopCompilerDaemonClient },
                                                      moduleRuntimeVersionLocator = { TEST_VERSION }).also {
       Disposer.register(projectRule.testRootDisposable, it)
     }
@@ -477,7 +465,7 @@ internal class FastPreviewManagerTest {
     val scope = AndroidCoroutineScope(projectRule.testRootDisposable)
     val blockingDaemon = BlockingDaemonClient()
     val manager = FastPreviewManager.getTestInstance(project,
-                                                     daemonFactory = { blockingDaemon },
+                                                     daemonFactory = { _, _, _, _ -> blockingDaemon },
                                                      moduleRuntimeVersionLocator = { TEST_VERSION },
                                                      maxCachedRequests = 0).also {
       Disposer.register(projectRule.testRootDisposable, it)

@@ -470,7 +470,7 @@ class BuildVariantsIntegrationTest : GradleIntegrationTest {
     val (firstSnapshot, secondSnapshot) = openPreparedProject("project") { project ->
       expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SUCCESS)
       expect.consistentConfigurationOf(project)
-      expect.thatModuleVariantIs(project, ":app", "arm7Debug", abi = "x86")
+      expect.thatModuleVariantIs(project, ":app", "arm7Debug", abi = "armeabi-v7a")
       val firstSnapshot = project.saveAndDump()
 
       switchVariant(project, ":app", "x86Debug")
@@ -488,18 +488,38 @@ class BuildVariantsIntegrationTest : GradleIntegrationTest {
       switchAbi(project, ":app", "arm64-v8a")
       expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SUCCESS)
       expect.consistentConfigurationOf(project)
-      expect.thatModuleVariantIs(project, ":app", "x86Debug", abi = "arm64-v8a")
+      expect.thatModuleVariantIs(project, ":app", "arm8Debug", abi = "arm64-v8a")
 
       switchVariant(project, ":app", "arm7Debug")
-      expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SUCCESS)
+      expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SKIPPED)
       expect.consistentConfigurationOf(project)
-      expect.thatModuleVariantIs(project, ":app", "arm7Debug", abi = "arm64-v8a")
+      expect.thatModuleVariantIs(project, ":app", "arm7Debug", abi = "armeabi-v7a")
+      expect.that(project.saveAndDump()).isEqualTo(firstSnapshot)
 
       switchAbi(project, ":app", "x86")
       expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SKIPPED)
       expect.consistentConfigurationOf(project)
-      expect.thatModuleVariantIs(project, ":app", "arm7Debug", abi = "x86")
-      expect.that(project.saveAndDump()).isEqualTo(firstSnapshot)
+      expect.thatModuleVariantIs(project, ":app", "x86Debug", abi = "x86")
+      expect.that(project.saveAndDump()).isEqualTo(secondSnapshot)
+
+      switchVariant(project, ":app", "enableAllAbisDebug")
+      expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SUCCESS)
+      expect.consistentConfigurationOf(project)
+      expect.thatModuleVariantIs(project, ":app", "enableAllAbisDebug", abi = "x86")
+
+      switchAbi(project, ":app", "armeabi-v7a")
+      expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SUCCESS)
+      expect.consistentConfigurationOf(project)
+      expect.thatModuleVariantIs(project, ":app", "enableAllAbisDebug", abi = "armeabi-v7a")
+
+    }
+    openPreparedProject("project") { project ->
+      expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SKIPPED)
+
+      switchAbi(project, ":app", "x86")
+      expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SKIPPED)
+      expect.consistentConfigurationOf(project)
+      expect.thatModuleVariantIs(project, ":app", "enableAllAbisDebug", abi = "x86")
     }
   }
 

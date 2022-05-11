@@ -109,7 +109,7 @@
     <orderEntry type="module-library">
       <library name="utp-core-proto">
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../prebuilts/tools/common/m2/repository/com/google/testing/platform/core-proto/0.0.8-alpha07/core-proto-0.0.8-alpha07.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../../../prebuilts/tools/common/m2/repository/com/google/testing/platform/core-proto/0.0.8-alpha08/core-proto-0.0.8-alpha08.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -151,5 +151,6 @@
     <orderEntry type="module" module-name="android.sdktools.sdklib" />
     <orderEntry type="module" module-name="android.sdktools.lint-checks" />
     <orderEntry type="module" module-name="android.sdktools.manifest-parser" />
+    <orderEntry type="module" module-name="android.sdktools.threading-agent" />
   </component>
 </module>
