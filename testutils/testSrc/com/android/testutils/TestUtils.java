@@ -54,6 +54,15 @@ public class TestUtils {
   public static final AndroidLayoutlibDownloaderProxy llDownloader = new AndroidLayoutlibDownloaderProxy();
   public static final AndroidProfilerDownloaderProxy profilerDownloader = new AndroidProfilerDownloaderProxy();
 
+  /**
+   * Kotlin version that is used in AGP integration tests. Please note that this version does not
+   * have to be the same as the version of kotlinc used to build AGP (in Gradle or Bazel).
+   *
+   * <p>This version needs to be present in prebuilts for tests to pass (see
+   * tools/base/bazel/README.md).
+   */
+  public static final String KOTLIN_VERSION_FOR_TESTS = getKotlinVersionForTests();
+
   /** Default timeout for the {@link #eventually(Runnable)} check. */
   private static final Duration DEFAULT_EVENTUALLY_TIMEOUT = Duration.ofSeconds(10);
 
@@ -178,6 +187,11 @@ public class TestUtils {
     return f;
   }
 
+  /** Returns true if the file exists in the workspace. */
+  public static boolean workspaceFileExists(@NonNull String path) {
+    return Files.exists(resolveWorkspacePath(path));
+  }
+
   /**
    * Returns a directory which tests can output data to. If running through Bazel's test runner,
    * this returns the directory as specified by the TEST_UNDECLARED_OUTPUTS_DIR environment
@@ -271,10 +285,11 @@ public class TestUtils {
   @NonNull
   public static Path getPrebuiltOfflineMavenRepo() {
     if (runningFromBazel()) {
-      // If running with Bazel, then Maven artifacts are unzipped into this directory
-      // at runtime using IdeaTestSuiteBase#unzipIntoOfflineMavenRepo. Thus we use
-      // a writeable temp directory instead of //prebuilts/tools/common/m2/repository.
-      // See b/148081564 for how this could be simplified in the future.
+      // If running with Bazel, then Maven artifacts are unzipped or linked into this
+      // directory at runtime using IdeaTestSuiteBase#unzipIntoOfflineMavenRepo or
+      // IdeaTestSuiteBase#linkIntoOfflineMavenRepo. Thus, we use a writeable temp
+      // directory instead of //prebuilts/tools/common/m2/repository.
+      // See b/148081564#comment1 for how this could be simplified in the future.
       Path dir = Paths.get(System.getProperty("java.io.tmpdir"), "offline-maven-repo");
       try {
         Files.createDirectories(dir);
@@ -317,10 +332,25 @@ public class TestUtils {
     return getDesugarLibJarWithVersion("1.1.5");
   }
 
+  /**
+   * Returns the path to a file in the local maven repository.
+   *
+   * @param path the path of the file relative to the maven repository root
+   * @throws IllegalArgumentException if the path results in a file that's not found.
+   */
+  @NonNull
+  public static Path getLocalMavenRepoFile(@NonNull String path) {
+    if (runningFromBazel()) {
+      return resolveWorkspacePath("../maven/repo/" + path);
+    } else {
+      return resolveWorkspacePath("prebuilts/tools/common/m2/repository/" + path);
+    }
+  }
+
   @NonNull
   private static Path getDesugarLibJarWithVersion(@NonNull String version) {
-    return resolveWorkspacePath(
-      "prebuilts/tools/common/m2/repository/com/android/tools/desugar_jdk_libs/"
+    return getLocalMavenRepoFile(
+      "com/android/tools/desugar_jdk_libs/"
       + version
       + "/desugar_jdk_libs-"
       + version
@@ -328,9 +358,9 @@ public class TestUtils {
   }
 
   @NonNull
-  private static Path getDesugarLibConfigJarWithVersion(String version) {
-    return resolveWorkspacePath(
-      "prebuilts/tools/common/m2/repository/com/android/tools/desugar_jdk_libs_configuration/"
+  private static Path getDesugarLibConfigJarWithVersion(@NonNull String version) {
+    return getLocalMavenRepoFile(
+      "com/android/tools/desugar_jdk_libs_configuration/"
       + version
       + "/desugar_jdk_libs_configuration-"
       + version
@@ -378,8 +408,24 @@ public class TestUtils {
   }
 
   @NonNull
+  public static String getEmbeddedJdk8Path() {
+    if (System.getenv("JDK_8") != null) {
+      Path jdkPath = Paths.get(System.getenv("JDK_8"));
+      if (Files.isDirectory(jdkPath)) {
+        return jdkPath.toString();
+      }
+      else {
+        Logger.getInstance(TestUtils.class).warn("Ignore env.JDK_8 because it is not a directory: " + jdkPath);
+      }
+    }
+
+    assert Runtime.version().feature() == 8 : "To continue we need to know where JDK8 is. env.JDK_8 didn't work.";
+    return SystemProperties.getJavaHome();
+  }
+
+  @NonNull
   public static String getLatestAndroidPlatform() {
-    return "android-30";
+    return "android-32";
   }
 
   /**
