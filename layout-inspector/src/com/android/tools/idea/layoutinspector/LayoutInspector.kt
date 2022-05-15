@@ -142,7 +142,6 @@ class LayoutInspector private constructor(
     Logger.getInstance(LayoutInspector::class.java.canonicalName).warn(error)
     InspectorBannerService.getInstance(layoutInspectorModel.project).setNotification(error)
 
-    @Suppress("ConstantConditionIf")
     if (SHOW_ERROR_MESSAGES_IN_DIALOG) {
       ApplicationManager.getApplication().invokeLater {
         Messages.showErrorDialog(layoutInspectorModel.project, error, "Inspector Error")

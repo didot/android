@@ -67,7 +67,6 @@ class CoordinatorDragTarget : DragBaseTarget() {
   }
 
   override fun render(list: DisplayList, sceneContext: SceneContext) {
-    @Suppress("ConstantConditionIf")
     if (DEBUG) {
       list.addRect(sceneContext, myLeft, myTop, myRight, myBottom, if (mIsOver) Color.yellow else Color.green)
       list.addLine(sceneContext, myLeft, myTop, myRight, myBottom, Color.red)

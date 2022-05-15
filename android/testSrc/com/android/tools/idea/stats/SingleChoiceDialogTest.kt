@@ -87,7 +87,6 @@ class SingleChoiceDialogTest {
     SwingUtilities.invokeAndWait { Disposer.dispose(disposable) }
   }
 
-  @Suppress("UnstableApiUsage")
   @Test
   fun testOK() {
     val result = Ref.create<SingleChoiceDialog>()
@@ -138,7 +137,6 @@ class SingleChoiceDialogTest {
     verify(logger).cancel(TEST_SURVEY_NAME)
   }
 
-  @Suppress("UnstableApiUsage")
   @Test
   fun testRandomOrdering() {
     val result = Ref.create<SingleChoiceDialog>()

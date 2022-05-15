@@ -73,7 +73,6 @@ import javax.swing.UIManager
  */
 object ComponentTreeManualTest {
 
-  @Suppress("UnusedMainParameter")
   @JvmStatic
   fun main(args: Array<String>) {
     startTestApplication()

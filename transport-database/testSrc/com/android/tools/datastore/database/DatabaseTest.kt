@@ -57,7 +57,6 @@ abstract class DatabaseTest<T : DataStoreTable<*>> {
 
   @Test
   @Throws(SQLException::class)
-  @Suppress("MemberVisibilityCanBePrivate") // Needs to be public for JUnit
   fun closedConnectionIsHandled() {
     var errorThrown = false
     val db = DataStoreDatabase(dbFile.absolutePath, DataStoreDatabase.Characteristic.DURABLE, FakeLogService())
@@ -85,7 +84,6 @@ abstract class DatabaseTest<T : DataStoreTable<*>> {
 
   @Test
   @Throws(SQLException::class)
-  @Suppress("MemberVisibilityCanBePrivate") // Needs to be public for JUnit
   fun errorIsHandled() {
     var throwsError = false
     DataStoreTable.addDataStoreErrorCallback { _ -> throwsError = true }
