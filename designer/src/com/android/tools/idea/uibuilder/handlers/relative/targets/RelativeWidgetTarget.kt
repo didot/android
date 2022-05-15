@@ -105,7 +105,6 @@ class RelativeWidgetTarget(val type: Type) : BaseRelativeTarget() {
     if (myIsHighlight) {
       list.addLine(sceneContext, x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat(), sceneContext.colorSet.dragReceiverFrames)
     }
-    @Suppress("ConstantConditionIf")
     if (DEBUG) {
       drawDebug(list, sceneContext)
     }

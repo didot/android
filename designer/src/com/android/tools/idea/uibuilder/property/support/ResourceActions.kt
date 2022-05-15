@@ -136,7 +136,6 @@ typealias ColorPickerCreator = (
 
 object ColorSelectionAction: TestableColorSelectionAction()
 
-@Suppress("ComponentNotRegistered")
 open class TestableColorSelectionAction(
   @TestOnly
   val onCreateColorPicker: ColorPickerCreator = ::createAndShowColorPickerPopup

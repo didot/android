@@ -183,7 +183,6 @@ private object ClassDescriber {
 @RunWith(Parameterized::class)
 class GeneratedCodeMatchTest(private val parameters: TestParameters) {
   companion object {
-    @Suppress("unused") // Used by JUnit
     @get:Parameters(name = "{0}")
     @get:JvmStatic
     val parameters: List<TestParameters>
