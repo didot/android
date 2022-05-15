@@ -90,7 +90,6 @@ class RelativeParentTarget(val type: Type) : BaseRelativeTarget() {
       list.add(DrawLine(sceneContext.getSwingXDip(x1.toFloat()), sceneContext.getSwingYDip(y1.toFloat()),
           sceneContext.getSwingXDip(x2.toFloat()), sceneContext.getSwingYDip(y2.toFloat())))
     }
-    @Suppress("ConstantConditionIf")
     if (DEBUG) {
       drawDebug(list, sceneContext)
     }

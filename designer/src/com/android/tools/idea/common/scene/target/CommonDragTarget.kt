@@ -155,7 +155,6 @@ class CommonDragTarget @JvmOverloads constructor(sceneComponent: SceneComponent,
   }
 
   override fun render(list: DisplayList, sceneContext: SceneContext) {
-    @Suppress("ConstantConditionIf")
     if (DEBUG_RENDERER) {
       list.addRect(sceneContext, myLeft, myTop, myRight, myBottom, if (mIsOver) JBColor.yellow else JBColor.green)
       list.addLine(sceneContext, myLeft, myTop, myRight, myBottom, JBColor.red)
