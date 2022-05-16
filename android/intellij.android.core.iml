@@ -12,7 +12,6 @@
     <orderEntry type="library" name="studio-plugin-gradle" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="intellij.android.analytics" />
-    <orderEntry type="module" module-name="analytics-publisher" />
     <orderEntry type="module" module-name="intellij.android.buildCommon" exported="" />
     <orderEntry type="module" module-name="intellij.android.common" />
     <orderEntry type="module" module-name="intellij.android.jps.model" />
