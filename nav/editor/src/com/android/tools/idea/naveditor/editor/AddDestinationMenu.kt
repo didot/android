@@ -330,7 +330,6 @@ open class AddDestinationMenu(surface: NavDesignSurface) :
           )
 
           application.invokeLater {
-            @Suppress("UNCHECKED_CAST")
             destinationsList.model = listModel
 
             destinationsList.setPaintBusy(false)

@@ -212,7 +212,7 @@ class SyncActionRunner private constructor(
           val sequentialAction = indexedActions.filter { !it.value.canRunInParallel }
           val executionResults =
             parallelActions.keys.zip(
-              @Suppress("UNCHECKED_CAST", "UnstableApiUsage")
+              @Suppress("UnstableApiUsage")
               controller.run(parallelActions.map { indexedActionToRun -> BuildAction { indexedActionToRun.value.run(it) } }) as List<T>
             ).toMap() +
             sequentialAction.map { it.key to runAction {controller -> it.value.run(controller)} }.toMap()
