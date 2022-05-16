@@ -24,7 +24,6 @@ import com.intellij.psi.util.CachedValue;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
 import java.util.ArrayList;
-import com.intellij.util.ArrayUtil;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;

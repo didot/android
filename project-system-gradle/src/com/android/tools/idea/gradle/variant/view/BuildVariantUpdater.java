@@ -30,6 +30,7 @@ import com.android.tools.idea.gradle.project.sync.idea.AndroidGradleProjectResol
 import com.android.tools.idea.gradle.project.sync.idea.AndroidGradleProjectResolverKeys;
 import com.android.tools.idea.gradle.project.sync.idea.VariantAndAbi;
 import com.android.tools.idea.gradle.project.sync.idea.VariantSwitcher;
+import com.android.tools.idea.projectsystem.gradle.GradleProjectPath;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -58,7 +59,7 @@ import org.jetbrains.plugins.gradle.util.GradleConstants;
 /**
  * Updates the contents/settings of a module when a build variant changes.
  */
-public final class BuildVariantUpdater {
+public class BuildVariantUpdater {
   @NotNull private final List<BuildVariantView.BuildVariantSelectionChangeListener> mySelectionChangeListeners =
     ContainerUtil.createLockFreeCopyOnWriteList();
 
@@ -179,7 +180,7 @@ public final class BuildVariantUpdater {
     @Nullable ExternalProjectInfo data =
       ProjectDataManager.getInstance().getExternalProjectData(project, GradleConstants.SYSTEM_ID, project.getBasePath());
 
-    Map<String, VariantAndAbi> variantsExpectedAfterSwitch =
+    Map<GradleProjectPath, VariantAndAbi> variantsExpectedAfterSwitch =
       StudioFlags.GRADLE_SYNC_ENABLE_CACHED_VARIANTS.get()
       ? VariantSwitcher.computeExpectedVariantsAfterSwitch(module, variantAndAbi, data)
       : null;

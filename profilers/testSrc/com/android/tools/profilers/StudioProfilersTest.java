@@ -183,6 +183,7 @@ public final class StudioProfilersTest {
       .setName(PREFERRED_PROCESS)
       .setState(Common.Process.State.ALIVE)
       .setStartTimestampNs(5)
+      .setExposureLevel(Common.Process.ExposureLevel.DEBUGGABLE)
       .build();
     myTransportService.addDevice(device);
     myTransportService.addProcess(device, earlierProcess);
@@ -198,6 +199,7 @@ public final class StudioProfilersTest {
       .setName(PREFERRED_PROCESS)
       .setState(Common.Process.State.ALIVE)
       .setStartTimestampNs(10)
+      .setExposureLevel(Common.Process.ExposureLevel.DEBUGGABLE)
       .build();
     myTransportService.addProcess(device, afterProcess);
     myTimer.tick(FakeTimer.ONE_SECOND_IN_NS);
@@ -206,6 +208,34 @@ public final class StudioProfilersTest {
     assertThat(myProfilers.getProcess()).isEqualTo(afterProcess);
     assertThat(myProfilers.getProcesses()).hasSize(2);
     assertThat(myProfilers.getProcesses()).containsAllIn(ImmutableList.of(earlierProcess, afterProcess));
+  }
+
+  @Test
+  public void testDebuggableProcessNotReportedAsProfileable() {
+    Assume.assumeTrue(myNewEventPipeline);
+    myIdeProfilerServices.enableProfileable(true);
+    myIdeProfilerServices.enableProfileableInQr(true);
+
+    Common.Device device = FAKE_DEVICE;
+    myTransportService.addDevice(device);
+
+    Common.Process debuggableEvent = FAKE_PROCESS.toBuilder()
+      .setStartTimestampNs(5)
+      .setExposureLevel(Common.Process.ExposureLevel.DEBUGGABLE)
+      .build();
+    myTransportService.addProcess(device, debuggableEvent);
+
+    Common.Process profileableEvent = debuggableEvent.toBuilder()
+      .setStartTimestampNs(10)
+      .setExposureLevel(Common.Process.ExposureLevel.PROFILEABLE)
+      .build();
+    myTransportService.addProcess(device, profileableEvent);
+    myTimer.tick(FakeTimer.ONE_SECOND_IN_NS);
+
+    assertThat(myProfilers.getDeviceProcessMap()).hasSize(1);
+    assertThat(myProfilers.getDeviceProcessMap().get(device)).hasSize(1);
+    assertThat(myProfilers.getDeviceProcessMap().get(device).get(0).getExposureLevel()).
+      isEqualTo(Common.Process.ExposureLevel.DEBUGGABLE);
   }
 
   @Test
@@ -1061,8 +1091,6 @@ public final class StudioProfilersTest {
 
   @Test
   public void testProfilingStopsWithLiveAllocationEnabled() {
-    // Enable live allocation tracker
-    myIdeProfilerServices.enableLiveAllocationTracking(true);
     Common.Device device = createDevice(AndroidVersion.VersionCodes.O, "FakeDevice", Common.Device.State.ONLINE);
     Common.Process process = createProcess(device.getDeviceId(), 20, "FakeProcess", Common.Process.State.ALIVE);
 
@@ -1572,6 +1600,7 @@ public final class StudioProfilersTest {
       .setPid(pid)
       .setName(name)
       .setState(state)
+      .setExposureLevel(Common.Process.ExposureLevel.DEBUGGABLE)
       .build();
   }
 

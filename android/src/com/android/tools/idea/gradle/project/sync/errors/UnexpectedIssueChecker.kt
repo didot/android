@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.gradle.project.sync.errors
 
+import com.android.tools.idea.actions.SendFeedbackAction
 import com.android.tools.idea.gradle.project.sync.idea.issues.BuildIssueComposer
 import com.android.tools.idea.gradle.project.sync.idea.issues.updateUsageTracker
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.GradleSyncFailure
@@ -23,7 +24,6 @@ import com.intellij.build.events.BuildEvent
 import com.intellij.build.issue.BuildIssue
 import com.intellij.build.issue.BuildIssueQuickFix
 import com.intellij.ide.actions.RevealFileAction
-import com.intellij.ide.actions.SendFeedbackAction
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.invokeLater

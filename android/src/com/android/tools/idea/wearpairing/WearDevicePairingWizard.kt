@@ -16,6 +16,8 @@
 
 package com.android.tools.idea.wearpairing
 
+import com.android.annotations.concurrency.UiThread
+import com.android.tools.idea.avdmanager.actions.RunAndroidAvdManagerAction
 import com.android.tools.idea.emulator.EmulatorSettings
 import com.android.tools.idea.ui.wizard.SimpleStudioWizardLayout
 import com.android.tools.idea.ui.wizard.StudioWizardDialogBuilder
@@ -23,38 +25,45 @@ import com.android.tools.idea.wizard.model.ModelWizard
 import com.android.tools.idea.wizard.model.ModelWizardDialog
 import com.android.tools.idea.wizard.model.ModelWizardDialog.CancellationPolicy.ALWAYS_CAN_CANCEL
 import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE
 import com.intellij.openapi.ui.DialogWrapper.IdeModalityType.MODELESS
 import com.intellij.openapi.ui.DialogWrapper.IdeModalityType.PROJECT
 import com.intellij.openapi.util.Disposer
 import com.intellij.util.ui.JBUI
-import org.jetbrains.android.actions.RunAndroidAvdManagerAction
+import org.jetbrains.android.util.AndroidBundle.message
 import java.net.URL
 
-class WearDevicePairingWizard {
-  private var wizardDialog: ModelWizardDialog? = null
+// Keep an instance, so if the wizard is already running, just bring it to the front
+private var wizardDialog: ModelWizardDialog? = null
 
+internal class WearDevicePairingWizard {
   @Synchronized
-  fun show(project: Project) {
+  private fun show(project: Project?, selectedDevice: PairingDevice?) {
     wizardDialog?.apply {
-      window?.toFront()  // We already have a dialog, just bring it to front and return
+      window?.toFront()  // We already have a dialog, just bring it to the front and return
       return
     }
 
     val wizardAction = object : WizardAction {
-      override fun closeAndStartAvd(project: Project) {
+      override fun closeAndStartAvd(project: Project?) {
         wizardDialog?.close(CANCEL_EXIT_CODE)
         (ActionManager.getInstance().getAction(RunAndroidAvdManagerAction.ID) as RunAndroidAvdManagerAction).openAvdManager(project)
       }
 
-      override fun restart(project: Project) {
+      override fun restart(project: Project?) {
         wizardDialog?.close(CANCEL_EXIT_CODE)
-        show(project)
+        show(project, selectedDevice)
       }
     }
 
     val model = WearDevicePairingModel()
+    when (selectedDevice?.isWearDevice) {
+      true -> model.selectedWearDevice.setNullableValue(selectedDevice)
+      false -> model.selectedPhoneDevice.setNullableValue(selectedDevice)
+    }
     val modelWizard = ModelWizard.Builder()
       .addStep(DeviceListStep(model, project, wizardAction))
       .build()
@@ -75,5 +84,22 @@ class WearDevicePairingWizard {
       .build(SimpleStudioWizardLayout())
 
     wizardDialog?.show()
+  }
+
+  @UiThread
+  fun show(project: Project?, selectedDeviceId: String?) {
+    object : Task.Modal(project, message("wear.assistant.device.connection.balloon.link"), true) {
+      var selectedDevice: PairingDevice? = null
+
+      override fun run(indicator: ProgressIndicator) {
+        if (selectedDeviceId != null) {
+          selectedDevice = WearPairingManager.findDevice(selectedDeviceId)
+        }
+      }
+
+      override fun onFinished() {
+        show(project, selectedDevice)
+      }
+    }.queue()
   }
 }

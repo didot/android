@@ -19,6 +19,8 @@
   <extensions defaultExtensionNs="com.intellij">
     <fileEditorProvider implementation="com.android.tools.idea.editors.layeredimage.LayeredImageEditorProvider" />
     <projectService serviceImplementation="com.android.tools.idea.editors.layeredimage.LayersManager" />
+    <externalAnnotator language="XML" implementationClass="com.android.tools.idea.uibuilder.lint.AtfIssueExternalAnnotator"/>
+    <externalAnnotator language="XML" implementationClass="com.android.tools.idea.uibuilder.lint.VisualLintIssueExternalAnnotator"/>
   </extensions>
 
   <!-- Extension points -->
@@ -26,13 +28,19 @@
     <extensionPoint qualifiedName="com.android.tools.idea.uibuilder.handlers.viewHandlerProvider"
                     area="IDEA_PROJECT"
                     interface="com.android.tools.idea.uibuilder.handlers.ViewHandlerProvider" />
+    <extensionPoint qualifiedName="com.android.tools.idea.uibuilder.editorNotificationProvider"
+                    interface="com.intellij.ui.EditorNotifications$Provider" />
   </extensionPoints>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceImplementation="com.android.tools.idea.configurations.AdditionalDeviceService" />
+  </extensions>
 
   <!-- New layout editor -->
 
   <extensions defaultExtensionNs="com.intellij">
     <fileEditorProvider implementation="com.android.tools.idea.uibuilder.editor.multirepresentation.sourcecode.SourceCodeEditorProvider" />
-    <editorNotificationProvider implementation="com.android.tools.idea.uibuilder.editor.multirepresentation.MultiRepresentationPreviewNotificationForwarder" />
+    <editorNotificationProvider implementation="com.android.tools.idea.common.editor.SplitEditorPreviewNotificationForwarder" />
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
@@ -40,10 +48,13 @@
                 id="Layout Validation" anchor="right" icon="StudioIcons.Shell.ToolWindows.MULTI_PREVIEW" canCloseContents="false" />
     <projectService serviceImplementation="com.android.tools.idea.uibuilder.handlers.ViewHandlerManager" headlessImplementation="" />
     <projectService serviceImplementation="com.android.tools.idea.uibuilder.editor.LayoutNavigationManager" />
-    <applicationService serviceImplementation="com.android.tools.idea.uibuilder.visual.VisualizationToolSettings"/>
-    <projectService serviceImplementation="com.android.tools.idea.uibuilder.visual.VisualizationToolProjectSettings"/>
+
+    <projectService serviceImplementation="com.android.tools.idea.common.error.IssuePanelService" />
   </extensions>
 
+  <extensions defaultExtensionNs="com.android.tools.idea.uibuilder">
+    <editorNotificationProvider implementation="com.android.tools.idea.common.surface.notifications.DesignSurfaceNotificationProvider" />
+  </extensions>
   <!-- Collects all the providers for source code preview representations -->
   <extensionPoints>
     <extensionPoint qualifiedName="com.android.tools.idea.uibuilder.editor.multirepresentation.sourcecode.sourceCodePreviewRepresentationProvider"
@@ -57,11 +68,21 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <applicationService serviceImplementation="com.android.tools.idea.common.model.NlDependencyManager"/>
-    <projectService serviceImplementation="com.android.tools.idea.common.surface.DesignSurfaceSettings"/>
+    <applicationConfigurable groupId="editor" groupWeight="115" id="nele.options"
+                             provider="com.android.tools.idea.uibuilder.options.NlOptionsConfigurableProvider"/>
+    <search.optionContributor
+        implementation="com.android.tools.idea.uibuilder.options.NlOptionConfigurableSearchableOptionContributor"/>
+    <moduleService serviceImplementation="com.android.tools.idea.uibuilder.palette.NlPaletteModel" />
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
     <keymapExtension implementation="com.android.tools.idea.DesignerKeymapExtension"/>
+  </extensions>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <projectService serviceImplementation="com.android.tools.idea.common.surface.DesignSurfaceSettings"/>
+    <applicationService serviceImplementation="com.android.tools.idea.uibuilder.visual.VisualizationToolSettings"/>
+    <projectService serviceImplementation="com.android.tools.idea.uibuilder.visual.VisualizationToolProjectSettings"/>
   </extensions>
 
   <!-- The design tool actions which the shortcuts are configurable. -->
@@ -94,6 +115,11 @@
 
     <!-- Layout Editor specific actions -->
     <group id="Android.Designer.LayoutEditorActions" text="Layout Editor">
+      <action id="Android.Designer.SwitchLayoutQualifier"
+              class="com.android.tools.idea.uibuilder.editor.LayoutQualifierDropdownMenu"
+              text="Switch Layout Qualifier"
+              description="Switch or create the new qualifier for current layout">
+      </action>
       <action id="Android.Designer.SwitchDesignMode"
               icon="StudioIcons.LayoutEditor.Toolbar.VIEW_MODE"
               class="com.android.tools.idea.uibuilder.actions.SwitchToNextScreenViewProviderAction"
@@ -132,68 +158,21 @@
       <add-to-group group-id="Android.Designer.ToolsActions"/>
     </group>
 
-    <!-- TODO: add shortcuts and group for nav editor, multi-preview, custom view, compose, and split editor -->
-    <group id="Android.Designer.NavEditorActions" text="Navigation Editor">
-
-      <action id="Android.Designer.AssignStartDestination"
-              icon="StudioIcons.NavEditor.Toolbar.ASSIGN_START"
-              class="com.android.tools.idea.naveditor.actions.StartDestinationToolbarAction"
-              text="Assign Start Destination"
-              description="Assign the start point of navigation graph">
-        <keyboard-shortcut keymap="$default" first-keystroke="H"/>
-      </action>
-
-      <action id="Android.Designer.AddDeepLink"
-              icon="StudioIcons.NavEditor.Toolbar.DEEPLINK"
-              class="com.android.tools.idea.naveditor.actions.DeepLinkToolbarAction"
-              text="Add Deep Link"
-              description="Add deep link to the selected item">
-        <keyboard-shortcut keymap="$default" first-keystroke="D"/>
-      </action>
-
-      <action id="Android.Designer.AddAction"
-              icon="StudioIcons.NavEditor.Toolbar.ACTION"
-              class="com.android.tools.idea.naveditor.actions.AddActionToolbarAction"
-              text="Add Action"
-              description="Add action to the selected item">
-        <keyboard-shortcut keymap="$default" first-keystroke="A"/>
-      </action>
-
-      <action id="Android.Designer.AutoArrange"
-              icon="StudioIcons.NavEditor.Toolbar.AUTO_ARRANGE"
-              class="com.android.tools.idea.naveditor.actions.AutoArrangeAction"
-              text="Auto Arrange"
-              description="Rearrange the items">
-        <keyboard-shortcut keymap="$default" first-keystroke="ctrl L"/>
-        <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta L" replace-all="true"/>
-      </action>
-
-      <add-to-group group-id="Android.Designer.ToolsActions"/>
-    </group>
-
     <action id="Android.CreateSampleDataDirectory" class="com.android.tools.idea.actions.CreateSampleDataDirectory">
       <add-to-group group-id="NewGroup" anchor="after" relative-to-action="Android.CreateResourceDirectory"/>
     </action>
-
-    <action internal="true" id="Android.GenerateLayoutTestSkeletonAction" class="com.android.tools.idea.uibuilder.actions.GenerateLayoutTestSkeletonAction">
-      <add-to-group group-id="Internal.Android" anchor="after" relative-to-action="Android.TerminateAdbAction"/>
-    </action>
-
     <action id="StoreDefaultLayout" class="com.android.tools.idea.common.actions.StoreDefaultWindowLayoutAction" overrides="true"/>
     <action id="RestoreDefaultLayout" class="com.android.tools.idea.common.actions.RestoreDefaultWindowLayoutAction" overrides="true"/>
+
+    <action internal="true" id="Android.GenerateLayoutTestSkeletonAction" class="com.android.tools.idea.uibuilder.actions.GenerateLayoutTestSkeletonAction">
+        <add-to-group group-id="Internal.Android" anchor="after" relative-to-action="Android.TerminateAdbAction"/>
+    </action>
   </actions>
 
-  <!--  Configurables-->
-  <extensions defaultExtensionNs="com.intellij">
-    <applicationConfigurable groupId="editor" groupWeight="115" id="nele.options"
-                             provider="com.android.tools.idea.uibuilder.options.NlOptionsConfigurableProvider"/>
-  </extensions>
-
-  <extensions defaultExtensionNs="com.intellij">
-    <moduleService serviceImplementation="com.android.tools.idea.uibuilder.palette.NlPaletteModel" />
-  </extensions>
   <extensions defaultExtensionNs="com.android.tools.idea.assistant">
-    <!-- fixme-ank4: there is no assistant in idea yet -->
+    <assistantBundleCreator implementation="com.android.tools.idea.uibuilder.actions.MotionLayoutPanelAssistantBundleCreator"/>
+    <assistantBundleCreator implementation="com.android.tools.idea.uibuilder.actions.ConstraintLayoutPanelAssistantBundleCreator"/>
+    <assistantBundleCreator implementation="com.android.tools.idea.uibuilder.actions.LayoutEditorPanelAssistantBundleCreator"/>
     <navlistener implementation="com.android.tools.idea.uibuilder.actions.analytics.AssistantPanelNavListener" />
   </extensions>
 </idea-plugin>

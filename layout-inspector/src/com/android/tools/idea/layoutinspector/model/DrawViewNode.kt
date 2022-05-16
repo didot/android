@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.layoutinspector.model
 
-import com.android.tools.idea.layoutinspector.LayoutInspector
 import com.android.tools.idea.layoutinspector.tree.TreeSettings
 import com.android.tools.idea.layoutinspector.ui.DeviceViewSettings
 import com.google.common.annotations.VisibleForTesting
@@ -36,26 +35,32 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-private const val NORMAL_BORDER_THICKNESS = 1f
-private const val EMPHASIZED_BORDER_THICKNESS = 5f
-const val EMPHASIZED_BORDER_OUTLINE_THICKNESS = 7f
-const val LABEL_FONT_SIZE = 30f
-private val DASH = floatArrayOf(20f, 20f)
+private fun getNormalBorderThickness(scale: Double) = 1f.scale(scale)
+fun getEmphasizedBorderThickness(scale: Double) = 2f.scale(scale)
+fun getFoldThickness(scale: Double) = 2f.scale(scale)
+fun getEmphasizedBorderOutlineThickness(scale: Double) = 4f.scale(scale)
+fun getLabelFontSize(scale: Double) = 12f.scale(scale)
+private fun getDash(scale: Double) = floatArrayOf(10f.scale(scale), 10f.scale(scale))
 
 private val EMPHASIZED_LINE_COLOR = Color(106, 161, 211)
-private val EMPHASIZED_LINE_STROKE = BasicStroke(EMPHASIZED_BORDER_THICKNESS)
-private val EMPHASIZED_IMAGE_LINE_STROKE = BasicStroke(EMPHASIZED_BORDER_THICKNESS, CAP_BUTT, JOIN_MITER, 10.0f, DASH, 0f)
-private val EMPHASIZED_LINE_OUTLINE_STROKE = BasicStroke(EMPHASIZED_BORDER_OUTLINE_THICKNESS)
-private val EMPHASIZED_IMAGE_LINE_OUTLINE_STROKE = BasicStroke(EMPHASIZED_BORDER_OUTLINE_THICKNESS, CAP_BUTT, JOIN_MITER, 10.0f, DASH, 0f)
 private val SELECTED_LINE_COLOR = Color(24, 134, 247)
-private val SELECTED_LINE_STROKE = EMPHASIZED_LINE_STROKE
-private val SELECTED_IMAGE_LINE_STROKE = BasicStroke(EMPHASIZED_BORDER_THICKNESS, CAP_BUTT, JOIN_MITER, 10.0f, DASH, 0f)
 private val NORMAL_LINE_COLOR = JBColor(Gray.get(128, 128), Gray.get(212, 128))
-private val NORMAL_LINE_STROKE = BasicStroke(NORMAL_BORDER_THICKNESS)
-private val NORMAL_IMAGE_LINE_STROKE = BasicStroke(NORMAL_BORDER_THICKNESS, CAP_BUTT, JOIN_MITER, 10.0f, DASH, 0f)
 private val EMPHASIZED_LINE_OUTLINE_COLOR = Color.white
 
-const val DRAW_NODE_LABEL_HEIGHT = LABEL_FONT_SIZE * 1.6f + 2 * NORMAL_BORDER_THICKNESS
+fun getDashedStroke(thickness: (Double) -> Float, scale: Double) =
+  BasicStroke(thickness(scale), CAP_BUTT, JOIN_MITER, 10.0f, getDash(scale), 0f)
+
+private fun getEmphasizedLineStroke(scale: Double) = BasicStroke(getEmphasizedBorderThickness(scale))
+private fun getEmphasizedImageLineStroke(scale: Double) = getDashedStroke(::getEmphasizedBorderThickness, scale)
+private fun getEmphasizedLineOutlineStroke(scale: Double) = BasicStroke(getEmphasizedBorderOutlineThickness(scale))
+private fun getEmphasizedImageLineOutlineStroke(scale: Double) = getDashedStroke(::getEmphasizedBorderOutlineThickness, scale)
+private fun getSelectedLineStroke(scale: Double) = getEmphasizedLineStroke(scale)
+private fun getSelectedImageLineStroke(scale: Double) = getDashedStroke(::getEmphasizedBorderThickness, scale)
+fun getFoldStroke(scale: Double) = getDashedStroke(::getEmphasizedBorderThickness, scale)
+private fun getNormalLineStroke(scale: Double) = BasicStroke(getNormalBorderThickness(scale))
+private fun getNormalImageLineStroke(scale: Double) = getDashedStroke(::getNormalBorderThickness, scale)
+
+fun getDrawNodeLabelHeight(scale: Double) = getLabelFontSize(scale) * 1.6f + 2 * getNormalBorderThickness(scale)
 
 /**
  * A node in the hierarchy used to paint the device view. This is separate from the basic hierarchy ([ViewNode.children]) since views
@@ -80,7 +85,7 @@ sealed class DrawViewNode(owner: ViewNode) {
   abstract fun paintBorder(g2: Graphics2D, isSelected: Boolean, isHovered: Boolean,
                            viewSettings: DeviceViewSettings, treeSettings: TreeSettings)
 
-  open fun children(drawChildren: ViewNode.() -> List<DrawViewNode>): Sequence<DrawViewNode> = sequenceOf()
+  open fun children(access: ViewNode.ReadAccess): Sequence<DrawViewNode> = sequenceOf()
 }
 
 /**
@@ -104,7 +109,7 @@ class DrawViewChild(owner: ViewNode) : DrawViewNode(owner) {
     // Draw the outline of the border (the white border around the main view border) if necessary.
     if (isSelected || isHovered) {
       g2.color = EMPHASIZED_LINE_OUTLINE_COLOR
-      g2.stroke = EMPHASIZED_LINE_OUTLINE_STROKE
+      g2.stroke = getEmphasizedLineOutlineStroke(viewSettings.scaleFraction)
       if (viewSettings.drawBorders) {
         g2.draw(bounds)
       }
@@ -119,11 +124,11 @@ class DrawViewChild(owner: ViewNode) : DrawViewNode(owner) {
 
     // Draw the label background if necessary (the white border of the label and the label background).
     if (isSelected && viewSettings.drawLabel) {
-      g2.font = g2.font.deriveFont(JBUIScale.scale(LABEL_FONT_SIZE))
+      g2.font = g2.font.deriveFont(getLabelFontSize(viewSettings.scaleFraction))
       val fontMetrics = g2.fontMetrics
       val textWidth = fontMetrics.stringWidth(owner.unqualifiedName).toFloat()
 
-      val border = if (viewSettings.drawBorders || (isSelected && !viewSettings.drawUntransformedBounds)) {
+      val border = if (viewSettings.drawBorders || !viewSettings.drawUntransformedBounds) {
         bounds
       }
       else {
@@ -136,28 +141,30 @@ class DrawViewChild(owner: ViewNode) : DrawViewNode(owner) {
 
       val textHeight = (fontMetrics.maxAscent).toFloat()
       borderWidth = textHeight * 0.3f
-      g2.draw(Rectangle2D.Float(labelX, labelY - textHeight - 2f * borderWidth, textWidth + 2f * borderWidth, textHeight + 2f * borderWidth))
+      g2.draw(Rectangle2D.Float(labelX, labelY - textHeight - 2f * borderWidth, textWidth + 2f * borderWidth,
+                                textHeight + 2f * borderWidth))
 
       g2.color = SELECTED_LINE_COLOR
-      g2.fill(Rectangle2D.Float(labelX - EMPHASIZED_BORDER_THICKNESS / 2f,
-                                labelY - textHeight - 2f * borderWidth - EMPHASIZED_BORDER_THICKNESS / 2f,
-                                textWidth + 2f * borderWidth + EMPHASIZED_BORDER_THICKNESS,
-                                textHeight + 2f * borderWidth + EMPHASIZED_BORDER_THICKNESS))
+      val emphasizedBorderThickness = getEmphasizedBorderThickness(viewSettings.scaleFraction)
+      g2.fill(Rectangle2D.Float(labelX - emphasizedBorderThickness / 2f,
+                                labelY - textHeight - 2f * borderWidth - emphasizedBorderThickness / 2f,
+                                textWidth + 2f * borderWidth + emphasizedBorderThickness,
+                                textHeight + 2f * borderWidth + emphasizedBorderThickness))
     }
 
     // Draw the border
     when {
       isSelected -> {
         g2.color = SELECTED_LINE_COLOR
-        g2.stroke = SELECTED_LINE_STROKE
+        g2.stroke = getSelectedLineStroke(viewSettings.scaleFraction)
       }
       isHovered -> {
         g2.color = EMPHASIZED_LINE_COLOR
-        g2.stroke = EMPHASIZED_LINE_STROKE
+        g2.stroke = getEmphasizedLineStroke(viewSettings.scaleFraction)
       }
       else -> {
         g2.color = NORMAL_LINE_COLOR
-        g2.stroke = NORMAL_LINE_STROKE
+        g2.stroke = getNormalLineStroke(viewSettings.scaleFraction)
       }
     }
     if (viewSettings.drawBorders || isHovered || (isSelected && !viewSettings.drawUntransformedBounds)) {
@@ -170,7 +177,8 @@ class DrawViewChild(owner: ViewNode) : DrawViewNode(owner) {
     // Draw the text of the label if necessary.
     if (isSelected && viewSettings.drawLabel) {
       g2.color = Color.WHITE
-      g2.drawString(owner.unqualifiedName, labelX + borderWidth, labelY - borderWidth - EMPHASIZED_BORDER_THICKNESS / 2f)
+      g2.drawString(owner.unqualifiedName, labelX + borderWidth,
+                    labelY - borderWidth - getEmphasizedBorderThickness(viewSettings.scaleFraction) / 2f)
     }
   }
 
@@ -178,8 +186,8 @@ class DrawViewChild(owner: ViewNode) : DrawViewNode(owner) {
    * Compute the position of the label:
    * - find the edge with the least slope where one of the ends is at the minimum y. This is the "top".
    * - find the left side of that segment. The x coordinate of that is the x coordinate of the label.
-   * - find where the bottom edge of the label should meet the edge of the border: This is the minimum of half way across the edge
-   *   and half way across the label.
+   * - find where the bottom edge of the label should meet the edge of the border: This is the minimum of halfway across the edge
+   *   and halfway across the label.
    * - find the y coordinate of that using the slope of the line.
    */
   private fun computeLabelPosition(border: Shape, textWidth: Float): Pair<Float, Float> {
@@ -218,17 +226,18 @@ class DrawViewChild(owner: ViewNode) : DrawViewNode(owner) {
     return Pair(x, minSlope * connectionWidth + topLeftY)
   }
 
-  override fun children(drawChildren: ViewNode.() -> List<DrawViewNode>): Sequence<DrawViewNode> =
-    unfilteredOwner.drawChildren().asSequence()
+  override fun children(access: ViewNode.ReadAccess): Sequence<DrawViewNode> =
+    access.run { unfilteredOwner.drawChildren.asSequence() }
 }
 
 /**
- * A draw view that paints an image. The [owner] should be the view that does the painting, and is also the "draw parent" of this node.
+ * A draw view that paints an image. The `owner` should be the view that does the painting, and is also the "draw parent" of this node.
  */
-class DrawViewImage(@VisibleForTesting val image: Image, owner: ViewNode) : DrawViewNode(owner) {
+class DrawViewImage(@get:VisibleForTesting val image: Image, owner: ViewNode, private val deviceClip: Shape? = null) : DrawViewNode(owner) {
   override fun canCollapse(treeSettings: TreeSettings) = true
 
   override fun paint(g2: Graphics2D, model: InspectorModel) {
+    deviceClip?.let { g2.clip(deviceClip) }
     val bounds = bounds.bounds
     UIUtil.drawImage(
       g2, image,
@@ -245,21 +254,21 @@ class DrawViewImage(@VisibleForTesting val image: Image, owner: ViewNode) : Draw
   ) {
     if (isSelected || isHovered) {
       g2.color = EMPHASIZED_LINE_OUTLINE_COLOR
-      g2.stroke = EMPHASIZED_IMAGE_LINE_OUTLINE_STROKE
+      g2.stroke = getEmphasizedImageLineOutlineStroke(viewSettings.scaleFraction)
       g2.draw(bounds)
     }
     when {
       isSelected -> {
         g2.color = SELECTED_LINE_COLOR
-        g2.stroke = SELECTED_IMAGE_LINE_STROKE
+        g2.stroke = getSelectedImageLineStroke(viewSettings.scaleFraction)
       }
       isHovered -> {
         g2.color = EMPHASIZED_LINE_COLOR
-        g2.stroke = EMPHASIZED_IMAGE_LINE_STROKE
+        g2.stroke = getEmphasizedImageLineStroke(viewSettings.scaleFraction)
       }
       else -> {
         g2.color = NORMAL_LINE_COLOR
-        g2.stroke = NORMAL_IMAGE_LINE_STROKE
+        g2.stroke = getNormalImageLineStroke(viewSettings.scaleFraction)
       }
     }
     g2.draw(bounds)
@@ -291,8 +300,10 @@ class Dimmer(val root: ViewNode) : DrawViewNode(root) {
   ) {
     if (root.width > 0 && root.height > 0) {
       g2.color = NORMAL_LINE_COLOR
-      g2.stroke = NORMAL_IMAGE_LINE_STROKE
+      g2.stroke = getNormalImageLineStroke(viewSettings.scaleFraction)
       g2.drawRect(0, 0, root.width, root.height)
     }
   }
 }
+
+private fun Float.scale(scale: Double): Float = JBUIScale.scale(this) / scale.toFloat()

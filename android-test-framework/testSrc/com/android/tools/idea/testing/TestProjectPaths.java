@@ -6,12 +6,15 @@ package com.android.tools.idea.testing;
 public final class TestProjectPaths {
   public static final String TEST_DATA_PATH = "tools/adt/idea/android/testData";
   public static final String ANDROIDX_SIMPLE = "projects/androidxSimple";
+  public static final String ANDROID_LIBRARY_AS_TEST_DEPENDENCY = "projects/AndroidLibraryAsTestDependency";
   public static final String APK_SAN_ANGELES = "projects/apk/sanAngeles";
   public static final String APP_WITH_BUILDSRC = "projects/appWithBuildSrc";
   public static final String APP_WITH_LIB_WITH_SAMPLES = "projects/appWithLibWithSamples";
   public static final String APPLICATION_ID_SUFFIX = "projects/applicationIdSuffix";
+  public static final String APPLICATION_ID_VARIANT_API = "projects/applicationIdViaVariantApi";
   public static final String BASIC = "projects/basic";
   public static final String BUDDY_APKS = "projects/buddyApks";
+  public static final String BUILD_ANALYZER_CHECK_JETIFIER = "projects/buildAnalyzer/checkJetifier";
   public static final String CENTRAL_BUILD_DIRECTORY = "projects/centralBuildDirectory";
   public static final String CIRCULAR_MODULE_DEPS = "projects/circularModuleDeps";
   public static final String COMPOSITE_BUILD = "projects/compositeBuild";
@@ -39,7 +42,6 @@ public final class TestProjectPaths {
   public static final String MANIFEST_CONFLICT_BUILD_TYPE_AND_FLAVOR = "projects/manifestConflict/buildTypeAndFlavorConflict";
   public static final String MANIFEST_CONFLICT_FLAVOR_PACKAGE = "projects/manifestConflict/flavorPackage";
   public static final String MANIFEST_CONFLICT_MIN_SDK = "projects/manifestConflict/minSdk";
-  public static final String MEDIA_USAGE = "projects/mediaUsage";
   public static final String MIGRATE_TO_ANDROID_X = "projects/migrateToAndroidX";
   public static final String MIGRATE_TO_ANDROID_X_KTS = "projects/migrateToAndroidXKTS";
   public static final String MIGRATE_TO_APP_COMPAT = "projects/migrateToAppCompat";
@@ -86,19 +88,22 @@ public final class TestProjectPaths {
   public static final String SIGNAPK_MULTIFLAVOR = "projects/signapk/multiflavor";
   public static final String SIGNAPK_NO_FLAVORS = "projects/signapk/no_flavors";
   public static final String SIMPLE_APPLICATION = "projects/simpleApplication";
+  public static final String SIMPLE_APPLICATION_PLUGINS_DSL = "projects/simpleApplicationPluginsDsl";
+  public static final String SIMPLE_APPLICATION_PLUGIN_MANAGEMENT_DSL = "projects/simpleApplicationPluginManagementDsl";
   public static final String SIMPLE_APPLICATION_WITH_DUPLICATES = "projects/simpleApplicationWithDuplicates";
   public static final String SIMPLE_APPLICATION_UNRESOLVED_DEPENDENCY = "projects/simpleApplicationUnresolvedDependency";
-  public static final String SIMPLE_APPLICATION_PRE30 = "projects/simpleApplication_pre30";
   public static final String SIMPLE_APP_WITH_OLDER_SUPPORT_LIB = "projects/simpleAppWithOlderSupportLib";
   public static final String SPLIT_BUILD_FILES = "projects/splitBuildFiles";
   public static final String SYNC_MULTIPROJECT = "projects/sync/multiproject";
   public static final String TEST_ARTIFACTS_ILLEGAL_IDENTIFIERS = "projects/testArtifacts/illegalIdentifiers";
   public static final String TEST_ARTIFACTS_KOTLIN = "projects/testArtifacts/kotlin";
+  public static final String TEST_ARTIFACTS_KOTLIN_MULTIPLATFORM = "projects/testArtifacts/kotlinMultiplatform";
   public static final String TEST_ARTIFACTS_LINT = "projects/testArtifacts/lintTests";
   public static final String TEST_ARTIFACTS_MULTIDEPENDENCIES = "projects/testArtifacts/multidependencies";
   public static final String TEST_ARTIFACTS_MULTIPROJECT = "projects/testArtifacts/multiproject";
   public static final String TEST_ARTIFACTS_OLD_TESTS = "projects/testArtifacts/oldTests";
   public static final String TEST_ARTIFACTS_SAME_NAME_CLASSES = "projects/testArtifacts/sameNameClasses";
+  public static final String TEST_FIXTURES = "projects/testFixtures";
   public static final String TEST_ONLY_MODULE = "projects/testOnlyModule";
   public static final String TEST_RESOURCES = "projects/testResources";
   public static final String TRANSITIVE_DEPENDENCIES = "projects/transitiveDependencies";
@@ -107,5 +112,6 @@ public final class TestProjectPaths {
   public static final String UNIT_TESTING = "projects/unitTesting";
   public static final String UNUSED_RESOURCES_GROOVY = "projects/unusedResources";
   public static final String UNUSED_RESOURCES_KTS = "projects/unusedResourcesKotlin";
+  public static final String UNUSED_RESOURCES_MULTI_MODULE = "projects/unusedResourcesMultiModule";
   public static final String CUSTOM_BUILD_SCRIPT_DEPS = "projects/customBuildScriptDeps";
 }

@@ -15,10 +15,10 @@
  */
 package com.android.tools.idea.gradle.structure.model.android
 
-import com.android.tools.idea.gradle.model.IdeBaseConfig
-import com.android.tools.idea.gradle.model.IdeBuildType
 import com.android.tools.idea.gradle.dsl.api.android.BuildTypeModel
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel
+import com.android.tools.idea.gradle.model.IdeBaseConfig
+import com.android.tools.idea.gradle.model.IdeBuildType
 import com.android.tools.idea.gradle.structure.model.PsChildModel
 import com.android.tools.idea.gradle.structure.model.helpers.booleanValues
 import com.android.tools.idea.gradle.structure.model.helpers.buildTypeMatchingFallbackValues
@@ -132,7 +132,7 @@ open class PsBuildType(
 
     val debuggable: SimpleProperty<PsBuildType, Boolean> = property(
       "Debuggable",
-      preferredVariableName = { variableName( "$name-debuggable") },
+      preferredVariableName = { variableName("$name-debuggable") },
       // See: com.android.build.gradle.internal.dsl.BuildType#init
       defaultValueGetter = { it.name == DEBUG_BUILD_TYPE_NAME },
       resolvedValueGetter = { isDebuggable },

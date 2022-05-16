@@ -25,11 +25,13 @@ import java.io.Serializable
  **/
 data class IdeAndroidLibraryImpl(
   val core: IdeAndroidLibraryCore,
+  override val name: String,
   override val isProvided: Boolean
 ) : IdeAndroidLibrary by core, Serializable {
   @VisibleForTesting
   constructor(
     artifactAddress: String,
+    name: String,
     folder: File,
     manifest: String,
     compileJarFiles: List<String>,
@@ -68,6 +70,7 @@ data class IdeAndroidLibraryImpl(
       symbolFile,
       deduplicate = { this }
     ),
+    name,
     isProvided
   )
 }
@@ -85,7 +88,7 @@ data class IdeAndroidLibraryCore(
   private val _aidlFolder: String,
   private val _renderscriptFolder: String,
   private val _proguardRules: String,
-  private val _lintJar: String,
+  private val _lintJar: String?,
   private val _externalAnnotations: String,
   private val _publicResources: String,
   private val _artifact: String,
@@ -125,11 +128,14 @@ data class IdeAndroidLibraryCore(
   override val aidlFolder: String get() = _aidlFolder.translate()
   override val renderscriptFolder: String get() = _renderscriptFolder.translate()
   override val proguardRules: String get() = _proguardRules.translate()
-  override val lintJar: String get() = _lintJar.translate()
+  override val lintJar: String? get() = _lintJar?.translate()
   override val externalAnnotations: String get() = _externalAnnotations.translate()
   override val publicResources: String get() = _publicResources.translate()
   override val artifact: File get() = File(_artifact.translate())
   override val symbolFile: String get() = _symbolFile.translate()
+
+  override val name: String
+    get() = ""
 
   override val isProvided: Nothing
     get() = error("abstract")
@@ -148,7 +154,7 @@ data class IdeAndroidLibraryCore(
       aidlFolder: String,
       renderscriptFolder: String,
       proguardRules: String,
-      lintJar: String,
+      lintJar: String?,
       externalAnnotations: String,
       publicResources: String,
       artifact: File,
@@ -171,7 +177,7 @@ data class IdeAndroidLibraryCore(
         _aidlFolder = aidlFolder.makeRelative(),
         _renderscriptFolder = renderscriptFolder.makeRelative(),
         _proguardRules = proguardRules.makeRelative(),
-        _lintJar = lintJar.makeRelative(),
+        _lintJar = lintJar?.makeRelative(),
         _externalAnnotations = externalAnnotations.makeRelative(),
         _publicResources = publicResources.makeRelative(),
         _artifact = artifact.makeRelative(),

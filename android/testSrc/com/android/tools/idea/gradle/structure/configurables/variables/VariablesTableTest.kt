@@ -76,7 +76,7 @@ class VariablesTableTest : AndroidGradleTestCase() {
 
   override fun setUp() {
     super.setUp()
-    defaultTestDialog = TestDialogManager.setTestDialog(object: TestDialog {
+    defaultTestDialog = TestDialogManager.setTestDialog(object : TestDialog {
       override fun show(message: String): Int = Messages.YES
     })
 

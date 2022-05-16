@@ -20,7 +20,6 @@ import com.android.tools.idea.diagnostics.hprof.parser.InstanceFieldEntry
 import com.android.tools.idea.diagnostics.hprof.parser.StaticFieldEntry
 import com.android.tools.idea.diagnostics.hprof.parser.Type
 import com.android.tools.idea.diagnostics.hprof.util.HprofWriter
-import com.android.tools.idea.experimental.codeanalysis.datastructs.Modifier
 import gnu.trove.TLongIntHashMap
 import gnu.trove.TObjectHashingStrategy
 import gnu.trove.TObjectLongHashMap
@@ -34,6 +33,17 @@ import java.lang.Short
 import java.lang.ref.SoftReference
 import java.lang.ref.WeakReference
 import java.lang.reflect.Array
+import java.lang.reflect.Modifier
+import kotlin.Any
+import kotlin.ByteArray
+import kotlin.IllegalArgumentException
+import kotlin.IllegalStateException
+import kotlin.Int
+import kotlin.Long
+import kotlin.LongArray
+import kotlin.String
+import kotlin.arrayOf
+import kotlin.toRawBits
 
 class HProfBuilder(dos: DataOutputStream, val classNameMapping: ((Class<*>) -> String?)) {
 

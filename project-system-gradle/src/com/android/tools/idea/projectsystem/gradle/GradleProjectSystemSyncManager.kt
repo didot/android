@@ -21,7 +21,9 @@ import com.android.tools.idea.gradle.project.sync.GradleSyncState
 import com.android.tools.idea.gradle.project.sync.projectsystem.GradleSyncResultPublisher
 import com.android.tools.idea.projectsystem.PROJECT_SYSTEM_SYNC_TOPIC
 import com.android.tools.idea.projectsystem.ProjectSystemSyncManager
-import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.*
+import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.SyncReason
+import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.SyncResult
+import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.SyncResultListener
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import com.google.wireless.android.sdk.stats.GradleSyncStats
@@ -38,6 +40,7 @@ class GradleProjectSystemSyncManager(val project: Project) : ProjectSystemSyncMa
   private fun convertReasonToTrigger(reason: SyncReason): GradleSyncStats.Trigger = when {
       reason === SyncReason.PROJECT_LOADED -> GradleSyncStats.Trigger.TRIGGER_PROJECT_LOADED
       reason === SyncReason.PROJECT_MODIFIED -> GradleSyncStats.Trigger.TRIGGER_PROJECT_MODIFIED
+      reason === SyncReason.PROJECT_DEPENDENCY_UPDATED -> GradleSyncStats.Trigger.TRIGGER_GRADLEDEPENDENCY_UPDATED
       else -> GradleSyncStats.Trigger.TRIGGER_USER_REQUEST
   }
 

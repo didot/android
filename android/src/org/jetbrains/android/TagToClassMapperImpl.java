@@ -62,6 +62,7 @@ class TagToClassMapperImpl implements TagToClassMapper {
   TagToClassMapperImpl(@NotNull Module module) {
     myModule = module;
     MessageBusConnection connection = module.getProject().getMessageBus().connect(module);
+
     connection.subscribe(ProjectTopics.PROJECT_ROOTS, new ModuleRootListener() {
       @Override
       public void rootsChanged(@NotNull ModuleRootEvent event) {

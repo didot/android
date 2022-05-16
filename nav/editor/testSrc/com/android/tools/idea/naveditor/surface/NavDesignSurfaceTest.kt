@@ -15,16 +15,15 @@
  */
 package com.android.tools.idea.naveditor.surface
 
-import com.android.tools.adtui.actions.ZoomType
 import com.android.tools.adtui.common.SwingCoordinate
 import com.android.tools.adtui.workbench.WorkBench
+import com.android.tools.idea.common.LayoutTestUtilities
 import com.android.tools.idea.common.editor.DesignerEditorPanel
 import com.android.tools.idea.common.model.Coordinates
 import com.android.tools.idea.common.model.ModelListener
 import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.common.scene.SceneContext
 import com.android.tools.idea.common.scene.inlineDrawRect
-import com.android.tools.idea.common.surface.*
 import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.common.surface.DesignSurfaceListener
 import com.android.tools.idea.common.surface.InteractionManager
@@ -38,11 +37,8 @@ import com.android.tools.idea.naveditor.analytics.TestNavUsageTracker
 import com.android.tools.idea.naveditor.model.NavCoordinate
 import com.android.tools.idea.naveditor.scene.NavSceneManager
 import com.android.tools.idea.naveditor.scene.updateHierarchy
-import com.android.tools.idea.uibuilder.LayoutTestCase
-import com.android.tools.idea.uibuilder.LayoutTestUtilities
 import com.google.common.collect.ImmutableList
 import com.google.wireless.android.sdk.stats.NavEditorEvent
-import com.intellij.idea.Bombed
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -57,14 +53,19 @@ import org.jetbrains.android.dom.navigation.NavigationSchema
 import org.jetbrains.android.refactoring.setAndroidxProperties
 import org.jetbrains.android.sdk.AndroidSdkData
 import org.mockito.ArgumentMatchers
-import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.eq
-import org.mockito.Mockito.*
+import org.mockito.Mockito.anyInt
+import org.mockito.Mockito.doAnswer
+import org.mockito.Mockito.doCallRealMethod
+import org.mockito.Mockito.eq
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyZeroInteractions
+import org.mockito.Mockito.`when`
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.event.MouseEvent
-import java.util.*
 import java.util.concurrent.Future
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
@@ -446,8 +447,6 @@ class NavDesignSurfaceTest : NavTestCase() {
     assertEquals(root, component)
   }
 
-  @Bombed(year = 2020, month = Calendar.OCTOBER, day = 1, user = "Andrei.Kuznetsov",
-          description = "missing path: ../unitTest/res/navigation/navigation.xml")
   fun testConfiguration() {
     val defaultConfigurationManager = ConfigurationManager.getOrCreateInstance(myFacet)
     val navConfigurationManager = NavDesignSurface(project, project).getConfigurationManager(myFacet)
@@ -645,6 +644,25 @@ class NavDesignSurfaceTest : NavTestCase() {
     testCurrentNavigation(surface, root, fragment1, nested1)
     testCurrentNavigation(surface, nested1, fragment2, nested2)
     testCurrentNavigation(surface, nested1, fragment2, nested2, fragment1)
+  }
+
+  fun testCanZoomToFit() {
+    val sceneManager = mock(NavSceneManager::class.java)
+    `when`(sceneManager.isEmpty).thenReturn(true)
+
+    val surface = mock(NavDesignSurface::class.java)
+    `when`(surface.sceneManager).thenReturn(sceneManager)
+    doCallRealMethod().`when`(surface).canZoomToFit()
+
+    `when`(surface.getFitScale(true)).thenReturn(1.5)
+    `when`(surface.scale).thenReturn(1.0)
+    assertFalse(surface.canZoomToFit())
+
+    `when`(sceneManager.isEmpty).thenReturn(false)
+    assertTrue(surface.canZoomToFit())
+
+    `when`(surface.scale).thenReturn(1.5)
+    assertFalse(surface.canZoomToFit())
   }
 
   private fun testCurrentNavigation(surface: NavDesignSurface, expected: NlComponent, vararg select: NlComponent) {

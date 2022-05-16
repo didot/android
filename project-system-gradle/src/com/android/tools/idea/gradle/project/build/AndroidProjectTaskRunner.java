@@ -1,5 +1,8 @@
 package com.android.tools.idea.gradle.project.build;
 
+import static com.android.tools.idea.gradle.util.BuildMode.COMPILE_JAVA;
+import static com.android.tools.idea.gradle.util.BuildMode.REBUILD;
+
 import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.gradle.project.BuildSettings;
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker;
@@ -16,22 +19,22 @@ import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.registry.Registry;
-import com.intellij.task.*;
-import one.util.streamex.StreamEx;
-import org.jetbrains.android.facet.AndroidFacet;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.io.File;
+import com.intellij.task.ModuleBuildTask;
+import com.intellij.task.ProjectTask;
+import com.intellij.task.ProjectTaskContext;
+import com.intellij.task.ProjectTaskNotification;
+import com.intellij.task.ProjectTaskResult;
+import com.intellij.task.ProjectTaskRunner;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static com.android.tools.idea.gradle.util.BuildMode.COMPILE_JAVA;
-import static com.android.tools.idea.gradle.util.BuildMode.REBUILD;
+import one.util.streamex.StreamEx;
+import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class AndroidProjectTaskRunner extends ProjectTaskRunner {
   @Override
@@ -57,7 +60,7 @@ public class AndroidProjectTaskRunner extends ProjectTaskRunner {
         assert !IdeInfo.getInstance().isAndroidStudio() : "This code is not expected to be executed in Android Studio";
         return AndroidFacet.getInstance(module) != null;
       } else {
-        if (GradleFacet.getInstance(module) != null || JavaFacet.getInstance(module) != null/* || AndroidModuleModel.get(module) != null*/){
+        if (GradleFacet.getInstance(module) != null || JavaFacet.getInstance(module) != null/* || AndroidModuleModel.get(module) != null*/) {
           return true;
         }
       }
@@ -85,15 +88,6 @@ public class AndroidProjectTaskRunner extends ProjectTaskRunner {
       }
       return;
     }
-    File projectPath = new File(rootProjectPath);
-    final String projectName;
-    if (projectPath.isFile()) {
-      projectName = projectPath.getParentFile().getName();
-    }
-    else {
-      projectName = projectPath.getName();
-    }
-    String executionName = "Build " + projectName;
     ListMultimap<Path, String> tasks = GradleTaskFinder.getInstance().findTasksToExecute(modules, buildMode, TestCompileType.ALL);
 
     GradleBuildInvoker gradleBuildInvoker = GradleBuildInvoker.getInstance(project);
@@ -108,15 +102,12 @@ public class AndroidProjectTaskRunner extends ProjectTaskRunner {
 
     ProjectTaskNotification aggregatedCallback = callback == null ? null : new MergedProjectTaskNotification(callback, rootPaths.size());
     for (Path projectRootPath : rootPaths) {
-      GradleBuildInvoker.Request request = new GradleBuildInvoker.Request(project, projectRootPath.toFile(), tasks.get(projectRootPath));
 
       BuildSettings.getInstance(project).setBuildMode(buildMode);
       // the blocking mode required because of static behaviour of the BuildSettings.setBuildMode() method
-      request.waitForCompletion();
 
-      ExternalSystemTaskNotificationListener buildTaskListener = gradleBuildInvoker.createBuildTaskListener(request, executionName);
-      ExternalSystemTaskNotificationListener listenerDelegate =
-        aggregatedCallback == null ? buildTaskListener : new ExternalSystemTaskNotificationListenerAdapter(buildTaskListener) {
+      @Nullable ExternalSystemTaskNotificationListener listenerDelegate =
+        aggregatedCallback == null ? null : new ExternalSystemTaskNotificationListenerAdapter(null) {
           @Override
           public void onSuccess(@NotNull ExternalSystemTaskId id) {
             super.onSuccess(id);
@@ -136,7 +127,11 @@ public class AndroidProjectTaskRunner extends ProjectTaskRunner {
           }
         };
 
-      request.setTaskListener(listenerDelegate);
+      GradleBuildInvoker.Request request =
+        GradleBuildInvoker.Request.builder(project, projectRootPath.toFile(), tasks.get(projectRootPath))
+        .waitForCompletion()
+        .setListener(listenerDelegate)
+        .build();
       gradleBuildInvoker.executeTasks(request);
     }
   }

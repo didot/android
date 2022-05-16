@@ -24,12 +24,12 @@ import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLauncher
 import com.android.tools.idea.layoutinspector.tree.TreeSettings
 import com.google.common.annotations.VisibleForTesting
+import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo.AttachErrorState
 import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.ui.Messages
-import org.jetbrains.annotations.TestOnly
 import java.awt.Component
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicLong
@@ -44,23 +44,47 @@ const val SHOW_ERROR_MESSAGES_IN_DIALOG = false
  *    initializing the model. Exposed mainly for testing, where a direct executor can provide
  *    consistent behavior over performance.
  */
-class LayoutInspector(
-  private val launcher: InspectorClientLauncher,
+class LayoutInspector private constructor(
+  private val currentClientAccessor: () -> InspectorClient,
   val layoutInspectorModel: InspectorModel,
   val stats: SessionStatistics,
   val treeSettings: TreeSettings,
-  @TestOnly private val executor: Executor = AndroidExecutors.getInstance().workerThreadExecutor
+  val isSnapshot: Boolean,
+  private val executor: Executor = AndroidExecutors.getInstance().workerThreadExecutor
 ) {
 
-  val currentClient: InspectorClient get() = launcher.activeClient
+  val currentClient: InspectorClient
+    get() = currentClientAccessor()
+
+  /**
+   * Construct a LayoutInspector that can launch new [InspectorClient]s as needed using [launcher].
+   */
+  constructor(
+    launcher: InspectorClientLauncher,
+    layoutInspectorModel: InspectorModel,
+    stats: SessionStatistics,
+    treeSettings: TreeSettings,
+    // @TestOnly
+    executor: Executor = AndroidExecutors.getInstance().workerThreadExecutor
+  ) : this({ launcher.activeClient }, layoutInspectorModel, stats, treeSettings, false, executor) {
+    launcher.addClientChangedListener(::clientChanged)
+  }
+
+  /**
+   * Construct a LayoutInspector tied to a specific [InspectorClient], e.g. for viewing a snapshot file.
+   */
+  constructor(
+    client: InspectorClient,
+    layoutInspectorModel: InspectorModel,
+    stats: SessionStatistics,
+    treeSettings: TreeSettings
+  ) : this({ client }, layoutInspectorModel, stats, treeSettings, true) {
+    clientChanged(client)
+  }
 
   private val latestLoadTime = AtomicLong(-1)
 
   private val recentExecutor = MostRecentExecutor(executor)
-
-  init {
-    launcher.addClientChangedListener(::clientChanged)
-  }
 
   private fun clientChanged(client: InspectorClient) {
     if (client !== DisconnectedClient) {
@@ -89,7 +113,8 @@ class LayoutInspector(
       val time = System.currentTimeMillis()
       val treeLoader = currentClient.treeLoader
       val allIds = treeLoader.getAllWindowIds(event)
-      val data = treeLoader.loadComponentTree(event, layoutInspectorModel.resourceLookup) ?: return@execute
+      val data = treeLoader.loadComponentTree(event, layoutInspectorModel.resourceLookup, currentClient.process) ?: return@execute
+      currentClient.updateProgress(AttachErrorState.PARSED_COMPONENT_TREE)
       currentClient.addDynamicCapabilities(data.dynamicCapabilities)
       if (allIds != null) {
         synchronized(latestLoadTime) {
@@ -98,6 +123,7 @@ class LayoutInspector(
           }
           latestLoadTime.set(time)
           layoutInspectorModel.update(data.window, allIds, data.generation)
+          currentClient.updateProgress(AttachErrorState.MODEL_UPDATED)
         }
       }
     }

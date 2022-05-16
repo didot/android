@@ -18,7 +18,7 @@ package com.android.tools.idea.gradle.project;
 import static com.android.tools.idea.gradle.util.GradleUtil.GRADLE_SYSTEM_ID;
 import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.notification.NotificationType.ERROR;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,6 +27,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.project.AndroidNotification;
+import com.android.tools.idea.testing.IdeComponents;
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager;
@@ -51,14 +52,14 @@ public class SupportedModuleCheckerTest extends PlatformTestCase {
     initMocks(this);
 
     Project project = getProject();
-    ServiceContainerUtil.replaceService(project, GradleProjectInfo.class, myGradleProjectInfo, getTestRootDisposable());
+    new IdeComponents(project).replaceProjectService(GradleProjectInfo.class, myGradleProjectInfo);
     myModuleChecker = new SupportedModuleChecker();
   }
 
   public void testCheckForSupportedModulesWithNonGradleProject() {
     Project project = getProject();
     AndroidNotification androidNotification = mock(AndroidNotification.class);
-    ServiceContainerUtil.replaceService(project, AndroidNotification.class, androidNotification, getTestRootDisposable());
+    new IdeComponents(project).replaceProjectService(AndroidNotification.class, androidNotification);
     when(myGradleProjectInfo.isBuildWithGradle()).thenReturn(false);
 
     myModuleChecker.checkForSupportedModules(project);
@@ -80,6 +81,7 @@ public class SupportedModuleCheckerTest extends PlatformTestCase {
 
     Project project = getProject();
     AndroidNotificationStub androidNotification = new AndroidNotificationStub(project);
+    new IdeComponents(project).replaceProjectService(AndroidNotification.class, androidNotification);
     IdeInfo androidIdeInfo = mock(IdeInfo.class);
     when(androidIdeInfo.isAndroidStudio()).thenReturn(true);
 

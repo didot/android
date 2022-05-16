@@ -39,7 +39,6 @@ public class NavToolbarActionGroups extends ToolbarActionGroups {
   protected ActionGroup getEastGroup() {
     DefaultActionGroup group = new DefaultActionGroup();
     group.add(IssueNotificationAction.getInstance());
-    // FIXME-ank4: IDEA-247246: add assistant to IDEA
     AnAction assistantAction = ActionManager.getInstance().getAction(NAV_EDITOR_BUNDLE_ID);
     if (assistantAction != null) {
       group.add(assistantAction);

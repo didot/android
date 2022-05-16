@@ -62,8 +62,8 @@ class DeviceViewPanelModelTest {
   @Test
   fun testFlatRectsWithHiddenSystemNodes() {
     val expectedTransforms = mapOf(
-      VIEW2 to ComparingTransform(1.0, 0.0, 0.0, 1.0, -40.0, -50.0),
-      VIEW3 to ComparingTransform(1.0, 0.0, 0.0, 1.0, -40.0, -50.0))
+      VIEW2 to ComparingTransform(1.0, 0.0, 0.0, 1.0, -50.0, -100.0),
+      VIEW3 to ComparingTransform(1.0, 0.0, 0.0, 1.0, -50.0, -100.0))
 
     checkRects(expectedTransforms, 0.0, 0.0, hideSystemNodes = true)
   }
@@ -82,8 +82,8 @@ class DeviceViewPanelModelTest {
   @Test
   fun test1dRectsWithHiddenSystemNodes() {
     val expectedTransforms = mapOf(
-      VIEW2 to ComparingTransform(0.995, 0.0, 0.0, 1.0, -39.850, -50.0),
-      VIEW3 to ComparingTransform(0.995, 0.0, 0.0, 1.0, -39.850, -50.0))
+      VIEW2 to ComparingTransform(0.995, 0.0, 0.0, 1.0, -49.749, -100.0),
+      VIEW3 to ComparingTransform(0.995, 0.0, 0.0, 1.0, -49.749, -100.0))
 
     checkRects(expectedTransforms, 0.1, 0.0, hideSystemNodes = true)
   }
@@ -183,6 +183,28 @@ class DeviceViewPanelModelTest {
     panelModel.resetRotation()
     assertEquals(ComparingTransform(1.0, 0.0, 0.0, 1.0, -50.0, -100.0),
                  panelModel.hitRects[0].transform)
+  }
+
+  @Test
+  fun testRootBoundsUpdate() {
+    val model = model {
+      view(ROOT, Rectangle(0, 0, 100, 200)) {
+        view(VIEW1, Rectangle(10, -10, 50, 100)) {
+          image()
+        }
+      }
+    }
+    val treeSettings = FakeTreeSettings()
+    treeSettings.hideSystemNodes = false
+    val panelModel = DeviceViewPanelModel(model, SessionStatistics(model, treeSettings), treeSettings)
+    panelModel.rotate(0.1, 0.2)
+    assertThat(model.root.layoutBounds).isEqualTo(Rectangle(0, -10, 100, 210))
+    // ensure that nothing changes when we rotate more
+    panelModel.rotate(0.1, 0.2)
+    assertThat(model.root.layoutBounds).isEqualTo(Rectangle(0, -10, 100, 210))
+    // Hide the subview and verify the bounds reduce
+    model.hideSubtree(model[VIEW1]!!)
+    assertThat(model.root.layoutBounds).isEqualTo(Rectangle(0, 0, 100, 200))
   }
 
   @Test

@@ -19,7 +19,11 @@ import com.android.tools.idea.io.IdeFileUtils
 import com.android.tools.idea.sqlite.DatabaseInspectorAnalyticsTracker
 import com.android.tools.idea.sqlite.localization.DatabaseInspectorBundle
 import com.android.tools.idea.sqlite.model.Delimiter
-import com.android.tools.idea.sqlite.model.Delimiter.*
+import com.android.tools.idea.sqlite.model.Delimiter.COMMA
+import com.android.tools.idea.sqlite.model.Delimiter.SEMICOLON
+import com.android.tools.idea.sqlite.model.Delimiter.SPACE
+import com.android.tools.idea.sqlite.model.Delimiter.TAB
+import com.android.tools.idea.sqlite.model.Delimiter.VERTICAL_BAR
 import com.android.tools.idea.sqlite.model.ExportDialogParams
 import com.android.tools.idea.sqlite.model.ExportDialogParams.ExportDatabaseDialogParams
 import com.android.tools.idea.sqlite.model.ExportDialogParams.ExportQueryResultsDialogParams
@@ -39,20 +43,27 @@ import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import com.intellij.openapi.fileChooser.FileSaverDialog
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.ComponentValidator
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.io.exists
 import com.intellij.util.io.isDirectory
+import com.jgoodies.common.base.Strings
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.function.Supplier
 import javax.swing.ButtonGroup
 import javax.swing.JComponent
 import javax.swing.JRadioButton
+import javax.swing.JTextField
+import javax.swing.event.DocumentEvent
 
 /**
  * @see ExportToFileDialogView
@@ -129,6 +140,7 @@ class ExportToFileDialogViewImpl(
     saveLocationLabel.labelFor = saveLocationTextField
     createSuggestedPath()?.let { saveLocationTextField.text = it.toString() }
     saveLocationTextField.addActionListener { showSaveFileDialog() }
+    setUpSaveLocationValidation(saveLocationTextField.textField)
 
     // position items
     return ExportToFileDialogLayout.createLayout(
@@ -143,6 +155,44 @@ class ExportToFileDialogViewImpl(
     )
   }
 
+  private fun setUpSaveLocationValidation(locationTextField: JTextField) {
+    /** @return a [ValidationInfo] object describing the issue with the path in [locationTextField] if an issue exists. `null` otherwise. */
+    fun getValidationError(): ValidationInfo? {
+      val path = parseSaveLocationTextFieldPath()
+      val pathString = locationTextField.text
+      if (IOUtils.isValidDestinationFilePath(path) && !IOUtils.endsWithSeparatorChar(pathString)) return null // no error
+
+      /** TODO(161081452): move strings into [DatabaseInspectorBundle] */
+      val errorMessage = when {
+        Strings.isBlank(pathString) -> "Path not defined"
+        IOUtils.endsWithSeparatorChar(pathString) -> "File name not specified"
+        path == null -> "Path is invalid" // trying to parse the path resulted in an error
+        path.isDirectory() -> "Path is an existing directory"
+        path.parent == null -> "Parent directory not defined"
+        !path.parent.exists() -> "Parent directory does not exist"
+        else -> "Path is invalid"
+      }
+
+      return ValidationInfo(errorMessage, locationTextField)
+    }
+
+    ComponentValidator(disposable).withValidator(Supplier {
+      val validationError = getValidationError()
+      this@ExportToFileDialogViewImpl.isOKActionEnabled = validationError == null
+      validationError
+    }).installOn(locationTextField)
+
+    fun runValidator() {
+      ComponentValidator.getInstance(locationTextField).ifPresent { it.revalidate() }
+    }
+
+    locationTextField.document.addDocumentListener(object : DocumentAdapter() {
+      override fun textChanged(e: DocumentEvent) = runValidator()
+    })
+
+    runValidator()
+  }
+
   // TODO(161081452): consider moving path logic to [ExportToFileController]
   private fun showSaveFileDialog() {
     val dialog: FileSaverDialog = FileChooserFactory.getInstance().createSaveFileDialog(
@@ -153,6 +203,7 @@ class ExportToFileDialogViewImpl(
     val parent: Path? = when {
       pathSuggestion == null -> IOUtils.getDefaultBaseDir()
       pathSuggestion.isDirectory() -> pathSuggestion
+      pathSuggestion.parent == null -> IOUtils.getDefaultBaseDir()
       else -> pathSuggestion.parent
     }
     val fileName: String = when {
@@ -185,11 +236,11 @@ class ExportToFileDialogViewImpl(
     delimiterComboBox.isEnabled = enabled
   }
 
-  private fun parseSaveLocation(): Path? = IOUtils.pathFromText(saveLocationTextField.text)
+  private fun parseSaveLocationTextFieldPath(): Path? = IOUtils.pathFromText(saveLocationTextField.text)
 
   private fun createSuggestedPath(): Path? {
     /** check if anything is already in [saveLocationTextField] **/
-    parseSaveLocation()?.let { return it }
+    parseSaveLocationTextFieldPath()?.let { return it }
 
     // try to find a sensible path to suggest
     val baseDir = IOUtils.getDefaultBaseDir() ?: return null
@@ -248,11 +299,12 @@ class ExportToFileDialogViewImpl(
   /** Combines selected options into an [ExportRequest] formed of all information needed for an export operation */
   private fun createExportRequest(): ExportRequest? {
     // gather params
-    val dstPath: Path? = parseSaveLocation()
+    val dstPath: Path? = parseSaveLocationTextFieldPath()
     val format = selectedFormat()
 
     // validate params
-    if (dstPath == null || !IOUtils.isValidPath(dstPath) || !showConfirmOverwriteDialog(project, dstPath)) return null
+    if (dstPath == null || !IOUtils.isValidDestinationFilePath(dstPath) || IOUtils.endsWithSeparatorChar(saveLocationTextField.text) ||
+        !showConfirmOverwriteDialog(project, dstPath)) return null
 
     // return as ExportInstructions
     return when (params) {
@@ -328,11 +380,18 @@ private object IOUtils {
     }
   }
 
-  fun isValidPath(path: Path?): Boolean {
-    if (path == null) return false
-    val parent = path.parent
-    return parent != null && parent.exists()
-  }
+  /**
+   * Verifies that the path contains an existing parent directory, and a file-name. Since the path is already parsed (as [Path])
+   * the trailing dir separator character will have been removed, so we need to check for that case separately with [endsWithSeparatorChar].
+   */
+  fun isValidDestinationFilePath(path: Path?): Boolean =
+    path != null &&
+    !path.isDirectory() &&
+    path.parent != null &&
+    path.parent.isDirectory() &&
+    path.parent.exists()
+
+  fun endsWithSeparatorChar(path: String) = path.trimEnd().endsWith(File.separatorChar)
 
   /** Resolves "~" in path. If it cannot resolve the home-dir location, it leaves the path as-is. */
   private fun resolveHomeDir(path: Path): Path {

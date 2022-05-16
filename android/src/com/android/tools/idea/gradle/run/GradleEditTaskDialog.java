@@ -23,7 +23,8 @@ import com.intellij.ui.TextFieldWithAutoCompletionListProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -47,7 +48,7 @@ public class GradleEditTaskDialog extends DialogWrapper {
         return super.getItems(prefix, cached, parameters);
       }
     };
-    myTaskField = new TextFieldWithAutoCompletion<String>(project, provider, true, null);
+    myTaskField = new TextFieldWithAutoCompletion<>(project, provider, true, null);
     myTaskPanel.add(myTaskField);
 
     init();

@@ -16,7 +16,6 @@
 package com.android.tools.idea.imports
 
 import com.android.testutils.MockitoKt.mock
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.PROJECT_SYSTEM_SYNC_TOPIC
 import com.android.tools.idea.projectsystem.ProjectSystemSyncManager
 import com.android.tools.idea.testing.AndroidGradleProjectRule
@@ -43,8 +42,7 @@ internal fun performAndWaitForSyncEnd(
 ) {
   val publishedResult = SettableFuture.create<ProjectSystemSyncManager.SyncResult>()
   val project = projectRule.project
-  project.messageBus
-    .connect(project)
+  project.messageBus.connect()
     .subscribe(PROJECT_SYSTEM_SYNC_TOPIC, object : ProjectSystemSyncManager.SyncResultListener {
       override fun syncEnded(result: ProjectSystemSyncManager.SyncResult) {
         publishedResult.set(result)
@@ -70,10 +68,9 @@ internal fun assertBuildGradle(project: Project, check: (String) -> Boolean) {
 
 internal val fakeMavenClassRegistryManager: MavenClassRegistryManager
   get() {
-    val mavenClassRegistry = if (StudioFlags.ENABLE_SUGGESTED_IMPORT.get()) {
-      val gMavenIndexRepositoryMock: GMavenIndexRepository = mock()
-      `when`(gMavenIndexRepositoryMock.loadIndexFromDisk()).thenReturn(
-        """
+    val gMavenIndexRepositoryMock: GMavenIndexRepository = mock()
+    `when`(gMavenIndexRepositoryMock.loadIndexFromDisk()).thenReturn(
+      """
           {
             "Index": [
               {
@@ -142,17 +139,22 @@ internal val fakeMavenClassRegistryManager: MavenClassRegistryManager
                 "fqcns": [
                   "androidx.camera.view.PreviewView"
                 ]
+              },
+              {
+                "groupId": "androidx.compose.ui",
+                "artifactId": "ui-tooling-preview",
+                "version": "1.0.5",
+                "ktxTargets": [],
+                "fqcns": [
+                  "androidx.compose.ui.tooling.preview.Preview"
+                ]
               }
             ]
           }
         """.trimIndent().byteInputStream(UTF_8)
-      )
+    )
 
-      MavenClassRegistryFromRepository(gMavenIndexRepositoryMock)
-    }
-    else {
-      MavenClassRegistryFromHardcodedMap
-    }
+    val mavenClassRegistry = MavenClassRegistry(gMavenIndexRepositoryMock)
 
     return mock<MavenClassRegistryManager>().apply {
       `when`(getMavenClassRegistry()).thenReturn(mavenClassRegistry)

@@ -37,7 +37,7 @@ import org.jetbrains.annotations.PropertyKey;
  */
 public class AndroidStudioSystemHealthMonitor extends PreloadingActivity {
   public static final HProfDatabase ourHProfDatabase = new HProfDatabase(
-          Paths.get(PathManager.getTempPath()));
+    Paths.get(PathManager.getTempPath()));
 
   // FIXME-ank: this is stub class (com.intellij.ide.AndroidStudioSystemHealthMonitorAdapter;)!
 
@@ -49,14 +49,18 @@ public class AndroidStudioSystemHealthMonitor extends PreloadingActivity {
 
   }
 
+  public void start() {
+
+  }
+
   public static @Nullable
   AndroidStudioSystemHealthMonitor getInstance() {
     return null;
   }
 
   void showNotification(@PropertyKey(resourceBundle = "messages.AndroidBundle") String key,
-          @Nullable NotificationAction action,
-          Object... params) {
+                        @Nullable NotificationAction action,
+                        Object... params) {
 
   }
 

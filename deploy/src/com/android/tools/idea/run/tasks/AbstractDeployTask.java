@@ -28,6 +28,7 @@ import com.android.tools.deployer.DeployerException;
 import com.android.tools.deployer.DeployerOption;
 import com.android.tools.deployer.Installer;
 import com.android.tools.deployer.MetricsRecorder;
+import com.android.tools.deployer.tasks.Canceller;
 import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.flags.StudioFlags.OptimisticInstallSupportLevel;
 import com.android.tools.idea.log.LogWrapper;
@@ -38,7 +39,6 @@ import com.android.tools.idea.run.DeploymentService;
 import com.android.tools.idea.run.IdeService;
 import com.android.tools.idea.run.ui.ApplyChangesAction;
 import com.android.tools.idea.run.ui.BaseAction;
-import com.android.tools.idea.util.StudioPathManager;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
@@ -165,7 +165,12 @@ public abstract class AbstractDeployTask implements LaunchTask {
     for (ApkInfo apkInfo : myPackages) {
       try {
         launchContext.setLaunchApp(shouldTaskLaunchApp());
-        Deployer.Result result = perform(device, deployer, apkInfo);
+        Deployer.Result result = perform(device, deployer, apkInfo, new Canceller() {
+          @Override
+          public boolean cancelled() {
+            return launchContext.getProgressIndicator().isCanceled();
+          }
+        });
 
         if (result.skippedInstall) {
           idsSkippedInstall.add(apkInfo.getApplicationId());
@@ -206,7 +211,10 @@ public abstract class AbstractDeployTask implements LaunchTask {
 
   abstract protected boolean shouldTaskLaunchApp();
 
-  abstract protected Deployer.Result perform(IDevice device, Deployer deployer, @NotNull ApkInfo apkInfo) throws DeployerException;
+  abstract protected Deployer.Result perform(IDevice device,
+                                             Deployer deployer,
+                                             @NotNull ApkInfo apkInfo,
+                                             @NotNull Canceller canceller) throws DeployerException;
 
   private String getLocalInstaller() {
     return myInstallPathProvider.compute();
@@ -282,11 +290,19 @@ public abstract class AbstractDeployTask implements LaunchTask {
     bubbleError.append(e.getMessage());
 
     DeployerException.Error error = e.getError();
-    if (error.getResolution() != DeployerException.ResolutionAction.NONE) {
+    String callToAction = error.getCallToAction();
+    DeployerException.ResolutionAction resolutionAction = error.getResolution();
+    if (DefaultDebugExecutor.EXECUTOR_ID.equals(executor.getId()) && resolutionAction == DeployerException.ResolutionAction.APPLY_CHANGES) {
+      // Resolutions to Apply Changes in Debug mode needs to be remapped to Rerun.
+      callToAction = "Rerun";
+      resolutionAction = DeployerException.ResolutionAction.RUN_APP;
+    }
+
+    if (resolutionAction != DeployerException.ResolutionAction.NONE) {
       if (myRerunOnSwapFailure) {
-        bubbleError.append(String.format("\n%s will be done automatically</a>", error.getCallToAction()));
+        bubbleError.append(String.format("\n%s will be done automatically</a>", callToAction));
       } else {
-        bubbleError.append(String.format("\n<a href='%s'>%s</a>", error.getResolution(), error.getCallToAction()));
+        bubbleError.append(String.format("\n<a href='%s'>%s</a>", resolutionAction, callToAction));
       }
     }
 
@@ -294,10 +310,9 @@ public abstract class AbstractDeployTask implements LaunchTask {
     result.setConsoleError(getFailureTitle() + "\n" + e.getMessage() + "\n" + e.getDetails());
     result.setErrorId(e.getId());
 
-    DeploymentHyperlinkInfo hyperlinkInfo = new DeploymentHyperlinkInfo(executor, error.getResolution(), printer);
-    result.setConsoleHyperlink(error.getCallToAction(), hyperlinkInfo);
-    result.setNotificationListener(new DeploymentErrorNotificationListener(error.getResolution(),
-                                                                           hyperlinkInfo));
+    DeploymentHyperlinkInfo hyperlinkInfo = new DeploymentHyperlinkInfo(executor, resolutionAction, printer);
+    result.setConsoleHyperlink(callToAction, hyperlinkInfo);
+    result.setNotificationListener(new DeploymentErrorNotificationListener(resolutionAction, hyperlinkInfo));
     if (myRerunOnSwapFailure) {
       result.addOnFinishedCallback(() -> hyperlinkInfo.navigate(myProject));
     }

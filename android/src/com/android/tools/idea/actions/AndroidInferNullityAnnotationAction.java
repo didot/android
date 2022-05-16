@@ -80,7 +80,7 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.JComponent;
 import org.jetbrains.android.refactoring.MigrateToAndroidxUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -238,7 +238,7 @@ public class AndroidInferNullityAnnotationAction extends InferNullityAnnotations
     ListenableFuture<ProjectSystemSyncManager.SyncResult> syncResult = ProjectSystemUtil.getProjectSystem(project)
       .getSyncManager().syncProject(ProjectSystemSyncManager.SyncReason.PROJECT_MODIFIED);
 
-    Futures.addCallback(syncResult, new FutureCallback<ProjectSystemSyncManager.SyncResult>() {
+    Futures.addCallback(syncResult, new FutureCallback<>() {
       @Override
       public void onSuccess(@Nullable ProjectSystemSyncManager.SyncResult syncResult) {
         if (syncResult != null && syncResult.isSuccessful()) {

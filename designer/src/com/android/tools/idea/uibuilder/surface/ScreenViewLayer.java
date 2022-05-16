@@ -18,12 +18,21 @@ package com.android.tools.idea.uibuilder.surface;
 import com.android.tools.idea.common.surface.Layer;
 import com.android.tools.idea.rendering.RenderResult;
 import com.android.tools.idea.rendering.imagepool.ImagePool;
+import com.android.tools.idea.rendering.imagepool.ImagePoolImageDisposer;
 import com.android.tools.idea.uibuilder.scene.LayoutlibSceneManager;
 import com.google.common.collect.ImmutableMap;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.util.JBHiDPIScaledImage;
+import com.intellij.util.ui.ImageUtil;
 import com.intellij.util.ui.StartupUiUtil;
-import java.awt.*;
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.Transparency;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.Map;
@@ -89,36 +98,30 @@ public class ScreenViewLayer extends Layer {
     int sy2 = sy1 + (int)Math.round(screenViewVisibleSize.height * yScaleFactor);
     BufferedImage image;
     boolean clearBackground;
-    boolean bufferWithScreenViewSizeExists = existingBuffer != null && existingBuffer.getWidth() == screenViewVisibleSize.width
-                                             && existingBuffer.getHeight() == screenViewVisibleSize.height;
+    boolean bufferWithScreenViewSizeExists = existingBuffer != null
+                                             && ImageUtil.getUserWidth(existingBuffer) == screenViewVisibleSize.width
+                                             && ImageUtil.getUserHeight(existingBuffer) == screenViewVisibleSize.height;
     if (screenViewHasBorderLayer && bufferWithScreenViewSizeExists) {
-      // Reuse the buffered image if the screen view visible size matches the existing buffer's, and if we're rendering a screen view that
-      // has a border layer. Screen views without a border layer might contain transparent images, e.g. a drawable, and reusing the buffer
-      // might cause the unexpected effect of parts of the old image being rendered on the transparent parts of the new one. Therefore, we
-      // need to force the creation of a new image in this case.
-      if (existingBuffer instanceof JBHiDPIScaledImage) {
-        image = (BufferedImage)((JBHiDPIScaledImage)existingBuffer).getDelegate();
-      } else {
-        image = existingBuffer;
-      }
+      image = existingBuffer;
       clearBackground = true;
     }
     else {
-      image = configuration.createCompatibleImage(screenViewVisibleSize.width, screenViewVisibleSize.height, Transparency.TRANSLUCENT);
-      assert image != null;
+      image = ImageUtil.createImage(configuration, screenViewVisibleSize.width, screenViewVisibleSize.height, Transparency.TRANSLUCENT);
       existingBuffer = image;
       // No need to clear the background for a new image
       clearBackground = false;
     }
+    int previewImageWidth = ImageUtil.getUserWidth(image);
+    int previewImageHeight = ImageUtil.getUserHeight(image);
     Graphics2D cacheImageGraphics = image.createGraphics();
-    cacheImageGraphics.setRenderingHints(HQ_RENDERING_HINTS);
     if (clearBackground) {
       cacheImageGraphics.setColor(CLEAR_BACKGROUND);
       cacheImageGraphics.setComposite(AlphaComposite.Clear);
-      cacheImageGraphics.fillRect(0,0,image.getWidth(),image.getHeight());
+      cacheImageGraphics.fillRect(0,0, previewImageWidth, previewImageHeight);
       cacheImageGraphics.setComposite(AlphaComposite.Src);
     }
-    renderedImage.drawImageTo(cacheImageGraphics, 0, 0, image.getWidth(), image.getHeight(), sx1, sy1, sx2, sy2);
+    cacheImageGraphics.setRenderingHints(HQ_RENDERING_HINTS);
+    renderedImage.drawImageTo(cacheImageGraphics, 0, 0, previewImageWidth, previewImageHeight, sx1, sy1, sx2, sy2);
     cacheImageGraphics.dispose();
 
     return existingBuffer;
@@ -153,37 +156,52 @@ public class ScreenViewLayer extends Layer {
     }
 
     Graphics2D g = (Graphics2D) graphics2D.create();
-    BufferedImage cachedVisibleImage = drawNewImg ? null : previousVisibleImage;
+    BufferedImage[] cachedVisibleImage = new BufferedImage[1];
+    cachedVisibleImage[0] = drawNewImg ? null : previousVisibleImage;
     double currentScale = myScreenView.getScale();
     //noinspection FloatingPointEquality
     if (drawNewImg || currentScale != myLastScale || !myScreenViewVisibleRect.equals(myCachedScreenViewDisplayRect)) {
       if (myLastRenderResult != null) {
         ImagePool.Image image = myLastRenderResult.getRenderedImage();
-        if (image.isValid()) {
-          int resultImageWidth = image.getWidth();
-          int resultImageHeight = image.getHeight();
+        ImagePoolImageDisposer.runWithDisposeLock(image, theImage -> {
+          if (theImage.isValid()) {
+            int resultImageWidth = theImage.getWidth();
+            int resultImageHeight = theImage.getHeight();
 
-          myCachedScreenViewDisplayRect.setBounds(myScreenViewVisibleRect);
-          // Obtain the factors to convert from screen view coordinates to our result image coordinates
-          double xScaleFactor = (double)resultImageWidth / myScreenViewSize.width;
-          double yScaleFactor = (double)resultImageHeight / myScreenViewSize.height;
+            myCachedScreenViewDisplayRect.setBounds(myScreenViewVisibleRect);
+            // Obtain the factors to convert from screen view coordinates to our result image coordinates
+            double xScaleFactor = (double)resultImageWidth / myScreenViewSize.width;
+            double yScaleFactor = (double)resultImageHeight / myScreenViewSize.height;
 
-          cachedVisibleImage = getPreviewImage(g.getDeviceConfiguration(), image,
-                                               myScreenView.getX(), myScreenView.getY(),
-                                               myScreenViewVisibleRect, xScaleFactor, yScaleFactor,
-                                               previousVisibleImage, myScreenView.hasBorderLayer());
-          myCachedVisibleImage = cachedVisibleImage;
-          myLastScale = currentScale;
-        }
+            cachedVisibleImage[0] = getPreviewImage(g.getDeviceConfiguration(), theImage,
+                                                 myScreenView.getX(), myScreenView.getY(),
+                                                 myScreenViewVisibleRect, xScaleFactor, yScaleFactor,
+                                                 previousVisibleImage, myScreenView.hasBorderLayer());
+            myCachedVisibleImage = cachedVisibleImage[0];
+            myLastScale = currentScale;
+          } else {
+            // The image is not valid, keep using the previously cached one, if available.
+            cachedVisibleImage[0] = myCachedVisibleImage;
+          }
+        });
       }
     }
 
-    if (cachedVisibleImage != null) {
+    if (cachedVisibleImage[0] != null) {
       Shape screenShape = myScreenView.getScreenShape();
       if (screenShape != null) {
         g.clip(screenShape);
       }
-      StartupUiUtil.drawImage(g, cachedVisibleImage, myScreenViewVisibleRect.x, myScreenViewVisibleRect.y, null);
+
+      // When screen rotation feature is enabled, we want to rotate the image.
+      NlDesignSurface surface = myScreenView.getSurface();
+      float degree = surface.getRotateSurfaceDegree();
+      if (!Float.isNaN(degree)) {
+        // We change the graphic context with the assumption the context will be disposed right after drawing operation.
+        g.rotate(Math.toRadians(degree), myScreenView.getX() + myScreenViewSize.width / 2, myScreenView.getY() + myScreenViewSize.height / 2);
+      }
+
+      StartupUiUtil.drawImage(g, cachedVisibleImage[0], myScreenViewVisibleRect.x, myScreenViewVisibleRect.y, null);
     }
     g.dispose();
   }
@@ -200,7 +218,10 @@ public class ScreenViewLayer extends Layer {
    * @return false if renderResult is null or the same as the previous one or if no image is available, true otherwise
    */
   private boolean newRenderImageAvailable(@Nullable RenderResult renderResult) {
-    return renderResult != null && renderResult.getRenderResult().isSuccess() && renderResult != myLastRenderResult;
+    return renderResult != null &&
+           renderResult.getRenderResult().isSuccess() &&
+           renderResult.getRenderedImage().isValid() &&
+           renderResult != myLastRenderResult;
   }
 
   @Override

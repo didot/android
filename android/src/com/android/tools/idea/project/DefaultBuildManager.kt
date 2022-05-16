@@ -16,15 +16,20 @@
 package com.android.tools.idea.project
 
 import com.android.tools.idea.projectsystem.ProjectSystemBuildManager
-import com.android.tools.idea.projectsystem.ProjectSystemBuildManager.BuildResult
 import com.android.tools.idea.projectsystem.ProjectSystemBuildManager.BuildMode
+import com.android.tools.idea.projectsystem.ProjectSystemBuildManager.BuildResult
 import com.android.tools.idea.projectsystem.ProjectSystemBuildManager.BuildStatus
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.vfs.VirtualFile
 
 object DefaultBuildManager : ProjectSystemBuildManager {
   private var lastResult = BuildResult(BuildMode.UNKNOWN, BuildStatus.UNKNOWN, System.currentTimeMillis())
 
   override fun compileProject() {
+    lastResult = BuildResult(BuildMode.COMPILE, BuildStatus.SUCCESS, System.currentTimeMillis())
+  }
+
+  override fun compileFilesAndDependencies(files: Collection<VirtualFile>) {
     lastResult = BuildResult(BuildMode.COMPILE, BuildStatus.SUCCESS, System.currentTimeMillis())
   }
 

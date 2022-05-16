@@ -16,11 +16,11 @@
 package com.android.tools.idea.emulator.dialogs
 
 import com.android.testutils.ImageDiffUtil
-import com.android.testutils.TestUtils.resolveWorkspacePath
+import com.android.testutils.TestUtils
 import com.android.tools.adtui.swing.FakeUi
+import com.android.tools.adtui.swing.SetPortableUiFontRule
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
-import com.android.tools.adtui.swing.setPortableUiFont
 import com.android.tools.adtui.ui.ImagePanel
 import com.android.tools.idea.concurrency.waitForCondition
 import com.android.tools.idea.emulator.DEFAULT_SNAPSHOT_AUTO_DELETION_POLICY
@@ -32,10 +32,12 @@ import com.android.tools.idea.emulator.FakeEmulator
 import com.android.tools.idea.emulator.actions.findManageSnapshotDialog
 import com.android.tools.idea.protobuf.TextFormat
 import com.google.common.truth.Truth.assertThat
+import com.intellij.diagnostic.ThreadDumper
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.DialogWrapper.CLOSE_EXIT_CODE
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.SystemInfo
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.RunsInEdt
@@ -43,8 +45,7 @@ import com.intellij.testFramework.TestActionEvent
 import com.intellij.ui.AnActionButton
 import com.intellij.ui.CommonActionsPanel
 import com.intellij.ui.table.TableView
-import org.assertj.core.api.Assertions
-import org.assertj.core.internal.Failures.threadDumpDescription
+import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -74,6 +75,9 @@ class ManageSnapshotsDialogTest {
   @get:Rule
   val ruleChain: RuleChain = RuleChain.outerRule(timeoutRule).around(emulatorViewRule).around(EdtRule())
 
+  @get:Rule
+  val portableUiFontRule = SetPortableUiFontRule()
+
   private var nullableEmulator: FakeEmulator? = null
   private var nullableEmulatorView: EmulatorView? = null
 
@@ -90,7 +94,6 @@ class ManageSnapshotsDialogTest {
 
   @Before
   fun setUp() {
-    setPortableUiFont()
     enableHeadlessDialogs(testRootDisposable)
     emulatorView = emulatorViewRule.newEmulatorView()
     emulator = emulatorViewRule.getFakeEmulator(emulatorView)
@@ -346,7 +349,7 @@ class ManageSnapshotsDialogTest {
       waitForCondition(10, TimeUnit.SECONDS) { table.items.isNotEmpty() }
     }
     catch (e: TimeoutException) {
-      Assertions.fail(e.javaClass.name + '\n' + threadDumpDescription())
+      Assert.fail(e.javaClass.name + '\n' + ThreadDumper.dumpThreadsToString())
     }
     assertThat(table.items).hasSize(2) // The two incompatible snapshots were deleted automatically.
     // Close the "Manage Snapshots" dialog.
@@ -369,7 +372,7 @@ class ManageSnapshotsDialogTest {
       waitForCondition(10, TimeUnit.SECONDS) { table.items.isNotEmpty() }
     }
     catch (e: TimeoutException) {
-      Assertions.fail(e.javaClass.name + '\n' + threadDumpDescription())
+      Assert.fail(e.javaClass.name + '\n' + ThreadDumper.dumpThreadsToString())
     }
     assertThat(table.items).hasSize(4) // No snapshots were deleted.
     // Close the "Manage Snapshots" dialog.
@@ -452,7 +455,9 @@ class ManageSnapshotsDialogTest {
 
   @Suppress("SameParameterValue")
   private fun getGoldenFile(name: String): Path {
-    return resolveWorkspacePath("$GOLDEN_FILE_PATH/${name}.png")
+    // The image is slightly taller on Mac due to a slight layout difference.
+    val platformSuffix = if (SystemInfo.isMac) "_Mac" else ""
+    return TestUtils.resolveWorkspacePath("$GOLDEN_FILE_PATH/$name$platformSuffix.png")
   }
 }
 
@@ -460,4 +465,3 @@ private const val SNAPSHOT_NAME_COLUMN_INDEX = 0
 private const val USE_TO_BOOT_COLUMN_INDEX = 3
 
 private const val GOLDEN_FILE_PATH = "tools/adt/idea/emulator/testData/ManageSnapshotsDialogTest/golden"
-

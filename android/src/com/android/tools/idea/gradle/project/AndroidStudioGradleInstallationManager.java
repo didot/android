@@ -7,6 +7,7 @@ import static com.intellij.openapi.externalSystem.service.execution.ExternalSyst
 
 import com.android.tools.idea.sdk.IdeSdks;
 import com.android.utils.FileUtils;
+import com.intellij.openapi.externalSystem.service.execution.ExternalSystemJdkProvider;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.roots.ProjectRootManager;
@@ -21,6 +22,13 @@ import org.jetbrains.plugins.gradle.settings.GradleProjectSettings;
 import org.jetbrains.plugins.gradle.settings.GradleSettings;
 
 public class AndroidStudioGradleInstallationManager extends GradleInstallationManager {
+  @Nullable
+  public Sdk getGradleJdk(@Nullable Project project, @NotNull String linkedProjectPath) {
+    if (project != null) {
+      return ExternalSystemJdkProvider.getInstance().createJdk(null, getGradleJvmPath(project, linkedProjectPath));
+    }
+    return IdeSdks.getInstance().getJdk();
+  }
 
   @Nullable
   @Override
@@ -93,7 +101,6 @@ public class AndroidStudioGradleInstallationManager extends GradleInstallationMa
    */
   public static void setJdkAsEmbedded(@NotNull Project project) {
     Path embeddedJdkPath = IdeSdks.getInstance().getEmbeddedJdkPath();
-    assert embeddedJdkPath != null;
     setNamedJdk(project, embeddedJdkPath.toAbsolutePath().toString(), EMBEDDED_JDK_NAME);
   }
 

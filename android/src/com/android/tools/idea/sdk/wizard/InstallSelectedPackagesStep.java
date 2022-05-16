@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.sdk.wizard;
 
+import static org.jetbrains.android.util.AndroidBundle.message;
+
 import com.android.repository.api.InstallerFactory;
 import com.android.repository.api.LocalPackage;
 import com.android.repository.api.RepoManager;
@@ -31,11 +33,11 @@ import com.android.tools.idea.observable.ListenerManager;
 import com.android.tools.idea.observable.core.BoolProperty;
 import com.android.tools.idea.observable.core.BoolValueProperty;
 import com.android.tools.idea.observable.core.ObservableBool;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
+import com.android.tools.idea.progress.ThrottledProgressWrapper;
 import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.sdk.StudioSettingsController;
 import com.android.tools.idea.sdk.install.StudioSdkInstallerUtil;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
-import com.android.tools.idea.sdk.progress.ThrottledProgressWrapper;
 import com.android.tools.idea.ui.wizard.deprecated.StudioWizardStepPanel;
 import com.android.tools.idea.wizard.WizardConstants;
 import com.android.tools.idea.wizard.model.ModelWizard;
@@ -50,16 +52,29 @@ import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator;
 import com.intellij.openapi.project.ProjectManager;
+import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ModalityUiUtil;
+import com.intellij.util.ui.JBFont;
 import com.intellij.util.ui.UIUtil;
+import java.awt.Color;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JTextPane;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
+import javax.swing.text.MutableAttributeSet;
+import javax.swing.text.StyleConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -81,7 +96,7 @@ public class InstallSelectedPackagesStep extends ModelWizardStep.WithoutModel {
   private JPanel myContentPanel;
   private JBLabel myLabelSdkPath;
   private JBLabel myProgressOverallLabel;
-  private JTextArea mySdkManagerOutput;
+  private JTextPane mySdkManagerOutput;
   private JProgressBar myProgressBar;
   private JBLabel myProgressDetailLabel;
 
@@ -97,6 +112,8 @@ public class InstallSelectedPackagesStep extends ModelWizardStep.WithoutModel {
   private InstallerFactory myFactory;
   private boolean myThrottleProgress;
 
+  private MutableAttributeSet myOutputStyle;
+
   public InstallSelectedPackagesStep(@NotNull List<UpdatablePackage> installRequests,
                                      @NotNull Collection<LocalPackage> uninstallRequests,
                                      @NotNull AndroidSdkHandler sdkHandler,
@@ -111,12 +128,12 @@ public class InstallSelectedPackagesStep extends ModelWizardStep.WithoutModel {
                                      boolean backgroundable,
                                      @NotNull InstallerFactory factory,
                                      boolean throttleProgress) {
-    super("Component Installer");
+    super(message("android.sdk.manager.installer.panel.title"));
     myInstallRequests = installRequests;
     myUninstallRequests = uninstallRequests;
     myRepoManager = sdkHandler.getSdkManager(new StudioLoggerProgressIndicator(getClass()));
     myValidatorPanel = new ValidatorPanel(this, myContentPanel);
-    myStudioPanel = new StudioWizardStepPanel(myValidatorPanel, "Installing Requested Components");
+    myStudioPanel = new StudioWizardStepPanel(myValidatorPanel, message("android.sdk.manager.installer.panel.description"));
     myBackgroundable = backgroundable;
     mySdkHandler = sdkHandler;
     myFactory = factory;
@@ -131,10 +148,10 @@ public class InstallSelectedPackagesStep extends ModelWizardStep.WithoutModel {
   @Override
   protected void onWizardStarting(@NotNull ModelWizard.Facade wizard) {
     // This will show a warning to the user once installation starts and will disable the next/finish button until installation finishes
-    String finishedText = "Please wait until the installation finishes";
+    String finishedText = message("android.sdk.manager.installer.install.finished");
     myValidatorPanel.registerValidator(myInstallationFinished, new TrueValidator(Validator.Severity.INFO, finishedText));
 
-    String installError = "Installation did not complete successfully. See the IDE log for details";
+    String installError = message("android.sdk.manager.installer.install.error");
     myValidatorPanel.registerValidator(myInstallFailed, new FalseValidator(installError));
 
     myBackgroundAction.setWizard(wizard);
@@ -146,6 +163,8 @@ public class InstallSelectedPackagesStep extends ModelWizardStep.WithoutModel {
   @Override
   protected void onEntering() {
     mySdkManagerOutput.setText("");
+    mySdkManagerOutput.setFont(JBFont.create(new Font("Monospaced", Font.PLAIN, 13)));
+    myOutputStyle = mySdkManagerOutput.addStyle(null, null);
     Path path = myRepoManager.getLocalPath();
     if (path == null) {
       File defaultPath = IdeSdks.getInstance().getAndroidSdkPath();
@@ -350,31 +369,31 @@ public class InstallSelectedPackagesStep extends ModelWizardStep.WithoutModel {
 
     @Override
     public void logWarning(@NotNull String s) {
-      appendText(s);
+      appendText(s, JBColor.RED);
       myLogger.warn(s);
     }
 
     @Override
     public void logWarning(@NotNull String s, @Nullable Throwable e) {
-      appendText(s);
+      appendText(s, JBColor.RED);
       myLogger.warn(s, e);
     }
 
     @Override
     public void logError(@NotNull String s) {
-      appendText(s);
+      appendText(s, JBColor.RED);
       myLogger.error(s);
     }
 
     @Override
     public void logError(@NotNull String s, @Nullable Throwable e) {
-      appendText(s);
+      appendText(s, JBColor.RED);
       myLogger.error(s, e);
     }
 
     @Override
     public void logInfo(@NotNull String s) {
-      appendText(s);
+      appendText(s, JBColor.foreground());
       myLogger.info(s);
     }
 
@@ -382,12 +401,12 @@ public class InstallSelectedPackagesStep extends ModelWizardStep.WithoutModel {
     public void logVerbose(@NotNull String s) {
     }
 
-    private void appendText(@NotNull final String s) {
+    private void appendText(@NotNull final String text, @NotNull Color color) {
       UIUtil.invokeLaterIfNeeded(() -> {
         String current = mySdkManagerOutput.getText();
-        String separator = "\n";
+        int offset = 0;
         if (current == null) {
-          current = "";
+          mySdkManagerOutput.setText("");
         }
         else if (current.endsWith("\n")) {
           // Want to chew the first "extra" newline since in different places
@@ -397,9 +416,18 @@ public class InstallSelectedPackagesStep extends ModelWizardStep.WithoutModel {
           // The calling code can still supply more than one newline,
           // and it will result in empty lines, since 2+ explicitly provided newlines
           // probably mean that this was the intention
-          separator = "";
+          offset = 1;
         }
-        mySdkManagerOutput.setText(current + separator + s);
+
+        Document document = mySdkManagerOutput.getStyledDocument();
+        StyleConstants.setForeground(myOutputStyle, color);
+        try {
+          document.insertString(document.getLength() - offset, text, myOutputStyle);
+          document.insertString(document.getLength(), "\n", myOutputStyle);
+        }
+        catch (BadLocationException exception) {
+          myLogger.warn(exception);
+        }
       });
     }
 

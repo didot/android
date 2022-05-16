@@ -52,6 +52,8 @@ public class GradleInitScripts {
     return ApplicationManager.getApplication().getService(GradleInitScripts.class);
   }
 
+  // Used by intellij
+  @SuppressWarnings("unused")
   public GradleInitScripts() {
     this(EmbeddedDistributionPaths.getInstance(), new ContentCreator());
   }
@@ -175,6 +177,14 @@ public class GradleInitScripts {
              "    }\n" +
              "  }\n" +
              "  repositories {\n" + paths +
+             "  }\n" +
+             "}\n" +
+             "if (GradleVersion.current().baseVersion >= GradleVersion.version('7.0')) {\n" +
+             "  beforeSettings {\n" +
+             "    it.pluginManagement {\n" +
+             "      repositories {\n" + paths +
+             "      }\n" +
+             "    }\n" +
              "  }\n" +
              "}\n" +
              "if (GradleVersion.current().baseVersion >= GradleVersion.version('6.8')) {\n" +

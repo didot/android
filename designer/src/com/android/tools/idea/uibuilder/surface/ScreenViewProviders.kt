@@ -15,10 +15,13 @@
  */
 package com.android.tools.idea.uibuilder.surface
 
+import com.android.flags.ifEnabled
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.scene.SceneManager
 import com.android.tools.idea.common.surface.Layer
 import com.android.tools.idea.common.surface.SceneLayer
+import com.android.tools.idea.flags.StudioFlags.NELE_CLASS_PRELOADING_DIAGNOSTICS
+import com.android.tools.idea.flags.StudioFlags.NELE_RENDER_DIAGNOSTICS
 import com.android.tools.idea.uibuilder.handlers.constraint.drawing.BlueprintColorSet
 import com.android.tools.idea.uibuilder.scene.LayoutlibSceneManager
 import com.android.tools.idea.uibuilder.surface.ScreenView.DEVICE_CONTENT_SIZE_POLICY
@@ -180,6 +183,7 @@ internal fun visualizationProvider(surface: NlDesignSurface,
         add(BorderLayer(it))
         add(ScreenViewLayer(it))
         add(WarningLayer(it))
+        add(SceneLayer(it.surface, it, false).apply { isShowOnHover = true })
       }.build()
     }
     .withContentSizePolicy(DEVICE_CONTENT_SIZE_POLICY)
@@ -188,7 +192,7 @@ internal fun visualizationProvider(surface: NlDesignSurface,
         override fun measure(screenView: ScreenView, outDimension: Dimension) = wrappedPolicy.measure(screenView, outDimension)
 
         // In visualization view, we always use configuration to decide the size.
-        override fun hasContentSize(screenView: ScreenView) = true
+        override fun hasContentSize(screenView: ScreenView) = screenView.isVisible
       }
     }
     .disableBorder()
@@ -263,6 +267,12 @@ internal fun composeProvider(surface: NlDesignSurface,
         add(SceneLayer(it.surface, it, false).apply {
           isShowOnHover = true
         })
+        NELE_CLASS_PRELOADING_DIAGNOSTICS.ifEnabled {
+          add(ClassLoadingDebugLayer(surface.models.first().facet.module))
+        }
+        NELE_RENDER_DIAGNOSTICS.ifEnabled {
+          add(DiagnosticsLayer(surface))
+        }
       }.build()
     }
     .decorateContentSizePolicy { policy -> ScreenView.ImageContentSizePolicy(policy) }

@@ -23,7 +23,7 @@ import com.android.sdklib.repository.meta.DetailsTypes;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
-import javax.swing.*;
+import javax.swing.JTree;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,7 +35,7 @@ import org.jetbrains.annotations.Nullable;
 class SummaryTreeNode extends UpdaterTreeNode {
   private AndroidVersion myVersion;
   private Set<UpdaterTreeNode> myAllChildren;
-  private Set<UpdaterTreeNode> myIncludedChildren = new HashSet<UpdaterTreeNode>();
+  private Set<UpdaterTreeNode> myIncludedChildren = new HashSet<>();
   private UpdaterTreeNode myPrimaryChild;
 
   /**
@@ -46,7 +46,7 @@ class SummaryTreeNode extends UpdaterTreeNode {
    * @return A new SummaryTreeNode, or null if none of the children are actually included.
    */
   public static SummaryTreeNode createNode(@NotNull AndroidVersion version, @NotNull Set<UpdaterTreeNode> children) {
-    Set<UpdaterTreeNode> includedChildren = new HashSet<UpdaterTreeNode>();
+    Set<UpdaterTreeNode> includedChildren = new HashSet<>();
     UpdaterTreeNode primaryChild = null;
     for (UpdaterTreeNode child : children) {
       if (child.includeInSummary()) {

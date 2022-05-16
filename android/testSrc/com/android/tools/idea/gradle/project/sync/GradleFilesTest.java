@@ -53,7 +53,6 @@ import com.intellij.psi.impl.PsiManagerEx;
 import com.intellij.util.ui.UIUtil;
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.function.BiConsumer;
 import org.jetbrains.annotations.NotNull;

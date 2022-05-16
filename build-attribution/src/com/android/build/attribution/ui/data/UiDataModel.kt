@@ -16,7 +16,9 @@
 package com.android.build.attribution.ui.data
 
 import com.android.build.attribution.analyzers.ConfigurationCachingCompatibilityProjectResult
+import com.android.build.attribution.analyzers.JetifierUsageAnalyzerResult
 import com.android.build.attribution.ui.BuildAnalyzerBrowserLinks
+import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
 
 /*
  * The set of interfaces in this file represents the build attribution report data model and is used for any data access from the UI.
@@ -29,6 +31,7 @@ import com.android.build.attribution.ui.BuildAnalyzerBrowserLinks
 
 interface BuildAttributionReportUiData {
   val successfulBuild: Boolean
+  val buildRequest: GradleBuildInvoker.Request
   val buildSummary: BuildSummary
   val criticalPathTasks: CriticalPathTasksUiData
   val criticalPathPlugins: CriticalPathPluginsUiData
@@ -39,6 +42,7 @@ interface BuildAttributionReportUiData {
   val configurationTime: ConfigurationUiData
   val annotationProcessors: AnnotationProcessorsReport
   val confCachingData: ConfigurationCachingCompatibilityProjectResult
+  val jetifierData: JetifierUsageAnalyzerResult
 }
 
 interface BuildSummary {

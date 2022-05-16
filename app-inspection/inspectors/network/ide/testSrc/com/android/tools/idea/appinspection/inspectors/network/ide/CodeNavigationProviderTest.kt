@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.appinspection.inspectors.network.ide
 
+import com.android.tools.idea.codenavigation.IntelliJNavSource
 import com.android.tools.idea.testing.AndroidProjectRule
-import com.android.tools.inspectors.common.api.ide.stacktrace.IntellijCodeNavigator
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
@@ -29,6 +29,6 @@ class CodeNavigationProviderTest {
   @Test
   fun getCodeNavigator() {
     val navigator = DefaultCodeNavigationProvider(projectRule.project).codeNavigator
-    assertThat(navigator).isInstanceOf(IntellijCodeNavigator::class.java)
+    assertThat(navigator.mySource).isInstanceOf(IntelliJNavSource::class.java)
   }
 }

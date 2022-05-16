@@ -16,6 +16,7 @@
 
 package com.android.tools.idea.logcat;
 
+import com.android.tools.idea.flags.StudioFlags;
 import com.intellij.execution.actions.ClearConsoleAction;
 import com.intellij.execution.actions.ConsoleActionsPostProcessor;
 import com.intellij.execution.impl.ConsoleViewImpl;
@@ -29,20 +30,19 @@ import com.intellij.openapi.actionSystem.LangDataKeys;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.actions.ScrollToTheEndToolbarAction;
 import com.intellij.openapi.project.DumbAwareAction;
-import org.jetbrains.android.util.AndroidBundle;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.jetbrains.android.util.AndroidBundle;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * The logcat console is just another instance of a {@link ConsoleView}. As such it comes with a default
  * set of actions. This class customizes that list of actions to be relevant for logcat.
  */
 public final class LogcatConsoleActionsPostProcessor extends ConsoleActionsPostProcessor {
-  @NotNull
   @Override
-  public AnAction[] postProcess(@NotNull ConsoleView console, @NotNull AnAction[] actions) {
+  @NotNull
+  public AnAction @NotNull [] postProcess(@NotNull ConsoleView console, AnAction @NotNull [] actions) {
     if (!(console instanceof ConsoleViewImpl)) {
       return actions;
     }
@@ -55,9 +55,9 @@ public final class LogcatConsoleActionsPostProcessor extends ConsoleActionsPostP
     return processActions((AndroidLogConsole)consoleImpl.getParent(), actions);
   }
 
-  @NotNull
   @Override
-  public AnAction[] postProcessPopupActions(@NotNull ConsoleView console, @NotNull AnAction[] actions) {
+  @NotNull
+  public AnAction @NotNull [] postProcessPopupActions(@NotNull ConsoleView console, AnAction @NotNull [] actions) {
     if (!(console instanceof ConsoleViewImpl)) {
       return actions;
     }
@@ -90,6 +90,7 @@ public final class LogcatConsoleActionsPostProcessor extends ConsoleActionsPostP
 
       // remove the scroll to end action, we'll add it back at the top
       if (a instanceof ScrollToTheEndToolbarAction) {
+        @SuppressWarnings("DialogTitleCapitalization")
         String message = "Scroll to the end. Clicking on a particular line stops scrolling and keeps that line visible.";
         a.getTemplatePresentation().setDescription(message);
         a.getTemplatePresentation().setText(message);
@@ -115,16 +116,22 @@ public final class LogcatConsoleActionsPostProcessor extends ConsoleActionsPostP
    */
   @NotNull
   private static AnAction[] processPopupActions(@NotNull AndroidLogConsole console, @NotNull AnAction[] actions) {
-    AnAction[] resultActions = new AnAction[actions.length];
-    for (int i = 0; i < actions.length; ++i) {
-      if (actions[i] instanceof ClearConsoleAction) {
-        resultActions[i] = new ClearLogCatAction(console);
+    List<AnAction> resultActions = new ArrayList<>();
+    for (AnAction action : actions) {
+      if (action instanceof ClearConsoleAction) {
+        resultActions.add(new ClearLogCatAction(console));
       }
       else {
-        resultActions[i] = actions[i];
+        resultActions.add(action);
       }
     }
-    return resultActions;
+    AndroidLogcatPreferences preferences = AndroidLogcatPreferences.getInstance(console.getProject());
+    if (StudioFlags.LOGCAT_SUPPRESSED_TAGS_ENABLE.get()) {
+      if (preferences.LOGCAT_HEADER_FORMAT.getShowTag()) {
+        resultActions.add(new SuppressLogTagsMenuAction(console::refresh));
+      }
+    }
+    return resultActions.toArray(new AnAction[0]);
   }
 
   private static final class ClearLogCatAction extends DumbAwareAction {

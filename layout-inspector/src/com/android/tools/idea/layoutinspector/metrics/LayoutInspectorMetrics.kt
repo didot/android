@@ -19,24 +19,37 @@ import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.appinspection.ide.analytics.toDeviceInfo
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
+import com.android.tools.idea.layoutinspector.snapshots.SnapshotMetadata
 import com.android.tools.idea.stats.withProjectId
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo.AttachErrorState
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorEvent.DynamicLayoutInspectorEventType
 import com.intellij.openapi.project.Project
 
-class LayoutInspectorMetrics private constructor(
-  private val project: Project,
-  private val process: ProcessDescriptor?,
-  private val stats: SessionStatistics?,
+class LayoutInspectorMetrics(
+  private val project: Project?,
+  private var process: ProcessDescriptor? = null,
+  val stats: SessionStatistics? = null,
+  private val snapshotMetadata: SnapshotMetadata? = null
 ) {
-  companion object {
-    fun create(project: Project) = LayoutInspectorMetrics(project, null, null)
-    fun create(project: Project, process: ProcessDescriptor, stats: SessionStatistics) = LayoutInspectorMetrics(project, process, stats)
+
+  private var loggedInitialRender = false
+  private var loggedInitialConnect = false
+
+  fun setProcess(process: ProcessDescriptor) {
+    this.process = process
+    loggedInitialConnect = false
   }
 
-  fun logEvent(
-    eventType: DynamicLayoutInspectorEventType,
-  ) {
+  fun logEvent(eventType: DynamicLayoutInspectorEventType, errorState: AttachErrorState? = null) {
+    when(eventType) {
+      DynamicLayoutInspectorEventType.INITIAL_RENDER,
+      DynamicLayoutInspectorEventType.INITIAL_RENDER_NO_PICTURE,
+      DynamicLayoutInspectorEventType.INITIAL_RENDER_BITMAPS -> if (loggedInitialRender) return else loggedInitialRender = true
+      DynamicLayoutInspectorEventType.ATTACH_REQUEST,
+      DynamicLayoutInspectorEventType.COMPATIBILITY_REQUEST -> if (loggedInitialConnect) return else loggedInitialConnect = true
+      else -> {} // continue
+    }
     val builder = AndroidStudioEvent.newBuilder().apply {
       kind = AndroidStudioEvent.EventKind.DYNAMIC_LAYOUT_INSPECTOR_EVENT
       dynamicLayoutInspectorEventBuilder.apply {
@@ -44,10 +57,14 @@ class LayoutInspectorMetrics private constructor(
         if (stats != null && eventType == DynamicLayoutInspectorEventType.SESSION_DATA) {
           stats.save(sessionBuilder)
         }
+        snapshotMetadata?.toSnapshotInfo()?.let { snapshotInfo = it }
+        if (errorState != null) {
+          errorInfoBuilder.apply {
+            attachErrorState = errorState
+          }
+        }
       }
-      if (process != null) {
-        deviceInfo = process.device.toDeviceInfo()
-      }
+      process?.let { deviceInfo = it.device.toDeviceInfo() }
     }.withProjectId(project)
 
     UsageTracker.log(builder)

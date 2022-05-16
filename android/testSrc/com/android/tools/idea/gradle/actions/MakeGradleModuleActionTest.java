@@ -15,21 +15,29 @@
  */
 package com.android.tools.idea.gradle.actions;
 
+import static java.util.Collections.emptyList;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
+
 import com.android.tools.idea.gradle.project.GradleProjectInfo;
+import com.android.tools.idea.gradle.project.build.invoker.AssembleInvocationResult;
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker;
+import com.android.tools.idea.gradle.project.build.invoker.GradleInvocationResult;
+import com.android.tools.idea.gradle.project.build.invoker.GradleMultiInvocationResult;
 import com.android.tools.idea.gradle.project.build.invoker.TestCompileType;
+import com.android.tools.idea.gradle.util.BuildMode;
+import com.android.tools.idea.testing.IdeComponents;
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.Futures;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.PlatformTestCase;
-import com.intellij.testFramework.JavaProjectTestCase;
-import com.intellij.testFramework.ServiceContainerUtil;
+import java.io.File;
 import org.mockito.Mock;
-
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 /**
  * Tests for {@link MakeGradleModuleAction}.
@@ -48,9 +56,19 @@ public class MakeGradleModuleActionTest extends PlatformTestCase {
     initMocks(this);
 
     Project project = getProject();
-    ServiceContainerUtil.replaceService(project, GradleProjectInfo.class, myProjectInfo, getTestRootDisposable());
-    ServiceContainerUtil
-      .replaceService(project, GradleBuildInvoker.class, myBuildInvoker, getTestRootDisposable());
+    new IdeComponents(project).replaceProjectService(GradleProjectInfo.class, myProjectInfo);
+    new IdeComponents(project).replaceProjectService(GradleBuildInvoker.class, myBuildInvoker);
+
+    when(myBuildInvoker.assemble(any(), any()))
+      .thenReturn(
+        Futures.immediateFuture(
+          new AssembleInvocationResult(
+            new GradleMultiInvocationResult(
+              ImmutableList.of(
+                new GradleInvocationResult(new File("/root"), emptyList(), null)
+              )
+            ),
+            BuildMode.ASSEMBLE)));
 
     when(myActionEvent.getDataContext()).thenReturn(myDataContext);
 

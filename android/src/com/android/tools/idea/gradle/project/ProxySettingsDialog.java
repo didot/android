@@ -16,12 +16,12 @@
 package com.android.tools.idea.gradle.project;
 
 import static com.android.tools.adtui.HtmlLabel.setUpAsHtmlLabel;
+import static com.android.tools.idea.gradle.util.ParametersListUtil.COMMA_LINE_JOINER;
+import static com.android.tools.idea.gradle.util.ParametersListUtil.COMMA_LINE_PARSER;
 import static com.android.tools.idea.gradle.util.ProxySettings.HTTPS_PROXY_TYPE;
 import static com.android.tools.idea.gradle.util.ProxySettings.HTTP_PROXY_TYPE;
 import static com.android.tools.idea.gradle.util.ProxySettings.replaceCommasWithPipesAndClean;
 import static com.android.tools.idea.gradle.util.ProxySettings.replacePipesWithCommasAndClean;
-import static com.android.tools.idea.util.ParametersListUtil.COMMA_LINE_JOINER;
-import static com.android.tools.idea.util.ParametersListUtil.COMMA_LINE_PARSER;
 import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
 
 import com.android.tools.idea.gradle.util.ProxySettings;
@@ -34,7 +34,11 @@ import com.intellij.ui.BrowserHyperlinkListener;
 import com.intellij.ui.PortField;
 import com.intellij.ui.RawCommandLineEditor;
 import java.util.Properties;
-import javax.swing.*;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.JTextPane;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

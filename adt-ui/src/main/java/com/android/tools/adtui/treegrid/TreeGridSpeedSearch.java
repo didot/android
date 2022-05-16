@@ -15,17 +15,18 @@
  */
 package com.android.tools.adtui.treegrid;
 
-import static java.util.Arrays.stream;
-
 import com.intellij.ide.util.treeView.AbstractTreeStructure;
 import com.intellij.ui.SpeedSearchBase;
-import java.awt.*;
+import java.awt.Component;
+import java.awt.KeyboardFocusManager;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.swing.*;
+import javax.swing.JList;
+import javax.swing.SwingUtilities;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -63,8 +64,8 @@ public class TreeGridSpeedSearch<T> extends SpeedSearchBase<TreeGrid<T>> {
   @Override
   protected ListIterator<Object> getElementIterator(int startingViewIndex) {
     AbstractTreeStructure model = myComponent.getModel();
-    List<Object> list = model == null ? Collections.emptyList() : stream(model.getChildElements(model.getRootElement()))
-      .flatMap(section -> stream(model.getChildElements(section)))
+    List<Object> list = model == null ? Collections.emptyList() : Arrays.stream(model.getChildElements(model.getRootElement()))
+      .flatMap(section -> Arrays.stream(model.getChildElements(section)))
       .collect(Collectors.toUnmodifiableList());
     return list.listIterator(startingViewIndex);
   }
@@ -72,8 +73,8 @@ public class TreeGridSpeedSearch<T> extends SpeedSearchBase<TreeGrid<T>> {
   @Override
   protected int getElementCount() {
     AbstractTreeStructure model = myComponent.getModel();
-    return model == null ? 0 : (int)stream(model.getChildElements(model.getRootElement()))
-      .flatMap(section -> stream(model.getChildElements(section))).count();
+    return model == null ? 0 : (int)Arrays.stream(model.getChildElements(model.getRootElement()))
+      .flatMap(section -> Arrays.stream(model.getChildElements(section))).count();
   }
 
   @Nullable

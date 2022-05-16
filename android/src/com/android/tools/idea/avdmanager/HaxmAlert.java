@@ -18,11 +18,15 @@ package com.android.tools.idea.avdmanager;
 import static com.android.tools.idea.avdmanager.AccelerationErrorSolution.SolutionCode.NONE;
 import static com.android.tools.idea.avdmanager.AvdWizardUtils.TAGS_WITH_GOOGLE_API;
 
+import com.android.annotations.NonNull;
 import com.android.sdklib.SdkVersionInfo;
 import com.android.sdklib.devices.Abi;
+import com.android.tools.analytics.CommonMetricsData;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.wireless.android.sdk.stats.ProductDetails;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.ui.HyperlinkAdapter;
 import com.intellij.ui.HyperlinkLabel;
@@ -31,8 +35,11 @@ import com.intellij.ui.components.JBLabel;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.concurrency.EdtExecutorService;
-import java.awt.*;
-import javax.swing.*;
+import java.awt.Component;
+import java.awt.Dimension;
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.text.View;
@@ -84,6 +91,17 @@ public class HaxmAlert extends JPanel {
     refresh();
   }
 
+  @VisibleForTesting
+  static String getWarningTextForX86HostsUsingNonX86Image(@NonNull SystemImageDescription description,
+                                                          ProductDetails.CpuArchitecture arch) {
+    Abi abi = Abi.getEnum(description.getAbiType());
+    boolean isX86Host = arch == ProductDetails.CpuArchitecture.X86 || arch == ProductDetails.CpuArchitecture.X86_64;
+    if (isX86Host && abi != Abi.X86 && abi != Abi.X86_64) {
+      return "Consider using an x86 system image on an x86 host for better emulation performance.";
+    }
+    return null;
+  }
+
   private void refresh() {
     if (myImageDescription == null) {
       setVisible(false);
@@ -91,7 +109,7 @@ public class HaxmAlert extends JPanel {
     }
 
     ListenableFuture<AccelerationErrorCode> accelerationError = getAccelerationState(false);
-    Futures.addCallback(accelerationError, new FutureCallback<AccelerationErrorCode>() {
+    Futures.addCallback(accelerationError, new FutureCallback<>() {
       @Override
       public void onSuccess(AccelerationErrorCode result) {
         myAccelerationErrorCode = result;
@@ -109,11 +127,11 @@ public class HaxmAlert extends JPanel {
           }
           final Runnable action = AccelerationErrorSolution.getActionForFix(result, null, () -> refresh(), null);
           myErrorLinkListener = new HyperlinkAdapter() {
-              @Override
-              protected void hyperlinkActivated(@NotNull HyperlinkEvent e) {
-                action.run();
-              }
-            };
+            @Override
+            protected void hyperlinkActivated(@NotNull HyperlinkEvent e) {
+              action.run();
+            }
+          };
           myErrorInstructionsLink.addHyperlinkListener(myErrorLinkListener);
           myErrorInstructionsLink.setToolTipText(result.getSolution() != NONE ? result.getSolutionMessage() : null);
         }
@@ -126,12 +144,12 @@ public class HaxmAlert extends JPanel {
             warningTextBuilder.append("This API Level is Deprecated<br>");
           }
 
-          Abi abi = Abi.getEnum(myImageDescription.getAbiType());
-          if (abi != Abi.X86 && abi != Abi.X86_64) {
+          String nonX86ImageWarning = getWarningTextForX86HostsUsingNonX86Image(myImageDescription, CommonMetricsData.getOsArchitecture());
+          if (nonX86ImageWarning != null) {
             if (warningTextBuilder.length() > 0) {
               warningTextBuilder.append("<br>");
             }
-            warningTextBuilder.append("Consider using an x86 system image on an x86 host for better emulation performance.<br>");
+            warningTextBuilder.append(nonX86ImageWarning + "<br>");
           }
 
           if (!TAGS_WITH_GOOGLE_API.contains(myImageDescription.getTag())) {
@@ -149,7 +167,8 @@ public class HaxmAlert extends JPanel {
           myWarningMessage.setText(warningTextBuilder.toString().replaceAll("\n", "<br>"));
           setVisible(true);
           myErrorInstructionsLink.setVisible(hasLink);
-        } else {
+        }
+        else {
           setVisible(false);
         }
       }

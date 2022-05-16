@@ -15,26 +15,29 @@
  */
 package com.android.tools.idea.gradle.dsl.model.dependencies;
 
+import static com.android.tools.idea.gradle.dsl.utils.SdkConstants.GRADLE_PATH_SEPARATOR;
+import static com.google.common.base.Splitter.on;
+
 import com.android.tools.idea.gradle.dsl.api.dependencies.ModuleDependencyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.MapMethodTransform;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.SingleArgToMapTransform;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.SingleArgumentMethodTransform;
-import com.android.tools.idea.gradle.dsl.parser.elements.*;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslMethodCall;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement;
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import java.util.List;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
-
-import static com.android.tools.idea.gradle.dsl.GradleUtil.GRADLE_PATH_SEPARATOR;
-import static com.google.common.base.Splitter.on;
-
-public final class ModuleDependencyModelImpl extends DependencyModelImpl implements
-                                                                   ModuleDependencyModel {
+public class ModuleDependencyModelImpl extends DependencyModelImpl implements ModuleDependencyModel {
   @NonNls public static final String PROJECT = "project";
   @NonNls private static final String PATH = "path";
   @NonNls private static final String CONFIGURATION = "configuration";
@@ -44,9 +47,15 @@ public final class ModuleDependencyModelImpl extends DependencyModelImpl impleme
   @Nullable
   static ModuleDependencyModel create(@NotNull String configurationName,
                                       @NotNull GradleDslMethodCall methodCall,
-                                      @NotNull Maintainer maintainer) {
+                                      @NotNull Maintainer maintainer,
+                                      @Nullable String platformMethodName) {
     if (PROJECT.equals(methodCall.getMethodName())) {
-      return new ModuleDependencyModelImpl(configurationName, methodCall, maintainer);
+      if (platformMethodName != null) {
+        return new PlatformModuleDependencyModelImpl(configurationName, methodCall, maintainer, platformMethodName);
+      }
+      else {
+        return new ModuleDependencyModelImpl(configurationName, methodCall, maintainer);
+      }
     }
     return null;
   }
@@ -68,9 +77,9 @@ public final class ModuleDependencyModelImpl extends DependencyModelImpl impleme
     return new ModuleDependencyModelImpl(configurationName, methodCall, DependenciesModelImpl.Maintainers.SINGLE_ITEM_MAINTAINER);
   }
 
-  private ModuleDependencyModelImpl(@NotNull String configurationName,
-                                    @NotNull GradleDslMethodCall dslElement,
-                                    @NotNull Maintainer maintainer) {
+  ModuleDependencyModelImpl(@NotNull String configurationName,
+                            @NotNull GradleDslMethodCall dslElement,
+                            @NotNull Maintainer maintainer) {
     super(configurationName, maintainer);
     myDslElement = dslElement;
   }
@@ -100,7 +109,7 @@ public final class ModuleDependencyModelImpl extends DependencyModelImpl impleme
     ResolvedPropertyModel path = path();
 
     // Keep empty spaces, needed when putting the path back together
-    List<String> segments = on(GRADLE_PATH_SEPARATOR).splitToList(path.forceString());
+    List<String> segments = Splitter.on(GRADLE_PATH_SEPARATOR).splitToList(path.forceString());
     List<String> modifiableSegments = Lists.newArrayList(segments);
     int segmentCount = modifiableSegments.size();
     if (segmentCount == 0) {

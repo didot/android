@@ -30,6 +30,7 @@ import com.intellij.util.ArrayUtil;
 import com.intellij.util.Processor;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
+
 /**
  * Cache that stores the DataBindingComponent instances associated with each module.
  *
@@ -45,7 +46,7 @@ final class DataBindingComponentShortNamesCache extends PsiShortNamesCache {
 
   @NotNull
   @Override
-  public PsiClass [] getClassesByName(@NotNull @NonNls String name, @NotNull GlobalSearchScope scope) {
+  public PsiClass[] getClassesByName(@NotNull @NonNls String name, @NotNull GlobalSearchScope scope) {
     Project project = scope.getProject();
     if (project == null || !check(name, scope)) {
       return PsiClass.EMPTY_ARRAY;

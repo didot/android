@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -290,7 +291,7 @@ public class DeviceTest {
               .map(entry -> entry.getValue())
               .findFirst().orElse(Collections.emptyList());
 
-          try (PrintWriter pw = new PrintWriter(socket.getOutputStream())) {
+          try (PrintWriter pw = new PrintWriter(socket.getOutputStream(), false, StandardCharsets.UTF_8)) {
             for (String value : pids) {
               pw.write(value);
             }

@@ -29,7 +29,6 @@ import javax.swing.JEditorPane;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.text.html.HTMLDocument;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,8 +53,8 @@ public class NavigationComponent<T extends NavigationComponent.Item> extends JEd
     void itemSelected(@NotNull T item);
   }
 
-  private final ArrayList<ItemListener<T>> myItemListeners = new ArrayList<ItemListener<T>>();
-  private final LinkedList<T> myItemStack = new LinkedList<T>();
+  private final ArrayList<ItemListener<T>> myItemListeners = new ArrayList<>();
+  private final LinkedList<T> myItemStack = new LinkedList<>();
   private boolean hasRootItem = false;
 
   public NavigationComponent() {

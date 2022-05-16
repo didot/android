@@ -18,7 +18,6 @@ package com.android.tools.idea.wizard.dynamic;
 import static com.android.tools.idea.wizard.dynamic.ScopedStateStore.Key;
 
 import com.android.tools.idea.wizard.model.ModelWizard;
-import com.google.common.collect.Maps;
 import com.intellij.ide.wizard.Step;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.Application;
@@ -31,12 +30,17 @@ import com.intellij.openapi.wm.IdeFocusManager;
 import com.intellij.util.ui.update.MergingUpdateQueue;
 import com.intellij.util.ui.update.Update;
 import icons.StudioIllustrations;
-import java.awt.*;
+import java.awt.CardLayout;
+import java.awt.Component;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -84,7 +88,7 @@ public abstract class DynamicWizard implements ScopedStateStore.ScopedStoreListe
   private boolean myIsInitialized = false;
   protected ScopedStateStore myState;
   private JPanel myContentPanel = new JPanel(new CardLayout());
-  private Map<JComponent, String> myComponentToIdMap = Maps.newHashMap();
+  private Map<JComponent, String> myComponentToIdMap = new HashMap<>();
 
   public DynamicWizard(@Nullable Project project, @Nullable Module module, @NotNull String name) {
     this(project, module, name, new DialogWrapperHost(project));

@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.testing
 
-import com.android.testutils.TestUtils
 import com.android.testutils.MockitoThreadLocalsCleaner
+import com.android.testutils.TestUtils
 import com.android.tools.idea.sdk.AndroidSdks
 import com.android.tools.idea.sdk.IdeSdks
 import com.android.tools.idea.testing.AndroidProjectRule.Companion.withAndroidModels
@@ -26,6 +26,7 @@ import com.intellij.facet.Facet
 import com.intellij.facet.FacetConfiguration
 import com.intellij.facet.FacetManager
 import com.intellij.facet.FacetType
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.application.runWriteAction
@@ -57,6 +58,7 @@ import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import java.io.File
+import java.util.concurrent.TimeoutException
 
 /**
  * Rule that provides access to a [Project] containing one module configured
@@ -64,7 +66,7 @@ import java.io.File
  *
  * The defaults settings are using a [LightTempDirTestFixtureImpl] which means
  * that it does not create any file on disk,
- * but instead rely on  a [com.intellij.openapi.vfs.ex.temp.TempFileSystem]].
+ * but instead relly on  a [com.intellij.openapi.vfs.ex.temp.TempFileSystem]].
  *
  * For tests that rely on file on disk, use the [AndroidProjectRule.Factory.onDisk()]
  * factory method to use a full on disk fixture with a single module, otherwise use
@@ -111,6 +113,8 @@ class AndroidProjectRule private constructor(
   val module: Module get() = fixture.module
 
   val project: Project get() = fixture.project
+
+  val testRootDisposable: Disposable get() = fixture.testRootDisposable
 
   private lateinit var mocks: IdeComponents
   private val facets = ArrayList<Facet<*>>()
@@ -356,11 +360,18 @@ class AndroidProjectRule private constructor(
     mockitoCleaner.cleanupAndTearDown()
     AndroidTestBase.checkUndisposedAndroidRelatedObjects()
   }
+
+  /** Waits 2 seconds for the app resource repository to finish currently pending updates. */
+  @Throws(InterruptedException::class, TimeoutException::class)
+  fun waitForResourceRepositoryUpdates() {
+    waitForResourceRepositoryUpdates(module)
+  }
 }
 
 class EdtAndroidProjectRule(val projectRule: AndroidProjectRule) : TestRule by RuleChain.outerRule(projectRule).around(EdtRule())!! {
   val project: Project get() = projectRule.project
   val fixture: CodeInsightTestFixture get() = projectRule.fixture
+  val testRootDisposable: Disposable get() = projectRule.testRootDisposable
   fun setupProjectFrom(vararg moduleBuilders: ModuleModelBuilder) = projectRule.setupProjectFrom(*moduleBuilders)
 }
 

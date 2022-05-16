@@ -50,8 +50,8 @@ public class AnalyzeApkAction extends DumbAwareAction {
       return;
     }
 
-    e.getPresentation().setEnabledAndVisible(IdeInfo.getInstance().isAndroidStudio() ||
-                                             ProjectFacetManager.getInstance(project).hasFacets(AndroidFacet.ID));
+    e.getPresentation().setEnabledAndVisible(
+      IdeInfo.getInstance().isAndroidStudio() || ProjectFacetManager.getInstance(project).hasFacets(AndroidFacet.ID));
   }
 
   @Override

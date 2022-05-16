@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.stats
 
-import com.android.tools.idea.Option
-import com.android.tools.idea.Survey
+import com.android.tools.idea.serverflags.protos.Option
+import com.android.tools.idea.serverflags.protos.Survey
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.util.IconLoader
 import icons.StudioIcons
@@ -31,7 +31,7 @@ val Option.icon: Icon?
     return IconLoader.getIcon(path, StudioIcons::class.java.classLoader)
   }
 
-fun createDialog(survey: Survey, choiceLogger: ChoiceLogger = ChoiceLoggerImpl, hasFollowup: Boolean): DialogWrapper {
+fun createDialog(survey: Survey, choiceLogger: ChoiceLogger = ChoiceLoggerImpl, hasFollowup: Boolean = false): DialogWrapper {
   return if (survey.answerCount > 1) {
     MultipleChoiceDialog(survey, choiceLogger, hasFollowup)
   }

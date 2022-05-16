@@ -25,6 +25,7 @@ import com.intellij.codeInsight.NullableNotNullManager
 import org.jetbrains.android.AndroidTestCase
 
 class AndroidInferNullityActionTest : AndroidTestCase() {
+
   private lateinit var myProjectSystem: TestProjectSystem
   private lateinit var myNullityManager: NullableNotNullManager
 

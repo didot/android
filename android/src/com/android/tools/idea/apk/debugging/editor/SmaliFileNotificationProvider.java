@@ -38,7 +38,7 @@ import java.io.File;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class SmaliFileNotificationProvider extends EditorNotifications.Provider<EditorNotificationPanel> {
+public class SmaliFileNotificationProvider extends EditorNotifications.Provider<EditorNotificationPanel> {
   private static final Key<EditorNotificationPanel> KEY = Key.create("apk.smali.file");
 
   @Override

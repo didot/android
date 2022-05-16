@@ -1,6 +1,8 @@
 // Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.android.dom;
 
+import static com.android.SdkConstants.CLASS_DRAWABLE;
+
 import com.android.sdklib.SdkVersionInfo;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.util.Ref;
@@ -19,7 +21,9 @@ import icons.AndroidIcons;
 import icons.StudioIcons;
 import java.util.HashMap;
 import java.util.Map;
-import javax.swing.*;
+import javax.swing.Icon;
+import org.jetbrains.android.dom.drawable.CustomDrawableDomElement;
+import org.jetbrains.android.dom.drawable.CustomDrawableElementDescriptor;
 import org.jetbrains.android.dom.layout.DataBindingElement;
 import org.jetbrains.android.dom.layout.LayoutElement;
 import org.jetbrains.android.dom.layout.LayoutElementDescriptor;
@@ -72,6 +76,9 @@ public class AndroidDomElementDescriptorProvider implements XmlElementDescriptor
     if (element instanceof DataBindingElement) {
       return null;
     }
+    if (element instanceof CustomDrawableDomElement) {
+      return createDrawableElementDescriptor((CustomDrawableDomElement)element, tag);
+    }
     if (element instanceof AndroidDomElement) {
       return getDescriptor(element, tag);
     }
@@ -86,6 +93,15 @@ public class AndroidDomElementDescriptorProvider implements XmlElementDescriptor
     String baseGroupClass = AndroidXmlResourcesUtil.PreferenceSource.getPreferencesSource(tag, facet).getQualifiedGroupClass();
     final PsiClass preferenceClass = AndroidClassesForXmlUtilKt.findClassValidInXMLByName(facet, tag.getName(), baseClass);
     return new PreferenceElementDescriptor(preferenceClass, new DomElementXmlDescriptor(element), baseGroupClass);
+  }
+
+  @Nullable
+  public static CustomDrawableElementDescriptor createDrawableElementDescriptor(@NotNull CustomDrawableDomElement element,
+                                                                                @NotNull XmlTag tag) {
+    AndroidFacet facet = AndroidFacet.getInstance(element);
+    if (facet == null) return null;
+    final PsiClass preferenceClass = AndroidClassesForXmlUtilKt.findClassValidInXMLByName(facet, tag.getName(), CLASS_DRAWABLE);
+    return new CustomDrawableElementDescriptor(preferenceClass, new DomElementXmlDescriptor(element));
   }
 
   @Nullable

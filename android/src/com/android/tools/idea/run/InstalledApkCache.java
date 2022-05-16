@@ -44,7 +44,7 @@ public class InstalledApkCache implements Disposable {
   private String myDiagnosticOutput;
 
   public InstalledApkCache() {
-    myCache = new DeviceStateCache<CacheData>(this);
+    myCache = new DeviceStateCache<>(this);
   }
 
   @Override
@@ -138,7 +138,7 @@ public class InstalledApkCache implements Disposable {
     }
 
     String lastUpdateTime = "";
-    Set<Integer> users = new HashSet<Integer>();
+    Set<Integer> users = new HashSet<>();
     for (String line : lines) {
       line = line.trim();
       if (line.startsWith("lastUpdateTime")) {

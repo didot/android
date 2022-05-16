@@ -28,9 +28,6 @@ interface IdeAndroidArtifact : Serializable, IdeBaseArtifact {
    */
   val signingConfigName: String?
 
-  @Deprecated("Use post-build model instead. See VariantBuildInformation.")
-  val outputs: List<IdeAndroidArtifactOutput>
-
   /**
    * Returns whether the output file is signed. This can only be true for the main apk of an
    * application project.
@@ -69,4 +66,12 @@ interface IdeAndroidArtifact : Serializable, IdeBaseArtifact {
    * artifact.
    */
   val codeShrinker: CodeShrinker?
+
+  /**
+   * Returns all the [IdeModelSyncFile] for this artifact.
+   *
+   * @return a list of [IdeModelSyncFile]
+   * @since 7.2
+   */
+  val modelSyncFiles: Collection<IdeModelSyncFile>
 }

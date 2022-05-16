@@ -17,7 +17,6 @@ package com.android.tools.property.panel.impl.support
 
 import com.android.tools.property.panel.api.ActionEnumValue
 import com.android.tools.property.panel.api.EnumValue
-import com.android.tools.property.panel.api.EnumValue.Companion.PROPERTY_ITEM_KEY
 import com.android.tools.property.panel.api.PropertyItem
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
@@ -52,6 +51,10 @@ data class IndentedItemEnumValue(override val value: String) : EnumValueImpl() {
 
 data class ItemWithDisplayEnumValue(override val value: String, override val display: String) : EnumValueImpl() {
   override fun toString() = value
+}
+
+data class EmptyDisplayEnumValue(override val display: String): EnumValueImpl() {
+  override fun toString() = ""
 }
 
 data class IndentedItemWithDisplayEnumValue(override val value: String, override val display: String) : EnumValueImpl() {

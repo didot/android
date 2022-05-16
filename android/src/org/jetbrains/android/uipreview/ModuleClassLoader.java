@@ -1,99 +1,68 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.android.uipreview;
 
-import static com.android.SdkConstants.CLASS_RECYCLER_VIEW_ADAPTER;
-import static com.android.SdkConstants.CLASS_RECYCLER_VIEW_V7;
-import static com.android.SdkConstants.CLASS_RECYCLER_VIEW_VIEW_HOLDER;
-import static com.android.tools.idea.LogAnonymizerUtil.anonymizeClassName;
 import static com.android.tools.idea.flags.StudioFlags.NELE_CLASS_BINARY_CACHE;
 import static com.android.tools.idea.rendering.classloading.ClassConverter.getCurrentClassVersion;
 import static com.android.tools.idea.rendering.classloading.ReflectionUtilKt.findMethodLike;
 import static com.android.tools.idea.rendering.classloading.UtilKt.toClassTransform;
+import static org.jetbrains.android.uipreview.ModuleClassLoaderUtil.INTERNAL_PACKAGE;
 
-import com.android.ide.common.rendering.api.ResourceNamespace;
-import com.android.ide.common.resources.AndroidManifestPackageNameUtils;
-import com.android.ide.common.resources.ResourceRepository;
-import com.android.ide.common.resources.SingleNamespaceResourceRepository;
-import com.android.ide.common.util.PathString;
 import com.android.layoutlib.reflection.TrackingThreadLocal;
-import com.android.projectmodel.ExternalAndroidLibrary;
-import com.android.tools.idea.model.AndroidModel;
-import com.android.tools.idea.model.Namespacing;
-import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.rendering.RenderSecurityManager;
 import com.android.tools.idea.rendering.RenderService;
 import com.android.tools.idea.rendering.classloading.ClassTransform;
+import com.android.tools.idea.rendering.classloading.FilteringClassLoader;
+import com.android.tools.idea.rendering.classloading.FirewalledResourcesClassLoader;
 import com.android.tools.idea.rendering.classloading.PreviewAnimationClockMethodTransform;
-import com.android.tools.idea.rendering.classloading.ProjectConstantRemapper;
-import com.android.tools.idea.rendering.classloading.PseudoClass;
-import com.android.tools.idea.rendering.classloading.RenderClassLoader;
 import com.android.tools.idea.rendering.classloading.RepackageTransform;
+import com.android.tools.idea.rendering.classloading.RequestExecutorTransform;
+import com.android.tools.idea.rendering.classloading.ResourcesCompatTransform;
 import com.android.tools.idea.rendering.classloading.ThreadControllingTransform;
 import com.android.tools.idea.rendering.classloading.ThreadLocalTrackingTransform;
 import com.android.tools.idea.rendering.classloading.VersionClassTransform;
 import com.android.tools.idea.rendering.classloading.ViewMethodWrapperTransform;
-import com.android.tools.idea.res.LocalResourceRepository;
-import com.android.tools.idea.res.ResourceClassRegistry;
-import com.android.tools.idea.res.ResourceIdManager;
-import com.android.tools.idea.res.ResourceRepositoryManager;
-import com.android.tools.idea.util.DependencyManagementUtil;
-import com.android.tools.idea.util.FileExtensions;
-import com.android.tools.idea.util.VirtualFileSystemOpener;
+import com.android.tools.idea.rendering.classloading.loaders.DelegatingClassLoader;
+import com.android.tools.idea.rendering.classloading.loaders.ProjectSystemClassLoader;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.openapi.util.SystemInfo;
-import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.util.CachedValueProvider;
+import com.intellij.psi.util.CachedValuesManager;
+import com.intellij.psi.util.PsiModificationTracker;
 import com.intellij.util.concurrency.AppExecutorUtil;
-import com.intellij.util.containers.ContainerUtil;
-import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Path;
-import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
-import org.jetbrains.android.dom.manifest.AndroidManifestUtils;
-import org.jetbrains.android.facet.AndroidFacet;
-import org.jetbrains.android.sdk.StudioEmbeddedRenderTarget;
-import org.jetbrains.android.util.AndroidUtils;
+import kotlin.Unit;
+import org.jetbrains.android.uipreview.classloading.LibraryResourceClassLoader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.TestOnly;
+import org.jetbrains.annotations.VisibleForTesting;
 
 /**
  * Render class loader responsible for loading classes in custom views and local and library classes
  * used by those custom views (other than the framework itself, which is loaded by a parent class
  * loader via layout library.)
  */
-public final class ModuleClassLoader extends RenderClassLoader implements ModuleProvider, Disposable {
+public final class ModuleClassLoader extends DelegatingClassLoader implements ModuleProvider, Disposable {
   private static final Logger LOG = Logger.getInstance(ModuleClassLoader.class);
 
   /**
-   * Package name used to "re-package" certain classes that would conflict with the ones in the Studio class loader.
-   * This applies to all packages defined in {@link ModuleClassLoader#PACKAGES_TO_RENAME}.
-   */
-  private static final String INTERNAL_PACKAGE = "_layoutlib_._internal_.";
-
-  /**
    * If the project uses any of these libraries, we re-package them with a different name (prefixing them with
-   * {@link ModuleClassLoader#INTERNAL_PACKAGE} so they do not conflict with the versions loaded in Studio.
+   * {@link ModuleClassLoaderUtil#INTERNAL_PACKAGE} so they do not conflict with the versions loaded in Studio.
    */
   private static final ImmutableList<String> PACKAGES_TO_RENAME = ImmutableList.of(
     "kotlin.",
@@ -135,6 +104,8 @@ public final class ModuleClassLoader extends RenderClassLoader implements Module
     ThreadLocalTrackingTransform::new,
     ThreadControllingTransform::new,
     PreviewAnimationClockMethodTransform::new,
+    ResourcesCompatTransform::new,
+    RequestExecutorTransform::new,
     // Leave this transformation as last so the rest of the transformations operate on the regular names.
     visitor -> new RepackageTransform(visitor, PACKAGES_TO_RENAME, INTERNAL_PACKAGE)
   );
@@ -147,11 +118,6 @@ public final class ModuleClassLoader extends RenderClassLoader implements Module
    * of this class as well to find classes
    */
   private final WeakReference<Module> myModuleReference;
-  /**
-   * Modification count used to track the [ConstantRemapper] modifications. If this does not match the current count, the class loader is
-   * out of date since new transformations might be needed.
-   */
-  private final long myConstantRemapperModificationCount;
 
   /**
    * Interface for reporting load times and general diagnostics.
@@ -163,270 +129,113 @@ public final class ModuleClassLoader extends RenderClassLoader implements Module
    * Holds the provider that allows finding the {@link PsiFile}
    */
   private final Supplier<PsiFile> myPsiFileProvider;
+  private final ModuleClassLoaderImpl myImpl;
   /**
-   * Holds the provider that allows finding the source file that originated this
-   * {@link ModuleClassLoader}. It allows for scoping the search of .class files.
+   * Saves the given {@link ClassLoader} passed as parent to this {@link ModuleClassLoader}. This allows to check
+   * the parent compatibility in {@link #isCompatibleParentClassLoader(ClassLoader).}
    */
-  private final Supplier<VirtualFile> mySourceFileProvider;
-
-  /**
-   * Map from fully qualified class name to the corresponding .class file for each class loaded by this class loader
-   */
-  private final Map<String, VirtualFile> myClassFiles = new ConcurrentHashMap<>();
-  /**
-   * Map from fully qualified class name to the corresponding last modified info for each class loaded by this class loader
-   */
-  private final Map<String, ClassModificationTimestamp> myClassFilesLastModified = new ConcurrentHashMap<>();
-
-  private final List<Path> mAdditionalLibraries;
-
-  /**
-   * Method uses to remap type names using {@link ModuleClassLoader#INTERNAL_PACKAGE} as prefix to its original name so they original
-   * class can be loaded from the file system correctly.
-   */
-  @NotNull
-  private static String onDiskClassNameLookup(@NotNull String name) {
-    return StringUtil.trimStart(name, INTERNAL_PACKAGE);
-  }
+  private final ClassLoader myParentAtConstruction;
 
   ModuleClassLoader(@Nullable ClassLoader parent, @NotNull ModuleRenderContext renderContext,
                     @NotNull ClassTransform projectTransformations,
                     @NotNull ClassTransform nonProjectTransformations,
                     @NotNull ModuleClassLoaderDiagnosticsWrite diagnostics) {
     this(parent, renderContext, projectTransformations, nonProjectTransformations,
-         NELE_CLASS_BINARY_CACHE.get() ? ClassBinaryCacheManager.getInstance().getCache(renderContext.getModule()) : ClassBinaryCache.NO_CACHE,
+         NELE_CLASS_BINARY_CACHE.get()
+         ? ClassBinaryCacheManager.getInstance().getCache(renderContext.getModule())
+         : ClassBinaryCache.NO_CACHE,
          diagnostics);
   }
 
-  private ModuleClassLoader(@Nullable ClassLoader parent, @NotNull ModuleRenderContext renderContext,
-                    @NotNull ClassTransform projectTransformations,
-                    @NotNull ClassTransform nonProjectTransformations,
-                    @NotNull ClassBinaryCache cache,
-                    @NotNull ModuleClassLoaderDiagnosticsWrite diagnostics) {
-    super(parent, projectTransformations, nonProjectTransformations, ModuleClassLoader::onDiskClassNameLookup, cache, !SystemInfo.isWindows);
-    Disposer.register(renderContext.getModule(), this);
+  private ModuleClassLoader(@Nullable ClassLoader parent,
+                            @NotNull ModuleRenderContext renderContext,
+                            @NotNull ModuleClassLoaderImpl loader,
+                            @NotNull ModuleClassLoaderDiagnosticsWrite diagnostics) {
+    super(
+      new LibraryResourceClassLoader(
+        new FirewalledResourcesClassLoader(
+          // Do not allow to load kotlin standard library from the plugin class loader since it can lead to
+          // a version mismatch.
+          FilteringClassLoader.disallowedPrefixes(parent, PACKAGES_TO_RENAME)),
+        renderContext.getModule()), loader);
+
+    myParentAtConstruction = parent;
+    myImpl = loader;
     myModuleReference = new WeakReference<>(renderContext.getModule());
+    Disposer.register(renderContext.getModule(), this);
+    Disposer.register(this, loader);
     // Extracting the provider into a variable to avoid the lambda capturing a reference to renderContext
     myPsiFileProvider = renderContext.getFileProvider();
-    mySourceFileProvider = () -> {
-      PsiFile file = myPsiFileProvider.get();
-      return file != null ? file.getVirtualFile() : null;
-    };
-    mAdditionalLibraries = getAdditionalLibraries();
-    myConstantRemapperModificationCount = ProjectConstantRemapper.getInstance(renderContext.getProject()).getModificationCount();
     myDiagnostics = diagnostics;
-
-    registerResources(renderContext.getModule());
-    cache.setDependencies(ContainerUtil.map(getExternalJars(), Path::toString));
   }
 
   @NotNull
-  private static List<Path> getAdditionalLibraries() {
-    String layoutlibDistributionPath = StudioEmbeddedRenderTarget.getEmbeddedLayoutLibPath();
-    if (layoutlibDistributionPath == null) {
-      return Collections.emptyList(); // Error is already logged by getEmbeddedLayoutLibPath
-    }
+  private static ProjectSystemClassLoader createDefaultProjectSystemClassLoader(
+    @NotNull Module theModule, @NotNull Supplier<PsiFile> psiFileProvider
+  ) {
+    WeakReference<Module> moduleRef = new WeakReference<>(theModule);
+    return new ProjectSystemClassLoader((fqcn) -> {
+      Module module = moduleRef.get();
+      if (module == null || module.isDisposed()) return null;
 
-    String relativeCoroutineLibPath = FileUtil.toSystemIndependentName("data/layoutlib-extensions.jar");
-    return List.of(new File(layoutlibDistributionPath, relativeCoroutineLibPath).toPath());
+      PsiFile psiFile = psiFileProvider.get();
+      VirtualFile virtualFile = psiFile != null ? psiFile.getVirtualFile() : null;
+
+      return ProjectSystemUtil.getModuleSystem(module)
+        .getClassFileFinderForSourceFile(virtualFile)
+        .findClassFile(fqcn);
+    });
+  }
+
+  private ModuleClassLoader(@Nullable ClassLoader parent, @NotNull ModuleRenderContext renderContext,
+                            @NotNull ClassTransform projectTransformations,
+                            @NotNull ClassTransform nonProjectTransformations,
+                            @NotNull ClassBinaryCache cache,
+                            @NotNull ModuleClassLoaderDiagnosticsWrite diagnostics) {
+    this(
+      parent,
+      renderContext,
+      new ModuleClassLoaderImpl(
+        renderContext.getModule(),
+        createDefaultProjectSystemClassLoader(renderContext.getModule(), renderContext.getFileProvider()),
+        projectTransformations,
+        nonProjectTransformations,
+        cache,
+        (fqcn, timeMs, size) -> {
+          diagnostics.classRewritten(fqcn, size, timeMs);
+          return Unit.INSTANCE;
+        }),
+      diagnostics);
   }
 
   /**
-   * Returns true for any classFqn that is supposed to be repackaged.
+   * Checks if the given parent {@link ClassLoader} is the same as the given to this {@link ModuleClassLoader} at construction
+   * time. This class loader adds additional parents to the chain so {@link ClassLoader#getParent()} can not be used directly.
    */
-  private static boolean isRepackagedClass(@NotNull String classFqn) {
-    for (String pkgName : PACKAGES_TO_RENAME) {
-      if (classFqn.startsWith(pkgName)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  @Override
-  protected byte[] rewriteClass(@NotNull String fqcn,
-                                @NotNull byte[] classData,
-                                @NotNull ClassTransform transformations,
-                                int flags) {
-    long startTimeMs = System.currentTimeMillis();
-    try {
-      return super.rewriteClass(fqcn, classData, transformations, flags);
-    } finally {
-      myDiagnostics.classRewritten(fqcn, classData.length, System.currentTimeMillis() - startTimeMs);
-    }
-  }
-
-  @Override
-  public Class<?> loadClass(String name) throws ClassNotFoundException {
-    if ("kotlinx.coroutines.android.AndroidDispatcherFactory".equals(name)) {
-      // Hide this class to avoid the coroutines in the project loading the AndroidDispatcherFactory for now.
-      // b/162056408
-      //
-      // Throwing an exception here (other than ClassNotFoundException) will force the FastServiceLoader to fallback
-      // to the regular class loading. This allows us to inject our own DispatcherFactory, specific to Layoutlib.
-      throw new IllegalArgumentException("AndroidDispatcherFactory not supported by layoutlib");
-    }
-
-    long startTimeMs = System.currentTimeMillis();
-    myDiagnostics.classLoadStart(name);
-    boolean classLoaded = true;
-    try {
-      if (isRepackagedClass(name)) {
-        // This should not happen for "regularly" loaded classes. It will happen for classes loaded using
-        // reflection like Class.forName("kotlin.a.b.c"). In this case, we need to redirect the loading to the right
-        // class by injecting the correct name.
-        name = INTERNAL_PACKAGE + name;
-      }
-
-      return super.loadClass(name);
-    } catch (ClassNotFoundException e) {
-      classLoaded = false;
-      throw e;
-    } finally {
-      if (classLoaded) {
-        myDiagnostics.classLoadedEnd(name, System.currentTimeMillis() - startTimeMs);
-      }
-    }
-  }
-
-  @Override
-  @NotNull
-  protected Class<?> findClass(String name) throws ClassNotFoundException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(String.format("findClass(%s)", name));
-    }
-
-    Module module = myModuleReference.get();
-    long startTimeMs = System.currentTimeMillis();
-    boolean classFound = true;
-    myDiagnostics.classFindStart(name);
-    try {
-      if (!myInsideJarClassLoader) {
-        if (module != null) {
-          if (isResourceClassName(name)) {
-            AndroidFacet facet = AndroidFacet.getInstance(module);
-            if (facet != null) {
-              ResourceRepositoryManager repositoryManager = ResourceRepositoryManager.getInstance(facet);
-              byte[] data = ResourceClassRegistry.get(module.getProject()).findClassDefinition(name, repositoryManager);
-              if (data != null) {
-                LOG.debug("  Defining class from AAR registry");
-                return loadClass(name, data);
-              }
-            }
-            else {
-              LOG.debug("  LocalResourceRepositoryInstance not found");
-            }
-          }
-        }
-      }
-
-      if (LOG.isDebugEnabled()) {
-        LOG.debug(String.format("  super.findClass(%s)", anonymizeClassName(name)));
-      }
-      return super.findClass(name);
-    }
-    catch (ClassNotFoundException e) {
-      byte[] clazz = null;
-      if (RecyclerViewHelper.CN_CUSTOM_ADAPTER.equals(name)) {
-        clazz = RecyclerViewHelper.getAdapterClass(DependencyManagementUtil.mapAndroidxName(module, CLASS_RECYCLER_VIEW_V7),
-                                                   DependencyManagementUtil.mapAndroidxName(module, CLASS_RECYCLER_VIEW_VIEW_HOLDER),
-                                                   DependencyManagementUtil.mapAndroidxName(module, CLASS_RECYCLER_VIEW_ADAPTER));
-      }
-      if (RecyclerViewHelper.CN_CUSTOM_VIEW_HOLDER.equals(name)) {
-        clazz = RecyclerViewHelper.getViewHolder(DependencyManagementUtil.mapAndroidxName(module, CLASS_RECYCLER_VIEW_V7),
-                                                 DependencyManagementUtil.mapAndroidxName(module, CLASS_RECYCLER_VIEW_VIEW_HOLDER),
-                                                 DependencyManagementUtil.mapAndroidxName(module, CLASS_RECYCLER_VIEW_ADAPTER));
-      }
-      if (clazz != null) {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("  Defining RecyclerView helper class");
-        }
-        return defineClassAndPackage(name, clazz, 0, clazz.length);
-      }
-      LOG.debug(e);
-      classFound = false;
-      throw e;
-    } finally {
-      myDiagnostics.classFindEnd(name, classFound, System.currentTimeMillis() - startTimeMs);
-    }
-  }
-
-  @Override
-  @NotNull
-  protected Class<?> load(@NotNull String name) throws ClassNotFoundException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(String.format("load(%s)", anonymizeClassName(name)));
-    }
-
-    Module module = myModuleReference.get();
-    if (module == null) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug(String.format("  ClassNotFoundException(%s)", name));
-      }
-      throw new ClassNotFoundException(name);
-    }
-    Class<?> aClass = loadClassFromModuleOrDependency(module, name);
-
-    if (aClass != null) {
-      return aClass;
-    }
-    return loadClassFromNonProjectDependency(name);
-  }
-
-  @NotNull
-  @Override
-  public PseudoClass locatePseudoClass(@NotNull String classFqn) {
-    String diskLookupName = onDiskClassNameLookup(classFqn);
-    PseudoClass pseudoClass = super.locatePseudoClass(diskLookupName);
-
-    if (!pseudoClass.getName().equals(diskLookupName)) {
-      Module module = myModuleReference.get();
-      if (module == null || module.isDisposed()) {
-        return PseudoClass.Companion.objectPseudoClass();
-      }
-
-      VirtualFile classFile = ProjectSystemUtil.getModuleSystem(module)
-        .getClassFileFinderForSourceFile(mySourceFileProvider.get())
-        .findClassFile(diskLookupName);
-      if (classFile != null) {
-        try {
-          return PseudoClass.Companion.fromByteArray(classFile.contentsToByteArray(), this);
-        }
-        catch (IOException e) {
-          LOG.debug(e);
-        }
-      }
-    }
-
-    if (isRepackagedClass(classFqn)) {
-      // If this is one of the repackaged classes, we have to restore the name. This will be usually the case when we are, for example,
-      // looking for a super class of a repackaged class. For example _layoutlib_._internal_.repackagedname.classB will have a as super
-      // repackagename.classA. We need to make sure that class is resolved as _layoutlib_._internal_.repackagedname.classA.
-      classFqn = INTERNAL_PACKAGE + classFqn;
-    }
-    return pseudoClass.withNewName(classFqn);
+  boolean isCompatibleParentClassLoader(@Nullable ClassLoader parent) {
+    return getParentAtConstruction() == parent;
   }
 
   /**
-   * Loads a class from the project, either from the given module or one of the source code dependencies. If the class
-   * is in a library dependency, like a jar file, this method will not find the class.
+   * Returns the given parent {@link ClassLoader} at construction time.
+   * This class loader adds additional parents to the chain so {@link ClassLoader#getParent()} can not be used directly.
    */
   @Nullable
-  private Class<?> loadClassFromModuleOrDependency(@NotNull Module module, @NotNull String name) {
-    if (module.isDisposed()) {
-      return null;
-    }
-
-    VirtualFile classFile = ProjectSystemUtil.getModuleSystem(module)
-      .getClassFileFinderForSourceFile(mySourceFileProvider.get())
-      .findClassFile(onDiskClassNameLookup(name));
-
-    if (classFile == null) {
-      return null;
-    }
-
-    return loadClassFile(name, classFile);
+  ClassLoader getParentAtConstruction() {
+    return myParentAtConstruction;
   }
+
+  @NotNull
+  public Set<String> getNonProjectLoadedClasses() { return myImpl.getNonProjectLoadedClassNames(); }
+
+  @NotNull
+  public Set<String> getProjectLoadedClasses() { return myImpl.getProjectLoadedClassNames(); }
+
+  @NotNull
+  public ClassTransform getProjectClassesTransform() { return myImpl.getProjectTransforms(); }
+
+  @NotNull
+  public ClassTransform getNonProjectClassesTransform() { return myImpl.getNonProjectTransforms(); }
 
   /**
    * Determines whether the class specified by the given qualified name has a source file in the IDE that
@@ -442,190 +251,90 @@ public final class ModuleClassLoader extends RenderClassLoader implements Module
    * @return true if the source file has been modified, or false if not (or if the source file cannot be found)
    */
   public boolean isSourceModified(@NotNull String name, @Nullable Object myCredential) {
-    // Don't flag R.java edits; not done by user
-    if (isResourceClassName(name)) {
+    if (!myImpl.getProjectLoadedClassNames().contains(name) ||
+        ModuleClassLoaderUtil.isResourceClassName(name)) {
       return false;
     }
 
-    Module module = myModuleReference.get();
-    if (module == null) {
-      return false;
-    }
-    VirtualFile classFile = getClassFile(name);
+    Module module = getModule();
+    if (module == null) return false;
 
-    // Make sure the class file is up to date and if not, log an error
-    if (classFile == null) {
-      return false;
-    }
-    AndroidFacet facet = AndroidFacet.getInstance(module);
-    if (facet == null || AndroidModel.get(facet) == null) {
-      return false;
-    }
     // Allow file system access for timestamps.
     boolean token = RenderSecurityManager.enterSafeRegion(myCredential);
     try {
-      return AndroidModel.get(facet).isClassFileOutOfDate(module, name, classFile);
+      VirtualFile virtualFile = myImpl.findClassVirtualFile(name);
+      if (virtualFile == null) return false;
+      return ModuleClassLoaderUtil.isSourceModified(module, name, virtualFile);
     }
     finally {
       RenderSecurityManager.exitSafeRegion(token);
     }
   }
 
-  // matches foo.bar.R or foo.bar.R$baz
-  private static final Pattern RESOURCE_CLASS_NAME = Pattern.compile(".+\\.R(\\$[^.]+)?$");
+  public boolean areDependenciesUpToDate() {
+    Module module = getModule();
+    if (module == null) return true;
 
-  private static boolean isResourceClassName(@NotNull String className) {
-    return RESOURCE_CLASS_NAME.matcher(className).matches();
+    List<Path> currentlyLoadedLibraries = myImpl.getExternalLibraries();
+    List<Path> moduleLibraries = ModuleClassLoaderUtil.getExternalLibraries(module);
+
+    return currentlyLoadedLibraries.size() == moduleLibraries.size() &&
+           currentlyLoadedLibraries.containsAll(moduleLibraries);
+  }
+
+  /**
+   * Checks whether any of the .class files loaded by this loader have changed since the creation of this class loader.
+   * This method just provides the non-cached version of {@link #isUserCodeUpToDate}. {@link #isUserCodeUpToDate} will cache
+   * the result of this call until a PSI modification happens.
+   */
+  @VisibleForTesting
+  boolean isUserCodeUpToDateNonCached() { return ModuleClassLoaderUtil.isUserCodeUpToDate(myImpl); }
+
+  /**
+   * Checks whether any of the .class files loaded by this loader have changed since the creation of this class loader. Always returns
+   * false if there has not been any PSI changes.
+   */
+  public boolean isUserCodeUpToDate() {
+    Module module = getModule();
+    if (module == null) return true;
+    // Cache the result of isUserCodeUpToDateNonCached until any PSI modifications have happened.
+    return CachedValuesManager.getManager(module.getProject()).getCachedValue(myImpl, () ->
+      CachedValueProvider.Result.create(isUserCodeUpToDateNonCached(),
+                                        PsiModificationTracker.MODIFICATION_COUNT,
+                                        ModuleClassLoaderOverlays.getInstance(module)));
   }
 
   @Override
-  @Nullable
-  protected Class<?> loadClassFile(@NotNull String name, @NotNull VirtualFile classFile) {
-    myClassFiles.put(name, classFile);
-    myClassFilesLastModified.put(name, ClassModificationTimestamp.fromVirtualFile(classFile));
-
-    return super.loadClassFile(name, classFile);
-  }
-
-  private static void registerResources(@NotNull Module module) {
-    AndroidFacet androidFacet = AndroidFacet.getInstance(module);
-    if (androidFacet == null) {
-      return;
-    }
-    ResourceRepositoryManager repositoryManager = ResourceRepositoryManager.getInstance(androidFacet);
-    ResourceIdManager idManager = ResourceIdManager.get(module);
-    ResourceClassRegistry classRegistry = ResourceClassRegistry.get(module.getProject());
-
-    // If final ids are used, we will read the real class from disk later (in loadAndParseRClass), using this class loader. So we
-    // can't treat it specially here, or we will read the wrong bytecode later.
-    if (!idManager.finalIdsUsed()) {
-      classRegistry.addLibrary(repositoryManager.getAppResources(),
-                               idManager,
-                               ReadAction.compute(() -> AndroidManifestUtils.getPackageName(androidFacet)),
-                               repositoryManager.getNamespace());
-    }
-
-    for (AndroidFacet dependency : AndroidUtils.getAllAndroidDependencies(module, false)) {
-      classRegistry.addLibrary(repositoryManager.getAppResources(),
-                               idManager,
-                               ReadAction.compute(() -> AndroidManifestUtils.getPackageName(dependency)),
-                               repositoryManager.getNamespace());
-    }
-
-    AndroidModuleSystem moduleSystem = ProjectSystemUtil.getModuleSystem(module);
-    for (ExternalAndroidLibrary library : moduleSystem.getAndroidLibraryDependencies()) {
-      if (library.getHasResources()) {
-        registerLibraryResources(library, repositoryManager, classRegistry, idManager);
-      }
-    }
-  }
-
-  private static void registerLibraryResources(@NotNull ExternalAndroidLibrary library,
-                                               @NotNull ResourceRepositoryManager repositoryManager,
-                                               @NotNull ResourceClassRegistry classRegistry,
-                                               @NotNull ResourceIdManager idManager) {
-    LocalResourceRepository appResources = repositoryManager.getAppResources();
-
-    // Choose which resources should be in the generated R class. This is described in the JavaDoc of ResourceClassGenerator.
-    ResourceRepository rClassContents;
-    ResourceNamespace resourcesNamespace;
-    String packageName;
-    if (repositoryManager.getNamespacing() == Namespacing.DISABLED) {
-      packageName = getPackageName(library);
-      if (packageName == null) {
-        return;
-      }
-      rClassContents = appResources;
-      resourcesNamespace = ResourceNamespace.RES_AUTO;
-    }
-    else {
-      SingleNamespaceResourceRepository aarResources = repositoryManager.findLibraryResources(library);
-      if (aarResources == null) {
-        return;
-      }
-
-      rClassContents = aarResources;
-      resourcesNamespace = aarResources.getNamespace();
-      packageName = aarResources.getPackageName();
-    }
-
-    classRegistry.addLibrary(rClassContents, idManager, packageName, resourcesNamespace);
+  public Enumeration<URL> getResources(String name) throws IOException {
+    // The ModuleClassLoader overrides getResources to allow user code to access resources that are part of the libraries.
+    // Instead of loading from the plugin class loader, we redirect the request to load it from the project libraries.
+    return myImpl.getResources(name);
   }
 
   @Nullable
-  private static String getPackageName(@NotNull ExternalAndroidLibrary library) {
-    if (library.getPackageName() != null) {
-      return library.getPackageName();
-    }
-    PathString manifestFile = library.getManifestFile();
-    if (manifestFile != null) {
-      try {
-        return AndroidManifestPackageNameUtils.getPackageNameFromManifestFile(manifestFile);
-      }
-      catch (IOException ignore) {
-        // Workaround for https://issuetracker.google.com/127647973
-        // Until fixed, the VFS might have an outdated view of the gradle cache directory. Some manifests might appear as missing but they
-        // are actually there. In those cases, we issue a refresh call to fix the problem.
-        if (VirtualFileSystemOpener.INSTANCE.recognizes(manifestFile)) {
-          FileExtensions.toVirtualFile(manifestFile, true);
-
-          try {
-            return AndroidManifestPackageNameUtils.getPackageNameFromManifestFile(manifestFile);
-          }
-          catch (IOException ignore2) {
-            return null;
-          }
-        }
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Returns the list of external JAR files referenced by the class loader.
-   */
   @Override
-  @NotNull
-  protected List<Path> getExternalJars() {
-    return Lists.newArrayList(
-      Iterables.concat(mAdditionalLibraries, ClassLoadingUtilsKt.getLibraryDependenciesJars(myModuleReference.get())));
-  }
-
-  /**
-   * Returns the path to a class file loaded for the given class, if any
-   */
-  @Nullable
-  private VirtualFile getClassFile(@NotNull String className) {
-    VirtualFile file = myClassFiles.get(className);
-    if (file == null) {
-      return null;
-    }
-    return file.isValid() ? file : null;
-  }
-
-  /**
-   * Checks whether any of the .class files loaded by this loader have changed since the creation of this class loader
-   */
-  boolean isUserCodeUpToDate() {
-    for (Map.Entry<String, VirtualFile> entry : myClassFiles.entrySet()) {
-      VirtualFile classFile = entry.getValue();
-      if (!classFile.isValid()) {
-        return false;
-      }
-
-      String className = entry.getKey();
-      ClassModificationTimestamp lastModifiedStamp = myClassFilesLastModified.get(className);
-      if (lastModifiedStamp != null && !lastModifiedStamp.isUpToDate(classFile)) {
-        return false;
-      }
-    }
-
-    return true;
+  public URL getResource(String name) {
+    // The ModuleClassLoader overrides getResources to allow user code to access resources that are part of the libraries.
+    // Instead of loading from the plugin class loader, we redirect the request to load it from the project libraries.
+    return myImpl.getResource(name);
   }
 
   public boolean isClassLoaded(@NotNull String className) {
     return findLoadedClass(className) != null;
   }
+
+  @Override
+  protected void onBeforeLoadClass(@NotNull String fqcn) { myDiagnostics.classLoadStart(fqcn); }
+
+  @Override
+  protected void onAfterLoadClass(@NotNull String fqcn, boolean loaded, long durationMs) { myDiagnostics.classLoadedEnd(fqcn, durationMs); }
+
+  @Override
+  protected void onBeforeFindClass(@NotNull String fqcn) { myDiagnostics.classFindStart(fqcn); }
+
+  @Override
+  protected void onAfterFindClass(@NotNull String fqcn, boolean found, long durationMs) { myDiagnostics.classFindEnd(fqcn, found,
+                                                                                                                     durationMs); }
 
   @Override
   @Nullable
@@ -640,8 +349,24 @@ public final class ModuleClassLoader extends RenderClassLoader implements Module
 
   @Nullable
   public ModuleRenderContext getModuleContext() {
-    Module module = myModuleReference.get();
+    Module module = getModule();
     return module == null ? null : ModuleRenderContext.forFile(module, myPsiFileProvider);
+  }
+
+  /**
+   * Injects the given file with the passed fqcn so it looks like loaded from the project. Only for testing.
+   */
+  @TestOnly
+  void injectProjectClassFile(@NotNull String fqcn, @NotNull VirtualFile file) {
+    myImpl.injectProjectClassFile(fqcn, file);
+  }
+
+  /**
+   * Injects the given [fqcn] as if it had been loaded by the overlay loader. Only for testing.
+   */
+  @TestOnly
+  void injectProjectOvelaryLoadedClass(@NotNull String fqcn) {
+    myImpl.injectProjectOvelaryLoadedClass(fqcn);
   }
 
   /**
@@ -649,7 +374,7 @@ public final class ModuleClassLoader extends RenderClassLoader implements Module
    */
   private void waitForCoroutineThreadToStop() {
     try {
-      Class<?> defaultExecutorClass = findLoadedClass(INTERNAL_PACKAGE + "kotlinx.coroutines.DefaultExecutor");
+      Class<?> defaultExecutorClass = findLoadedClass(ModuleClassLoaderUtil.INTERNAL_PACKAGE + "kotlinx.coroutines.DefaultExecutor");
       if (defaultExecutorClass == null) {
         return;
       }
@@ -679,12 +404,17 @@ public final class ModuleClassLoader extends RenderClassLoader implements Module
     }
   }
 
+  @Nullable
+  ModuleClassLoader copy(@NotNull ModuleClassLoaderDiagnosticsWrite diagnostics) {
+    ModuleRenderContext renderContext = getModuleContext();
+    if (renderContext == null) return null;
+    return new ModuleClassLoader(myParentAtConstruction, renderContext, getProjectClassesTransform(), getNonProjectClassesTransform(),
+                                 diagnostics);
+  }
+
   @Override
   public void dispose() {
-    myClassFiles.clear();
-    myClassFilesLastModified.clear();
-
-    ourDisposeService.submit(() -> {
+    ourDisposeService.execute(() -> {
       waitForCoroutineThreadToStop();
 
       Set<ThreadLocal<?>> threadLocals = TrackingThreadLocal.clearThreadLocals(this);

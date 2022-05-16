@@ -15,6 +15,9 @@
  */
 package com.android.tools.adtui.workbench;
 
+import static com.android.tools.adtui.workbench.ToolWindowDefinition.ALLOW_ALL;
+import static com.intellij.openapi.actionSystem.ActionToolbar.DEFAULT_MINIMUM_BUTTON_SIZE;
+
 import com.android.annotations.Nullable;
 import com.google.common.collect.ImmutableList;
 import com.intellij.icons.AllIcons;
@@ -22,17 +25,15 @@ import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.util.Disposer;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.Collections;
 import java.util.List;
-
-import static com.android.tools.adtui.workbench.ToolWindowDefinition.ALLOW_ALL;
-import static com.intellij.openapi.actionSystem.ActionToolbar.DEFAULT_MINIMUM_BUTTON_SIZE;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import org.jetbrains.annotations.NotNull;
 
 class PalettePanelToolContent implements ToolContent<String> {
   public static final int MIN_TOOL_WIDTH = 310;
@@ -57,6 +58,7 @@ class PalettePanelToolContent implements ToolContent<String> {
   private boolean myDisposed;
   private boolean myGearActionPerformed;
   private boolean myAdditionalActionPerformed;
+  private boolean myIsFilteringActive;
   private String myFilter;
 
   private PalettePanelToolContent(@NotNull Disposable parentDisposable) {
@@ -77,6 +79,7 @@ class PalettePanelToolContent implements ToolContent<String> {
     };
     myFilter = "";
     myKeyListener = new MyKeyListener();
+    myIsFilteringActive = true;
   }
 
   public static ToolWindowDefinition<String> getDefinition() {
@@ -189,6 +192,15 @@ class PalettePanelToolContent implements ToolContent<String> {
   @Override
   public KeyListener getFilterKeyListener() {
     return myKeyListener;
+  }
+
+  @Override
+  public boolean isFilteringActive() {
+    return myIsFilteringActive;
+  }
+
+  public void setFilteringActive(boolean active) {
+    myIsFilteringActive = active;
   }
 
   private class MyKeyListener extends KeyAdapter {

@@ -25,8 +25,10 @@ import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.JBUI;
 import icons.StudioIllustrations;
-import java.awt.*;
-import javax.swing.*;
+import java.awt.Dimension;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import org.jetbrains.annotations.NotNull;
 
 /**

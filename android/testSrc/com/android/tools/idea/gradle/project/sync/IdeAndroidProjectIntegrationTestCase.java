@@ -17,9 +17,9 @@ package com.android.tools.idea.gradle.project.sync;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.android.tools.idea.gradle.model.IdeArtifactLibrary;
 import com.android.tools.idea.gradle.model.IdeDependencies;
-import com.android.tools.idea.gradle.model.IdeLibrary;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
 import com.android.tools.idea.testing.TestModuleUtil;
 import com.intellij.openapi.module.Module;
@@ -29,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class IdeAndroidProjectIntegrationTestCase extends AndroidGradleTestCase {
   protected void verifyIdeLevel2DependenciesPopulated() {
-    @Nullable AndroidModuleModel androidModel = getAndroidModelInApp();
+    @Nullable GradleAndroidModel androidModel = getAndroidModelInApp();
     assertNotNull(androidModel);
 
     // Verify IdeLevel2Dependencies are populated for each variant.
@@ -42,13 +42,13 @@ public abstract class IdeAndroidProjectIntegrationTestCase extends AndroidGradle
   }
 
   @Nullable
-  protected AndroidModuleModel getAndroidModelInApp() {
+  protected GradleAndroidModel getAndroidModelInApp() {
     Module appModule = TestModuleUtil.findAppModule(getProject());
-    return AndroidModuleModel.get(appModule);
+    return GradleAndroidModel.get(appModule);
   }
 
   protected void verifyAarModuleShowsAsAndroidLibrary(String expectedLibraryName) {
-    @Nullable AndroidModuleModel androidModel = getAndroidModelInApp();
+    @Nullable GradleAndroidModel androidModel = getAndroidModelInApp();
     assertNotNull(androidModel);
 
     // Aar module should show up as android library dependency, not module dependency for app module.
@@ -56,9 +56,9 @@ public abstract class IdeAndroidProjectIntegrationTestCase extends AndroidGradle
       IdeDependencies level2Dependencies = variant.getMainArtifact().getLevel2Dependencies();
       assertThat(level2Dependencies).isNotNull();
       assertThat(level2Dependencies.getModuleDependencies()).isEmpty();
-      List<String> androidLibraries = ContainerUtil.map(level2Dependencies.getAndroidLibraries(), IdeLibrary::getArtifactAddress);
+      List<String> androidLibraries = ContainerUtil.map(level2Dependencies.getAndroidLibraries(), IdeArtifactLibrary::getArtifactAddress);
       assertThat(level2Dependencies.getAndroidLibraries()).isNotEmpty();
-      assertThat(androidLibraries).contains(expectedLibraryName);
+      assertTrue(androidLibraries.stream().anyMatch(it -> it.matches(expectedLibraryName)));
     });
   }
 }

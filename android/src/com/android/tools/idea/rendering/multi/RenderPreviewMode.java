@@ -102,7 +102,7 @@ public enum RenderPreviewMode {
   public static void deleteId(@Nullable String id) {
     if (id != null) {
       if (ourDeletedIds == null) {
-        ourDeletedIds = new HashSet<String>();
+        ourDeletedIds = new HashSet<>();
       }
       ourDeletedIds.add(id);
     }

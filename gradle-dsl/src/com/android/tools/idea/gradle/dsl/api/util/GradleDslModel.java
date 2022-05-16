@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,12 @@
  */
 package com.android.tools.idea.gradle.dsl.api.util;
 
-import com.android.tools.idea.gradle.dsl.api.GradleFileModel;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.List;
 import java.util.Map;
+import org.jetbrains.annotations.NotNull;
 
-/**
- * Interface for common functionality for the Dsl models. This interface will be implemented by
- * the model classes as needed.
- */
-public interface GradleDslModel extends DeletablePsiElementHolder {
+public interface GradleDslModel extends PsiElementHolder {
   /**
    * @return a map containing all of the GradlePropertyModels that are in scope in this model. Note: for block
    * elements this method should include all of the containing properties.

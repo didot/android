@@ -17,7 +17,6 @@ package com.android.tools.idea.downloads;
 
 import com.android.annotations.concurrency.GuardedBy;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.progress.PerformInBackgroundOption;
 import com.intellij.openapi.progress.ProgressIndicator;

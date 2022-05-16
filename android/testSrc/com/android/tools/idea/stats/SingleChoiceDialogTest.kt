@@ -16,8 +16,8 @@
 package com.android.tools.idea.stats
 
 import com.android.tools.adtui.swing.FakeUi
-import com.android.tools.idea.Option
-import com.android.tools.idea.Survey
+import com.android.tools.idea.serverflags.protos.Option
+import com.android.tools.idea.serverflags.protos.Survey
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Ref
@@ -31,7 +31,6 @@ import java.awt.Dimension
 import javax.swing.JComponent
 import javax.swing.JRadioButton
 import javax.swing.SwingUtilities
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue

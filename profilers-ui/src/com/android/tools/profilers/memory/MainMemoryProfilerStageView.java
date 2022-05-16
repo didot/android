@@ -25,9 +25,12 @@ import com.android.tools.adtui.stdui.CommonButton;
 import com.android.tools.adtui.stdui.ContextMenuItem;
 import com.android.tools.adtui.stdui.DefaultContextMenuItem;
 import com.android.tools.inspectors.common.ui.ContextMenuInstaller;
+import com.android.tools.profilers.DismissibleMessage;
 import com.android.tools.profilers.IdeProfilerComponents;
 import com.android.tools.profilers.RecordingOptionsView;
+import com.android.tools.profilers.StudioProfilers;
 import com.android.tools.profilers.StudioProfilersView;
+import com.android.tools.profilers.SupportLevel;
 import com.android.tools.profilers.memory.adapters.CaptureObject;
 import com.android.tools.profilers.sessions.SessionAspect;
 import com.android.tools.profilers.stacktrace.LoadingPanel;
@@ -37,11 +40,15 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.ui.Splitter;
 import com.intellij.openapi.util.IconLoader;
 import icons.StudioIcons;
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import javax.swing.*;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.KeyStroke;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -49,6 +56,8 @@ public class MainMemoryProfilerStageView extends BaseStreamingMemoryProfilerStag
   private static Logger getLogger() {
     return Logger.getInstance(MainMemoryProfilerStageView.class);
   }
+  private static final String SHOW_PROFILEABLE_MESSAGE = "profileable.memory.message";
+  private static final String FORCE_GARBAGE_COLLECTION = "Force garbage collection";
 
   private final MemoryProfilerStageLayout myLayout;
 
@@ -90,10 +99,11 @@ public class MainMemoryProfilerStageView extends BaseStreamingMemoryProfilerStag
       getStage().getStudioProfilers().getIdeServices().getFeatureTracker().trackForceGc();
     });
     myForceGarbageCollectionAction =
-      new DefaultContextMenuItem.Builder("Force garbage collection")
+      new DefaultContextMenuItem.Builder(FORCE_GARBAGE_COLLECTION)
         .setContainerComponent(getComponent())
         .setIcon(myForceGarbageCollectionButton.getIcon())
         .setActionRunnable(() -> myForceGarbageCollectionButton.doClick(0))
+        .setEnableBooleanSupplier(() -> getGcSupportStatus().isSupported)
         .setKeyStrokes(KeyStroke.getKeyStroke(KeyEvent.VK_G, AdtUiUtils.getActionMask())).build();
     myForceGarbageCollectionButton.setToolTipText(myForceGarbageCollectionAction.getDefaultToolTipText());
 
@@ -106,15 +116,17 @@ public class MainMemoryProfilerStageView extends BaseStreamingMemoryProfilerStag
       .onChange(CaptureSelectionAspect.CURRENT_LOADED_CAPTURE, this::captureObjectFinishedLoading)
       .onChange(CaptureSelectionAspect.CURRENT_CAPTURE_ELAPSED_TIME, this::updateCaptureElapsedTime);
 
-    Runnable toggleRecordingView = () ->
+    Runnable onSessionChanged = () -> {
       myRecordingOptionsView.setEnabled(getStage().getStudioProfilers().getSessionsManager().isSessionAlive());
+      updateGcButton();
+    };
     getStage().getStudioProfilers().getSessionsManager().addDependency(this)
-      .onChange(SessionAspect.SELECTED_SESSION, toggleRecordingView);
+      .onChange(SessionAspect.SELECTED_SESSION, onSessionChanged);
 
     captureObjectChanged();
     allocationTrackingChanged();
     buildContextMenu();
-    toggleRecordingView.run();
+    onSessionChanged.run();
   }
 
   @Override
@@ -151,14 +163,23 @@ public class MainMemoryProfilerStageView extends BaseStreamingMemoryProfilerStag
     panel.add(toolbar, BorderLayout.WEST);
     toolbar.removeAll();
     toolbar.add(myForceGarbageCollectionButton);
-    if (getStage().isLiveAllocationTrackingSupported() &&
-        getStage().getStudioProfilers().getIdeServices().getFeatureConfig().isLiveAllocationsSamplingEnabled()) {
+    updateGcButton();
+    if (getStage().isLiveAllocationTrackingSupported()) {
       if (getStage().isNativeAllocationSamplingEnabled()) {
         toolbar.add(getCaptureElapsedTimeLabel());
       }
     }
     else {
       toolbar.add(getCaptureElapsedTimeLabel());
+    }
+    if (getStage().getStudioProfilers().getSelectedSessionSupportLevel() == SupportLevel.PROFILEABLE) {
+      // add banner to outer panel's center so it can stretch,
+      // rather than the toolbar's layout, which makes it wrap to just enough width
+      panel.add(DismissibleMessage.of(
+        getStage().getStudioProfilers(),
+        SHOW_PROFILEABLE_MESSAGE,
+        "Some features are disabled for profileable processes.",
+        SupportLevel.DOC_LINK));
     }
     return panel;
   }
@@ -341,5 +362,31 @@ public class MainMemoryProfilerStageView extends BaseStreamingMemoryProfilerStag
     getComponent().removeAll();
     myHeapDumpLoadingPanel.setChildComponent(null);
     getComponent().add(myLayout.getComponent());
+  }
+
+  private GcSupportStatus getGcSupportStatus() {
+    StudioProfilers profilers = getStage().getStudioProfilers();
+    return !profilers.getSessionsManager().isSessionAlive() ? GcSupportStatus.SESSION_DEAD
+           : profilers.getSelectedSessionSupportLevel().isFeatureSupported(SupportLevel.Feature.MEMORY_GC) ? GcSupportStatus.ENABLED
+           : GcSupportStatus.PROFILEABLE_PROCESS;
+  }
+
+  private void updateGcButton() {
+    GcSupportStatus gcSupportStatus = getGcSupportStatus();
+    myForceGarbageCollectionButton.setEnabled(gcSupportStatus.isSupported);
+    myForceGarbageCollectionButton.setToolTipText(gcSupportStatus.message);
+  }
+
+  enum GcSupportStatus {
+    ENABLED(true, FORCE_GARBAGE_COLLECTION),
+    SESSION_DEAD(false, "Forcing garbage collection is unavailable for ended sessions"),
+    PROFILEABLE_PROCESS(false, "Forcing garbage collection is not supported for profileable processes");
+
+    public final boolean isSupported;
+    public final String message;
+    GcSupportStatus(boolean isSupported, String message) {
+      this.isSupported = isSupported;
+      this.message = message;
+    }
   }
 }

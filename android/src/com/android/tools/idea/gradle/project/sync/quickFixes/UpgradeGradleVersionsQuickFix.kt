@@ -17,16 +17,14 @@ package com.android.tools.idea.gradle.project.sync.quickFixes
 
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.concurrency.AndroidExecutors
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.idea.issues.DescribedBuildIssueQuickFix
-import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeRefactoringProcessor
 import com.android.tools.idea.gradle.project.upgrade.AndroidPluginVersionUpdater
-import com.android.tools.idea.gradle.project.upgrade.showAndGetAgpUpgradeDialog
+import com.android.tools.idea.gradle.project.upgrade.AssistantInvoker
 import com.android.tools.idea.gradle.util.GradleUtil
 import com.google.common.annotations.VisibleForTesting
 import com.google.wireless.android.sdk.stats.GradleSyncStats
-import com.intellij.openapi.actionSystem.DataProvider
+import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -51,13 +49,13 @@ class UpgradeGradleVersionsQuickFix(val gradleVersion: GradleVersion,
    *
    * @return A [CompletableFuture] that will be a [Boolean], indicating whether the changes were applied or not.
    */
-  override fun runQuickFix(project: Project, dataProvider: DataProvider): CompletableFuture<*> {
+  override fun runQuickFix(project: Project, dataProvider: DataContext): CompletableFuture<*> {
     val future = CompletableFuture<Any>()
     val runnable = Runnable {
       AndroidExecutors.getInstance().ioThreadExecutor.execute {
         var changesDone = false
         val currentAgpVersion = GradleUtil.getAndroidGradleModelVersionInUse(project)
-        if ((currentAgpVersion == null) || (!StudioFlags.AGP_UPGRADE_ASSISTANT.get())) {
+        if (currentAgpVersion == null) {
           val updater = AndroidPluginVersionUpdater.getInstance(project)
           if (updater.updatePluginVersion(agpVersion, gradleVersion)) {
             changesDone = true
@@ -66,10 +64,11 @@ class UpgradeGradleVersionsQuickFix(val gradleVersion: GradleVersion,
           }
         }
         else {
-          val processor = AgpUpgradeRefactoringProcessor(project, currentAgpVersion, agpVersion)
+          val assistantInvoker = project.getService(AssistantInvoker::class.java)
+          val processor = assistantInvoker.createProcessor(project, currentAgpVersion, agpVersion)
           val runProcessor =
             if ((!isUnitTestMode()) || (showDialogResultForTest == null))
-              showAndGetAgpUpgradeDialog(processor)
+              assistantInvoker.showAndGetAgpUpgradeDialog(processor)
             else
               showDialogResultForTest!!
           if (runProcessor) {

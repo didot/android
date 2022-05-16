@@ -54,7 +54,6 @@ import com.android.tools.idea.common.model.NlComponent;
 import com.android.tools.idea.common.scene.SceneComponent;
 import com.android.tools.idea.common.surface.DesignSurface;
 import com.android.tools.idea.configurations.ConfigurationManager;
-import com.android.tools.idea.ui.resourcechooser.common.ResourcePickerSources;
 import com.android.tools.idea.ui.resourcechooser.util.ResourceChooserHelperKt;
 import com.android.tools.idea.ui.resourcemanager.ResourcePickerDialog;
 import com.android.tools.idea.uibuilder.actions.ChainStyleViewActions;
@@ -92,11 +91,18 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.awt.RelativePoint;
-import com.intellij.util.ui.JBUI;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.LafIconLookup;
-import icons.AndroidIcons;
 import icons.StudioIcons;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
@@ -110,7 +116,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.LookAndFeel;
+import javax.swing.Timer;
+import javax.swing.UIManager;
 import org.intellij.lang.annotations.JdkConstants.InputEventMask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -1162,7 +1171,7 @@ public class CommonActions {
           @Override
           public void paintIcon(Component c, Graphics g, int x, int y) {
             g.setColor(JBColor.foreground());
-            g.setFont(g.getFont().deriveFont(Font.PLAIN, JBUI.scaleFontSize(DEFAULT_ICON_FONT_SIZE)));
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, JBUIScale.scaleFontSize(DEFAULT_ICON_FONT_SIZE)));
             String m = myPreviousDisplay;
             FontMetrics metrics = g.getFontMetrics();
             int strWidth = metrics.stringWidth(m);
@@ -1178,12 +1187,12 @@ public class CommonActions {
 
           @Override
           public int getIconWidth() {
-            return JBUI.scale(DEFAULT_ICON_WIDTH);
+            return JBUIScale.scale(DEFAULT_ICON_WIDTH);
           }
 
           @Override
           public int getIconHeight() {
-            return JBUI.scale(DEFAULT_ICON_HEIGHT);
+            return JBUIScale.scale(DEFAULT_ICON_HEIGHT);
           }
         };
       }

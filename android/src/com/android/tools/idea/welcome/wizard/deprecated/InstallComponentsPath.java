@@ -27,14 +27,16 @@ import com.android.repository.impl.meta.TypeDetails;
 import com.android.sdklib.AndroidVersion;
 import com.android.sdklib.repository.AndroidSdkHandler;
 import com.android.sdklib.repository.meta.DetailsTypes;
+import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.gradle.util.EmbeddedDistributionPaths;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
+import com.android.tools.idea.progress.StudioProgressRunner;
 import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.sdk.SdkMerger;
 import com.android.tools.idea.sdk.StudioDownloader;
 import com.android.tools.idea.sdk.StudioSettingsController;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
-import com.android.tools.idea.sdk.progress.StudioProgressRunner;
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils;
+import com.android.tools.idea.sdk.wizard.legacy.LicenseAgreementStep;
 import com.android.tools.idea.ui.ApplicationUtils;
 import com.android.tools.idea.welcome.SdkLocationUtils;
 import com.android.tools.idea.welcome.config.AndroidFirstRunPersistentData;
@@ -62,12 +64,15 @@ import com.android.tools.idea.wizard.dynamic.ScopedStateStore;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.intellij.execution.ui.ConsoleViewContentType;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ApplicationNamesInfo;
 import com.intellij.openapi.application.ModalityState;
+import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.projectRoots.Sdk;
+import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.util.io.FileUtil;
 import java.io.File;
 import java.io.IOException;
@@ -79,6 +84,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -99,6 +105,7 @@ public class InstallComponentsPath extends DynamicWizardPath implements LongRunn
   @NotNull private ComponentInstaller myComponentInstaller;
   private final boolean myInstallUpdates;
   private SdkComponentsStep myComponentsStep;
+  @Nullable private LicenseAgreementStep myLicenseAgreementStep;
 
   public InstallComponentsPath(@NotNull FirstRunWizardMode mode,
                                @NotNull File sdkLocation,
@@ -191,7 +198,12 @@ public class InstallComponentsPath extends DynamicWizardPath implements LongRunn
     assert location != null;
 
     myState.put(WizardConstants.KEY_SDK_INSTALL_LOCATION, location.getAbsolutePath());
-    Path file = EmbeddedDistributionPaths.getInstance().tryToGetEmbeddedJdkPath();
+    Path file = null;
+    // Game tools does not contain embedded JDK, trying to get it prints spurious
+    // exceptions to the log.
+    if (!IdeInfo.getInstance().isGameTools()) {
+      file = EmbeddedDistributionPaths.getInstance().tryToGetEmbeddedJdkPath();
+    }
     if (file != null) {
       myState.put(WizardConstants.KEY_JDK_LOCATION, file.toString());
     }
@@ -222,6 +234,13 @@ public class InstallComponentsPath extends DynamicWizardPath implements LongRunn
 
       addStep(new InstallSummaryStep(FirstRunWizard.KEY_CUSTOM_INSTALL, WizardConstants.KEY_SDK_INSTALL_LOCATION,
                                      WizardConstants.KEY_JDK_LOCATION, supplier));
+
+      Supplier<List<String>> installRequests = () -> {
+        Collection<RemotePackage> remotePackages = supplier.get();
+        return remotePackages == null ? null : remotePackages.stream().map(it -> it.getPath()).collect(Collectors.toList());
+      };
+      myLicenseAgreementStep = new LicenseAgreementStep(myWizard.getDisposable(), installRequests, () -> myLocalHandler);
+      addStep(myLicenseAgreementStep);
     }
   }
 
@@ -233,7 +252,7 @@ public class InstallComponentsPath extends DynamicWizardPath implements LongRunn
       if (sdkPath != null) {
         File sdkLocation = new File(sdkPath);
         if (!FileUtil.filesEqual(myLocalHandler.getLocation().toFile(), sdkLocation)) {
-          myLocalHandler = AndroidSdkHandler.getInstance(AndroidLocationsSingleton.INSTANCE, myLocalHandler.getFileOp().toPath(sdkLocation));
+          myLocalHandler = AndroidSdkHandler.getInstance(AndroidLocationsSingleton.INSTANCE, myLocalHandler.toCompatiblePath(sdkLocation));
           StudioLoggerProgressIndicator progress = new StudioLoggerProgressIndicator(getClass());
           myComponentsStep.startLoading();
           myLocalHandler.getSdkManager(progress)
@@ -244,6 +263,9 @@ public class InstallComponentsPath extends DynamicWizardPath implements LongRunn
                   }), ImmutableList.of(() -> myComponentsStep.loadingError()),
                   new StudioProgressRunner(false, false, "Finding Available SDK Components", getProject()), new StudioDownloader(),
                   StudioSettingsController.getInstance());
+          if (myLicenseAgreementStep != null) {
+            myLicenseAgreementStep.reload();
+          }
         }
       }
     }
@@ -269,10 +291,19 @@ public class InstallComponentsPath extends DynamicWizardPath implements LongRunn
     InstallComponentsOperation install =
       new InstallComponentsOperation(installContext, selectedComponents, myComponentInstaller, INSTALL_COMPONENTS_OPERATION_PROGRESS_SHARE);
 
+    if (myLicenseAgreementStep != null) {
+      myLicenseAgreementStep.performFinishingActions();
+    }
+
     Sdk jdk = null;
     String jdkLocation = myState.get(KEY_JDK_LOCATION);
     if (jdkLocation != null) {
-      jdk = IdeSdks.getInstance().setJdkPath(Paths.get(jdkLocation));
+      // Can be called from a popup, needs to be invoked as ModalityState.any(). See {@link ModalityState} documentation.
+      final Ref<Sdk> result = Ref.create();
+      ApplicationManager.getApplication().invokeAndWait(() -> WriteAction.run(
+        () -> result.set(IdeSdks.getInstance().setJdkPath(Paths.get(jdkLocation)))
+      ), ModalityState.any());
+      jdk = result.get();
     }
     SetPreference setPreference = new SetPreference(myMode.getInstallerTimestamp(),
                                                     ModalityState.stateForComponent(myWizard.getContentPane()),

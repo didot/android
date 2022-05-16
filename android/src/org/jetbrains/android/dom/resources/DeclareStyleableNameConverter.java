@@ -17,8 +17,6 @@ import com.intellij.psi.ResolveResult;
 import com.intellij.psi.impl.source.resolve.ResolveCache;
 import com.intellij.psi.search.searches.ClassInheritorsSearch;
 import com.intellij.util.Processor;
-import java.util.HashSet;
-import com.intellij.util.xml.*;
 import com.intellij.util.xml.ConvertContext;
 import com.intellij.util.xml.Converter;
 import com.intellij.util.xml.CustomReferenceConverter;
@@ -80,7 +78,7 @@ public class DeclareStyleableNameConverter extends Converter<String> implements 
     @Override
     public ResolveResult[] multiResolve(boolean incompleteCode) {
       return ResolveCache.getInstance(myElement.getProject())
-        .resolveWithCaching(this, new ResolveCache.PolyVariantResolver<MyReference>() {
+        .resolveWithCaching(this, new ResolveCache.PolyVariantResolver<>() {
           @NotNull
           @Override
           public ResolveResult[] resolve(@NotNull MyReference reference, boolean incompleteCode) {
@@ -111,7 +109,7 @@ public class DeclareStyleableNameConverter extends Converter<String> implements 
       final Set<Object> shortNames = new HashSet<>();
 
       ClassInheritorsSearch.search(viewClass, myFacet.getModule().getModuleWithDependenciesScope(), true).
-        forEach(new Processor<PsiClass>() {
+        forEach(new Processor<>() {
           @Override
           public boolean process(PsiClass aClass) {
             final String name = aClass.getName();

@@ -50,9 +50,9 @@ import com.android.tools.profilers.ProfilerClient;
 import com.android.tools.profilers.ProfilersTestData;
 import com.android.tools.profilers.RecordingOptionsModel;
 import com.android.tools.profilers.RecordingOptionsView;
-import com.android.tools.profilers.ReferenceWalker;
 import com.android.tools.profilers.StudioProfilers;
 import com.android.tools.profilers.StudioProfilersView;
+import com.android.tools.profilers.SupportLevel;
 import com.android.tools.profilers.cpu.FakeCpuService;
 import com.android.tools.profilers.event.FakeEventService;
 import com.android.tools.profilers.memory.adapters.CaptureObject;
@@ -66,6 +66,7 @@ import com.android.tools.profilers.memory.adapters.classifiers.ClassifierSet;
 import com.android.tools.profilers.memory.adapters.classifiers.HeapSet;
 import com.android.tools.profilers.network.FakeNetworkService;
 import com.android.tools.profilers.sessions.SessionsManager;
+import com.android.tools.tests.memory.ReferenceWalker;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -77,6 +78,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -356,7 +358,6 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
     assertThat(stageView.getCaptureElapsedTimeLabel().getText()).isEmpty();
   }
 
-  @Ignore("b/158253502")
   @Test
   public void testLoadingTooltipViewWithStrongReference() throws Exception {
     MainMemoryProfilerStageView stageView = (MainMemoryProfilerStageView)myProfilersView.getStageView();
@@ -445,7 +446,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
     // The '.' in the file name from the following line is useful to test we can handle file names with
     // multiple dots correctly.
     File file = FileUtil.createTempFile("fake.heap.dump", ".hprof", false);
-    PrintWriter printWriter = new PrintWriter(file);
+    PrintWriter printWriter = new PrintWriter(file, StandardCharsets.UTF_8);
     printWriter.write(data);
     printWriter.close();
 
@@ -478,7 +479,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
           // Create a temp file
           String data = "random_string_~!@#$%^&*()_+";
           File file = FileUtil.createTempFile("fake_heap_dump", ".hprof", false);
-          PrintWriter printWriter = new PrintWriter(file);
+          PrintWriter printWriter = new PrintWriter(file, StandardCharsets.UTF_8);
           printWriter.write(data);
           printWriter.close();
           // Import heap dump from file
@@ -521,7 +522,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
           // Create a temp file
           String data = "random_string_~!@#$%^&*()_+";
           File file = FileUtil.createTempFile("fake_heap_dump", ".hprof", false);
-          PrintWriter printWriter = new PrintWriter(file);
+          PrintWriter printWriter = new PrintWriter(file, StandardCharsets.UTF_8);
           printWriter.write(data);
           printWriter.close();
           // Import heap dump from file
@@ -631,7 +632,6 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
   @Test
   public void testNativeAllocationContextMenu() {
-    myIdeProfilerServices.enableNativeMemorySampling(true);
     // Setup Q Device.
     Common.Device device = makeDevice("Test", AndroidVersion.VersionCodes.Q);
     myTransportService.addDevice(device);
@@ -663,7 +663,6 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
   @Test
   public void testNativeAllocationTooltipForX86() {
-    myIdeProfilerServices.enableNativeMemorySampling(true);
     // Test toolbar configuration for O+;
     // Adding AllocationSamplingRateEvent to make getStage().useLiveAllocationTracking() return true;
     myTransportService.addEventToStream(
@@ -684,7 +683,6 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
   @Test
   public void testWhenSessionDiesRecordingOptionsViewIsDisabled() {
-    myIdeProfilerServices.enableNativeMemorySampling(true);
     startWithNewDevice("Test", AndroidVersion.VersionCodes.Q);
     RecordingOptionsView view = new MainMemoryProfilerStageView(myProfilersView, myStage).getRecordingOptionsView();
     myStage.toggleNativeAllocationTracking();
@@ -700,8 +698,6 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
   @Test
   public void testToolbarForNativeAllocations() {
-    myIdeProfilerServices.enableLiveAllocationTracking(true);
-    myIdeProfilerServices.enableNativeMemorySampling(true);
     MainMemoryProfilerStageView view1 = new MainMemoryProfilerStageView(myProfilersView, myStage);
     JPanel toolbar = (JPanel)view1.getToolbar().getComponent(0);
     // Test toolbar configuration for pre-Q (FAKE_DEVICE is O by default).
@@ -722,8 +718,6 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
   @Test
   public void testToolbar() {
-    myIdeProfilerServices.enableLiveAllocationTracking(true);
-
     // Test toolbar configuration for pre-O.
     startWithNewDevice("PreO", AndroidVersion.VersionCodes.N);
     MainMemoryProfilerStageView view1 = new MainMemoryProfilerStageView(myProfilersView, myStage);
@@ -747,7 +741,8 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
   public void testGcDurationAttachment() {
     Common.Device device =
       Common.Device.newBuilder().setDeviceId(1).setFeatureLevel(AndroidVersion.VersionCodes.O).setState(Common.Device.State.ONLINE).build();
-    Common.Process process = Common.Process.newBuilder().setDeviceId(1).setPid(2).setState(Common.Process.State.ALIVE).build();
+    Common.Process process = Common.Process.newBuilder().setDeviceId(1).setPid(2).setState(Common.Process.State.ALIVE)
+      .setExposureLevel(Common.Process.ExposureLevel.DEBUGGABLE).build();
 
     // Set up test data from range 0us-10us. Note that the proto timestamps are in nanoseconds.
     myTransportService.addEventToStream(
@@ -882,8 +877,27 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
   }
 
   @Test
+  public void gcDisabledForDeadSession() {
+    myProfilers.setStage(new NullMonitorStage(myProfilers));
+    myProfilers.getSessionsManager().endCurrentSession();
+    myProfilers.setStage(new MainMemoryProfilerStage(myProfilers, myMockLoader));
+    myTimer.tick(FakeTimer.ONE_SECOND_IN_NS);
+    MainMemoryProfilerStageView view = (MainMemoryProfilerStageView)myProfilersView.getStageView();
+    assertThat(view.getGarbageCollectionButtion().isEnabled()).isFalse();
+  }
+
+  @Test
+  public void gcEnabledForLiveDebuggableProcess() {
+    assumeTrue(myProfilers.getSelectedSessionSupportLevel() == SupportLevel.DEBUGGABLE);
+    myProfilers.setStage(new NullMonitorStage(myProfilers));
+    myProfilers.setStage(new MainMemoryProfilerStage(myProfilers, myMockLoader));
+    myTimer.tick(FakeTimer.ONE_SECOND_IN_NS);
+    MainMemoryProfilerStageView view = (MainMemoryProfilerStageView)myProfilersView.getStageView();
+    assertThat(view.getGarbageCollectionButtion().isEnabled()).isTrue();
+  }
+
+  @Test
   public void uiInSyncWithStartupNativeRecording() {
-    myIdeProfilerServices.enableNativeMemorySampling(true);
     startWithNewDevice("Test", AndroidVersion.VersionCodes.Q);
     assertThat(myStage.isNativeAllocationSamplingEnabled()).isTrue();
     myStage.nativeAllocationTrackingStart(Memory.MemoryNativeTrackingData.newBuilder()
@@ -962,7 +976,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
     Object selectedClassNode = classifierTree.getLastSelectedPathComponent();
     assertThat(selectedClassNode).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)selectedClassNode).getAdapter()).isInstanceOf(ClassSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)selectedClassNode).getAdapter()).isInstanceOf(ClassSet.class);
     //noinspection unchecked
     MemoryObjectTreeNode<ClassSet> selectedClassObject = (MemoryObjectTreeNode<ClassSet>)selectedClassNode;
     assertThat(selectedClassObject.getAdapter()).isEqualTo(expectedClassSet);
@@ -979,7 +993,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
     Object selectedInstanceNode = classSetTree.getLastSelectedPathComponent();
     assertThat(selectedInstanceNode).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)selectedInstanceNode).getAdapter()).isInstanceOf(InstanceObject.class);
+    assertThat(((MemoryObjectTreeNode<?>)selectedInstanceNode).getAdapter()).isInstanceOf(InstanceObject.class);
     //noinspection unchecked
     MemoryObjectTreeNode<InstanceObject> selectedInstanceObject = (MemoryObjectTreeNode<InstanceObject>)selectedInstanceNode;
     assertThat(selectedInstanceObject.getAdapter()).isEqualTo(expectedInstanceObject);
@@ -1037,7 +1051,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
     Object selectedClassNode = classifierTree.getLastSelectedPathComponent();
     assertThat(selectedClassNode).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)selectedClassNode).getAdapter()).isInstanceOf(ClassSet.class);
+    assertThat(((MemoryObjectTreeNode<?>)selectedClassNode).getAdapter()).isInstanceOf(ClassSet.class);
     //noinspection unchecked
     MemoryObjectTreeNode<ClassSet> selectedClassObject = (MemoryObjectTreeNode<ClassSet>)selectedClassNode;
     assertThat(selectedClassObject.getAdapter()).isEqualTo(expectedClassSet);
@@ -1054,7 +1068,7 @@ public final class MainMemoryProfilerStageViewTest extends MemoryProfilerTestBas
 
     Object selectedInstanceNode = classSetTree.getLastSelectedPathComponent();
     assertThat(selectedInstanceNode).isInstanceOf(MemoryObjectTreeNode.class);
-    assertThat(((MemoryObjectTreeNode)selectedInstanceNode).getAdapter()).isInstanceOf(InstanceObject.class);
+    assertThat(((MemoryObjectTreeNode<?>)selectedInstanceNode).getAdapter()).isInstanceOf(InstanceObject.class);
     //noinspection unchecked
     MemoryObjectTreeNode<InstanceObject> selectedInstanceObject = (MemoryObjectTreeNode<InstanceObject>)selectedInstanceNode;
     assertThat(selectedInstanceObject.getAdapter()).isEqualTo(expectedInstanceObject);

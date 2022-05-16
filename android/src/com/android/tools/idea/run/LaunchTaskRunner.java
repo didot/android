@@ -17,7 +17,7 @@ package com.android.tools.idea.run;
 
 import com.android.ddmlib.IDevice;
 import com.android.sdklib.AndroidVersion;
-import com.android.tools.idea.run.tasks.DebugConnectorTask;
+import com.android.tools.idea.run.tasks.ConnectDebuggerTask;
 import com.android.tools.idea.run.tasks.LaunchContext;
 import com.android.tools.idea.run.tasks.LaunchResult;
 import com.android.tools.idea.run.tasks.LaunchTask;
@@ -117,7 +117,7 @@ public class LaunchTaskRunner extends Task.Backgroundable {
       AndroidVersion androidVersion = myDeviceFutures.getDevices().size() == 1
                                       ? myDeviceFutures.getDevices().get(0).getVersion()
                                       : null;
-      DebugConnectorTask debugSessionTask = isSwap() ? null : myLaunchTasksProvider.getConnectDebuggerTask(launchStatus, androidVersion);
+      ConnectDebuggerTask debugSessionTask = isSwap() ? null : myLaunchTasksProvider.getConnectDebuggerTask(launchStatus, androidVersion);
 
       if (debugSessionTask != null) {
         if (listenableDeviceFutures.size() != 1) {
@@ -164,7 +164,7 @@ public class LaunchTaskRunner extends Task.Backgroundable {
 
       myLaunchTasksProvider.fillStats(myStats);
 
-      // Perform launch tasks for each device in parallel.
+      // Create launch tasks for each device.
       Map<IDevice, List<LaunchTask>> launchTaskMap = new HashMap<>(devices.size());
       for (IDevice device : devices) {
         try {
@@ -189,26 +189,37 @@ public class LaunchTaskRunner extends Task.Backgroundable {
         .mapToInt(launchTasks -> getTotalDuration(launchTasks, debugSessionTask))
         .sum();
 
+      // A list of devices that we have launched application successfully.
+      List<IDevice> launchedDevices = new ArrayList<>();
+
       for (Map.Entry<IDevice, List<LaunchTask>> entry : launchTaskMap.entrySet()) {
-        try {
-          boolean isSucceeded = runLaunchTasks(
-            entry.getValue(),
-            indicator,
-            new LaunchContext(myProject, myLaunchInfo.executor, entry.getKey(), launchStatus, consolePrinter, myProcessHandler),
-            destroyProcessOnCancellation,
-            completedStepsCount,
-            totalScheduledStepsCount);
-          if (!isSucceeded) {
-            return;
-          }
-        } catch (CancellationException e) {
-          launchStatus.terminateLaunch(e.getMessage(), !isSwap());
-          return;
+        IDevice device = entry.getKey();
+        boolean isSucceeded = runLaunchTasks(
+          entry.getValue(),
+          new LaunchContext(myProject, myLaunchInfo.executor, device, launchStatus, consolePrinter, myProcessHandler, indicator),
+          destroyProcessOnCancellation,
+          completedStepsCount,
+          totalScheduledStepsCount
+        );
+        if (isSucceeded) {
+          launchedDevices.add(device);
+        } else {
+          // Manually detach a device here because devices may not be detached automatically when
+          // AndroidProcessHandler is instantiated with autoTerminate = false. For example,
+          // AndroidTestRunConfiguration sets autoTerminate false because the target application
+          // process may be killed and re-spawned for each test cases with Android test orchestrator
+          // enabled. Please also see documentation in AndroidProcessHandler for more details.
+          detachDevice(device);
         }
       }
 
+      if (launchedDevices.isEmpty()) {
+        launchStatus.terminateLaunch("Failed to launch an application on all devices", destroyProcessOnCancellation);
+        return;
+      }
+
       // A debug session task should be performed sequentially at the end.
-      for (IDevice device : devices) {
+      for (IDevice device : launchedDevices) {
         if (debugSessionTask != null) {
           indicator.setText(debugSessionTask.getDescription());
           debugSessionTask.perform(myLaunchInfo, device, launchStatus, consolePrinter);
@@ -223,12 +234,12 @@ public class LaunchTaskRunner extends Task.Backgroundable {
   }
 
   private boolean runLaunchTasks(@NotNull List<LaunchTask> launchTasks,
-                                 @NotNull ProgressIndicator indicator,
                                  @NotNull LaunchContext launchContext,
                                  boolean destroyProcessOnCancellation,
                                  @NotNull Ref<Integer> completedStepsCount,
                                  int totalScheduledStepsCount) {
     // Update the indicator progress.
+    ProgressIndicator indicator = launchContext.getProgressIndicator();
     indicator.setFraction(completedStepsCount.get().floatValue() / totalScheduledStepsCount);
     IDevice device = launchContext.getDevice();
     LaunchStatus launchStatus = launchContext.getLaunchStatus();
@@ -253,7 +264,7 @@ public class LaunchTaskRunner extends Task.Backgroundable {
         if (!success) {
           myErrorNotificationListener = result.getNotificationListener();
           myError = result.getError();
-          launchStatus.terminateLaunch(result.getConsoleError(), !isSwap());
+          launchContext.getConsolePrinter().stderr(result.getConsoleError());
 
           // Append a footer hyperlink, if one was provided.
           if (result.getConsoleHyperlinkInfo() != null) {
@@ -261,8 +272,7 @@ public class LaunchTaskRunner extends Task.Backgroundable {
                                      result.getConsoleHyperlinkInfo());
           }
 
-          notificationGroup.createNotification("Error", result.getError(), NotificationType.ERROR)
-            .setListener(myErrorNotificationListener)
+          notificationGroup.createNotification("Error", result.getError(), NotificationType.ERROR).setListener(myErrorNotificationListener)
             .setImportant(true).notify(myProject);
 
           // Show the tool window when we have an error.
@@ -273,7 +283,7 @@ public class LaunchTaskRunner extends Task.Backgroundable {
         }
 
         // Notify listeners of the deployment.
-        myProject.getMessageBus().syncPublisher(AppDeploymentListener.TOPIC).appDeployedToDevice(device, myProject);
+        myProject.getMessageBus().syncPublisher(DeviceHeadsUpListener.TOPIC).deviceNeedsAttention(device, myProject);
       }
 
       // Update the indicator progress.
@@ -286,6 +296,13 @@ public class LaunchTaskRunner extends Task.Backgroundable {
       .setImportant(false).notify(myProject);
 
     return true;
+  }
+
+  private void detachDevice(IDevice device) {
+    if (!isSwap() && myProcessHandler instanceof AndroidProcessHandler) {
+      AndroidProcessHandler androidProcessHandler = (AndroidProcessHandler) myProcessHandler;
+      androidProcessHandler.detachDevice(device);
+    }
   }
 
   private void printLaunchTaskStartedMessage(ConsolePrinter consolePrinter) {
@@ -373,7 +390,7 @@ public class LaunchTaskRunner extends Task.Backgroundable {
     return true;
   }
 
-  private static int getTotalDuration(@NotNull List<LaunchTask> launchTasks, @Nullable DebugConnectorTask debugSessionTask) {
+  private static int getTotalDuration(@NotNull List<LaunchTask> launchTasks, @Nullable ConnectDebuggerTask debugSessionTask) {
     int total = 0;
 
     for (LaunchTask task : launchTasks) {

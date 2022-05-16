@@ -19,6 +19,8 @@ import static com.android.AndroidProjectTypes.PROJECT_TYPE_LIBRARY;
 import static com.android.ide.common.rendering.api.ResourceNamespace.RES_AUTO;
 import static com.android.tools.idea.res.ModuleResourceRepositoryTest.assertHasExactResourceTypes;
 import static com.android.tools.idea.res.ResourcesTestsUtil.getSingleItem;
+import static com.android.tools.idea.testing.AndroidTestUtils.waitForUpdates;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.android.ide.common.rendering.api.ResourceValue;
 import com.android.ide.common.resources.ResourceItem;
@@ -42,7 +44,6 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.testFramework.fixtures.IdeaProjectTestFixture;
 import com.intellij.testFramework.fixtures.TestFixtureBuilder;
-import com.intellij.util.ui.UIUtil;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -52,7 +53,6 @@ import org.intellij.lang.annotations.Language;
 import org.jetbrains.android.AndroidTestCase;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.ResourceFolderManager;
-import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -76,7 +76,7 @@ public class ProjectResourceRepositoryTest extends AndroidTestCase {
    * <p>
    * Ensure that we invalidate the id cache when the file is rescanned but ids don't change.
    */
-  public void testInvalidateIds() {
+  public void testInvalidateIds() throws Exception {
     VirtualFile layoutFile = myFixture.copyFileToProject(LAYOUT, "res/layout/layout1.xml");
 
     VirtualFile res1 = myFixture.copyFileToProject(VALUES, "res/values/values.xml").getParent().getParent();
@@ -101,6 +101,7 @@ public class ProjectResourceRepositoryTest extends AndroidTestCase {
     ResourceItem item = getSingleItem(resources, ResourceType.ID, "btn_title_refresh");
 
     long generation = resources.getModificationCount();
+    int rescans = resources.getFileRescans();
     PsiDocumentManager documentManager = PsiDocumentManager.getInstance(getProject());
     Document document = documentManager.getDocument(layoutPsiFile);
     assertNotNull(document);
@@ -110,24 +111,21 @@ public class ProjectResourceRepositoryTest extends AndroidTestCase {
       document.deleteString(offset, offset + string.length());
       documentManager.commitDocument(document);
     });
-
-    assertTrue(ResourcesTestsUtil.isScanPending(resources, layoutPsiFile));
-    ApplicationManager.getApplication().invokeLater(() -> {
-      assertTrue(generation < resources.getModificationCount());
-      // Should still be defined:
-      assertTrue(resources.hasResources(RES_AUTO, ResourceType.ID, "btn_title_refresh"));
-      ResourceItem newItem = getSingleItem(resources, ResourceType.ID, "btn_title_refresh");
-      assertNotNull(newItem.getSource());
-      // However, should be a different item
-      assertNotSame(item, newItem);
-    });
-    UIUtil.dispatchAllInvocationEvents();
+    waitForUpdates(resources);
+    // Should still be defined:
+    assertTrue(resources.hasResources(RES_AUTO, ResourceType.ID, "btn_title_refresh"));
+    ResourceItem newItem = getSingleItem(resources, ResourceType.ID, "btn_title_refresh");
+    assertNotNull(newItem.getSource());
+    // However, should be a different item
+    assertNotSame(item, newItem);
+    assertThat(resources.getModificationCount()).isGreaterThan(generation);
+    assertThat(resources.getFileRescans()).isEqualTo(rescans + 1); // First edit is not incremental (file -> Psi).
   }
 
   // Regression test for https://code.google.com/p/android/issues/detail?id=57090
   public void testParents() {
     myFixture.copyFileToProject(LAYOUT, "res/layout/layout1.xml");
-    List<AndroidFacet> libraries = AndroidUtils.getAllAndroidDependencies(myModule, true);
+    List<AndroidFacet> libraries = AndroidDependenciesCache.getAllAndroidDependencies(myModule, true);
     assertEquals(2, libraries.size());
     ModuleRootModificationUtil.addDependency(libraries.get(0).getModule(), libraries.get(1).getModule());
 
@@ -197,7 +195,7 @@ public class ProjectResourceRepositoryTest extends AndroidTestCase {
     assertEquals(originalDirs.size() - 1, resources.getResourceDirs().size());
   }
 
-  public void testHasResourcesOfType() {
+  public void testHasResourcesOfType() throws Exception {
     // Test hasResourcesOfType merging (which may be optimized to be lighter-weight than map merging).
     VirtualFile res1 = myFixture.copyFileToProject(LAYOUT, "res/layout/layout.xml").getParent().getParent();
     VirtualFile res2 = myFixture.copyFileToProject(VALUES_OVERLAY1, "res2/values/values.xml").getParent().getParent();
@@ -225,6 +223,7 @@ public class ProjectResourceRepositoryTest extends AndroidTestCase {
     PsiFile psiValues3 = PsiManager.getInstance(getProject()).findFile(values3);
     assertNotNull(psiValues3);
     WriteCommandAction.runWriteCommandAction(null, psiValues3::delete);
+    waitForUpdates(resources);
     assertHasExactResourceTypes(resources, typesWithoutRes3);
   }
 
@@ -288,13 +287,13 @@ public class ProjectResourceRepositoryTest extends AndroidTestCase {
     // Note that these are currently direct dependencies only, so app.isDependsOn(sharedLib) is false
 
     // Test AndroidUtils#getallAndroidDependencies
-    List<AndroidFacet> appDependsOn = AndroidUtils.getAllAndroidDependencies(app, true);
+    List<AndroidFacet> appDependsOn = AndroidDependenciesCache.getAllAndroidDependencies(app, true);
     assertTrue(appDependsOn.contains(lib1Facet));
     assertTrue(appDependsOn.contains(lib2Facet));
     assertTrue(appDependsOn.contains(sharedLibFacet));
     assertFalse(appDependsOn.contains(appFacet));
 
-    List<AndroidFacet> lib1DependsOn = AndroidUtils.getAllAndroidDependencies(lib1, true);
+    List<AndroidFacet> lib1DependsOn = AndroidDependenciesCache.getAllAndroidDependencies(lib1, true);
     assertTrue(lib1DependsOn.contains(sharedLibFacet));
     assertFalse(lib1DependsOn.contains(appFacet));
     assertFalse(lib1DependsOn.contains(lib1Facet));
@@ -317,11 +316,6 @@ public class ProjectResourceRepositoryTest extends AndroidTestCase {
     assertNotNull(lib1Resources);
     assertNotNull(lib2Resources);
     assertNotSame(lib1Resources, lib2Resources);
-
-    assertFalse(ResourcesTestsUtil.isScanPending(lib1Resources, sharedLibValues));
-    assertFalse(ResourcesTestsUtil.isScanPending(lib1Resources, lib2Values));
-    assertFalse(ResourcesTestsUtil.isScanPending(lib2Resources, sharedLibValues));
-    assertFalse(ResourcesTestsUtil.isScanPending(lib2Resources, lib2Values));
 
     assertTrue(lib1Resources.hasResources(RES_AUTO, ResourceType.PLURALS, "my_plural"));
     assertTrue(lib1Resources.hasResources(RES_AUTO, ResourceType.STRING, "ellipsis"));

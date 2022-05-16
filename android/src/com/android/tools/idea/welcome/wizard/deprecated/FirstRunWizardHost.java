@@ -20,7 +20,6 @@ import com.android.tools.idea.welcome.wizard.StudioFirstRunWelcomeScreen;
 import com.android.tools.idea.wizard.WizardConstants;
 import com.android.tools.idea.wizard.dynamic.DynamicWizard;
 import com.android.tools.idea.wizard.dynamic.DynamicWizardHost;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Atomics;
 import com.intellij.ide.IdeBundle;
 import com.intellij.ide.ui.LafManager;
@@ -39,14 +38,30 @@ import com.intellij.openapi.wm.impl.welcomeScreen.WelcomeFrame;
 import com.intellij.ui.IdeBorderFactory;
 import com.intellij.util.ui.JBInsets;
 import com.intellij.util.ui.JBUI;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.Box;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -74,7 +89,7 @@ public class FirstRunWizardHost extends JPanel implements WelcomeScreen, Dynamic
    * Default minimum size is slightly less than 1366x768 at 200%
    */
   private final Dimension myMinimumWindowSize = JBUI.size(500, 350);
-  private Map<Action, JButton> myActionToButtonMap = Maps.newHashMap();
+  private Map<Action, JButton> myActionToButtonMap = new HashMap<>();
   private AtomicReference<ProgressIndicator> myCurrentProgressIndicator = Atomics.newReference();
   private boolean myIsActive;
 

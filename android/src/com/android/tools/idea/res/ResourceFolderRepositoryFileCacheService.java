@@ -21,6 +21,7 @@ import com.intellij.openapi.application.ApplicationManager;
  * Acquires a file cache instance for ResourceFolderRepository.
  */
 public class ResourceFolderRepositoryFileCacheService {
+
   static ResourceFolderRepositoryFileCache get() {
     return ApplicationManager.getApplication().getService(ResourceFolderRepositoryFileCache.class);
   }

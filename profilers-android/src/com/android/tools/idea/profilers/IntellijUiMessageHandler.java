@@ -19,7 +19,8 @@ import com.android.tools.profilers.UiMessageHandler;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.util.Consumer;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.JComponent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

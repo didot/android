@@ -63,9 +63,7 @@ class MemoryProfiler(profilers: StudioProfilers) : StudioProfiler(profilers) {
     myProfilers.addDependency(myAspectObserver).onChange(ProfilerAspect.AGENT, ::agentStatusChanged)
     sessionsManager.registerImportHandler("hprof", Consumer(::importHprof))
     sessionsManager.registerImportHandler("alloc", Consumer(::importLegacyAllocations))
-    if (profilers.ideServices.featureConfig.isNativeMemorySampleEnabled) {
-      sessionsManager.registerImportHandler("heapprofd", Consumer(::importHeapprofd))
-    }
+    sessionsManager.registerImportHandler("heapprofd", Consumer(::importHeapprofd))
     myProfilers.registerSessionChangeListener(Common.SessionMetaData.SessionType.MEMORY_CAPTURE) {
       val stage = MainMemoryProfilerStage(myProfilers)
       myProfilers.stage = stage
@@ -97,15 +95,12 @@ class MemoryProfiler(profilers: StudioProfilers) : StudioProfiler(profilers) {
     when {
       // Early return if the session is not valid/alive.
       Common.Session.getDefaultInstance() == session || session.endTimestamp != Long.MAX_VALUE -> {}
-      // Early return if live allocation is not enabled for the session.
-      !sessionsManager.selectedSessionMetaData.liveAllocationEnabled -> {}
       // Early return if JVMTI agent is not attached.
       !myProfilers.isAgentAttached -> {}
       else -> try {
-        // Attempts to stop an existing tracking session first.
+        // Attempts to stop an existing tracking session.
         // This should only happen if we are restarting Studio and reconnecting to an app that already has an agent attached.
         trackAllocations(myProfilers, session, false, null)
-        trackAllocations(myProfilers, session, true, null)
       }
       catch (e: StatusRuntimeException) {
         logger.info(e)

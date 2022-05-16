@@ -16,13 +16,13 @@
 package com.android.tools.idea.gradle.actions;
 
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.android.tools.idea.testing.IdeComponents;
 import com.intellij.notification.Notification;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDialog;
 import com.intellij.openapi.fileChooser.FileChooserFactory;
@@ -31,8 +31,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.PlatformTestCase;
-import com.intellij.testFramework.ServiceContainerUtil;
-import java.awt.*;
+import java.awt.Component;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -58,7 +57,8 @@ public class OpenBundleAnalyzerTest extends PlatformTestCase {
 
   public void testOpenAnalyzerOpenDir() {
     VirtualFile target = findFileByIoFile(myBundle, true);
-    ServiceContainerUtil.replaceService(ApplicationManager.getApplication(), FileChooserFactory.class, new FileChooserFactoryImpl() {
+    IdeComponents ideComponents = new IdeComponents(getProject());
+    ideComponents.replaceApplicationService(FileChooserFactory.class, new FileChooserFactoryImpl() {
       @NotNull
       @Override
       public FileChooserDialog createFileChooser(@NotNull FileChooserDescriptor descriptor,
@@ -68,7 +68,7 @@ public class OpenBundleAnalyzerTest extends PlatformTestCase {
         when(dialog.choose(eq(myProject), any())).thenReturn(new VirtualFile[]{target});
         return dialog;
       }
-    }, getTestRootDisposable());
+    });
 
     Map<String, File> bundlePathsMap = new HashMap<>();
     bundlePathsMap.put("fooApp", myTmpDir);

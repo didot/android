@@ -21,8 +21,10 @@ import com.android.projectmodel.ExternalAndroidLibrary
 import com.android.tools.idea.gradle.dependencies.GradleDependencyManager
 import com.android.tools.idea.gradle.model.IdeAndroidGradlePluginProjectFlags
 import com.android.tools.idea.gradle.model.IdeAndroidLibrary
+import com.android.tools.idea.gradle.model.IdeAndroidProjectType
 import com.android.tools.idea.gradle.model.IdeDependencies
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.gradle.util.DynamicAppUtils
 import com.android.tools.idea.project.getPackageName
 import com.android.tools.idea.projectsystem.AndroidModuleSystem
@@ -46,6 +48,7 @@ import com.android.tools.idea.projectsystem.getFlavorAndBuildTypeManifestsOfLibs
 import com.android.tools.idea.projectsystem.getForFile
 import com.android.tools.idea.projectsystem.getTransitiveNavigationFiles
 import com.android.tools.idea.projectsystem.sourceProviders
+import com.android.tools.idea.res.AndroidDependenciesCache
 import com.android.tools.idea.res.MainContentRootSampleDataDirectoryProvider
 import com.android.tools.idea.run.ApplicationIdProvider
 import com.android.tools.idea.run.GradleApplicationIdProvider
@@ -59,10 +62,9 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.android.dom.manifest.getPrimaryManifestXml
 import org.jetbrains.android.facet.AndroidFacet
-import org.jetbrains.android.util.AndroidUtils
 import java.io.File
 import java.nio.file.Path
-import java.util.*
+import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 /**
@@ -103,16 +105,19 @@ class GradleModuleSystem(
 
   override fun getResolvedDependency(coordinate: GradleCoordinate, scope: DependencyScopeType): GradleCoordinate? {
     return getDependenciesFor(module, scope)
-      ?.let { it.androidLibraries.asSequence() + it.javaLibraries.asSequence()}
+      ?.let { it.androidLibraries.asSequence() + it.javaLibraries.asSequence() }
       ?.mapNotNull { GradleCoordinate.parseCoordinateString(it.artifactAddress) }
       ?.find { it.matches(coordinate) }
   }
 
   override fun getDependencyPath(coordinate: GradleCoordinate): Path? {
     return getDependenciesFor(module, DependencyScopeType.MAIN)
-      ?.let { it.androidLibraries.asSequence() + it.javaLibraries.asSequence()}
-      ?.find { GradleCoordinate.parseCoordinateString(it.artifactAddress)?.matches(coordinate) ?: false }
-      ?.artifact?.toPath()
+      ?.let { dependencies ->
+        dependencies.androidLibraries.asSequence().map { it.artifactAddress to it.artifact } +
+        dependencies.javaLibraries.asSequence().map { it.artifactAddress to it.artifact }
+      }
+      ?.find { GradleCoordinate.parseCoordinateString(it.first)?.matches(coordinate) ?: false }
+      ?.second?.toPath()
   }
 
   // TODO: b/129297171
@@ -134,12 +139,12 @@ class GradleModuleSystem(
     }
     else {
       getDependenciesFor(module, DependencyScopeType.MAIN)
-        ?.let { it.androidLibraries.asSequence() + it.javaLibraries.asSequence()}
+        ?.let { it.androidLibraries.asSequence() + it.javaLibraries.asSequence() }
         ?.mapNotNull { GradleCoordinate.parseCoordinateString(it.artifactAddress) } ?: emptySequence()
     }
   }
 
-  override fun getResourceModuleDependencies() = AndroidUtils.getAllAndroidDependencies(module, true).map(AndroidFacet::getModule)
+  override fun getResourceModuleDependencies() = AndroidDependenciesCache.getAllAndroidDependencies(module, true).map(AndroidFacet::getModule)
 
   override fun getDirectResourceModuleDependents(): List<Module> = ModuleManager.getInstance(module.project).getModuleDependentModules(
     module)
@@ -156,6 +161,7 @@ class GradleModuleSystem(
              DependencyScopeType.MAIN -> gradleModel.selectedVariant.mainArtifact.level2Dependencies
              DependencyScopeType.ANDROID_TEST -> gradleModel.selectedVariant.androidTestArtifact?.level2Dependencies
              DependencyScopeType.UNIT_TEST -> gradleModel.selectedVariant.unitTestArtifact?.level2Dependencies
+             DependencyScopeType.TEST_FIXTURES -> gradleModel.selectedVariant.testFixturesArtifact?.level2Dependencies
            } ?: return null
   }
 
@@ -171,19 +177,31 @@ class GradleModuleSystem(
     val manager = GradleDependencyManager.getInstance(module.project)
     val coordinates = Collections.singletonList(coordinate)
 
-    if (type == DependencyType.ANNOTATION_PROCESSOR) {
-      // addDependenciesWithoutSync doesn't support this: more direct implementation
-      manager.addDependenciesWithoutSync(module, coordinates) { _, name, _ ->
-        when {
-          name.startsWith("androidTest") -> "androidTestAnnotationProcessor"
-          name.startsWith("test") -> "testAnnotationProcessor"
-          else -> "annotationProcessor"
+    when (type) {
+      DependencyType.ANNOTATION_PROCESSOR -> {
+        // addDependenciesWithoutSync doesn't support this: more direct implementation
+        manager.addDependenciesWithoutSync(module, coordinates) { _, name, _ ->
+          when {
+            name.startsWith("androidTest") -> "androidTestAnnotationProcessor"
+            name.startsWith("test") -> "testAnnotationProcessor"
+            else -> "annotationProcessor"
+          }
         }
       }
+      DependencyType.DEBUG_IMPLEMENTATION -> {
+        manager.addDependenciesWithoutSync(module, coordinates) { _, _, _ ->
+          "debugImplementation"
+        }
+      }
+      else -> {
+        manager.addDependenciesWithoutSync(module, coordinates)
+      }
     }
-    else {
-      manager.addDependenciesWithoutSync(module, coordinates)
-    }
+  }
+
+  override fun updateLibrariesToVersion(toVersions: List<GradleCoordinate>) {
+    val manager = GradleDependencyManager.getInstance(module.project)
+    manager.updateLibrariesToVersion(module, toVersions)
   }
 
   override fun getModuleTemplates(targetDirectory: VirtualFile?): List<NamedModuleTemplate> {
@@ -208,12 +226,23 @@ class GradleModuleSystem(
 
   override fun getManifestOverrides(): ManifestOverrides {
     val facet = AndroidFacet.getInstance(module)
-    val androidModel = facet?.let(AndroidModuleModel::get) ?: return ManifestOverrides()
+    val androidModel = facet?.let(GradleAndroidModel::get) ?: return ManifestOverrides()
     val directOverrides = notNullMapOf(
       ManifestSystemProperty.MIN_SDK_VERSION to androidModel.minSdkVersion?.apiString,
       ManifestSystemProperty.TARGET_SDK_VERSION to androidModel.targetSdkVersion?.apiString,
       ManifestSystemProperty.VERSION_CODE to androidModel.versionCode?.takeIf { it > 0 }?.toString(),
-      ManifestSystemProperty.PACKAGE to androidModel.applicationId
+      ManifestSystemProperty.PACKAGE to
+        (
+          when (androidModel.androidProject.projectType) {
+            IdeAndroidProjectType.PROJECT_TYPE_APP -> androidModel.applicationId
+            IdeAndroidProjectType.PROJECT_TYPE_ATOM -> androidModel.applicationId
+            IdeAndroidProjectType.PROJECT_TYPE_INSTANTAPP -> androidModel.applicationId
+            IdeAndroidProjectType.PROJECT_TYPE_FEATURE -> androidModel.applicationId
+            IdeAndroidProjectType.PROJECT_TYPE_DYNAMIC_FEATURE -> androidModel.applicationId
+            IdeAndroidProjectType.PROJECT_TYPE_LIBRARY -> null
+            IdeAndroidProjectType.PROJECT_TYPE_TEST -> null
+          }
+        )
     )
     val variant = androidModel.selectedVariant
     val placeholders = getManifestPlaceholders()
@@ -254,12 +283,18 @@ class GradleModuleSystem(
   }
 
   override fun getPackageName(): String? {
-    return getPackageName(module)
+    val facet = AndroidFacet.getInstance(module) ?: return null
+    return AndroidModuleModel.get(facet)?.androidProject?.namespace ?: getPackageName(module)
   }
 
   override fun getTestPackageName(): String? {
     val facet = AndroidFacet.getInstance(module) ?: return null
-    val variant = AndroidModuleModel.get(facet)?.selectedVariant ?: return null
+    val androidModuleModel = AndroidModuleModel.get(facet)
+    val testPackage = androidModuleModel?.androidProject?.testNamespace
+    if (testPackage != null) {
+      return testPackage
+    }
+    val variant = androidModuleModel?.selectedVariant ?: return null
     return variant.testApplicationId ?: run {
       // That's how AGP works today: in apps the applicationId from the model is used with the ".test" suffix (ignoring the manifest), in libs
       // there is no applicationId and the package name from the manifest is used with the suffix.
@@ -268,9 +303,11 @@ class GradleModuleSystem(
     }
   }
 
-  override fun getNotRuntimeConfigurationSpecificApplicationIdProviderForLegacyUse(): ApplicationIdProvider {
+  override fun getApplicationIdProvider(): ApplicationIdProvider {
+    val androidFacet = AndroidFacet.getInstance(module) ?: error("Cannot find AndroidFacet. Module: ${module.name}")
+    val androidModel = GradleAndroidModel.get(androidFacet) ?: error("Cannot find AndroidModuleModel. Module: ${module.name}")
     return GradleApplicationIdProvider(
-      AndroidFacet.getInstance(module) ?: throw IllegalStateException("Cannot find AndroidFacet. Module: ${module.name}"), { null }
+      androidFacet, false, androidModel, androidModel.selectedVariant
     )
   }
 

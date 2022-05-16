@@ -15,8 +15,7 @@
  */
 package com.android.tools.idea.lang.androidSql.room
 
-import com.intellij.openapi.components.service
-import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.psi.JavaPsiFacade
@@ -24,14 +23,14 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 
-private val LOG = logger<RoomDependencyChecker>()
+private val LOG = Logger.getInstance(RoomDependencyChecker::class.java)
 
 /**
  * Checks if project uses Room (any module depends on Room)
  */
 class RoomDependencyChecker(val project: Project) {
   companion object {
-    fun getInstance(project: Project) = project.service<RoomDependencyChecker>()
+    fun getInstance(project: Project): RoomDependencyChecker = project.getService(RoomDependencyChecker::class.java)!!
   }
 
   fun isRoomPresent(): Boolean {
@@ -47,7 +46,7 @@ class RoomDependencyChecker(val project: Project) {
   }
 }
 
-internal fun isRoomPresentInScope(scope: GlobalSearchScope): Boolean {
+fun isRoomPresentInScope(scope: GlobalSearchScope): Boolean {
   val psiFacade = JavaPsiFacade.getInstance(scope.project!!)
   return sequenceOf(RoomAnnotations.ENTITY.newName(), RoomAnnotations.ENTITY.oldName()).any { psiFacade.findClass(it, scope) != null }
 }

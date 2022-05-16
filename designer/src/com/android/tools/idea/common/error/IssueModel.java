@@ -26,7 +26,7 @@ import icons.StudioIcons;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,7 +48,7 @@ public class IssueModel {
   @VisibleForTesting
   public final Runnable myUpdateCallback = () -> updateErrorsList();
 
-  private List<IssueProvider> myIssueProviders = new ArrayList<>();
+  private final List<IssueProvider> myIssueProviders = new ArrayList<>();
 
   /**
    * IssueModel constructor.
@@ -107,13 +107,16 @@ public class IssueModel {
     return isError ? StudioIcons.Common.ERROR_INLINE : StudioIcons.Common.WARNING_INLINE;
   }
 
-  @VisibleForTesting
   public void updateErrorsList() {
     myWarningCount = 0;
     myErrorCount = 0;
     ImmutableList.Builder<Issue> issueListBuilder = ImmutableList.builder();
 
-    for (IssueProvider provider : ImmutableList.copyOf(myIssueProviders)) {
+    ImmutableList<IssueProvider> providers;
+    synchronized (myIssueProviders) {
+      providers = ImmutableList.copyOf(myIssueProviders);
+    }
+    for (IssueProvider provider : providers) {
       provider.collectIssues(issueListBuilder);
     }
 
@@ -139,14 +142,29 @@ public class IssueModel {
     }
   }
 
-  public void addIssueProvider(@NotNull IssueProvider issueProvider) {
-    myIssueProviders.add(issueProvider);
+  /**
+   * Add issue provider
+   * @param update true if issueModel should be updated to display newest information. False otherwise.
+   */
+  public void addIssueProvider(@NotNull IssueProvider issueProvider, boolean update) {
+    synchronized (myIssueProviders) {
+      myIssueProviders.add(issueProvider);
+    }
     issueProvider.addListener(myUpdateCallback);
-    updateErrorsList();
+    if (update) {
+      updateErrorsList();
+    }
+  }
+
+  /** Add issue provider, and update the error list. */
+  public void addIssueProvider(@NotNull IssueProvider issueProvider) {
+    addIssueProvider(issueProvider, true);
   }
 
   public void removeIssueProvider(@NotNull IssueProvider issueProvider) {
-    myIssueProviders.remove(issueProvider);
+    synchronized (myIssueProviders) {
+      myIssueProviders.remove(issueProvider);
+    }
     issueProvider.removeListener(myUpdateCallback);
     updateErrorsList();
   }

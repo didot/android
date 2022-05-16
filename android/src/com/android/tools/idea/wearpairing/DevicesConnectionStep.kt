@@ -25,9 +25,13 @@ import com.android.tools.idea.observable.ListenerManager
 import com.android.tools.idea.observable.core.BoolValueProperty
 import com.android.tools.idea.observable.core.ObservableBool
 import com.android.tools.idea.observable.core.OptionalProperty
+import com.android.tools.idea.run.DeviceHeadsUpListener
+import com.android.tools.idea.wearpairing.WearPairingManager.PairingState
+import com.android.tools.idea.wearpairing.WearPairingManager.PhoneWearPair
 import com.android.tools.idea.wizard.model.ModelWizard
 import com.android.tools.idea.wizard.model.ModelWizardStep
 import com.google.common.util.concurrent.Futures
+import com.google.wireless.android.sdk.stats.WearPairingEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.diagnostic.logger
@@ -50,7 +54,10 @@ import icons.StudioIcons
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.time.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.android.util.AndroidBundle.message
@@ -63,10 +70,13 @@ import java.awt.GridBagConstraints.REMAINDER
 import java.awt.GridBagConstraints.VERTICAL
 import java.awt.GridBagLayout
 import java.awt.event.ActionEvent
+import java.io.IOException
+import java.time.Duration
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.Future
 import javax.swing.Box
 import javax.swing.Box.createVerticalStrut
+import javax.swing.Icon
 import javax.swing.ImageIcon
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -76,19 +86,20 @@ import javax.swing.JProgressBar
 import javax.swing.SwingConstants
 import javax.swing.event.HyperlinkListener
 
-private const val WEAR_PACKAGE = "com.google.android.wearable.app"
 private const val WEAR_MAIN_ACTIVITY = "com.google.android.clockwork.companion.launcher.LauncherActivity"
 private const val TIME_TO_SHOW_MANUAL_RETRY = 60_000L
+private const val TIME_TO_INSTALL_COMPANION_APP = 120_000L
 private const val PATH_PLAY_SCREEN = "/wearPairing/screens/playStore.png"
 private const val PATH_PAIR_SCREEN = "/wearPairing/screens/wearPair.png"
 
 private val LOG get() = logger<WearPairingManager>()
 
 class DevicesConnectionStep(model: WearDevicePairingModel,
-                            val project: Project,
+                            val project: Project?,
                             val wizardAction: WizardAction,
                             private val isFirstStage: Boolean = true) : ModelWizardStep<WearDevicePairingModel>(model, "") {
   private var runningJob: Job? = null
+  private var backgroundJob: Job? = null // Independent of the UI state, monitors the devices for pairing
   private var currentUiHeader = ""
   private var currentUiDescription = ""
   private val secondStageStep = if (isFirstStage) DevicesConnectionStep(model, project, wizardAction, false) else null
@@ -122,6 +133,7 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
 
   override fun dispose() {
     runningJob?.cancel(null)
+    backgroundJob?.cancel(null)
     deviceStateListener.releaseAll()
     bindings.releaseAll()
   }
@@ -138,8 +150,10 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
       }
 
       if (isFirstStage) {
-        killNonSelectedRunningWearEmulators()
         phoneIDevice = model.selectedPhoneDevice.launchDeviceIfNeeded()
+        if (!phoneIDevice.hasPairingFeature(PairingFeature.MULTI_WATCH_SINGLE_PHONE_PAIRING)) {
+          killNonSelectedRunningWearEmulators()
+        }
         wearIDevice = model.selectedWearDevice.launchDeviceIfNeeded()
         secondStageStep!!.phoneIDevice = phoneIDevice
         secondStageStep.wearIDevice = wearIDevice
@@ -151,82 +165,183 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
         showFirstPhase(model.selectedPhoneDevice.value, phoneIDevice, model.selectedWearDevice.value, wearIDevice)
       }
       else {
-        showSecondPhase(phoneIDevice, wearIDevice)
+        showSecondPhase(model.selectedPhoneDevice.value, phoneIDevice, model.selectedWearDevice.value, wearIDevice)
       }
     }
   }
 
   private suspend fun showFirstPhase(phonePairingDevice: PairingDevice, phoneDevice: IDevice,
                                      wearPairingDevice: PairingDevice, wearDevice: IDevice) {
+    if (!wearDevice.hasPairingFeature(PairingFeature.REVERSE_PORT_FORWARD)) {
+      showDeviceGmscoreNeedsUpdate()
+      wearDevice.executeShellCommand("am start -a android.intent.action.VIEW -d 'market://details?id=com.google.android.gms'")
+      showEmbeddedEmulator(wearDevice)
+      return
+    }
     showUiBridgingDevices()
     if (checkWearMayNeedFactoryReset(phoneDevice, wearDevice)) {
       showUiNeedsFactoryReset(model.selectedWearDevice.value.displayName)
       return
     }
-    val isNewWearPairingDevice = WearPairingManager.getPairedDevices().second?.deviceID != wearPairingDevice.deviceID
-    WearPairingManager.removePairedDevices(restartWearGmsCore = isNewWearPairingDevice)
-    WearPairingManager.setPairedDevices(phonePairingDevice, wearPairingDevice)
+    val isNewWearPairingDevice =
+      WearPairingManager.getPairedDevices(phonePairingDevice.deviceID)?.wear?.deviceID != wearPairingDevice.deviceID
+    WearPairingManager.removePairedDevices(phonePairingDevice.deviceID, restartWearGmsCore = isNewWearPairingDevice)
 
-    if (phoneDevice.isCompanionAppInstalled()) {
+    companionAppStep(phoneDevice, wearDevice)
+  }
+
+  private suspend fun companionAppStep(phoneDevice: IDevice, wearDevice: IDevice) {
+    val companionAppId = wearDevice.getCompanionAppIdForWatch()
+    if (phoneDevice.isCompanionAppInstalled(companionAppId)) {
       // Companion App already installed, go to the next step
-      goToNextStep(phoneDevice)
+      goToNextStep(phoneDevice, wearDevice)
+    }
+    else if (companionAppId == OEM_COMPANION_FALLBACK_APP_ID) {
+      // Wear 2.x companion app
+      showUiInstallCompanionAppInstructions(phoneDevice, wearDevice)
     }
     else {
-      showUiInstallCompanionAppInstructions(phoneDevice)
+      showIncompatibleCompanionAppError(phoneDevice, wearDevice)
     }
   }
 
-  private suspend fun showWaitForCompanionAppInstall(phoneDevice: IDevice, launchPlayStore: Boolean) {
+  private fun showIncompatibleCompanionAppError(phoneDevice: IDevice, wearDevice: IDevice) {
+    dispose()
+    GlobalScope.launch(ioThread) {
+      val body = createWarningPanel(message("wear.assistant.device.connection.wear.os.wear3"))
+      body.add(
+        LinkLabel<Unit>("Retry", null) { _, _ ->
+          check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
+          runningJob = GlobalScope.launch(ioThread) {
+            companionAppStep(phoneDevice, wearDevice)
+          }
+        },
+        gridConstraint(x = 1, y = RELATIVE, anchor = LINE_START)
+      )
+      showUI(header = currentUiHeader, description = currentUiDescription, body = body)
+    }
+  }
+
+  private fun showDeviceGmscoreNeedsUpdate() {
+    GlobalScope.launch(ioThread) {
+      val body = createWarningPanel(message("wear.assistant.device.connection.gmscore.error"), StudioIcons.Common.ERROR)
+      body.add(
+        LinkLabel<Unit>(message("wear.assistant.device.connection.restart.pairing"), null) { _, _ ->
+          wizardAction.restart(project)
+        }.addBorder(
+          empty(10, 0)),
+        gridConstraint(x = 1, y = RELATIVE, anchor = LINE_START)
+      )
+      showUI(header = currentUiHeader, description = currentUiDescription, body = body)
+    }
+  }
+
+  private suspend fun showWaitForCompanionAppInstall(phoneDevice: IDevice, wearDevice: IDevice, launchPlayStore: Boolean) {
     if (launchPlayStore) {
-      showUiInstallCompanionAppScanning(phoneDevice, scanningLabel = message("wear.assistant.device.connection.scanning.wear.os.btn"))
-      phoneDevice.executeShellCommand("am start -a android.intent.action.VIEW -d 'market://details?id=$WEAR_PACKAGE'")
+      showUiInstallCompanionAppScanning(phoneDevice, wearDevice,
+                                        scanningLabel = message("wear.assistant.device.connection.scanning.wear.os.btn"))
+      phoneDevice.executeShellCommand(
+        "am start -a android.intent.action.VIEW -d 'market://details?id=${wearDevice.getCompanionAppIdForWatch()}'")
+      showEmbeddedEmulator(phoneDevice)
     }
     else {
-      showUiInstallCompanionAppScanning(phoneDevice, scanningLabel = message("wear.assistant.device.connection.scanning.wear.os.lnk"))
+      showUiInstallCompanionAppScanning(phoneDevice, wearDevice,
+                                        scanningLabel = message("wear.assistant.device.connection.scanning.wear.os.lnk"))
     }
 
-    if (waitForCondition(TIME_TO_SHOW_MANUAL_RETRY) { phoneDevice.isCompanionAppInstalled() }) {
-      showUiInstallCompanionAppSuccess(phoneDevice)
+    if (waitForCondition(TIME_TO_INSTALL_COMPANION_APP) { phoneDevice.isCompanionAppInstalled(wearDevice.getCompanionAppIdForWatch()) }) {
+      showUiInstallCompanionAppSuccess(phoneDevice, wearDevice)
       canGoForward.set(true)
     }
     else {
-      showUiInstallCompanionAppRetry(phoneDevice) // After some time we give up and show the manual retry ui
+      showUiInstallCompanionAppRetry(phoneDevice, wearDevice) // After some time we give up and show the manual retry ui
     }
   }
 
-  private suspend fun showSecondPhase(phoneDevice: IDevice, wearDevice: IDevice) {
+  private suspend fun showSecondPhase(phone: PairingDevice, phoneDevice: IDevice, wear: PairingDevice, wearDevice: IDevice) {
+    // Note: createPairedDeviceBridge() may restart GmsCore, so it may take a bit of time until pairing. Show some UI placeholder.
     showUiBridgingDevices()
-    createDeviceBridge(phoneDevice, wearDevice)
-    // Note: createDeviceBridge() restarts GmsCore, so it may take a bit of time until devices paired happens
-    if (waitForCondition(5_000) { checkDevicesPaired(phoneIDevice, wearIDevice) }) {
-      showPairingSuccess(model.selectedPhoneDevice.value.displayName, model.selectedWearDevice.value.displayName)
+    try {
+      val phoneWearPair = WearPairingManager.createPairedDeviceBridge(phone, phoneDevice, wear, wearDevice)
+      if (phoneWearPair.pairingStatus != PairingState.CONNECTED) {
+        showPairing(phoneWearPair, phoneDevice, wearDevice)
+      }
+
+      waitForPairingSuccessOnBackground(phoneWearPair, phoneDevice, wearDevice)
     }
-    else {
-      showUiPairingAppInstructions(phoneDevice, wearDevice)
+    catch (ex: IOException) {
+      showGenericError(ex)
     }
   }
 
-  private suspend fun showWaitForPairingSetup(phoneDevice: IDevice, wearDevice: IDevice, launchCompanionApp: Boolean) {
+  private suspend fun showPairing(phoneWearPair: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice) {
+    val companionAppId = wearDevice.getCompanionAppIdForWatch()
+    if (phoneDevice.hasPairingFeature(PairingFeature.COMPANION_EMULATOR_ACTIVITY, companionAppId)) {
+      showUiPairingNonInteractive(phoneWearPair, phoneDevice, wearDevice)
+      NonInteractivePairing.startPairing(phoneDevice, wearDevice.avdName!!, companionAppId, wearDevice.loadNodeID()).use {
+        withTimeoutOrNull(Duration.ofMinutes(1)) {
+          it.pairingState.takeWhile { !it.hasFinished() }.collect { state ->
+            if (state == NonInteractivePairing.PairingState.CONSENT) {
+              showUiPairingNonInteractive(phoneWearPair, phoneDevice, wearDevice,
+                                          message("wear.assistant.device.connection.pairing.auto.consent", phoneWearPair.phone.displayName))
+            }
+          }
+        }
+        if (WearPairingManager.updateDeviceStatus(phoneWearPair, phoneDevice, wearDevice) != PairingState.CONNECTED) {
+          showUiPairingNonInteractive(phoneWearPair, phoneDevice, wearDevice,
+                                      message("wear.assistant.device.connection.pairing.auto.failed"),
+                                      "Retry", "Skip to manual instructions", false)
+        } // else waitForPairingSuccessOnBackground() will take care of success case
+      }
+    }
+    else {
+      showUiPairingAppInstructions(phoneWearPair, phoneDevice, wearDevice)
+    }
+  }
+
+  private suspend fun showWaitForPairingSetup(phoneWearPair: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice,
+                                              launchCompanionApp: Boolean) {
     if (launchCompanionApp) {
-      showUiPairingScanning(phoneDevice, wearDevice, scanningLabel = message("wear.assistant.device.connection.wait.pairing.btn"))
-      phoneDevice.executeShellCommand("am start -n $WEAR_PACKAGE/$WEAR_MAIN_ACTIVITY")
+      showUiPairingScanning(phoneWearPair, phoneDevice, wearDevice,
+                            scanningLabel = message("wear.assistant.device.connection.wait.pairing.btn"))
+      phoneDevice.executeShellCommand("am start -n ${wearDevice.getCompanionAppIdForWatch()}/$WEAR_MAIN_ACTIVITY")
+      showEmbeddedEmulator(phoneDevice)
     }
     else {
-      showUiPairingScanning(phoneDevice, wearDevice, scanningLabel = message("wear.assistant.device.connection.wait.pairing.lnk"))
+      showUiPairingScanning(phoneWearPair, phoneDevice, wearDevice,
+                            scanningLabel = message("wear.assistant.device.connection.wait.pairing.lnk"))
     }
 
-    if (waitForCondition(TIME_TO_SHOW_MANUAL_RETRY) { checkDevicesPaired(phoneDevice, wearDevice) }) {
-      showPairingSuccess(model.selectedPhoneDevice.value.displayName, model.selectedWearDevice.value.displayName)
-    }
-    else {
-      showUiPairingRetry(phoneDevice, wearDevice)  // After some time we give up and show the manual retry ui
+    // After some time we give up and show the manual retry ui. waitForPairingSuccessOnBackground() will take care of success case
+    delay(TIME_TO_SHOW_MANUAL_RETRY)
+    showUiPairingRetry(phoneWearPair, phoneDevice, wearDevice)
+  }
+
+  private fun waitForPairingSuccessOnBackground(phoneWearPair: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice) {
+    check(backgroundJob?.isActive != true) // There can only be a single background job at any time
+    backgroundJob = GlobalScope.launch(ioThread) {
+      try {
+        while (phoneWearPair.pairingStatus != PairingState.CONNECTED &&
+               WearPairingManager.updateDeviceStatus(phoneWearPair, phoneDevice, wearDevice) != PairingState.CONNECTED) {
+          delay(2_000)
+        }
+
+        // If 2.x companion older than 773393865 is used with manual pairing, we have to let the
+        // user know how they can finish the pairing on the companion.
+        val showTapAndFinishWarning =
+          !phoneDevice.hasPairingFeature(PairingFeature.COMPANION_SKIP_AND_FINISH_FIXED, wearDevice.getCompanionAppIdForWatch())
+        showPairingSuccess(phoneWearPair.phone.displayName, phoneWearPair.wear.displayName,
+                           showTapAndFinishWarning)
+      }
+      catch (ex: IOException) {
+        showGenericError(ex)
+      }
     }
   }
 
-  private suspend fun showPairingSuccess(phoneName: String, watchName: String) {
-    showUiPairingSuccess(phoneName, watchName)
+  private suspend fun showPairingSuccess(phoneName: String, watchName: String, tapAndFinishWarning: Boolean) {
+    showUiPairingSuccess(phoneName, watchName, tapAndFinishWarning)
     canGoForward.set(true)
-    model.removePairingOnCancel.set(false)
   }
 
   private suspend fun OptionalProperty<PairingDevice>.launchDeviceIfNeeded(): IDevice {
@@ -254,7 +369,10 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
       return iDevice
     }
     catch (ex: Throwable) {
-      showDeviceError(value)
+      showDeviceError(
+        header = message("wear.assistant.connection.alert.cant.start.device.title", value.displayName), description = " ",
+        errorMessage = message("wear.assistant.connection.alert.cant.start.device.subtitle", value.displayName)
+      )
       throw RuntimeException(ex)
     }
   }
@@ -263,9 +381,10 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
     model.getNonSelectedRunningWearEmulators().apply {
       if (isNotEmpty()) {
         showUiLaunchingDevice(model.selectedWearDevice.valueOrNull?.displayName ?: "")
-        WearPairingManager.removePairedDevices() // Remove pairing, in case we need to kill a paired device and that would show a toast
       }
       forEach {
+        // Remove pairing, in case we need to kill a paired device and that would show a toast
+        WearPairingManager.removePairedDevices(it.deviceID)
         val avdManager = AvdManagerConnection.getDefaultAvdManagerConnection()
         avdManager.findAvd(it.deviceID)?.apply {
           avdManager.stopAvd(this)
@@ -346,11 +465,17 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
       JBLabel(firstStepLabel).addBorder(empty(8, 0, 8, 0)),
       gridConstraint(x = 0, y = 0, weightx = 1.0, fill = HORIZONTAL, gridwidth = 2)
     )
+    if (buttonLabel.isNotBlank()) {
+      add(
+        JButton(buttonLabel).apply {
+          addActionListener(buttonListener)
+        },
+        gridConstraint(x = 0, y = RELATIVE, gridwidth = 2, anchor = LINE_START)
+      )
+    }
     add(
-      JButton(buttonLabel).apply {
-        addActionListener(buttonListener)
-      },
-      gridConstraint(x = 0, y = RELATIVE, gridwidth = 2, anchor = LINE_START)
+      JBLabel(additionalStepsLabel).addBorder(empty(8, 0, 0, 0)),
+      gridConstraint(x = 0, y = RELATIVE, weightx = 1.0, fill = HORIZONTAL, gridwidth = 2)
     )
     if (showLoadingIcon) {
       add(
@@ -379,10 +504,6 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
         gridConstraint(x = 0, y = RELATIVE, weightx = 1.0, fill = HORIZONTAL, gridwidth = 2)
       )
     }
-    add(
-      JBLabel(additionalStepsLabel).addBorder(empty(8, 0, 0, 0)),
-      gridConstraint(x = 0, y = RELATIVE, weightx = 1.0, fill = HORIZONTAL, gridwidth = 2)
-    )
 
     isOpaque = false
     border = empty(8, 2, 12, 4)
@@ -410,44 +531,54 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
     progressBottomLabel = message("wear.assistant.device.connection.connecting.device.bottom.label")
   )
 
-  private suspend fun showUiInstallCompanionAppInstructions(phoneDevice: IDevice) = showUiInstallCompanionApp(
-    phoneDevice = phoneDevice,
-    scanningLink = message("wear.assistant.device.connection.wear.os.skip"),
-    scanningListener = {
-      check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
-      runningJob = GlobalScope.launch(ioThread) {
-        goToNextStep(phoneDevice)
-      }
-    }
-  )
+  private suspend fun showUiInstallCompanionAppInstructions(phoneDevice: IDevice, wearDevice: IDevice) {
+    showUiInstallCompanionApp(
+      phoneDevice = phoneDevice,
+      scanningLink = message("wear.assistant.device.connection.wear.os.skip"),
+      scanningListener = {
+        check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
+        runningJob = GlobalScope.launch(ioThread) {
+          goToNextStep(phoneDevice, wearDevice)
+        }
+      },
+      wearDevice = wearDevice
+    )
 
-  private suspend fun showUiInstallCompanionAppScanning(phoneDevice: IDevice, scanningLabel: String) = showUiInstallCompanionApp(
+    WearPairingUsageTracker.log(WearPairingEvent.EventKind.SHOW_INSTALL_WEAR_OS_COMPANION)
+  }
+
+  private suspend fun showUiInstallCompanionAppScanning(phoneDevice: IDevice,
+                                                        wearDevice: IDevice,
+                                                        scanningLabel: String) = showUiInstallCompanionApp(
     phoneDevice = phoneDevice,
     showLoadingIcon = true,
-    scanningLabel = scanningLabel
+    scanningLabel = scanningLabel,
+    wearDevice = wearDevice
   )
 
-  private suspend fun showUiInstallCompanionAppSuccess(phoneDevice: IDevice) = showUiInstallCompanionApp(
+  private suspend fun showUiInstallCompanionAppSuccess(phoneDevice: IDevice, wearDevice: IDevice) = showUiInstallCompanionApp(
     phoneDevice = phoneDevice,
+    wearDevice = wearDevice,
     showSuccessIcon = true,
     scanningLabel = message("wear.assistant.device.connection.wear.os.installed"),
   )
 
-  private suspend fun showUiInstallCompanionAppRetry(phoneDevice: IDevice) = showUiInstallCompanionApp(
+  private suspend fun showUiInstallCompanionAppRetry(phoneDevice: IDevice, wearDevice: IDevice) = showUiInstallCompanionApp(
     phoneDevice = phoneDevice,
+    wearDevice = wearDevice,
     scanningLabel = message("wear.assistant.device.connection.wear.os.missing"),
     scanningLink = message("wear.assistant.device.connection.check.again"),
     scanningListener = {
       check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
       runningJob = GlobalScope.launch(ioThread) {
-        showWaitForCompanionAppInstall(phoneDevice, launchPlayStore = false)
+        showWaitForCompanionAppInstall(phoneDevice, wearDevice, launchPlayStore = false)
       }
-    }
+    },
   )
 
   private suspend fun showUiInstallCompanionApp(
     phoneDevice: IDevice, showLoadingIcon: Boolean = false, showSuccessIcon: Boolean = false,
-    scanningLabel: String = "", scanningLink: String = "", scanningListener: HyperlinkListener? = null
+    scanningLabel: String = "", scanningLink: String = "", scanningListener: HyperlinkListener? = null, wearDevice: IDevice
   ) = showUI(
     header = message("wear.assistant.device.connection.install.wear.os.title"),
     description = message("wear.assistant.device.connection.install.wear.os.subtitle", WEAR_DOCS_LINK),
@@ -458,7 +589,7 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
       buttonListener = {
         runningJob?.cancel()
         runningJob = GlobalScope.launch(ioThread) {
-          showWaitForCompanionAppInstall(phoneDevice, launchPlayStore = true)
+          showWaitForCompanionAppInstall(phoneDevice, wearDevice, launchPlayStore = true)
         }
       },
       showLoadingIcon = showLoadingIcon,
@@ -473,8 +604,8 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
   )
 
   private suspend fun showUiPairing(
-    phoneDevice: IDevice, wearDevice: IDevice, showLoadingIcon: Boolean = false, showSuccessIcon: Boolean = false,
-    scanningLabel: String = "", scanningLink: String = "", scanningListener: HyperlinkListener? = null
+    phoneWearPair: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice, showLoadingIcon: Boolean = false,
+    showSuccessIcon: Boolean = false, scanningLabel: String = "", scanningLink: String = "", scanningListener: HyperlinkListener? = null
   ) = showUI(
     header = message("wear.assistant.device.connection.complete.pairing.title"),
     description = message("wear.assistant.device.connection.complete.pairing.subtitle", WEAR_DOCS_LINK),
@@ -485,7 +616,7 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
       buttonListener = {
         runningJob?.cancel()
         runningJob = GlobalScope.launch(ioThread) {
-          showWaitForPairingSetup(phoneDevice, wearDevice, launchCompanionApp = true)
+          showWaitForPairingSetup(phoneWearPair, phoneDevice, wearDevice, launchCompanionApp = true)
         }
       },
       showLoadingIcon = showLoadingIcon,
@@ -499,28 +630,55 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
     imagePath = PATH_PAIR_SCREEN,
   )
 
-  private suspend fun showUiPairingAppInstructions(phoneDevice: IDevice, wearDevice: IDevice) = showUiPairing(
-    phoneDevice = phoneDevice, wearDevice = wearDevice,
+  private suspend fun showUiPairingNonInteractive(phoneWearPair: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice, scanningLabel: String = message(
+    "wear.assistant.device.connection.pairing.auto.start"), buttonLabel: String = "", scanningLink: String = "", showLoadingIcon: Boolean = true) = showUI(
+    header = message("wear.assistant.device.connection.pairing.auto.title"),
+    body = createScanningPanel(
+      firstStepLabel = message("wear.assistant.device.connection.pairing.auto.step"),
+      buttonLabel = buttonLabel,
+      buttonListener = {
+        check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
+        runningJob = GlobalScope.launch(ioThread) {
+          showPairing(phoneWearPair, phoneDevice, wearDevice)
+        }
+      },
+      showLoadingIcon = showLoadingIcon,
+      showSuccessIcon = false,
+      scanningLabel = scanningLabel,
+      scanningLink = scanningLink,
+      scanningListener = {
+        check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
+        runningJob = GlobalScope.launch(ioThread) {
+          showUiPairingAppInstructions(phoneWearPair, phoneDevice, wearDevice)
+        }
+      },
+      additionalStepsLabel = "",
+    )
   )
 
-  private suspend fun showUiPairingScanning(phoneDevice: IDevice, wearDevice: IDevice, scanningLabel: String) = showUiPairing(
-    phoneDevice = phoneDevice, wearDevice = wearDevice,
+  private suspend fun showUiPairingAppInstructions(wearPairing: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice) = showUiPairing(
+    wearPairing, phoneDevice = phoneDevice, wearDevice = wearDevice,
+  )
+
+  private suspend fun showUiPairingScanning(phoneWearPair: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice,
+                                            scanningLabel: String) = showUiPairing(
+    phoneWearPair = phoneWearPair, phoneDevice = phoneDevice, wearDevice = wearDevice,
     showLoadingIcon = true,
     scanningLabel = scanningLabel,
   )
 
-  private suspend fun showUiPairingSuccess(phoneName: String, watchName: String) {
+  private suspend fun showUiPairingSuccess(phoneName: String, watchName: String, tapAndFinishWarning: Boolean) {
     // Load svg image offline
     check(!EventQueue.isDispatchThread())
     val svgUrl = (StudioIcons.Common.SUCCESS as IconLoader.CachedImageIcon).url!!
     val imgSize = JBUI.size(150, 150)
     val svgImg = SVGLoader.load(svgUrl, svgUrl.openStream(), ScaleContext.create(mainPanel), imgSize.getWidth(), imgSize.getHeight())
-    val successLabel = message("wear.assistant.device.connection.pairing.success.subtitle", phoneName, watchName)
+    val successLabel = message(if (tapAndFinishWarning) { "wear.assistant.device.connection.pairing.success.skipandfinish" }
+                               else { "wear.assistant.device.connection.pairing.success.subtitle" }, phoneName, watchName)
     val svgLabel = JBLabel(successLabel).apply {
       horizontalAlignment = SwingConstants.CENTER
       horizontalTextPosition = JLabel.CENTER
       verticalTextPosition = JLabel.BOTTOM
-      font = JBFont.label().asBold()
       icon = ImageIcon(svgImg)
     }
 
@@ -540,6 +698,8 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
         repaint()
       }
     }
+
+    WearPairingUsageTracker.log(WearPairingEvent.EventKind.SHOW_SUCCESSFUL_PAIRING)
   }
 
   private suspend fun showUiNeedsFactoryReset(wearDeviceName: String) {
@@ -566,9 +726,10 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
         try {
           showUI(header = message("wear.assistant.factory.reset.title"), body = warningPanel)
 
+          val wearDeviceId = model.selectedWearDevice.valueOrNull?.deviceID ?: ""
           val avdManager = AvdManagerConnection.getDefaultAvdManagerConnection()
-          avdManager.findAvd(model.selectedWearDevice.valueOrNull?.deviceID ?: "")?.apply {
-            WearPairingManager.removePairedDevices(restartWearGmsCore = false)
+          avdManager.findAvd(wearDeviceId)?.apply {
+            WearPairingManager.removePairedDevices(wearDeviceId, restartWearGmsCore = false)
             avdManager.stopAvd(this)
             waitForCondition(10_000) { model.selectedWearDevice.valueOrNull?.isOnline() != true }
             avdManager.wipeUserData(this)
@@ -584,14 +745,14 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
     showUI(header = message("wear.assistant.factory.reset.title"), body = warningPanel)
   }
 
-  private suspend fun showUiPairingRetry(phoneDevice: IDevice, wearDevice: IDevice) = showUiPairing(
-    phoneDevice = phoneDevice, wearDevice = wearDevice,
+  private suspend fun showUiPairingRetry(phoneWearPair: PhoneWearPair, phoneDevice: IDevice, wearDevice: IDevice) = showUiPairing(
+    phoneWearPair = phoneWearPair, phoneDevice = phoneDevice, wearDevice = wearDevice,
     scanningLabel = message("wear.assistant.device.connection.pairing.not.detected"),
     scanningLink = message("wear.assistant.device.connection.check.again"),
     scanningListener = {
       check(runningJob?.isActive != true) // This is a manual retry. No job should be running at this point.
       runningJob = GlobalScope.launch(ioThread) {
-        showWaitForPairingSetup(phoneDevice, wearDevice, launchCompanionApp = false)
+        showWaitForPairingSetup(phoneWearPair, phoneDevice, wearDevice, launchCompanionApp = false)
       }
     }
   )
@@ -601,44 +762,66 @@ class DevicesConnectionStep(model: WearDevicePairingModel,
       val errorDevice = model.selectedPhoneDevice.valueOrNull.takeIf { it?.isOnline() == false }
                         ?: model.selectedWearDevice.valueOrNull.takeIf { it?.isOnline() == false }
       if (errorDevice != null) {
-        showDeviceError(errorDevice)
+        showDeviceError(
+          header = currentUiHeader, description = currentUiDescription,
+          errorMessage = message("wear.assistant.device.connection.error", errorDevice.displayName)
+        )
       }
     }
   }
 
-  private fun showDeviceError(errorDevice: PairingDevice) {
+  private fun showDeviceError(header: String, description: String, errorMessage: String) {
     dispose()
     GlobalScope.launch(ioThread) {
-      val body = createWarningPanel(message("wear.assistant.device.connection.error", errorDevice.displayName))
+      val body = createWarningPanel(errorMessage)
       body.add(
-        LinkLabel<Unit>(message("wear.assistant.device.connection.restart.pairing"), null) { _, _ -> wizardAction.restart(project) },
+        JButton(message("wear.assistant.connection.alert.button.try.again")).apply { addActionListener { wizardAction.restart(project) } },
         gridConstraint(x = 1, y = RELATIVE, anchor = LINE_START)
       )
-      showUI(header = currentUiHeader, description = currentUiDescription, body = body)
+      showUI(header = header, description = description, body = body)
     }
   }
 
-  private suspend fun goToNextStep(phoneDevice: IDevice) {
+  private fun showGenericError(ex: Throwable) {
+    LOG.warn(ex)
+    showDeviceError(
+      header = message("wear.assistant.connection.alert.cant.bridge.title"), description = " ",
+      errorMessage = message("wear.assistant.connection.alert.cant.bridge.subtitle")
+    )
+  }
+
+  private suspend fun goToNextStep(phoneDevice: IDevice, wearDevice: IDevice) {
     // The "Next" button changes asynchronously. Create a temporary property that will change state at the same time.
     val doGoForward = BoolValueProperty()
     bindings.bind(doGoForward, canGoForward)
     deviceStateListener.listen(doGoForward) {
       ApplicationManager.getApplication().invokeLater {
-        dispose()
         wizardFacade.goForward()
+        dispose()
       }
     }
 
     canGoForward.set(true)
 
     delay(100) // Backup, in case "go next" fails
-    showUiInstallCompanionAppSuccess(phoneDevice)
+    showUiInstallCompanionAppSuccess(phoneDevice, wearDevice)
+    wizardFacade.goForward()
+  }
+
+  private fun showEmbeddedEmulator(device: IDevice) {
+    // Show embedded emulator tab if needed
+    project?.messageBus?.syncPublisher(
+      DeviceHeadsUpListener.TOPIC)?.deviceNeedsAttention(device, project)
   }
 }
 
-private fun createWarningPanel(errorMessage: String): JPanel = JPanel(GridBagLayout()).apply {
-  add(JBLabel(IconUtil.scale(StudioIcons.Common.WARNING, null, 2f)).withBorder(empty(0, 0, 0, 8)), gridConstraint(x = 0, y = 0))
-  add(JBLabel(errorMessage), gridConstraint(x = 1, y = 0, weightx = 1.0, fill = HORIZONTAL))
+private fun createWarningPanel(errorMessage: String, icon: Icon = StudioIcons.Common.WARNING): JPanel = JPanel(GridBagLayout()).apply {
+  add(JBLabel(IconUtil.scale(icon, null, 2f)).withBorder(empty(0, 0, 0, 8)), gridConstraint(x = 0, y = 0))
+  add(HtmlLabel().apply {
+    name = "errorMessage"
+    HtmlLabel.setUpAsHtmlLabel(this)
+    text = errorMessage
+  }, gridConstraint(x = 1, y = 0, weightx = 1.0, fill = HORIZONTAL))
 }
 
 suspend fun <T> Future<T>.await(): T {
@@ -663,21 +846,6 @@ private suspend fun waitForCondition(timeMillis: Long, condition: suspend () -> 
     true
   }
   return res == true
-}
-
-private suspend fun IDevice.isCompanionAppInstalled(): Boolean {
-  val output = runShellCommand("dumpsys package $WEAR_PACKAGE | grep versionName")
-  return output.contains("versionName=")
-}
-
-private suspend fun checkDevicesPaired(phoneDevice: IDevice, wearDevice: IDevice): Boolean {
-  val phoneDeviceID = phoneDevice.loadNodeID()
-  if (phoneDeviceID.isNotEmpty()) {
-    val wearPattern = "connection to peer node: $phoneDeviceID"
-    val wearOutput = wearDevice.runShellCommand("dumpsys activity service WearableService | grep '$wearPattern'")
-    return wearOutput.isNotBlank()
-  }
-  return false
 }
 
 private suspend fun checkWearMayNeedFactoryReset(phoneDevice: IDevice, wearDevice: IDevice): Boolean {

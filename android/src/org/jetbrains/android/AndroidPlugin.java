@@ -19,8 +19,9 @@ import com.intellij.openapi.actionSystem.impl.ActionConfigurationCustomizer;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
-final class AndroidPlugin {
-  AndroidPlugin() {
+public final class AndroidPlugin {
+
+  public AndroidPlugin() {
     VirtualFileSystemOpener.INSTANCE.mount();
   }
 
@@ -28,7 +29,7 @@ final class AndroidPlugin {
     @Override
     public void customize(@NotNull ActionManager actionManager) {
       if (!IdeInfo.getInstance().isAndroidStudio()) {
-        initializeForNonStudio();
+        initializeForNonStudio(actionManager);
       }
       setUpActionsUnderFlag(actionManager);
     }
@@ -38,7 +39,7 @@ final class AndroidPlugin {
    * Initializes the Android plug-in when it runs outside of Android Studio.
    * Reduces prominence of the Android related UI elements to keep low profile.
    */
-  private static void initializeForNonStudio() {
+  private static void initializeForNonStudio(ActionManager actionManager) {
     AnalyticsSettings.disable();
     UsageTracker.disable();
     UsageTracker.setIdeBrand(AndroidStudioEvent.IdeBrand.INTELLIJ);

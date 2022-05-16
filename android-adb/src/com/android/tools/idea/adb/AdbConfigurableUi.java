@@ -26,11 +26,13 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.TestOnly;
 
 public class AdbConfigurableUi implements ConfigurableUi<AdbOptionsService> {
   private JPanel myPanel;
   private JBLabel myExistingAdbServerPortLabel;
   private JBCheckBox myUseLibusbBackendCheckbox;
+  private JBCheckBox myEnableAdbMdnsCheckBox;
   private JBIntSpinner myExistingAdbServerPortSpinner;
   private JRadioButton myAutomaticallyStartAndManageServerRadioButton;
   private JRadioButton myUseExistingManuallyManagedServerRadioButton;
@@ -38,6 +40,7 @@ public class AdbConfigurableUi implements ConfigurableUi<AdbOptionsService> {
   @Override
   public boolean isModified(@NotNull AdbOptionsService settings) {
     return myUseLibusbBackendCheckbox.isSelected() != settings.shouldUseLibusb()
+           || myEnableAdbMdnsCheckBox.isSelected() != settings.shouldUseMdnsOpenScreen()
            || myUseExistingManuallyManagedServerRadioButton.isSelected() != settings.shouldUseUserManagedAdb()
            || getUserManagedAdbPortNumber() != settings.getUserManagedAdbPort();
   }
@@ -51,18 +54,24 @@ public class AdbConfigurableUi implements ConfigurableUi<AdbOptionsService> {
     else {
       myAutomaticallyStartAndManageServerRadioButton.setSelected(true);
     }
+    myEnableAdbMdnsCheckBox.setSelected(settings.shouldUseMdnsOpenScreen());
     myExistingAdbServerPortSpinner.setValue(settings.getUserManagedAdbPort());
     setPortNumberUiEnabled(settings.shouldUseUserManagedAdb());
   }
 
   @Override
   public void apply(@NotNull AdbOptionsService settings) throws ConfigurationException {
-    settings.setAdbConfigs(myUseLibusbBackendCheckbox.isSelected(), myUseExistingManuallyManagedServerRadioButton.isSelected(),
-                           getUserManagedAdbPortNumber());
+    settings.getOptionsUpdater()
+      .setUseLibusb(myUseLibusbBackendCheckbox.isSelected())
+      .setUseUserManagedAdb(myUseExistingManuallyManagedServerRadioButton.isSelected())
+      .setUseMdnsOpenScreen(myEnableAdbMdnsCheckBox.isSelected())
+      .setUserManagedAdbPort(getUserManagedAdbPortNumber())
+      .commit();
   }
 
+  /** Indicates if any of the settings in this UI are actually enabled. If this is false, we shouldn't show this UI at all. */
   public static boolean hasComponents() {
-    return hasUseLibusbBackendCheckbox() || hasAdbServerLifecycleManagementComponents();
+    return hasUseLibusbBackendCheckbox() || hasAdbServerLifecycleManagementComponents() || hasEnableAdbMdnsCheckbox();
   }
 
   @NotNull
@@ -77,6 +86,9 @@ public class AdbConfigurableUi implements ConfigurableUi<AdbOptionsService> {
       myPanel.remove(myExistingAdbServerPortSpinner);
       myPanel.remove(myAutomaticallyStartAndManageServerRadioButton);
       myPanel.remove(myUseExistingManuallyManagedServerRadioButton);
+    }
+    if (!hasEnableAdbMdnsCheckbox()) {
+      myPanel.remove(myEnableAdbMdnsCheckBox);
     }
     return myPanel;
   }
@@ -101,6 +113,27 @@ public class AdbConfigurableUi implements ConfigurableUi<AdbOptionsService> {
     return myExistingAdbServerPortSpinner.getNumber();
   }
 
+
+  @TestOnly
+  void setAdbMdnsEnabled(boolean value) {
+    myEnableAdbMdnsCheckBox.setSelected(value);
+  }
+
+  @TestOnly
+  boolean isAdbMdnsEnabled() {
+    return myEnableAdbMdnsCheckBox.isSelected();
+  }
+
+  @TestOnly
+  void setLibusbEnabled(boolean value) {
+    myUseLibusbBackendCheckbox.setSelected(value);
+  }
+
+  @TestOnly
+  boolean isLibusbEnabled() {
+    return myUseLibusbBackendCheckbox.isSelected();
+  }
+
   private static boolean hasUseLibusbBackendCheckbox() {
     // Currently, the libusb backend is only supported on Mac & Linux.
     return SystemInfo.isMac || SystemInfo.isLinux;
@@ -108,5 +141,9 @@ public class AdbConfigurableUi implements ConfigurableUi<AdbOptionsService> {
 
   private static boolean hasAdbServerLifecycleManagementComponents() {
     return StudioFlags.ADB_SERVER_MANAGEMENT_MODE_SETTINGS_VISIBLE.get();
+  }
+
+  private static boolean hasEnableAdbMdnsCheckbox() {
+    return StudioFlags.ADB_WIRELESS_PAIRING_ENABLED.get();
   }
 }

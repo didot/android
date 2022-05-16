@@ -51,7 +51,6 @@ import com.android.tools.lint.helpers.DefaultJavaEvaluator;
 import com.android.tools.lint.helpers.DefaultUastParser;
 import com.android.tools.lint.model.LintModelLintOptions;
 import com.android.tools.lint.model.LintModelModule;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Files;
@@ -76,7 +75,9 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.Ref;
+import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.TextRange;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -85,13 +86,13 @@ import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiPackage;
-import com.intellij.util.PathUtil;
 import com.intellij.util.lang.UrlClassLoader;
 import com.intellij.util.net.HttpConfigurable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -148,13 +149,19 @@ public class LintIdeClient extends LintClient implements Disposable {
         try {
           LintModelLintOptions lintOptions = model.getLintOptions();
           driver.setCheckTestSources(lintOptions.getCheckTestSources());
-          driver.setCheckDependencies(lintOptions.getCheckDependencies());
+          driver.setCheckGeneratedSources(lintOptions.getCheckGeneratedSources());
+          // We're not setting check dependencies based on the AGP settings;
+          // in the IDE, different semantics apply (you select the inspection scope).
+          // We'll set it to true (unconditionally on build model type) below.
         }
         catch (Exception e) {
           LOG.error(e);
         }
       }
     }
+
+    // In the IDE we always analyze all dependencies (and we'll filter based on IDE scope)
+    driver.setCheckDependencies(true);
 
     return driver;
   }
@@ -402,7 +409,7 @@ public class LintIdeClient extends LintClient implements Disposable {
     }
 
     if (inScope) {
-      file = new File(PathUtil.getCanonicalPath(file.getPath()));
+      file = new File(FileUtil.toCanonicalPath(file.getPath()));
 
       Map<File, List<LintProblemData>> file2ProblemList = myProblemMap.get(issue);
       if (file2ProblemList == null) {
@@ -597,7 +604,7 @@ public class LintIdeClient extends LintClient implements Disposable {
 
     if (vFile == null) {
       try {
-        return Files.asCharSource(file, Charsets.UTF_8).read();
+        return Files.asCharSource(file, StandardCharsets.UTF_8).read();
       }
       catch (IOException ioe) {
         LOG.debug("Cannot find file " + file.getPath() + " in the VFS");
@@ -683,7 +690,7 @@ public class LintIdeClient extends LintClient implements Disposable {
     //noinspection AssignmentToStaticFieldFromInstanceMethod
     final String path = ourSystemPath != null
                         ? ourSystemPath
-                        : (ourSystemPath = PathUtil.getCanonicalPath(PathManager.getSystemPath()));
+                        : (ourSystemPath = FileUtil.toCanonicalPath(PathManager.getSystemPath()));
     String relative = "lint";
     if (name != null) {
       relative += File.separator + name;
@@ -746,10 +753,10 @@ public class LintIdeClient extends LintClient implements Disposable {
   @Override
   @NonNull
   public ClassLoader createUrlClassLoader(@NonNull URL[] urls, @NonNull ClassLoader parent) {
-    //noinspection SSBasedInspection
     return UrlClassLoader.build()
       .parent(parent)
-      .files(Arrays.stream(urls).map(it -> Paths.get(it.getPath())).collect(Collectors.toList()))
+      .allowLock(!(ApplicationManager.getApplication().isUnitTestMode() && SystemInfo.isWindows))
+      .files(Arrays.stream(urls).map(it -> Paths.get(UrlClassLoader.urlToFilePath(it.getPath()))).collect(Collectors.toList()))
       .get();
   }
 }

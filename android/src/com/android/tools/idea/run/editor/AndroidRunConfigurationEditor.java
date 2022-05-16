@@ -15,22 +15,28 @@
  */
 package com.android.tools.idea.run.editor;
 
+import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.android.tools.idea.run.AndroidRunConfigurationBase;
+import com.android.tools.idea.run.AndroidRunConfigurationModule;
 import com.android.tools.idea.run.ConfigurationSpecificEditor;
 import com.android.tools.idea.run.ValidationError;
-import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Ordering;
 import com.intellij.application.options.ModulesComboBox;
+import com.intellij.execution.configurations.JavaRunConfigurationModule;
 import com.intellij.execution.ui.ConfigurationModuleSelector;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.ui.BrowserHyperlinkListener;
 import com.intellij.ui.PanelWithAnchor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBTabbedPane;
+import com.intellij.util.ui.JBUI;
+import com.intellij.util.ui.SwingHelper;
+import com.intellij.util.ui.UIUtil;
 import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -39,6 +45,7 @@ import java.util.function.Function;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JEditorPane;
 import javax.swing.JPanel;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
@@ -59,8 +66,8 @@ public class AndroidRunConfigurationEditor<T extends AndroidRunConfigurationBase
   // Misc. options tab
   private JCheckBox myClearLogCheckBox;
   private JCheckBox myShowLogcatCheckBox;
-  private JCheckBox mySkipNoOpApkInstallation;
-  private JCheckBox myForceStopRunningApplicationCheckBox;
+  private JCheckBox myEnableLayoutInspectionWithoutActivityRestart;
+  private JEditorPane myActivityRestartDescription;
 
   private JComponent anchor;
 
@@ -69,6 +76,8 @@ public class AndroidRunConfigurationEditor<T extends AndroidRunConfigurationBase
 
   private AndroidDebuggerPanel myAndroidDebuggerPanel;
   private final AndroidProfilersPanel myAndroidProfilersPanel;
+
+  public static final String LAYOUT_INSPECTION_WITHOUT_ACTIVITY_RESTART = "Layout Inspection Without Activity Restart";
 
   public AndroidRunConfigurationEditor(Project project,
                                        Predicate<AndroidFacet> libraryProjectValidator,
@@ -88,7 +97,20 @@ public class AndroidRunConfigurationEditor<T extends AndroidRunConfigurationBase
           return false;
         }
 
+        if (!ModuleSystemUtil.isHolderModule(module)) {
+          return false;
+        }
+
         return !facet.getConfiguration().isLibraryProject() || libraryProjectValidator.apply(facet);
+      }
+
+      @Override
+      public JavaRunConfigurationModule getConfigurationModule() {
+        // ConfigurationModuleSelector creates JavaRunConfigurationModule the same way, but we need to replace it with
+        // our enhanced version for things to work correctly.
+        AndroidRunConfigurationModule configurationModule = new AndroidRunConfigurationModule(getProject(), config.isTestConfiguration());
+        configurationModule.setModule(getModule());
+        return configurationModule;
       }
     };
     myModulesComboBox.addActionListener(this);
@@ -104,18 +126,6 @@ public class AndroidRunConfigurationEditor<T extends AndroidRunConfigurationBase
         myDeploymentTargetOptions = new DeploymentTargetOptions(providers, this, project);
         myDeploymentTargetOptions.addTo((Container)myTabbedPane.getComponentAt(0));
         break;
-    }
-
-    if (config instanceof AndroidTestRunConfiguration) {
-      // The application is always force stopped when running `am instrument`. See AndroidTestRunConfiguration#getLaunchOptions().
-      myForceStopRunningApplicationCheckBox.setVisible(false);
-    }
-    else {
-      mySkipNoOpApkInstallation.addActionListener(e -> {
-        if (mySkipNoOpApkInstallation == e.getSource()) {
-          myForceStopRunningApplicationCheckBox.setEnabled(mySkipNoOpApkInstallation.isSelected());
-        }
-      });
     }
 
     AndroidDebuggerContext androidDebuggerContext = config.getAndroidDebuggerContext();
@@ -138,6 +148,10 @@ public class AndroidRunConfigurationEditor<T extends AndroidRunConfigurationBase
     myConfigurationSpecificEditor = configurationSpecificEditorFactory.apply(myModuleSelector);
     Disposer.register(this, myConfigurationSpecificEditor);
     myConfigurationSpecificPanel.add(myConfigurationSpecificEditor.getComponent());
+
+    myActivityRestartDescription.setBorder(JBUI.Borders.emptyLeft(24));
+    myActivityRestartDescription.setForeground(UIUtil.getContextHelpForeground());
+    myActivityRestartDescription.setFont(UIUtil.getLabelFont(UIUtil.FontSize.SMALL));
 
     myShowLogcatCheckBox.setVisible(showLogcatCheckbox);
 
@@ -181,8 +195,8 @@ public class AndroidRunConfigurationEditor<T extends AndroidRunConfigurationBase
 
     myClearLogCheckBox.setSelected(configuration.CLEAR_LOGCAT);
     myShowLogcatCheckBox.setSelected(configuration.SHOW_LOGCAT_AUTOMATICALLY);
-    mySkipNoOpApkInstallation.setSelected(configuration.SKIP_NOOP_APK_INSTALLATIONS);
-    myForceStopRunningApplicationCheckBox.setSelected(configuration.FORCE_STOP_RUNNING_APP);
+    myEnableLayoutInspectionWithoutActivityRestart.setSelected(configuration.INSPECTION_WITHOUT_ACTIVITY_RESTART);
+    myEnableLayoutInspectionWithoutActivityRestart.setName(LAYOUT_INSPECTION_WITHOUT_ACTIVITY_RESTART);
 
     myConfigurationSpecificEditor.resetFrom(configuration);
 
@@ -202,8 +216,7 @@ public class AndroidRunConfigurationEditor<T extends AndroidRunConfigurationBase
 
     configuration.CLEAR_LOGCAT = myClearLogCheckBox.isSelected();
     configuration.SHOW_LOGCAT_AUTOMATICALLY = myShowLogcatCheckBox.isSelected();
-    configuration.SKIP_NOOP_APK_INSTALLATIONS = mySkipNoOpApkInstallation.isSelected();
-    configuration.FORCE_STOP_RUNNING_APP = myForceStopRunningApplicationCheckBox.isSelected();
+    configuration.INSPECTION_WITHOUT_ACTIVITY_RESTART = myEnableLayoutInspectionWithoutActivityRestart.isSelected();
 
     myConfigurationSpecificEditor.applyTo(configuration);
 
@@ -241,5 +254,15 @@ public class AndroidRunConfigurationEditor<T extends AndroidRunConfigurationBase
   @VisibleForTesting
   DeploymentTargetOptions getDeploymentTargetOptions() {
     return myDeploymentTargetOptions;
+  }
+
+  private void createUIComponents() {
+    myActivityRestartDescription =
+      SwingHelper.createHtmlViewer(true, null, UIUtil.getPanelBackground(), UIUtil.getContextHelpForeground());
+    myActivityRestartDescription.setText(
+      "<html>Enabling this option sets a required global flag on the device at deploy time. This avoids having to later restart the " +
+      "activity in order to enable the flag when connecting to the Layout Inspector. " +
+      "<a href=\"https://developer.android.com/r/studio-ui/layout-inspector-activity-restart\">Learn more</a></html>");
+    myActivityRestartDescription.addHyperlinkListener(BrowserHyperlinkListener.INSTANCE);
   }
 }

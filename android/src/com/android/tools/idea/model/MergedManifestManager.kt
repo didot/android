@@ -23,7 +23,6 @@ import com.android.tools.idea.concurrency.ThrottlingAsyncSupplier
 import com.android.tools.idea.util.androidFacet
 import com.android.utils.TraceUtils
 import com.android.utils.concurrency.AsyncSupplier
-import com.google.common.annotations.VisibleForTesting
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import com.intellij.openapi.Disposable
@@ -36,7 +35,6 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.util.ProgressIndicatorUtils
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.ModificationTracker
 import com.intellij.openapi.util.RecursionManager
 import org.jetbrains.android.facet.AndroidFacet
@@ -57,12 +55,11 @@ private val RECOMPUTE_INTERVAL = Duration.ofMillis(50)
  * @see [getOrCreateSnapshotInCallingThread]
  * @see [MergedManifestManager.getSnapshot]
  */
-private class MergedManifestSupplier(private val facet: AndroidFacet) : AsyncSupplier<MergedManifestSnapshot>, Disposable, ModificationTracker {
+private class MergedManifestSupplier(private val module: Module) : AsyncSupplier<MergedManifestSnapshot>, Disposable, ModificationTracker {
 
   private val delegate = ThrottlingAsyncSupplier(::getOrCreateSnapshotFromDelegate, ::snapshotUpToDate, RECOMPUTE_INTERVAL)
 
   private val callingThreadLock = Any()
-
   /**
    * The cached result of the last merged manifest computation to complete in a calling thread
    * (as opposed to the delegate supplier's background thread). This value is consumed on the delegate
@@ -71,7 +68,6 @@ private class MergedManifestSupplier(private val facet: AndroidFacet) : AsyncSup
    */
   @GuardedBy("callingThreadLock")
   private var snapshotFromCallingThread: MergedManifestSnapshot? = null
-
   /**
    * The future result of a merged manifest computation running in some calling thread
    * (as opposed to the delegate supplier's background thread). When the computation has finished,
@@ -102,9 +98,11 @@ private class MergedManifestSupplier(private val facet: AndroidFacet) : AsyncSup
   @Slow
   private fun getOrCreateSnapshot(cachedSnapshot: MergedManifestSnapshot?): MergedManifestSnapshot {
     return runCancellableReadAction {
+      val facet = module.androidFacet
+                  ?: throw IllegalArgumentException("Attempt to obtain manifest info from a non Android module: ${module.name}")
       when {
         // Make sure the module wasn't disposed while we were waiting for the read lock.
-        facet.isDisposed() || facet.module.project.isDisposed -> throw ProcessCanceledException()
+        facet.isDisposed() || module.project.isDisposed -> throw ProcessCanceledException()
         cachedSnapshot != null && snapshotUpToDate(cachedSnapshot) -> cachedSnapshot
         else -> MergedManifestSnapshotFactory.createMergedManifestSnapshot(facet, MergedManifestInfo.create(facet))
       }
@@ -124,14 +122,14 @@ private class MergedManifestSupplier(private val facet: AndroidFacet) : AsyncSup
   )
   fun getOrCreateSnapshotInCallingThread(): MergedManifestSnapshot {
     ApplicationManager.getApplication().assertReadAccessAllowed()
-    val manifestSnapshot = RecursionManager.doPreventingRecursion(facet.module, true, ::doGetOrCreateSnapshotInCallingThread)
+    val manifestSnapshot = RecursionManager.doPreventingRecursion(module, true, ::doGetOrCreateSnapshotInCallingThread)
     if (manifestSnapshot != null) {
       return manifestSnapshot
     }
 
     logger<MergedManifestSupplier>().warn(
-        "Infinite recursion detected when computing merged manifest for module ${facet.module.name}\n" + TraceUtils.getCurrentStack())
-    return MergedManifestSnapshotFactory.createEmptyMergedManifestSnapshot(facet.module)
+        "Infinite recursion detected when computing merged manifest for module ${module.name}\n" + TraceUtils.getCurrentStack())
+    return MergedManifestSnapshotFactory.createEmptyMergedManifestSnapshot(module)
   }
 
   private fun doGetOrCreateSnapshotInCallingThread(): MergedManifestSnapshot {
@@ -248,27 +246,25 @@ private class MergedManifestSupplier(private val facet: AndroidFacet) : AsyncSup
  *
  * This class is open for mocking. Do not extend it.
  */
-class MergedManifestManager(facet: AndroidFacet) {
-  private val supplier: MergedManifestSupplier
+class MergedManifestManager(module: Module) : Disposable {
+  private val supplier = MergedManifestSupplier(module)
   val mergedManifest: AsyncSupplier<MergedManifestSnapshot> get() = supplier
   val modificationTracker: ModificationTracker get() = supplier
 
   init {
-    supplier = MergedManifestSupplier(facet)
-    Disposer.register(facet, supplier)
+    // The Disposer tree doesn't access the fields of the objects
+    // that it contains: it uses only reference equality and
+    // System#identityHashcode. Therefore we don't have to worry
+    // about accessing uninitialized fields when leaking "this".
+    @Suppress("LeakingThis")
+    Disposer.register(this, supplier)
   }
 
+  override fun dispose() { }
+
   companion object {
-    @VisibleForTesting
-    val MANIFEST_MANAGER_KEY = Key<MergedManifestManager>("android.MergedManifestManager")
-
     @JvmStatic
-    fun getInstance(facet: AndroidFacet): MergedManifestManager {
-      return facet.getUserData(MANIFEST_MANAGER_KEY) ?: facet.putUserDataIfAbsent(MANIFEST_MANAGER_KEY, MergedManifestManager(facet))
-    }
-
-    @JvmStatic
-    fun getInstance(module: Module) = getInstance(module.androidFacet ?: throw IllegalArgumentException("Attempt to obtain manifest info from a non Android module: ${module.name}"))
+    fun getInstance(module: Module): MergedManifestManager = module.getService(MergedManifestManager::class.java)
 
     /**
      * Convenience function for requesting a fresh [MergedManifestSnapshot] which, if necessary, will be calculated

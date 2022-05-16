@@ -299,10 +299,8 @@ public class AndroidTargetData {
 
     return FrameworkResourceRepositoryManager.getInstance().getCachedFrameworkResources(
       resFolderOrJar,
-                                                                                  // FIXME-ank3: false should be replaced with isLayoutLibNative
-                                                                                  false &&
-                                                                                  myTarget instanceof CompatibilityRenderTarget,
-                                                                                  languages);
+      myTarget instanceof CompatibilityRenderTarget,
+      languages);
   }
 
   /**

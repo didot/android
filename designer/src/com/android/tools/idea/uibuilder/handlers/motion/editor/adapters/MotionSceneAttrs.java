@@ -37,6 +37,8 @@ public class MotionSceneAttrs {
   public static final String ATTR_ANDROID_TRANSLATIONZ = "translationZ";
   public static final String ATTR_ANDROID_ELEVATION = SdkConstants.ATTR_ELEVATION;
 
+  public static final String ATTR_TOOLS_SCREEN_ROTATION = "screenRotation";
+
   public static final String ATTR_ANDROID_LAYOUT_WIDTH = SdkConstants.ATTR_LAYOUT_WIDTH;
   public static final String ATTR_ANDROID_LAYOUT_HEIGHT = SdkConstants.ATTR_LAYOUT_HEIGHT;
   public static final String ATTR_ANDROID_LAYOUT_MARGIN_LEFT = SdkConstants.ATTR_LAYOUT_MARGIN_LEFT;
@@ -69,6 +71,8 @@ public class MotionSceneAttrs {
   public static final String ATTR_LAYOUT_BOTTOM_TO_TOP_OF = "layout_constraintBottom_toTopOf";
   public static final String ATTR_LAYOUT_BOTTOM_TO_BOTTOM_OF = "layout_constraintBottom_toBottomOf";
   public static final String ATTR_LAYOUT_BASELINE_TO_BASELINE_OF = "layout_constraintBaseline_toBaselineOf";
+  public static final String ATTR_LAYOUT_BASELINE_TO_TOP_OF = "layout_constraintBaseline_toTopOf";
+  public static final String ATTR_LAYOUT_BASELINE_TO_BOTTOM_OF = "layout_constraintBaseline_toBottomOf";
 
   public static final String ATTR_LAYOUT_START_TO_END_OF = "layout_constraintStart_toEndOf";
   public static final String ATTR_LAYOUT_START_TO_START_OF = "layout_constraintStart_toStartOf";
@@ -310,6 +314,12 @@ public class MotionSceneAttrs {
     public static final String ATTR_TOUCH_ANCHOR_SIDE = "touchAnchorSide";
     public static final String ATTR_MOVE_WHEN_SCROLL_AT_TOP = "moveWhenScrollAtTop";
     public static final String ATTR_ON_TOUCH_UP = "onTouchUp";
+    public static final String ATTR_SPRING_MASS = "springMass";
+    public static final String ATTR_SPRING_STIFFNESS = "springStiffness";
+    public static final String ATTR_SPRING_DAMPING = "springDamping";
+    public static final String ATTR_SPRING_STOP_THRESHOLD = "springStopThreshold";
+    public static final String ATTR_SPRING_BOUNDARY = "springBoundary";
+
   }
 
   public static class MotionLayout {
@@ -372,12 +382,35 @@ public class MotionSceneAttrs {
       ATTR_LAYOUT_CONSTRAINT_CIRCLE_RADIUS,
       ATTR_LAYOUT_CONSTRAINED_HEIGHT,
       ATTR_LAYOUT_CONSTRAINED_WIDTH,
+      ATTR_LAYOUT_BASELINE_TO_TOP_OF,
+      ATTR_LAYOUT_BASELINE_TO_BOTTOM_OF,
       LAYOUT_CONSTRAINT_GUIDE_BEGIN,
       LAYOUT_CONSTRAINT_GUIDE_END,
       LAYOUT_CONSTRAINT_GUIDE_PERCENT
     ));
-
   }
+
+  public static HashSet<String> VERTICAL_CONSTRAINT_ATTRS = new HashSet<>(Arrays.asList(
+    ATTR_LAYOUT_TOP_TO_TOP_OF,
+    ATTR_LAYOUT_TOP_TO_BOTTOM_OF,
+    ATTR_LAYOUT_BOTTOM_TO_TOP_OF,
+    ATTR_LAYOUT_BOTTOM_TO_BOTTOM_OF,
+    ATTR_LAYOUT_BASELINE_TO_BASELINE_OF,
+    ATTR_LAYOUT_BASELINE_TO_TOP_OF,
+    ATTR_LAYOUT_BASELINE_TO_BOTTOM_OF,
+    ATTR_LAYOUT_CONSTRAINT_CIRCLE
+  ));
+
+  public static HashSet<String> HORIZONTAL_CONSTRAINT_ATTRS = new HashSet<>(Arrays.asList(
+    ATTR_LAYOUT_LEFT_TO_LEFT_OF,
+    ATTR_LAYOUT_LEFT_TO_RIGHT_OF,
+    ATTR_LAYOUT_RIGHT_TO_LEFT_OF,
+    ATTR_LAYOUT_RIGHT_TO_RIGHT_OF,
+    ATTR_LAYOUT_START_TO_END_OF,
+    ATTR_LAYOUT_START_TO_START_OF,
+    ATTR_LAYOUT_END_TO_START_OF,
+    ATTR_LAYOUT_CONSTRAINT_CIRCLE
+  ));
 
   public static final HashSet<String> layout_tags = new HashSet<>(Arrays.asList(
     ATTR_ANDROID_LAYOUT_WIDTH,
@@ -442,6 +475,8 @@ public class MotionSceneAttrs {
     ATTR_LAYOUT_CONSTRAINT_CIRCLE_RADIUS,
     ATTR_LAYOUT_CONSTRAINED_HEIGHT,
     ATTR_LAYOUT_CONSTRAINED_WIDTH,
+    ATTR_LAYOUT_BASELINE_TO_TOP_OF,
+    ATTR_LAYOUT_BASELINE_TO_BOTTOM_OF,
     LAYOUT_CONSTRAINT_GUIDE_BEGIN,
     LAYOUT_CONSTRAINT_GUIDE_END,
     LAYOUT_CONSTRAINT_GUIDE_PERCENT

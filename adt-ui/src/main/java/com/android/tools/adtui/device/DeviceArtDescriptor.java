@@ -22,16 +22,18 @@ import com.android.resources.ScreenOrientation;
 import com.android.tools.adtui.ImageUtils;
 import com.android.tools.idea.util.StudioPathManager;
 import com.android.utils.XmlUtils;
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -82,7 +84,7 @@ public class DeviceArtDescriptor {
   }
 
   private static List<File> getDescriptorFiles(@Nullable File[] additionalRoots) {
-    Set<File> roots = new HashSet<File>();
+    Set<File> roots = new HashSet<>();
 
     File base = getBundledDescriptorsFolder();
     if (base != null) {
@@ -93,7 +95,7 @@ public class DeviceArtDescriptor {
       Collections.addAll(roots, additionalRoots);
     }
 
-    List<File> files = new ArrayList<File>(roots.size());
+    List<File> files = new ArrayList<>(roots.size());
     for (File root : roots) {
       File file = getDescriptorFile(root);
       if (file != null) {
@@ -110,7 +112,7 @@ public class DeviceArtDescriptor {
 
     for (File file : files)
       try {
-        String xml = Files.toString(file, Charsets.UTF_8);
+        String xml = Files.toString(file, StandardCharsets.UTF_8);
         Document document = XmlUtils.parseDocumentSilently(xml, false);
         if (document != null) {
           File baseFolder = file.getParentFile();

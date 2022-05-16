@@ -23,6 +23,7 @@ import com.android.repository.api.PackageOperation;
 import com.android.repository.api.ProgressIndicator;
 import com.android.repository.api.RemotePackage;
 import com.android.repository.api.RepoManager;
+import com.android.repository.api.RepoPackage;
 import com.android.repository.api.UpdatablePackage;
 import com.android.repository.impl.meta.Archive;
 import com.android.repository.impl.meta.RepositoryPackages;
@@ -32,9 +33,9 @@ import com.android.sdklib.devices.Storage;
 import com.android.sdklib.repository.AndroidSdkHandler;
 import com.android.sdklib.repository.meta.DetailsTypes;
 import com.android.tools.idea.help.AndroidWebHelpProvider;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.sdk.StudioDownloader;
 import com.android.tools.idea.sdk.StudioSettingsController;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils;
 import com.android.tools.idea.wizard.model.ModelWizardDialog;
 import com.android.utils.HtmlBuilder;
@@ -43,7 +44,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.intellij.icons.AllIcons;
@@ -62,16 +62,19 @@ import com.intellij.ui.AncestorListenerAdapter;
 import com.intellij.ui.JBColor;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.JComponent;
 import javax.swing.event.AncestorEvent;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.Nls;
@@ -87,7 +90,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
    * Very rough zip decompression estimate for informational/UI purposes only. Better for it to be a bit higher than average,
    * but not too much. Most of the SDK component files are binary, which should yield 2x-3x compression rate
    * on average - at least this is the assumption we are making here.
-   *
+   * <p>
    * TODO: The need for this will disappear should we revise the packages XML schema and add installation size for a given
    * platform there.
    */
@@ -147,7 +150,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
    */
   AndroidSdkHandler getSdkHandler() {
     File location = myPanel.getSelectedSdkLocation();
-    return AndroidSdkHandler.getInstance(AndroidLocationsSingleton.INSTANCE,  location == null ? null : location.toPath());
+    return AndroidSdkHandler.getInstance(AndroidLocationsSingleton.INSTANCE, location == null ? null : location.toPath());
   }
 
   RepoManager getRepoManager() {
@@ -180,7 +183,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
     myPanel.saveSources();
 
     final List<LocalPackage> toDelete = new ArrayList<>();
-    final Map<RemotePackage, UpdatablePackage> requestedPackages = Maps.newHashMap();
+    final Map<RemotePackage, UpdatablePackage> requestedPackages = new HashMap<>();
     for (PackageNodeModel model : myPanel.getStates()) {
       if (model.getState() == PackageNodeModel.SelectedState.NOT_INSTALLED) {
         if (model.getPkg().hasLocal()) {
@@ -212,8 +215,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
       }
       for (LocalPackage item : toDelete) {
         messageToDelete.listItem()
-                       .add(item.getDisplayName()).add(", Revision: ")
-                       .add(item.getVersion().toString());
+                       .add(getItemMessage(item));
       }
       messageToDelete.endList();
     }
@@ -231,6 +233,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
           dependencyIssues.add(s);
           super.logWarning(s);
         }
+
         @Override
         public void logError(@NotNull String s) {
           dependencyIssues.add(s);
@@ -260,9 +263,8 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
         for (RemotePackage dependency : packageDependencies) {
           dependencies.put(dependency, item);
         }
-        messageToInstall.listItem().add(String.format("%1$s %2$s %3$s", item.getDisplayName(),
-                                             item.getTypeDetails() instanceof DetailsTypes.ApiDetailsType ? "revision" : "version",
-                                             item.getVersion()));
+
+        messageToInstall.listItem().add(getItemMessage(item));
 
         Pair<Long, Boolean> itemDownloadSize = calculateDownloadSizeForPackage(item, packages);
         if (itemDownloadSize.getSecond()) {
@@ -302,7 +304,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
     if (found) {
       Path location = getSdkHandler().getLocation();
       Pair<HtmlBuilder, HtmlBuilder> diskUsageMessages = getDiskUsageMessages(
-        location == null ? null : getSdkHandler().getFileOp().toFile(location),
+        location,
         fullInstallationsDownloadSize, patchesDownloadSize,
         spaceToBeFreedUp);
       // Now form the summary message ordering the constituents properly.
@@ -343,6 +345,18 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
     }
   }
 
+  @VisibleForTesting
+  static @NotNull String getItemMessage(@NotNull RepoPackage item) {
+    String apiLevelString = item.getTypeDetails() instanceof DetailsTypes.SysImgDetailsType ?
+                            " API level " + ((DetailsTypes.SysImgDetailsType)item.getTypeDetails()).getApiLevel() : "";
+    String revisionOrVersion = String.format("%1$s %2$s",
+                                             item.getTypeDetails() instanceof DetailsTypes.ApiDetailsType ? "revision" : "version",
+                                             item.getVersion());
+    return String.format("%1$s:%2$s %3$s", item.getDisplayName(),
+                         apiLevelString,
+                         revisionOrVersion);
+  }
+
   private static long getLocalInstallationSize(@NotNull Collection<LocalPackage> localPackages) {
     long size = 0;
     for (LocalPackage item : localPackages) {
@@ -363,7 +377,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
    * Attempts to calculate the download size based on package's archive metadata.
    *
    * @param remotePackage the package to calculate the download size for.
-   * @param packages loaded repository packages obtained from the SDK handler.
+   * @param packages      loaded repository packages obtained from the SDK handler.
    * @return A pair of long and boolean, where the first element denotes the calculated size,
    * and the second indicates whether it's a patch installation.
    */
@@ -385,7 +399,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
   }
 
   @VisibleForTesting
-  static Pair<HtmlBuilder, HtmlBuilder> getDiskUsageMessages(@Nullable File sdkRoot, long fullInstallationsDownloadSize,
+  static Pair<HtmlBuilder, HtmlBuilder> getDiskUsageMessages(@Nullable Path sdkRoot, long fullInstallationsDownloadSize,
                                                              long patchesDownloadSize, long spaceToBeFreedUp) {
     HtmlBuilder message = new HtmlBuilder();
     message.add("Disk usage:\n");
@@ -402,8 +416,14 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
       message.listItem().add("Estimated disk space to be additionally occupied on SDK partition after installation: "
                              + new Storage(sdkRootUsageAfterInstallation).toUiString());
       if (sdkRoot != null) {
-        long sdkRootUsableSpace = sdkRoot.getUsableSpace();
-        message.listItem().add(String.format("Currently available disk space in SDK root (%1$s): %2$s", sdkRoot.getAbsolutePath(),
+        long sdkRootUsableSpace = 0;
+        try {
+          sdkRootUsableSpace = Files.getFileStore(sdkRoot).getUsableSpace();
+        }
+        catch (IOException ignore) {
+          // We'll just say there's 0 usable space
+        }
+        message.listItem().add(String.format("Currently available disk space in SDK root (%1$s): %2$s", sdkRoot.toAbsolutePath(),
                                              new Storage(sdkRootUsableSpace).toUiString()));
         long totalSdkUsableSpace = sdkRootUsableSpace + spaceToBeFreedUp;
         issueDiskSpaceWarning = (totalSdkUsableSpace < sdkRootUsageAfterInstallation);
@@ -425,12 +445,11 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
   }
 
   static boolean confirmChange(HtmlBuilder message) {
-    String[] options = {Messages.getOkButton(), Messages.getCancelButton()};
+    String[] options = {Messages.getCancelButton(), Messages.getOkButton()};
     Icon icon = AllIcons.General.Warning;
 
-    // I would use showOkCancelDialog but Mac sheet panels do not gracefully handle long messages and their buttons can display offscreen
-    return Messages.showIdeaMessageDialog(null, message.getHtml(),
-                                          "Confirm Change", options, 0, icon, null) == Messages.OK;
+    // I would use showOkCancelDialog but Mac sheet panels do not gracefully handle long messages and their buttons can display offscree
+    return Messages.showIdeaMessageDialog(null, message.getHtml(), "Confirm Change", options, 1, icon, null) == 1;
   }
 
   @Override

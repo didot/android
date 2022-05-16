@@ -34,7 +34,7 @@ open class PFormTableImpl(model: TableModel) : JBTable(model) {
         when (event.cause) {
           FocusEvent.Cause.TRAVERSAL_FORWARD -> transferFocusToFirstEditor()
           FocusEvent.Cause.TRAVERSAL_BACKWARD -> transferFocusToLastEditor()
-          else -> return  // avoid compilation warning
+          else -> return  // keep focus on the table
         }
       }
     })

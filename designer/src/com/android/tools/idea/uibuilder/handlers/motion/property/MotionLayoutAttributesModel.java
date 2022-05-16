@@ -34,19 +34,26 @@ import com.android.tools.idea.uibuilder.property.NlPropertiesModel;
 import com.android.tools.idea.uibuilder.property.NlPropertyItem;
 import com.android.tools.property.panel.api.PropertiesModel;
 import com.android.tools.property.panel.api.PropertiesTable;
+import com.android.tools.property.panel.api.TableLineModel;
 import com.google.common.base.Predicates;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ModalityState;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.xml.XmlTag;
+import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.update.MergingUpdateQueue;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import kotlin.jvm.functions.Function0;
@@ -76,12 +83,14 @@ public class MotionLayoutAttributesModel extends NlPropertiesModel {
   }
 
   @Override
-  protected boolean loadProperties(@Nullable Object accessoryType,
-                                   @Nullable Object accessory,
-                                   @NotNull List<? extends NlComponent> components,
-                                   @NotNull Function0<Boolean> wantUpdate) {
+  protected void loadProperties(
+    @Nullable Object accessoryType,
+    @Nullable Object accessory,
+    @NotNull List<? extends NlComponent> components,
+    @NotNull Function0<Boolean> wantUpdate
+  ) {
     if (accessoryType == null || accessory == null || !wantUpdate.invoke()) {
-      return false;
+      return;
     }
 
     MotionEditorSelector.Type type = (MotionEditorSelector.Type)accessoryType;
@@ -95,13 +104,15 @@ public class MotionLayoutAttributesModel extends NlPropertiesModel {
           firePropertyValueChanged();
         }
       });
-      return true;
+      return;
     }
-    Map<String, PropertiesTable<NlPropertyItem>> newProperties =
-      myMotionLayoutPropertyProvider.getAllProperties(this, selection);
     setLastUpdateCompleted(false);
-
-    UIUtil.invokeLaterIfNeeded(() -> {
+    Callable<Map<String, PropertiesTable<NlPropertyItem>>> getProperties = () -> {
+      Map<String, PropertiesTable<NlPropertyItem>> newProperties =
+        myMotionLayoutPropertyProvider.getAllProperties(MotionLayoutAttributesModel.this, selection);
+      return newProperties;
+    };
+    Consumer<Map<String, PropertiesTable<NlPropertyItem>>> notifyUI = newProperties -> {
       try {
         if (wantUpdate.invoke()) {
           updateLiveListeners(components);
@@ -113,10 +124,17 @@ public class MotionLayoutAttributesModel extends NlPropertiesModel {
         }
       }
       finally {
+        setUpdateCount(getUpdateCount() + 1);
         setLastUpdateCompleted(true);
       }
-    });
-    return true;
+    };
+
+    ReadAction
+      .nonBlocking(getProperties)
+      .inSmartMode(getProject())
+      .expireWith(this)
+      .finishOnUiThread(ModalityState.defaultModalityState(), notifyUI)
+      .submit(AppExecutorUtil.getAppExecutorService());
   }
 
   @Nullable
@@ -264,6 +282,31 @@ public class MotionLayoutAttributesModel extends NlPropertiesModel {
       default:
         return Predicates.alwaysFalse();
     }
+  }
+
+  public void addCustomProperty(
+    @NotNull String attributeName,
+    @NotNull String value,
+    @NotNull CustomAttributeType type,
+    @NotNull MotionSelection selection,
+    @NotNull TableLineModel lineModel
+  ) {
+    Consumer<MotionSceneTag> applyToModel = newCustomTag -> {
+      NlPropertyItem newProperty = MotionLayoutPropertyProvider.createCustomProperty(
+        attributeName, type.getTagName(), selection, this);
+      lineModel.addItem(newProperty);
+
+      // Add to the property model since the model may treat this as a property update (not a new selection).
+      PropertiesTable<NlPropertyItem> customProperties = getAllProperties().get(MotionSceneAttrs.Tags.CUSTOM_ATTRIBUTE);
+      if (customProperties == null) {
+        Table<String, String, NlPropertyItem> customTable = HashBasedTable.create(3, 10);
+        customProperties = PropertiesTable.Companion.create(customTable);
+        getAllProperties().put(MotionSceneAttrs.Tags.CUSTOM_ATTRIBUTE, customProperties);
+      }
+      customProperties.put(newProperty);
+    };
+
+    createCustomXmlTag(selection, attributeName, value, type, applyToModel);
   }
 
   /**

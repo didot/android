@@ -25,7 +25,6 @@ import com.android.resources.ResourceFolderType;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
 import com.android.tools.idea.gradle.dsl.api.android.FlavorTypeModel.ResValue;
-import com.android.tools.idea.lint.AndroidLintIdeIssueRegistry;
 import com.android.tools.idea.lint.common.LintBatchResult;
 import com.android.tools.idea.lint.common.LintIdeClient;
 import com.android.tools.idea.lint.common.LintIdeRequest;
@@ -40,7 +39,6 @@ import com.android.tools.lint.detector.api.LintFix;
 import com.android.tools.lint.detector.api.Scope;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.intellij.analysis.AnalysisScope;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
@@ -128,7 +126,7 @@ public class UnusedResourcesProcessor extends BaseRefactoringProcessor {
     for (Issue issue : new Issue[]{UnusedResourceDetector.ISSUE, UnusedResourceDetector.ISSUE_IDS}) {
       Map<File, List<LintProblemData>> fileListMap = map.get(issue);
       if (fileListMap != null && !fileListMap.isEmpty()) {
-        Map<File, PsiFile> files = Maps.newHashMap();
+        Map<File, PsiFile> files = new HashMap<>();
         for (File file : fileListMap.keySet()) {
           VirtualFile virtualFile = LocalFileSystem.getInstance().findFileByIoFile(file);
           if (virtualFile != null) {
@@ -244,7 +242,7 @@ public class UnusedResourcesProcessor extends BaseRefactoringProcessor {
           starts.add(problem.getTextRange().getStartOffset());
         }
       }
-      starts.sort(Collections.<Integer>reverseOrder());
+      starts.sort(Collections.reverseOrder());
       for (Integer offset : starts) {
         if (psiFile.isValid()) {
           XmlAttribute attribute = PsiTreeUtil.findElementOfClassAtOffset(psiFile, offset, XmlAttribute.class, false);
@@ -267,7 +265,7 @@ public class UnusedResourcesProcessor extends BaseRefactoringProcessor {
 
   @NotNull
   private Map<Issue, Map<File, List<LintProblemData>>> computeUnusedMap() {
-    Map<Issue, Map<File, List<LintProblemData>>> map = Maps.newHashMap();
+    Map<Issue, Map<File, List<LintProblemData>>> map = new HashMap<>();
 
     Set<Issue> issues;
     if (myIncludeIds) {
@@ -288,7 +286,7 @@ public class UnusedResourcesProcessor extends BaseRefactoringProcessor {
       LintIdeClient client = LintIdeSupport.get().createBatchClient(lintResult);
       LintRequest request = new LintIdeRequest(client, myProject, null, Arrays.asList(myModules), false);
       request.setScope(Scope.ALL);
-      LintDriver lint = client.createDriver(request, new AndroidLintIdeIssueRegistry());
+      LintDriver lint = client.createDriver(request, LintIdeSupport.get().getIssueRegistry());
       lint.analyze();
     }
     finally {

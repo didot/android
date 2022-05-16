@@ -35,7 +35,6 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.ProjectScope
 import com.intellij.util.Processor
 
-// FIXME-ank5: don't track in IDEA
 class ProjectSizeUsageTrackerListener(private val project: Project) : SyncResultListener {
   override fun syncEnded(result: SyncResult) {
     if (!result.isSuccessful && result != SyncResult.PARTIAL_SUCCESS) {

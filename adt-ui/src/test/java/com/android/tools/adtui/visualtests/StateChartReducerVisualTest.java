@@ -26,13 +26,18 @@ import com.android.tools.adtui.model.RangedSeries;
 import com.android.tools.adtui.model.StateChartModel;
 import com.android.tools.adtui.model.updater.Updatable;
 import com.intellij.ui.JBColor;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ItemEvent;
-import java.util.*;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.JPanel;
+import org.jetbrains.annotations.NotNull;
 
 public class StateChartReducerVisualTest extends VisualTest {
   private enum ColorState {
@@ -41,7 +46,7 @@ public class StateChartReducerVisualTest extends VisualTest {
     BLACK
   }
 
-  @NotNull private static final StateChartColorProvider<ColorState> COLOR_STATE_COLORS = new StateChartColorProvider<ColorState>() {
+  @NotNull private static final StateChartColorProvider<ColorState> COLOR_STATE_COLORS = new StateChartColorProvider<>() {
     @NotNull
     @Override
     public Color getColor(boolean isMouseOver, @NotNull ColorState value) {
@@ -74,7 +79,8 @@ public class StateChartReducerVisualTest extends VisualTest {
     myData = new DefaultDataSeries<>();
     RangedSeries<ColorState> series = new RangedSeries<>(myViewRange, myData);
     myColorChartModel = new StateChartModel<>();
-    myColorChart = new StateChart<>(myColorChartModel, new StateChartConfig<>((rectangles, values) -> {}), COLOR_STATE_COLORS);
+    myColorChart = new StateChart<>(myColorChartModel, COLOR_STATE_COLORS, Object::toString,
+                                    new StateChartConfig<>((rectangles, values) -> {}));
     myColorChartModel.addSeries(series);
 
     myOptimizedColorChartModel = new StateChartModel<>();
@@ -147,13 +153,6 @@ public class StateChartReducerVisualTest extends VisualTest {
     }));
 
     controls.add(VisualTest.createButton("Add samples", e -> addData(mySampleSize)));
-
-    controls.add(VisualTest.createCheckbox("Text Mode", itemEvent -> {
-      StateChart.RenderMode mode = itemEvent.getStateChange() == ItemEvent.SELECTED ?
-                                   StateChart.RenderMode.TEXT : StateChart.RenderMode.BAR;
-      myColorChart.setRenderMode(mode);
-      myOptimizedColorChart.setRenderMode(mode);
-    }));
 
     controls.add(
       new Box.Filler(new Dimension(0, 0), new Dimension(300, Integer.MAX_VALUE),

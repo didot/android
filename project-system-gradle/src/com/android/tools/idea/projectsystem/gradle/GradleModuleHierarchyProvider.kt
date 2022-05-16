@@ -17,9 +17,10 @@ package com.android.tools.idea.projectsystem.gradle
 
 import com.android.tools.idea.gradle.util.GradleUtil.GRADLE_SYSTEM_ID
 import com.android.tools.idea.projectsystem.ModuleHierarchyProvider
+import com.android.tools.idea.projectsystem.getHolderModule
+import com.android.tools.idea.projectsystem.isLinkedAndroidModule
 import com.intellij.ProjectTopics
 import com.intellij.openapi.components.ComponentManager
-import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil.isExternalSystemAwareModule
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
@@ -27,6 +28,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootEvent
 import com.intellij.openapi.roots.ModuleRootListener
 import com.intellij.openapi.roots.ModuleRootManager
+import org.jetbrains.android.facet.AndroidFacet
 
 class GradleModuleHierarchyProvider(private val project: Project) {
   private var moduleSubmodules: Map<ComponentManager, List<Module>>? = null // Keys: Modules and the project.
@@ -86,6 +88,9 @@ class GradleModuleHierarchyProvider(private val project: Project) {
     hierarchyIdToSubmodulesMap[projectRootHierarchyId] = mutableListOf()
 
     for (module in modules) {
+      // We exclude any source set modules as these are not to be displayed to the user and are not in the Gradle structure
+      if (module.isLinkedAndroidModule() && module.getHolderModule() !== module) continue
+
       val hierarchyId = moduleHierarchyId(module) ?: continue
 
       var parent = hierarchyId
@@ -112,8 +117,9 @@ class GradleModuleHierarchyProvider(private val project: Project) {
       hierarchyIdToSubmodulesMap[projectRootHierarchyId]
         ?.singleOrNull()
         ?.takeIf {
-          // If there is only one top level module and it is empty, flatten it.
-          ModuleRootManager.getInstance(it).sourceRootUrls.isEmpty()
+          // If there is only one top level module and it is empty, flatten it. In module per source the top level module will be empty of
+          // sources so we also need to check that is has no facets before we flatten.
+          ModuleRootManager.getInstance(it).sourceRootUrls.isEmpty() && AndroidFacet.getInstance(it) == null
         }
 
     if (emptyOnlyRootModule != null) {

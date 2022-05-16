@@ -19,20 +19,29 @@ import com.android.ddmlib.IDevice
 import com.android.ide.common.util.isMdnsAutoConnectTls
 import com.android.ide.common.util.isMdnsAutoConnectUnencrypted
 import com.android.tools.analytics.AnalyticsSettings
+import com.android.tools.analytics.AnalyticsSettings.optedIn
 import com.android.tools.analytics.CommonMetricsData
 import com.android.tools.analytics.HostData
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.IdeInfo
-import com.android.tools.idea.Survey
-import com.android.tools.idea.projectsystem.AndroidModuleSystem
-import com.android.tools.idea.projectsystem.getModuleSystem
+import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.android.tools.idea.imports.MavenClassRegistryManager
 import com.android.tools.idea.serverflags.FOLLOWUP_SURVEY
 import com.android.tools.idea.serverflags.SATISFACTION_SURVEY
 import com.android.tools.idea.serverflags.ServerFlagService
+import com.android.tools.idea.serverflags.protos.Survey
+import com.google.common.annotations.VisibleForTesting
+import com.google.common.base.Charsets
 import com.google.common.base.Strings
-import com.google.wireless.android.sdk.stats.*
+import com.google.common.hash.Hashing
+import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind
-import com.google.wireless.android.sdk.stats.ComposeSampleEvent.ComposeSampleEventType
+import com.google.wireless.android.sdk.stats.DeviceInfo
+import com.google.wireless.android.sdk.stats.DisplayDetails
+import com.google.wireless.android.sdk.stats.IdePlugin
+import com.google.wireless.android.sdk.stats.IdePluginInfo
+import com.google.wireless.android.sdk.stats.MachineDetails
+import com.google.wireless.android.sdk.stats.ProductDetails
 import com.google.wireless.android.sdk.stats.ProductDetails.SoftwareLifeCycleChannel
 import com.intellij.ide.AppLifecycleListener
 import com.intellij.ide.IdeEventQueue
@@ -42,23 +51,27 @@ import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.editor.actionSystem.LatencyListener
-import com.intellij.openapi.module.Module
-import com.intellij.openapi.module.ModuleManager
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.project.ProjectManagerListener
-import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.updateSettings.impl.ChannelStatus
 import com.intellij.openapi.updateSettings.impl.UpdateSettings
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.scale.JBUIScale
 import com.intellij.util.ui.UIUtil
-import org.jetbrains.android.facet.AndroidFacet
+import kotlinx.coroutines.channels.BroadcastChannel
+import kotlinx.coroutines.channels.Channel.Factory.BUFFERED
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.launch
 import java.io.File
-import java.util.*
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
+import java.util.Calendar
+import java.util.Date
+import java.util.GregorianCalendar
+import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 /**
  * Tracks Android Studio specific metrics
@@ -66,6 +79,13 @@ import java.util.concurrent.TimeUnit
 object AndroidStudioUsageTracker {
   private const val IDLE_TIME_BEFORE_SHOWING_DIALOG = 3 * 60 * 1000
   const val STUDIO_EXPERIMENTS_OVERRIDE = "studio.experiments.override"
+
+  private const val DAYS_IN_LEAP_YEAR = 366
+  private const val DAYS_IN_NON_LEAP_YEAR = 365
+  private const val DAYS_TO_WAIT_FOR_REQUESTING_SENTIMENT_AGAIN = 7
+
+  // Broadcast channel for Android Studio events being logged
+  val channel = BroadcastChannel<AndroidStudioEvent.Builder>(BUFFERED)
 
   @JvmStatic
   val productDetails: ProductDetails
@@ -145,14 +165,20 @@ object AndroidStudioUsageTracker {
     scheduler.scheduleWithFixedDelay({ runDailyReports() }, 0, 1, TimeUnit.DAYS)
     // Send initial report immediately, hourly from then on.
     scheduler.scheduleWithFixedDelay({ runHourlyReports() }, 0, 1, TimeUnit.HOURS)
-
     subscribeToEvents()
+    setupFeatureSurveys()
+
+    // Studio ping is called immediately without scheduler to make sure
+    // ping is not delayed based on scheduler logic, then it is scheduled
+    // daily moving forward.
+    studioPing()
+    scheduler.scheduleWithFixedDelay({ studioPing() }, 1, 1, TimeUnit.DAYS)
+
   }
 
   private fun subscribeToEvents() {
     val app = ApplicationManager.getApplication()
     val connection = app.messageBus.connect()
-    connection.subscribe(ProjectManager.TOPIC, ProjectLifecycleTracker())
     connection.subscribe(LatencyListener.TOPIC, TypingLatencyTracker)
     connection.subscribe(AppLifecycleListener.TOPIC, object : AppLifecycleListener {
       override fun appWillBeClosed(isRestart: Boolean) {
@@ -175,9 +201,7 @@ object AndroidStudioUsageTracker {
     val pluginInfoProto = IdePluginInfo.newBuilder()
 
     for (plugin in plugins) {
-      if (!plugin.isEnabled) {
-        continue
-      }
+      if (!plugin.isEnabled) continue
       val id = plugin.pluginId?.idString ?: continue
 
       val pluginProto = IdePlugin.newBuilder()
@@ -195,6 +219,10 @@ object AndroidStudioUsageTracker {
   }
 
   private fun runDailyReports() {
+    processUserSentiment()
+  }
+
+  private fun studioPing() {
     UsageTracker.log(
       AndroidStudioEvent.newBuilder()
         .setCategory(AndroidStudioEvent.EventCategory.PING)
@@ -202,15 +230,50 @@ object AndroidStudioUsageTracker {
         .setProductDetails(productDetails)
         .setMachineDetails(getMachineDetails(File(PathManager.getHomePath())))
         .setJvmDetails(CommonMetricsData.jvmDetails))
-
-    processUserSentiment()
   }
 
   private fun processUserSentiment() {
-    if (!AnalyticsSettings.shouldRequestUserSentiment()) {
+    if (!shouldRequestUserSentiment()) {
       return
     }
     requestUserSentiment()
+  }
+
+  @VisibleForTesting
+  fun shouldRequestUserSentiment(): Boolean {
+    if (!optedIn) {
+      return false
+    }
+
+    val lastSentimentAnswerDate = AnalyticsSettings.lastSentimentAnswerDate
+    val lastSentimentQuestionDate = AnalyticsSettings.lastSentimentQuestionDate
+
+    val now = AnalyticsSettings.dateProvider.now()
+
+    if (isWithinPastYear(now, lastSentimentAnswerDate)) {
+      return false
+    }
+
+    // If we should ask the question based on dates, and asked but not answered then we should always prompt, even if this is
+    // not the magic date for that user.
+    if (lastSentimentQuestionDate != null) {
+      val startOfWaitForRequest =
+        daysFromNow(now, -DAYS_TO_WAIT_FOR_REQUESTING_SENTIMENT_AGAIN)
+      return !lastSentimentQuestionDate.after(startOfWaitForRequest)
+    }
+
+    val startOfYear = GregorianCalendar(now.year + 1900, 0, 1)
+    startOfYear.timeZone = TimeZone.getTimeZone(ZoneOffset.UTC)
+
+    // Otherwise, only request on the magic date for the user, to spread user sentiment data throughout the year.
+    val daysSinceJanFirst = ChronoUnit.DAYS.between(startOfYear.toInstant(), now.toInstant())
+    val offset =
+      abs(
+        Hashing.farmHashFingerprint64()
+          .hashString(AnalyticsSettings.userId, Charsets.UTF_8)
+          .asLong()
+      ) % daysInYear(now)
+    return daysSinceJanFirst == offset
   }
 
   /**
@@ -291,6 +354,7 @@ object AndroidStudioUsageTracker {
                                device.isMdnsAutoConnectTls -> DeviceInfo.MdnsConnectionType.MDNS_AUTO_CONNECT_TLS
                                else -> DeviceInfo.MdnsConnectionType.MDNS_NONE
                              })
+      .addAllCharacteristics(device.hardwareCharacteristics)
       .setModel(Strings.nullToEmpty(device.getProperty(IDevice.PROP_DEVICE_MODEL))).build()
   }
 
@@ -325,7 +389,7 @@ object AndroidStudioUsageTracker {
    * containing api level only.
    */
   @JvmStatic
-  fun deviceToDeviceInfoApilLevelOnly(device: IDevice): DeviceInfo {
+  fun deviceToDeviceInfoApiLevelOnly(device: IDevice): DeviceInfo {
     return DeviceInfo.newBuilder()
       .setBuildApiLevelFull(Strings.nullToEmpty(device.getProperty(IDevice.PROP_BUILD_API_LEVEL)))
       .build()
@@ -344,49 +408,45 @@ object AndroidStudioUsageTracker {
     }
   }
 
-  /**
-   * Tracks use of projects (open, close, # of projects) in an instance of Android Studio.
-   */
-  private class ProjectLifecycleTracker : ProjectManagerListener {
-    override fun projectOpened(project: Project) {
-      val projectsOpen = ProjectManager.getInstance().openProjects.size
-      UsageTracker.log(AndroidStudioEvent.newBuilder()
-                         .setKind(EventKind.STUDIO_PROJECT_OPENED)
-                         .setStudioProjectChange(StudioProjectChange.newBuilder()
-                                                   .setProjectsOpen(projectsOpen)))
-
-
+  fun setupFeatureSurveys() {
+    // Create a coroutine scope tied to a disposable application service
+    val scope = AndroidCoroutineScope(MavenClassRegistryManager.getInstance())
+    UsageTracker.listener = { event ->
+      scope.launch {
+        channel.send(event)
+      }
     }
 
-    override fun projectClosed(project: Project) {
-      val projectsOpen = ProjectManager.getInstance().openProjects.size
-      UsageTracker.log(AndroidStudioEvent.newBuilder()
-                         .setKind(EventKind.STUDIO_PROJECT_CLOSED)
-                         .setStudioProjectChange(StudioProjectChange.newBuilder()
-                                                   .setProjectsOpen(projectsOpen)))
-
+    scope.launch {
+      channel.openSubscription().consumeEach {
+        FeatureSurveys.processEvent(it)
+      }
     }
   }
 
-  // Track usage of Compose Jetnews sample
-  class JetnewsUsageTracker : StartupActivity {
-    override fun runActivity(project: Project) {
-      val moduleManager = ModuleManager.getInstance(project) ?: return
+  private fun isWithinPastYear(now: Date, date: Date?): Boolean {
+    return isBeforeDayCount(now, date, -daysInYear(now))
+  }
 
-      val match = moduleManager.modules.asSequence()
-        .filter { module -> AndroidFacet.getInstance(module) != null }
-        .map { Module::getModuleSystem }
-        .map { AndroidModuleSystem::getPackageName }
-        .any { packageName -> Objects.equals(packageName, "com.example.jetnews") }
+  private fun isBeforeDayCount(now: Date, date: Date?, days: Int): Boolean {
+    date ?: return false
+    val newDate = daysFromNow(now, days)
+    return date.after(newDate)
+  }
 
-      if (!match) {
-        return
-      }
+  fun daysFromNow(now: Date, days: Int): Date {
+    val calendar = Calendar.getInstance()
+    calendar.time = now
+    calendar.add(Calendar.DATE, days)
+    return calendar.time
+  }
 
-      UsageTracker.log(AndroidStudioEvent.newBuilder()
-                         .setKind(EventKind.COMPOSE_SAMPLE_EVENT)
-                         .setComposeSampleEvent(ComposeSampleEvent.newBuilder()
-                                                  .setType(ComposeSampleEventType.OPEN)))
+  private fun daysInYear(now: Date): Int {
+    return if (GregorianCalendar().isLeapYear(now.year + 1900)) {
+      DAYS_IN_LEAP_YEAR
+    }
+    else {
+      DAYS_IN_NON_LEAP_YEAR
     }
   }
 }

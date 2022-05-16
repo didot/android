@@ -17,7 +17,7 @@ package org.jetbrains.android.actions;
 
 import com.android.tools.idea.AndroidPsiUtils;
 import com.android.tools.idea.model.AndroidModel;
-import com.android.tools.idea.navigator.AndroidProjectViewPane;
+import com.android.tools.idea.navigator.AndroidProjectView;
 import com.android.tools.idea.projectsystem.NamedIdeaSourceProvider;
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.ide.projectView.impl.AbstractProjectViewPane;
@@ -37,7 +37,9 @@ import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiManager;
 import java.io.IOException;
 import java.util.Collection;
-import javax.swing.*;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import org.jetbrains.android.actions.widgets.SourceSetCellRenderer;
 import org.jetbrains.android.actions.widgets.SourceSetItem;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -123,7 +125,7 @@ public class CreateResourceDialogUtils {
     }
     if (facet != null && AndroidModel.isRequired(facet) && AndroidModel.get(facet) != null) {
       Collection<NamedIdeaSourceProvider> providers = SourceProviderManager.getInstance(facet).getCurrentAndSomeFrequentlyUsedInactiveSourceProviders();
-      DefaultComboBoxModel<SourceSetItem> model = new DefaultComboBoxModel<SourceSetItem>();
+      DefaultComboBoxModel<SourceSetItem> model = new DefaultComboBoxModel<>();
       for (NamedIdeaSourceProvider sourceProvider : providers) {
         for (String resDirUrl : sourceProvider.getResDirectoryUrls()) {
           // In gradle, each source provider may have multiple res directories, so we create an element for each one of them.
@@ -167,7 +169,7 @@ public class CreateResourceDialogUtils {
     Project project = CommonDataKeys.PROJECT.getData(dataContext);
     if (project != null) {
       AbstractProjectViewPane pane = ProjectView.getInstance(project).getCurrentProjectViewPane();
-      if (pane instanceof AndroidProjectViewPane) {
+      if (pane.getId().equals(AndroidProjectView.ID)) {
         return null;
       }
     }

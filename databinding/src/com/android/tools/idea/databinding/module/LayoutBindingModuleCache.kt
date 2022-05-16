@@ -51,8 +51,10 @@ private val LIGHT_BINDING_CLASSES_KEY = Key.create<List<LightBindingClass>>("LIG
 @ThreadSafe
 class LayoutBindingModuleCache(private val module: Module) {
   companion object {
+    // We are using facet.mainModule as a temporary workaround. This is needed because main, unitTest and androidTest modules
+    // all access the same resources (all the resources). Ideally, they should only access their own resources.
     @JvmStatic
-    fun getInstance(facet: AndroidFacet) = facet.module.getService(LayoutBindingModuleCache::class.java)!!
+    fun getInstance(facet: AndroidFacet) = facet.mainModule.getService(LayoutBindingModuleCache::class.java)!!
   }
 
   private val lock = Any()

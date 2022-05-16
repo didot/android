@@ -31,7 +31,7 @@ import com.intellij.openapi.wm.ToolWindowAnchor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class LayersManager extends NlAbstractWindowManager {
+public class LayersManager extends NlAbstractWindowManager {
   private LayersPanel myLayersPanel;
 
   public LayersManager(@NotNull Project project) {
@@ -96,8 +96,7 @@ public final class LayersManager extends NlAbstractWindowManager {
     ToolWindowAnchor anchor;
     if (value == null) {
       anchor = getAnchor();
-    }
-    else {
+    } else {
       anchor = value.equals("ToolWindow") ? null : ToolWindowAnchor.fromText(value);
     }
 

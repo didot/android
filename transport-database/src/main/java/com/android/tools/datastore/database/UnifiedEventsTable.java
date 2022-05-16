@@ -184,8 +184,9 @@ public class UnifiedEventsTable extends DataStoreTable<UnifiedEventsTable.Statem
       baseParams.add(request.getCommandId());
     }
 
-    String sqlBefore = String.format(sql, ", IsEnded, MAX(Timestamp), MAX(ROWID)", filter + " AND Timestamp < ? GROUP BY GroupId");
-    String sqlAfter = String.format(sql, ", MIN(Timestamp), MIN(ROWID)", filter + " AND Timestamp > ? GROUP BY GroupId");
+    String sqlBefore =
+      String.format(sql, ", IsEnded, MAX(Timestamp), MAX(ROWID)", filter.toString() + " AND Timestamp < ? GROUP BY GroupId");
+    String sqlAfter = String.format(sql, ", MIN(Timestamp), MIN(ROWID)", filter.toString() + " AND Timestamp > ? GROUP BY GroupId");
     ArrayList<Object> inRangeQueryParams = new ArrayList<>(baseParams);
     if (request.getFromTimestamp() > 0) {
       beforeRangeParams = new ArrayList<>(baseParams);
@@ -219,7 +220,7 @@ public class UnifiedEventsTable extends DataStoreTable<UnifiedEventsTable.Statem
 
     // Query example:
     // SELECT [Data], [GroupId] From [UnifiedEventsTable] WHERE Kind = ? AND Timestamp >= ? AND Timestamp <= ?;
-    String query = String.format(sql, "", filter);
+    String query = String.format(sql, "", filter.toString());
     gatherEvents(query, inRangeQueryParams, builderGroups, Predicates.alwaysTrue());
 
     // Gather after range events if needed.

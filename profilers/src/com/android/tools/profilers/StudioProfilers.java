@@ -26,6 +26,7 @@ import com.android.tools.adtui.model.axis.ResizingAxisComponentModel;
 import com.android.tools.adtui.model.formatter.TimeAxisFormatter;
 import com.android.tools.adtui.model.updater.Updatable;
 import com.android.tools.adtui.model.updater.Updater;
+import com.android.tools.idea.transport.manager.StreamQueryUtils;
 import com.android.tools.idea.transport.poller.TransportEventPoller;
 import com.android.tools.profiler.proto.Commands;
 import com.android.tools.profiler.proto.Common;
@@ -60,10 +61,8 @@ import com.android.tools.profilers.sessions.SessionsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import io.grpc.StatusRuntimeException;
@@ -71,11 +70,9 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -92,10 +89,28 @@ import org.jetbrains.annotations.TestOnly;
  * global across all the profilers, device management, process management, current state of the tool etc.
  */
 public class StudioProfilers extends AspectModel<ProfilerAspect> implements Updatable {
+  /**
+   * The collection of data used to select a new process when we don't have a process to profile.
+   */
+  private static final class Preference {
+    public static final Preference NONE = new Preference(null, null, null);
 
-  @NotNull
-  private static Logger getLogger() {
-    return Logger.getInstance(StudioProfilers.class);
+    @Nullable
+    public final String deviceName;
+
+    @Nullable
+    public final String processName;
+
+    @NotNull
+    public final Predicate<Common.Process> processFilter;
+
+    public Preference(@Nullable String deviceName,
+                      @Nullable String processName,
+                      @Nullable Predicate<Common.Process> processFilter) {
+      this.deviceName = deviceName;
+      this.processName = processName;
+      this.processFilter = processFilter == null ? (process -> true) : processFilter;
+    }
   }
 
   // Device directory where the transport daemon lives.
@@ -138,13 +153,8 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
   @NotNull
   private AgentData myAgentData;
 
-  @Nullable
-  private String myPreferredDeviceName;
-
-  @Nullable
-  private String myPreferredProcessName;
-
-  private Predicate<Common.Process> myPreferredProcessFilter;
+  @NotNull
+  private Preference myPreference = Preference.NONE;
 
   private Common.Device myDevice;
 
@@ -193,8 +203,6 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
   public StudioProfilers(@NotNull ProfilerClient client, @NotNull IdeProfilerServices ideServices, @NotNull StopwatchTimer timer) {
     myClient = client;
     myIdeServices = ideServices;
-    myPreferredProcessName = null;
-    myPreferredProcessFilter = null;
     myStage = new NullMonitorStage(this);
     mySessionsManager = new SessionsManager(this);
     mySessionChangeListener = new HashMap<>();
@@ -222,7 +230,7 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
 
     myTimeline = new StreamingTimeline(myUpdater);
 
-    myProcesses = Maps.newHashMap();
+    myProcesses = new HashMap<>();
     myDevice = null;
     myProcess = null;
 
@@ -312,18 +320,26 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
   }
 
   /**
-   * Tells the profiler to select and profile the device+process combo of the same name next time it is detected.
+   * Tells the profiler to select and profile the device+process combo of the same name next time it
+   * is detected.
    *
-   * @param processFilter Additional filter used for choosing the most desirable preferred process. e.g. Process of a particular pid,
-   *                      or process that starts after a certain time.
+   * @param deviceName    The target device that the app will launch in.
+   * @param processName   The process to profile.
+   * @param processFilter Additional filter used for choosing the most desirable preferred process.
+   *                      e.g. Process of a particular pid, or process that starts after a certain
+   *                      time.
    */
   public void setPreferredProcess(@Nullable String deviceName,
                                   @Nullable String processName,
                                   @Nullable Predicate<Common.Process> processFilter) {
     myIdeServices.getFeatureTracker().trackAutoProfilingRequested();
-    myPreferredDeviceName = deviceName;
-    setPreferredProcessName(processName);
-    myPreferredProcessFilter = processFilter;
+
+    myPreference = new Preference(
+      deviceName,
+      processName,
+      processFilter
+    );
+
     // Checks whether we can switch immediately if the device is already there.
     setAutoProfilingEnabled(true);
 
@@ -331,12 +347,16 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
   }
 
   public void setPreferredProcessName(@Nullable String processName) {
-    myPreferredProcessName = processName;
+    myPreference = new Preference(
+      myPreference.deviceName,
+      processName,
+      myPreference.processFilter
+    );
   }
 
   @Nullable
   public String getPreferredProcessName() {
-    return myPreferredProcessName;
+    return myPreference.processName;
   }
 
   /**
@@ -383,39 +403,18 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
                                                        @NotNull ProfilerClient client,
                                                        @Nullable Map<Common.Device, Long> deviceToStreamIds,
                                                        @Nullable Map<Long, Common.Stream> streamIdToStreams) {
-    List<Common.Device> devices = new LinkedList<>();
+    List<Common.Device> devices;
     if (isUnifiedPipelineEnabled) {
-      // Get all streams of all types.
-      GetEventGroupsRequest request = GetEventGroupsRequest.newBuilder()
-        .setStreamId(-1)  // DataStoreService.DATASTORE_RESERVED_STREAM_ID
-        .setKind(Event.Kind.STREAM)
-        .build();
-      GetEventGroupsResponse response = client.getTransportClient().getEventGroups(request);
-      for (EventGroup group : response.getGroupsList()) {
-        boolean isStreamDead = group.getEvents(group.getEventsCount() - 1).getIsEnded();
-        Common.Event connectedEvent = getLastMatchingEvent(group, e -> (e.hasStream() && e.getStream().hasStreamConnected()));
-        if (connectedEvent == null) {
-          // Ignore stream event groups that do not have the connected event.
-          continue;
+      List<Common.Stream> streams = StreamQueryUtils.queryForDevices(client.getTransportClient());
+      devices = streams.stream().map((Stream stream) -> {
+        if (deviceToStreamIds != null) {
+          deviceToStreamIds.putIfAbsent(stream.getDevice(), stream.getStreamId());
         }
-        Common.Stream stream = connectedEvent.getStream().getStreamConnected().getStream();
-        // We only want streams of type device to get process information.
-        if (stream.getType() == Stream.Type.DEVICE) {
-          if (isStreamDead) {
-            // TODO state changes are represented differently in the unified pipeline (with two separate events)
-            // remove this once we move complete away from the legacy pipeline.
-            stream = stream.toBuilder().
-              setDevice(stream.getDevice().toBuilder().setState(Common.Device.State.DISCONNECTED)).build();
-          }
-          if (deviceToStreamIds != null) {
-            deviceToStreamIds.putIfAbsent(stream.getDevice(), stream.getStreamId());
-          }
-          if (streamIdToStreams != null) {
-            streamIdToStreams.putIfAbsent(stream.getStreamId(), stream);
-          }
-          devices.add(stream.getDevice());
+        if (streamIdToStreams != null) {
+          streamIdToStreams.putIfAbsent(stream.getStreamId(), stream);
         }
-      }
+        return stream.getDevice();
+      }).collect(Collectors.toList());
     }
     else {
       GetDevicesResponse response = client.getTransportClient().getDevices(GetDevicesRequest.getDefaultInstance());
@@ -470,31 +469,17 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
 
       if (myIdeServices.getFeatureConfig().isUnifiedPipelineEnabled()) {
         for (Common.Device device : devices) {
-          GetEventGroupsRequest processRequest = GetEventGroupsRequest.newBuilder()
-            .setStreamId(myDeviceToStreamIds.get(device))
-            .setKind(Event.Kind.PROCESS)
-            .build();
-          GetEventGroupsResponse processResponse = myClient.getTransportClient().getEventGroups(processRequest);
-          List<Common.Process> processList = new ArrayList<>();
-          int lastProcessId = myProcess == null ? 0 : myProcess.getPid();
-          // A group is a collection of events that happened to a single process.
-          for (EventGroup groupProcess : processResponse.getGroupsList()) {
-            boolean isProcessAlive = !groupProcess.getEvents(groupProcess.getEventsCount() - 1).getIsEnded();
-            Common.Event aliveEvent = getLastMatchingEvent(groupProcess, e -> (e.hasProcess() && e.getProcess().hasProcessStarted()));
-            if (aliveEvent == null) {
-              // Ignore process event groups that do not have the started event.
-              continue;
+          List<Common.Process> processList = StreamQueryUtils.queryForProcesses(
+            myClient.getTransportClient(),
+            myDeviceToStreamIds.get(device),
+            (Boolean isProcessAlive, Common.Process process) -> {
+              int lastProcessId = myProcess == null ? 0 : myProcess.getPid();
+              return (isProcessAlive || process.getPid() == lastProcessId) &&
+                     (process.getExposureLevel().equals(Common.Process.ExposureLevel.DEBUGGABLE) ||
+                      (getIdeServices().getFeatureConfig().isProfileableEnabled() &&
+                       process.getExposureLevel().equals(Common.Process.ExposureLevel.PROFILEABLE)));
             }
-            Common.Process process = aliveEvent.getProcess().getProcessStarted().getProcess();
-            if (isProcessAlive || process.getPid() == lastProcessId) {
-              if (!isProcessAlive) {
-                // TODO state changes are represented differently in the unified pipeline (with two separate events)
-                // remove this once we move complete away from the legacy pipeline.
-                process = process.toBuilder().setState(Common.Process.State.DEAD).build();
-              }
-              processList.add(process);
-            }
-          }
+          );
           newProcesses.put(device, processList);
         }
       }
@@ -569,9 +554,9 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
     Set<Common.Device> onlineDevices = filterOnlineDevices(devices);
 
     // We have a preferred device, try not to select anything else.
-    if (myAutoProfilingEnabled && myPreferredDeviceName != null) {
+    if (myAutoProfilingEnabled && myPreference.deviceName != null) {
       for (Common.Device device : onlineDevices) {
-        if (myPreferredDeviceName.equals(buildDeviceName(device))) {
+        if (myPreference.deviceName.equals(buildDeviceName(device))) {
           return device;
         }
       }
@@ -606,7 +591,12 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
       // 1. User explicitly sets a device from the dropdown.
       // 2. The update loop has found the preferred device, in which case it will stay selected until the user selects something else.
       // All of these cases mean that we can unset the preferred device.
-      myPreferredDeviceName = null;
+      myPreference = new Preference(
+        null,
+        myPreference.processName,
+        myPreference.processFilter
+      );
+
       // If the device is unsupported (e.g. pre-Lolipop), switch to the null stage with the unsupported reason.
       if (!device.getUnsupportedReason().isEmpty()) {
         setStage(new NullMonitorStage(this, device.getUnsupportedReason()));
@@ -761,10 +751,11 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
     }
 
     // Prefer the project's app if available.
-    if (myAutoProfilingEnabled && myPreferredProcessName != null) {
+    if (myAutoProfilingEnabled && myPreference.processName != null) {
       for (Common.Process process : processes) {
-        if (process.getName().equals(myPreferredProcessName) && process.getState() == Common.Process.State.ALIVE &&
-            (myPreferredProcessFilter == null || myPreferredProcessFilter.test(process))) {
+        if (process.getName().equals(myPreference.processName) &&
+            process.getState() == Common.Process.State.ALIVE &&
+            myPreference.processFilter.test(process)) {
           myIdeServices.getFeatureTracker().trackAutoProfilingSucceeded();
           myAutoProfilingEnabled = false;
           return process;
@@ -900,6 +891,19 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
     return myProcess;
   }
 
+  @NotNull
+  public SupportLevel getProcessSupportLevel(int pid) {
+    return myProcesses.values().stream().flatMap(Collection::stream)
+      .filter(p -> p.getPid() == pid).findFirst()
+      .map(p -> SupportLevel.of(p.getExposureLevel()))
+      .orElse(SupportLevel.NONE);
+  }
+
+  @NotNull
+  public SupportLevel getSelectedSessionSupportLevel() {
+    return getProcessSupportLevel(mySessionsManager.getSelectedSession().getPid());
+  }
+
   public boolean isAgentAttached() {
     return myAgentData.getStatus() == AgentData.Status.ATTACHED;
   }
@@ -942,7 +946,9 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
     ImmutableList.Builder<Class<? extends Stage>> listBuilder = ImmutableList.builder();
     listBuilder.add(CpuProfilerStage.class);
     listBuilder.add(MainMemoryProfilerStage.class);
-    listBuilder.add(NetworkProfilerStage.class);
+    if (!getIdeServices().getAppInspectionMigrationServices().isMigrationEnabled()) {
+      listBuilder.add(NetworkProfilerStage.class);
+    }
     // Show the energy stage in the list only when the session has JVMTI enabled or the device is above O.
     boolean hasSession = mySelectedSession.getSessionId() != 0;
     boolean isEnergyStageEnabled = hasSession ? mySessionsManager.getSelectedSessionMetaData().getJvmtiEnabled()
@@ -1003,33 +1009,18 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
   }
 
   /**
-   * Helper method to return the last even in an EventGroup that matches the input condition.
-   */
-  @Nullable
-  private static Common.Event getLastMatchingEvent(@NotNull EventGroup group, @NotNull Predicate<Event> predicate) {
-    Common.Event matched = null;
-    for (Event event : group.getEventsList()) {
-      if (predicate.test(event)) {
-        matched = event;
-      }
-    }
-
-    return matched;
-  }
-
-  /**
    * Return the start and end timestamps for the artificial session created for the given imported file.
-   *
+   * <p>
    * For each imported file, an artificial session is created. The start timestamp will be used as the
    * session's ID. Therefore, this function returns a nearly unique hash as the start timestamp for each file.
-   *
+   * <p>
    * The range constructed by the two timestamps (after casting to microseconds) should still include the start
    * timestamp in nanoseconds because our code base shares much of live session's logic to handle imported
    * files. The two timestamps will construct a Range object. As the Range class uses microseconds, the
    * range may become a point when nanoseconds are casted into microseconds if it's too short, and the
    * nanosecond-timestamp may fall out of it. Therefore, this method makes the range one microsecond long
    * to avoid a point-range after casting.
-   *
+   * <p>
    * This method avoid negative timestamps which may be counter-intuitive.
    */
   public static Pair<Long, Long> computeImportedFileStartEndTimestampsNs(File file) {

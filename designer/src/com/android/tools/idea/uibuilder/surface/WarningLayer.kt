@@ -15,11 +15,17 @@
  */
 package com.android.tools.idea.uibuilder.surface
 
+import com.android.tools.adtui.common.ColoredIconGenerator.generateWhiteIcon
+import com.android.tools.idea.common.model.Coordinates
 import com.android.tools.idea.common.surface.Layer
+import com.android.tools.idea.uibuilder.graphics.NlConstants
+import com.android.tools.idea.uibuilder.model.h
+import com.android.tools.idea.uibuilder.model.w
+import com.android.tools.idea.uibuilder.model.x
+import com.android.tools.idea.uibuilder.model.y
+import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintHighlightingIssue
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintIssueProvider
-import com.intellij.ui.scale.JBUIScale
 import icons.StudioIcons
-import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.RenderingHints
@@ -28,26 +34,54 @@ import java.awt.Shape
 class WarningLayer(private val screenView: ScreenView) : Layer() {
 
   override fun paint(gc: Graphics2D) {
+    val bounds = screenView.surface.layeredPane.bounds
     val screenShape: Shape? = screenView.screenShape
     gc.color = Color.ORANGE
-    gc.stroke = BasicStroke(JBUIScale.scale(4.0f))
+    gc.stroke = NlConstants.DASHED_STROKE
+    val selectedIssueSource = screenView.surface.issuePanel.selectedIssue?.source
+    val relevantComponents = (selectedIssueSource as? VisualLintIssueProvider.VisualLintIssueSource)?.components?.filter {
+      it.model == screenView.sceneManager.model
+    }
+    relevantComponents?.forEach {
+      gc.drawRect(
+        Coordinates.getSwingX(screenView, it.x),
+        Coordinates.getSwingY(screenView, it.y),
+        Coordinates.getSwingDimension(screenView, it.w),
+        Coordinates.getSwingDimension(screenView, it.h))
+    }
+    gc.stroke = NlConstants.SOLID_STROKE
+    val clip = gc.clip
     if (screenShape != null) {
       gc.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
       gc.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
       gc.draw(screenShape)
-      return
+      gc.clip = screenShape
     }
-    val sceneSize = screenView.scaledContentSize
-    gc.drawRect(screenView.x, screenView.y, sceneSize.width, sceneSize.height)
-    val icon = StudioIcons.Common.WARNING
-    icon.paintIcon(screenView.surface, gc, screenView.x + sceneSize.width - icon.iconWidth - 1, screenView.y + 1)
+    else {
+      val sceneSize = screenView.scaledContentSize
+      gc.drawRect(screenView.x, screenView.y, sceneSize.width, sceneSize.height)
+      val icon = generateWhiteIcon(StudioIcons.Common.WARNING)
+      gc.clip = bounds
+      gc.clipRect(screenView.x, screenView.y, sceneSize.width + icon.iconWidth + 1, sceneSize.height)
+      gc.fillRect(screenView.x + sceneSize.width + 1, screenView.y, icon.iconWidth, icon.iconHeight)
+      icon.paintIcon(screenView.surface, gc, screenView.x + sceneSize.width + 1, screenView.y)
+      gc.clipRect(screenView.x, screenView.y, sceneSize.width, sceneSize.height)
+    }
+    relevantComponents?.forEach {
+      gc.drawRect(
+        Coordinates.getSwingX(screenView, it.x),
+        Coordinates.getSwingY(screenView, it.y),
+        Coordinates.getSwingDimension(screenView, it.w),
+        Coordinates.getSwingDimension(screenView, it.h))
+    }
+    gc.clip = clip
   }
 
   override val isVisible: Boolean
     get() {
       val selectedIssue = screenView.surface.issuePanel.selectedIssue
-      if (selectedIssue is VisualLintIssueProvider.VisualLintRenderIssueWrapper) {
-        return selectedIssue.sourceModel == screenView.sceneManager.model
+      if (selectedIssue is VisualLintHighlightingIssue) {
+        return selectedIssue.shouldHighlight(screenView.sceneManager.model)
       }
       return false
     }

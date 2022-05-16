@@ -18,7 +18,9 @@ package com.android.tools.idea.layoutinspector.resource
 import com.android.ide.common.rendering.api.ResourceReference
 import com.android.ide.common.resources.ResourceResolver
 import com.android.ide.common.resources.ResourceResolver.MAX_RESOURCE_INDIRECTION
+import com.android.ide.common.resources.configuration.FolderConfiguration
 import com.android.resources.Density.DEFAULT_DENSITY
+import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.configurations.ConfigurationManager
 import com.android.tools.idea.layoutinspector.common.StringTable
 import com.android.tools.idea.layoutinspector.model.ComposeViewNode
@@ -39,7 +41,7 @@ import com.intellij.util.ui.ColorIcon
 import org.jetbrains.android.facet.AndroidFacet
 import javax.swing.Icon
 
-private const val DEFAULT_FONT_SCALE = 1.0f
+const val DEFAULT_FONT_SCALE = 1.0f
 
 /**
  * Utility for looking up resources in a project.
@@ -67,24 +69,33 @@ class ResourceLookup(private val project: Project) {
   /**
    * Update the configuration after a possible configuration change detected on the device.
    */
-  fun updateConfiguration(appContext: AppContext, stringTable: StringTable) {
-    val config = appContext.configuration
-    dpi = if (config.density != 0) config.density else DEFAULT_DENSITY
-    fontScale = if (config.fontScale != 0.0f) config.fontScale else DEFAULT_FONT_SCALE
-    val loader = ConfigurationLoader(appContext, stringTable)
-    val facet = ReadAction.compute<AndroidFacet?, RuntimeException> { findFacetFromPackage(project, loader.packageName) }
-    if (facet == null) {
-      resolver = null
+  fun updateConfiguration(
+    folderConfig: FolderConfiguration,
+    fontScaleFromConfig: Float,
+    appContext: AppContext,
+    stringTable: StringTable,
+    process: ProcessDescriptor
+  ) {
+    dpi = folderConfig.densityQualifier?.value?.dpiValue ?: DEFAULT_DENSITY
+    fontScale = if (fontScaleFromConfig != 0.0f) fontScaleFromConfig else DEFAULT_FONT_SCALE
+    resolver = createResolver(folderConfig, appContext, stringTable, process)
+  }
+
+  private fun createResolver(
+    folderConfig: FolderConfiguration,
+    appContext: AppContext,
+    stringTable: StringTable,
+    process: ProcessDescriptor
+  ): ResourceLookupResolver? {
+    val facet = ReadAction.compute<AndroidFacet?, RuntimeException> { findFacetFromPackage(project, process.name) } ?: return null
+    val theme = appContext.theme.createReference(stringTable)
+    val themeStyle = mapReference(facet, theme)?.resourceUrl?.toString() ?: return null
+    val mgr = ConfigurationManager.getOrCreateInstance(facet)
+    val cache = mgr.resolverCache
+    val resourceResolver = ReadAction.compute<ResourceResolver, RuntimeException> {
+      cache.getResourceResolver(mgr.target, themeStyle, folderConfig)
     }
-    else {
-      val theme = mapReference(facet, loader.theme)?.resourceUrl?.toString() ?: ""
-      val mgr = ConfigurationManager.getOrCreateInstance(facet)
-      val cache = mgr.resolverCache
-      val resourceResolver = ReadAction.compute<ResourceResolver, RuntimeException> {
-        cache.getResourceResolver(mgr.target, theme, loader.folderConfiguration)
-      }
-      resolver = ResourceLookupResolver(project, facet, loader.folderConfiguration, resourceResolver)
-    }
+    return ResourceLookupResolver(project, facet, folderConfig, resourceResolver)
   }
 
   /**
@@ -138,8 +149,7 @@ class ResourceLookup(private val project: Project) {
     resolver?.resolveAsIcon(property, view)?.let { return it }
     val value = property.value
     val color = value?.let { parseColor(value) } ?: return null
-    // TODO: Convert this into JBUI.scale(ColorIcon(RESOURCE_ICON_SIZE, color, false)) when JBCachingScalableIcon extends JBScalableIcon
-    return ColorIcon(RESOURCE_ICON_SIZE, color, false).scale(JBUIScale.scale(1f))
+    return JBUIScale.scaleIcon(ColorIcon(RESOURCE_ICON_SIZE, color, false))
   }
 
   /**

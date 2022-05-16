@@ -33,8 +33,9 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.UIUtil;
-import java.awt.*;
-import javax.swing.*;
+import java.awt.KeyboardFocusManager;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import org.mockito.Mock;
 
 public class DetachedToolWindowManagerTest extends WorkBenchTestCase {
@@ -110,6 +111,8 @@ public class DetachedToolWindowManagerTest extends WorkBenchTestCase {
 
     when(myEditorManager.getSelectedEditors()).thenReturn(FileEditor.EMPTY_ARRAY);
     when(myEditorManager.getOpenFiles()).thenReturn(VirtualFile.EMPTY_ARRAY);
+    //noinspection UnstableApiUsage
+    when(myEditorManager.getOpenFilesWithRemotes()).thenReturn(VirtualFile.EMPTY_ARRAY);
     when(myEditorManager.getAllEditors()).thenReturn(FileEditor.EMPTY_ARRAY);
     registerProjectComponent(FileEditorManager.class, myEditorManager);
     when(myFileEditor1.getComponent()).thenReturn(new JPanel());

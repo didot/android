@@ -19,6 +19,8 @@ import com.android.tools.adtui.model.FakeTimer
 import com.android.tools.app.inspection.AppInspection
 import com.android.tools.app.inspection.AppInspection.AppInspectionEvent
 import com.android.tools.idea.appinspection.inspector.api.AppInspectionConnectionException
+import com.android.tools.idea.appinspection.inspector.api.AppInspectionCrashException
+import com.android.tools.idea.appinspection.inspector.api.AppInspectorForcefullyDisposedException
 import com.android.tools.idea.appinspection.inspector.api.awaitForDisposal
 import com.android.tools.idea.appinspection.test.AppInspectionServiceRule
 import com.android.tools.idea.appinspection.test.AppInspectionTestUtils.createPayloadChunks
@@ -34,6 +36,7 @@ import com.android.tools.idea.transport.faketransport.commands.CommandHandler
 import com.android.tools.profiler.proto.Commands
 import com.android.tools.profiler.proto.Common.Event
 import com.android.tools.profiler.proto.Common.Event.Kind.PROCESS
+import com.android.tools.profiler.proto.Transport
 import com.google.common.truth.Truth.assertThat
 import junit.framework.TestCase.fail
 import kotlinx.coroutines.CancellationException
@@ -98,6 +101,18 @@ class AppInspectorConnectionTest {
     assertThat(connection.sendRawCommand("TestData".toByteArray())).isEqualTo("error".toByteArray())
   }
 
+  // One payload event carries a single chunk of data
+  private fun AppInspectionTransport.queryAllPayloads(): List<AppInspection.AppInspectionPayload> {
+    return client.transportStub.getEventGroups(
+      Transport.GetEventGroupsRequest.newBuilder()
+        .setKind(Event.Kind.APP_INSPECTION_PAYLOAD)
+        .build()
+    ).groupsList
+      .flatMap { group -> group.eventsList }
+      .map { event -> event.appInspectionPayload }
+      .toList()
+  }
+
   @Test
   fun sendRawCommandSucceedWithPayload() = runBlocking<Unit> {
     val payloadId = 1L
@@ -108,7 +123,9 @@ class AppInspectorConnectionTest {
     // Initialize the payload cache *before* sending a command (which will then trigger a payload response)
     // Also, choose a chunk size smaller than the payload itself, to ensure chunking works
     appInspectionRule.addAppInspectionPayload(payloadId, createPayloadChunks("TestResponse".toByteArray(), 2))
+    assertThat(appInspectionRule.transport.queryAllPayloads()).hasSize(6) // "TestResponse" broken up into chunk size 2
     assertThat(connection.sendRawCommand("TestCommand".toByteArray())).isEqualTo("TestResponse".toByteArray())
+    assertThat(appInspectionRule.transport.queryAllPayloads()).isEmpty() // Cache is cleared when queried
   }
 
   @Test
@@ -141,20 +158,25 @@ class AppInspectorConnectionTest {
     val data3 = byteArrayOf(0x1, 0x2, 0x3) // Make sure we can handle large chunk sizes
 
     // Send the payloads first
-    appInspectionRule.addAppInspectionPayload(payloadId1, createPayloadChunks(data1, 5))
-    appInspectionRule.addAppInspectionPayload(payloadId2, createPayloadChunks(data2, 2))
-    appInspectionRule.addAppInspectionPayload(payloadId3, createPayloadChunks(data3, 999))
+    appInspectionRule.addAppInspectionPayload(payloadId1, createPayloadChunks(data1, 5))   // 26 chunks
+    appInspectionRule.addAppInspectionPayload(payloadId2, createPayloadChunks(data2, 2))   // 128 chunks
+    appInspectionRule.addAppInspectionPayload(payloadId3, createPayloadChunks(data3, 999)) // 1 chunk
 
     // Send payload events out of order, just to stress test that payloads can be queried anytime after they are sent
     appInspectionRule.addAppInspectionEvent(createRawAppInspectionEvent(payloadId2))
     appInspectionRule.addAppInspectionEvent(createRawAppInspectionEvent(payloadId1))
     appInspectionRule.addAppInspectionEvent(createRawAppInspectionEvent(payloadId3))
 
+    assertThat(appInspectionRule.transport.queryAllPayloads()).hasSize(26 + 128 + 1)
+
     val received = mutableListOf<ByteArray>()
     connection.eventFlow.take(3).collect { received.add(it) }
 
     assertThat(received.map { it.contentToString() }).containsExactly(data2.contentToString(), data1.contentToString(),
                                                                       data3.contentToString()).inOrder()
+
+    // Payloads are deleted from the cache upon reading
+    assertThat(appInspectionRule.transport.queryAllPayloads()).isEmpty()
   }
 
   @Test
@@ -212,7 +234,7 @@ class AppInspectorConnectionTest {
 
     disposedDeferred.join()
 
-    assertThat(client.awaitForDisposal()).isTrue()
+    assertThat(client.awaitForDisposal()).isInstanceOf(AppInspectorForcefullyDisposedException::class.java)
   }
 
 
@@ -230,7 +252,7 @@ class AppInspectorConnectionTest {
         .build()
     )
 
-    assertThat(client.awaitForDisposal()).isTrue()
+    assertThat(client.awaitForDisposal()).isInstanceOf(AppInspectorForcefullyDisposedException::class.java)
   }
 
   @Test
@@ -248,7 +270,7 @@ class AppInspectorConnectionTest {
         .build()
     )
 
-    assertThat(client.awaitForDisposal()).isFalse()
+    assertThat(client.awaitForDisposal()).isInstanceOf(AppInspectionCrashException::class.java)
   }
 
   @Test
@@ -426,7 +448,7 @@ class AppInspectorConnectionTest {
     // Scope cancellation
     val client = appInspectionRule.launchInspectorConnection(inspectorId = INSPECTOR_ID)
     client.scope.cancel()
-    assertThat(client.awaitForDisposal()).isTrue()
+    client.awaitForDisposal()
 
     // Process ended
     val client2 = appInspectionRule.launchInspectorConnection(inspectorId = INSPECTOR_ID)
@@ -436,7 +458,7 @@ class AppInspectorConnectionTest {
         .setIsEnded(true)
         .build()
     )
-    assertThat(client2.awaitForDisposal()).isTrue()
+    client2.awaitForDisposal()
 
     // Crash
     val client3 = appInspectionRule.launchInspectorConnection(inspectorId = INSPECTOR_ID)
@@ -450,6 +472,6 @@ class AppInspectorConnectionTest {
         )
         .build()
     )
-    assertThat(client3.awaitForDisposal()).isFalse()
+    assertThat(client3.awaitForDisposal()).isInstanceOf(AppInspectionCrashException::class.java)
   }
 }

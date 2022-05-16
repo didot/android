@@ -55,6 +55,7 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlTag
 import org.jetbrains.android.facet.AndroidFacet
+import org.jetbrains.android.util.firstNotNullResult
 import org.jetbrains.kotlin.utils.addIfNotNull
 
 
@@ -136,7 +137,7 @@ class DataBindingExpressionAnnotator : PsiDbVisitor(), Annotator {
     val androidFacet = AndroidFacet.getInstance(rootExpression) ?: return
     val attributeMatcher = AttributeTypeMatcher(dbExprType.type, androidFacet)
     val attributeSetterTypes = attribute.getAllSetterTypes()
-    val tagName = attribute.parentOfType<XmlTag>()?.references?.firstNotNullOfOrNull { it.resolve() as? PsiClass }?.name
+    val tagName = attribute.parentOfType<XmlTag>()?.references?.firstNotNullResult { it.resolve() as? PsiClass }?.name
                   ?: SdkConstants.VIEW_TAG
     if (attributeSetterTypes.isNotEmpty() && attributeSetterTypes.none { attributeMatcher.matches(it.unwrapped.erasure()) }) {
       annotateError(rootExpression, SETTER_NOT_FOUND, tagName, attribute.name, dbExprType.type.canonicalText)
@@ -183,7 +184,7 @@ class DataBindingExpressionAnnotator : PsiDbVisitor(), Annotator {
    * Returns the type that can be assigned to a two-way data binding expression.
    */
   private fun findAssignableTypeToBindingExpression(dbExpr: PsiElement, invertibleMethodNames: Set<String>): PsiModelClass? {
-    val type = dbExpr.references.firstNotNullOfOrNull { (it as? ModelClassResolvable)?.resolvedType } ?: return null
+    val type = dbExpr.references.firstNotNullResult { (it as? ModelClassResolvable)?.resolvedType } ?: return null
     // Observable types can be assigned to its unwrapped directly.
     if (type.isLiveData || type.isObservableField || type.isStateFlow) {
       return type.unwrapped
@@ -235,7 +236,7 @@ class DataBindingExpressionAnnotator : PsiDbVisitor(), Annotator {
     if (dbMethods.isNotEmpty() && dbMethods.none { method -> isMethodMatchingAttribute(method, attributeMethods) }) {
       val listenerClassName = attribute.references
                                 .filterIsInstance<PsiParameterReference>()
-                                .firstNotNullOfOrNull { it.resolvedType.type.canonicalText } ?: "Listener"
+                                .firstNotNullResult { it.resolvedType.type.canonicalText } ?: "Listener"
       annotateError(rootExpression, METHOD_SIGNATURE_MISMATCH, listenerClassName, attributeMethods[0].name, attribute.name)
     }
   }
@@ -325,7 +326,7 @@ class DataBindingExpressionAnnotator : PsiDbVisitor(), Annotator {
         }
         // Don't annotate this id element when the container's expr element is resolved to an array whose references are not supported yet.
         // TODO: (b/141703341) Add references to array types.
-        else if (expr.toModelClassResolvable()?.resolvedType?.isArray == true) {
+        else if (expr.toModelClassResolvable()?.resolvedType?.unwrapped?.isArray == true) {
           return
         }
       }

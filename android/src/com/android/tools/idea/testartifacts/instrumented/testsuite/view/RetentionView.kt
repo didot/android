@@ -19,13 +19,14 @@ import com.android.SdkConstants
 import com.android.annotations.concurrency.AnyThread
 import com.android.annotations.concurrency.UiThread
 import com.android.emulator.snapshot.SnapshotOuterClass
+import com.android.io.CancellableFileIo
 import com.android.prefs.AndroidLocationsSingleton
 import com.android.repository.api.ProgressIndicator
 import com.android.sdklib.repository.AndroidSdkHandler
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.concurrency.AndroidExecutors
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator
 import com.android.tools.idea.sdk.IdeSdks
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator
 import com.android.tools.idea.testartifacts.instrumented.AVD_NAME_KEY
 import com.android.tools.idea.testartifacts.instrumented.EMULATOR_SNAPSHOT_FILE_KEY
 import com.android.tools.idea.testartifacts.instrumented.EMULATOR_SNAPSHOT_ID_KEY
@@ -45,11 +46,10 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.AndroidTestRetentionEvent
 import com.google.wireless.android.sdk.stats.AndroidTestRetentionEvent.SnapshotCompatibility.Result
 import com.google.wireless.android.sdk.stats.EmulatorSnapshotFailureReason
-
 import com.intellij.icons.AllIcons
-import com.intellij.ide.BrowserUtil
 import com.intellij.ide.DataManager
 import com.intellij.ide.HelpTooltip
+import com.intellij.ide.actions.RevealFileAction
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataProvider
@@ -65,7 +65,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import org.apache.commons.compress.utils.FileNameUtils
-import org.apache.commons.lang.StringEscapeUtils
+import org.apache.commons.lang3.StringEscapeUtils
 import java.awt.Image
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
@@ -95,7 +95,6 @@ import javax.swing.SwingConstants
 import javax.swing.event.HyperlinkEvent
 import kotlin.concurrent.withLock
 
-// TODO(yahan@) rework this view when we have the UI mock
 /**
  * Shows the Android Test Retention artifacts
  */
@@ -175,9 +174,14 @@ class RetentionView(private val androidSdkHandler: AndroidSdkHandler
     alignmentY = 0.0f
     isEditable = false
     addHyperlinkListener {
-      LOG.warn("opening ${it.url.path}")
+      val uri = it.url.toURI()
+      LOG.info("opening ${uri.path}")
       if (it.eventType == HyperlinkEvent.EventType.ACTIVATED) {
-        BrowserUtil.browse(it.url.toURI())
+        if (RevealFileAction.isSupported()) {
+          RevealFileAction.openDirectory(File(uri))
+        } else {
+          LOG.warn("file opening not supported")
+        }
       }
     }
   }
@@ -419,8 +423,8 @@ class RetentionView(private val androidSdkHandler: AndroidSdkHandler
         return
       }
       val emulatorPackage = androidSdkHandler.getLocalPackage(SdkConstants.FD_EMULATOR, progressIndicator)
-      val emulatorBinary = emulatorPackage?.location?.resolve(SdkConstants.FN_EMULATOR)?.let { androidSdkHandler.fileOp.toFile(it) }
-      if (emulatorBinary == null || !androidSdkHandler.fileOp.exists(emulatorBinary)) {
+      val emulatorBinary = emulatorPackage?.location?.resolve(SdkConstants.FN_EMULATOR)
+      if (emulatorBinary == null || !CancellableFileIo.exists(emulatorBinary)) {
         AppUIUtil.invokeOnEdt {
           val state = EMULATOR_EXEC_NOT_FOUND
           cachedDataMap[snapshotFile.absolutePath] = CachedData(state, image, snapshotProto)
@@ -437,7 +441,7 @@ class RetentionView(private val androidSdkHandler: AndroidSdkHandler
           .launchParametersList
           .toMutableList()
           .apply {
-            this[0] = emulatorBinary.path
+            this[0] = emulatorBinary.toString()
             add("-check-snapshot-loadable")
             add(snapshotFile.absolutePath)
           }
@@ -503,7 +507,7 @@ class RetentionView(private val androidSdkHandler: AndroidSdkHandler
       text += "<br><b>Test snapshot</b><br>"
       text += "${snapshotFile.name.escapeHtml()}<br>"
       text += "size: ${snapshotFile.length() / 1024 / 1024} MB<br>"
-      if (snapshotFile.parent != null) {
+      if (snapshotFile.parent != null && RevealFileAction.isSupported()) {
         text += "<a href=\"file:///${snapshotFile.parent.replace(" ", "%20").escapeHtml()}\">View file</a><br>"
       }
       try {
@@ -551,7 +555,7 @@ class RetentionView(private val androidSdkHandler: AndroidSdkHandler
 
 private fun Long.formatTime() = DateFormat.getDateTimeInstance().format(Date(this))
 
-private fun String.escapeHtml() = StringEscapeUtils.escapeHtml(this)
+private fun String.escapeHtml() = StringEscapeUtils.escapeHtml3(this)
 
 private sealed class RetentionViewState(val isValidating: Boolean,
                                         val loadable: Boolean,

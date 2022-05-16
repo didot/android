@@ -25,8 +25,13 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.StartupUiUtil;
-import java.awt.*;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.Font;
+import java.awt.Insets;
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -80,7 +85,7 @@ public abstract class DynamicWizardStepWithHeaderAndDescription extends DynamicW
     super.init();
     myState.put(KEY_TITLE, myTitle);
     myState.put(KEY_MESSAGE, myMessage);
-    register(KEY_TITLE, myTitleLabel, new ComponentBinding<String, JBLabel>() {
+    register(KEY_TITLE, myTitleLabel, new ComponentBinding<>() {
       @Override
       public void setValue(@Nullable String newValue, @NotNull JBLabel component) {
         component.setText(newValue);

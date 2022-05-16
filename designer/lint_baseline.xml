@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="5" by="lint 7.0.0-dev">
+<issues format="5" by="lint 7.2.0-dev">
 
     <issue
         id="DefaultLocale"
@@ -325,30 +325,6 @@
         id="DefaultLocale"
         message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
         <location
-            file="src/com/android/tools/idea/uibuilder/layout3d/LayerDisplay.java"
-            line="312"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
-        <location
-            file="src/com/android/tools/idea/uibuilder/layout3d/LayerDisplay.java"
-            line="317"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
-        <location
-            file="src/com/android/tools/idea/uibuilder/layout3d/LayerDisplay.java"
-            line="321"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
-        <location
             file="src/com/android/tools/idea/uibuilder/scout/RectangleGenerator.java"
             line="131"/>
     </issue>
@@ -414,7 +390,7 @@
         message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead">
         <location
             file="src/com/android/tools/idea/uibuilder/handlers/constraint/WidgetConstraintModel.java"
-            line="662"/>
+            line="689"/>
     </issue>
 
     <issue
@@ -486,7 +462,7 @@
         message="Do not store `JBUI.scale` scaled results in fields; this will not work correctly on dynamic theme or font size changes">
         <location
             file="src/com/android/tools/idea/uibuilder/surface/BorderLayer.java"
-            line="49"/>
+            line="62"/>
     </issue>
 
     <issue
@@ -582,7 +558,7 @@
         message="Do not store `JBUI.scale` scaled results in fields; this will not work correctly on dynamic theme or font size changes">
         <location
             file="src/com/android/tools/idea/uibuilder/handlers/motion/editor/adapters/MEUI.java"
-            line="97"/>
+            line="98"/>
     </issue>
 
     <issue
@@ -590,7 +566,7 @@
         message="Do not store `JBUI.scale` scaled results in fields; this will not work correctly on dynamic theme or font size changes">
         <location
             file="src/com/android/tools/idea/uibuilder/handlers/motion/editor/adapters/MEUI.java"
-            line="98"/>
+            line="99"/>
     </issue>
 
     <issue
@@ -765,8 +741,80 @@
         id="VisibleForTests"
         message="This method should only be accessed from tests or within private scope">
         <location
+            file="src/com/android/tools/idea/uibuilder/actions/LayoutQualifierDropdownMenu.kt"
+            line="64"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/android/tools/idea/uibuilder/actions/LayoutQualifierDropdownMenu.kt"
+            line="64"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/android/tools/idea/uibuilder/handlers/motion/property/MotionLayoutAttributesModel.java"
+            line="109"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/android/tools/idea/uibuilder/handlers/motion/property/MotionLayoutAttributesModel.java"
+            line="127"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/android/tools/idea/uibuilder/handlers/motion/property/MotionLayoutAttributesModel.java"
+            line="127"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/android/tools/idea/uibuilder/handlers/motion/property/MotionLayoutAttributesModel.java"
+            line="128"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
             file="src/com/android/tools/idea/common/model/NlComponent.java"
             line="101"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/android/tools/idea/uibuilder/surface/layout/PositionableContentLayoutManager.kt"
+            line="49"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/android/tools/idea/uibuilder/surface/layout/PositionableContentLayoutManager.kt"
+            line="54"/>
+    </issue>
+
+    <issue
+        id="VisibleForTests"
+        message="This method should only be accessed from tests or within private scope">
+        <location
+            file="src/com/android/tools/idea/uibuilder/surface/layout/PositionableContentLayoutManager.kt"
+            line="58"/>
     </issue>
 
     <issue
@@ -775,14 +823,6 @@
         <location
             file="src/com/android/tools/idea/uibuilder/mockup/colorextractor/DoublesColorExtractor.java"
             line="132"/>
-    </issue>
-
-    <issue
-        id="WrongThread"
-        message="Method getPalette is slow and thus should run on a worker thread, yet the currently inferred thread is the UI thread">
-        <location
-            file="src/com/android/tools/idea/uibuilder/palette/DataModel.java"
-            line="243"/>
     </issue>
 
 </issues>

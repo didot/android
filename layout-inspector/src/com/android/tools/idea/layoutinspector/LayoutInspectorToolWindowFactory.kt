@@ -15,35 +15,29 @@
  */
 package com.android.tools.idea.layoutinspector
 
-import com.android.sdklib.AndroidVersion
 import com.android.tools.adtui.workbench.WorkBench
-import com.android.tools.idea.appinspection.api.process.ProcessNotifier
+import com.android.tools.idea.appinspection.api.process.ProcessDiscovery
 import com.android.tools.idea.appinspection.api.process.ProcessesModel
 import com.android.tools.idea.appinspection.ide.AppInspectionDiscoveryService
-import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
+import com.android.tools.idea.appinspection.ide.ui.RecentProcess
 import com.android.tools.idea.concurrency.AndroidExecutors
 import com.android.tools.idea.layoutinspector.metrics.LayoutInspectorMetrics
 import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model.InspectorModel
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLauncher
-import com.android.tools.idea.layoutinspector.pipeline.adb.AdbUtils
 import com.android.tools.idea.layoutinspector.properties.LayoutInspectorPropertiesPanelDefinition
+import com.android.tools.idea.layoutinspector.tree.InspectorTreeSettings
 import com.android.tools.idea.layoutinspector.tree.LayoutInspectorTreePanelDefinition
-import com.android.tools.idea.layoutinspector.tree.TreeSettingsImpl
 import com.android.tools.idea.layoutinspector.ui.DeviceViewPanel
-import com.android.tools.idea.layoutinspector.ui.DeviceViewSettings
 import com.android.tools.idea.layoutinspector.ui.InspectorBanner
 import com.android.tools.idea.layoutinspector.ui.InspectorBannerService
-import com.android.tools.idea.model.AndroidModuleInfo
-import com.android.tools.idea.transport.TransportService
+import com.android.tools.idea.layoutinspector.ui.InspectorDeviceViewSettings
 import com.android.tools.idea.ui.enableLiveLayoutInspector
 import com.google.common.annotations.VisibleForTesting
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorEvent.DynamicLayoutInspectorEventType
 import com.intellij.ide.DataManager
-import com.intellij.ide.startup.ServiceNotReadyException
 import com.intellij.openapi.actionSystem.DataKey
 import com.intellij.openapi.actionSystem.DataProvider
-import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.MessageType
 import com.intellij.openapi.util.Disposer
@@ -64,19 +58,8 @@ val LAYOUT_INSPECTOR_DATA_KEY = DataKey.create<LayoutInspector>(LayoutInspector:
 /**
  * Create a [DataProvider] for the specified [layoutInspector].
  */
-@VisibleForTesting
 fun dataProviderForLayoutInspector(layoutInspector: LayoutInspector, deviceViewPanel: DataProvider): DataProvider =
   DataProvider { dataId -> if (LAYOUT_INSPECTOR_DATA_KEY.`is`(dataId)) layoutInspector else deviceViewPanel.getData(dataId) }
-
-/**
- * Return true if the process it represents is inspectable in the Layout Inspector.
- *
- * Currently, a process is deemed inspectable if the device it's running on is M+ and if it's debuggable. The latter condition is
- * guaranteed to be true because transport pipeline only provides debuggable processes, so there is no need to check.
- */
-private fun ProcessDescriptor.isInspectableInLayoutInspector(): Boolean {
-  return this.device.apiLevel >= AndroidVersion.VersionCodes.M
-}
 
 /**
  * ToolWindowFactory: For creating a layout inspector tool window for the project.
@@ -86,12 +69,8 @@ class LayoutInspectorToolWindowFactory : ToolWindowFactory {
   override fun isApplicable(project: Project): Boolean = enableLiveLayoutInspector
 
   override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-    // Ensure the transport service is started
-    if (TransportService.getInstance() == null) {
-      throw ServiceNotReadyException()
-    }
     val workbench = WorkBench<LayoutInspector>(project, LAYOUT_INSPECTOR_TOOL_WINDOW_ID, null, project)
-    val viewSettings = DeviceViewSettings()
+    val viewSettings = InspectorDeviceViewSettings()
 
     val edtExecutor = EdtExecutorService.getInstance()
 
@@ -105,11 +84,10 @@ class LayoutInspectorToolWindowFactory : ToolWindowFactory {
 
     workbench.showLoading("Initializing ADB")
     AndroidExecutors.getInstance().workerThreadExecutor.execute {
-      val adb = AdbUtils.getAdbFuture(project).get()
       edtExecutor.execute {
         workbench.hideLoading()
 
-        val processes = createProcessesModel(project, AppInspectionDiscoveryService.instance.apiServices.processNotifier, edtExecutor)
+        val processes = createProcessesModel(project, AppInspectionDiscoveryService.instance.apiServices.processDiscovery, edtExecutor)
         Disposer.register(workbench, processes)
         val model = InspectorModel(project)
         model.setProcessModel(processes)
@@ -117,13 +95,15 @@ class LayoutInspectorToolWindowFactory : ToolWindowFactory {
         processes.addSelectedProcessListeners {
           // Reset notification bar every time active process changes, since otherwise we might leave up stale notifications from an error
           // encountered during a previous run.
-          InspectorBannerService.getInstance(project).notification = null
+          if (!project.isDisposed) {
+            InspectorBannerService.getInstance(project).notification = null
+          }
         }
 
         lateinit var launcher: InspectorClientLauncher
-        val treeSettings = TreeSettingsImpl { launcher.activeClient }
+        val treeSettings = InspectorTreeSettings { launcher.activeClient }
         val stats = SessionStatistics(model, treeSettings)
-        launcher = InspectorClientLauncher.createDefaultLauncher(adb, processes, model, stats, workbench)
+        launcher = InspectorClientLauncher.createDefaultLauncher(processes, model, LayoutInspectorMetrics(project, null, stats), workbench)
         val layoutInspector = LayoutInspector(launcher, model, stats, treeSettings)
         val deviceViewPanel = DeviceViewPanel(processes, layoutInspector, viewSettings, workbench)
         DataManager.registerDataProvider(workbench, dataProviderForLayoutInspector(layoutInspector, deviceViewPanel))
@@ -138,15 +118,10 @@ class LayoutInspectorToolWindowFactory : ToolWindowFactory {
   }
 
   @VisibleForTesting
-  fun createProcessesModel(project: Project, processNotifier: ProcessNotifier, executor: Executor) = ProcessesModel(
+  fun createProcessesModel(project: Project, processDiscovery: ProcessDiscovery, executor: Executor) = ProcessesModel(
     executor = executor,
-    processNotifier = processNotifier,
-    acceptProcess = { it.isInspectableInLayoutInspector() },
-    getPreferredProcessNames = {
-      ModuleManager.getInstance(project).modules
-        .mapNotNull { AndroidModuleInfo.getInstance(it)?.`package` }
-        .toList()
-    }
+    processDiscovery = processDiscovery,
+    isPreferred = { RecentProcess.isRecentProcess(it, project) }
   )
 }
 
@@ -172,7 +147,7 @@ class LayoutInspectorToolWindowManagerListener @VisibleForTesting constructor(pr
     wasWindowVisible = isWindowVisible
     if (windowVisibilityChanged) {
       if (isWindowVisible) {
-        LayoutInspectorMetrics.create(project).logEvent(DynamicLayoutInspectorEventType.OPEN)
+        LayoutInspectorMetrics(project).logEvent(DynamicLayoutInspectorEventType.OPEN)
       }
       else if (clientLauncher.activeClient.isConnected) {
         toolWindowManager.notifyByBalloon(

@@ -16,7 +16,8 @@
 
 package com.android.tools.idea.run;
 
-import com.android.tools.idea.run.editor.LaunchOptionConfigurableContext;
+import com.android.tools.idea.res.AndroidDependenciesCache;
+import com.android.tools.idea.run.activity.launch.LaunchOptionConfigurableContext;
 import com.intellij.codeInsight.completion.CompletionContributor;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionResultSet;
@@ -74,7 +75,7 @@ public class AndroidActivityAliasCompletionContributor extends CompletionContrib
     if (activityClass != null) {
       final CompletionResultSet finalResult = result;
 
-      ClassInheritorsSearch.search(activityClass, module.getModuleWithDependenciesScope(), true, true, false).forEach(new Processor<PsiClass>() {
+      ClassInheritorsSearch.search(activityClass, module.getModuleWithDependenciesScope(), true, true, false).forEach(new Processor<>() {
         @Override
         public boolean process(PsiClass psiClass) {
           final PsiModifierList modifierList = psiClass.getModifierList();
@@ -110,11 +111,11 @@ public class AndroidActivityAliasCompletionContributor extends CompletionContrib
 
   @NotNull
   private static Set<String> collectActivityAliases(@NotNull AndroidFacet facet) {
-    final Set<String> result = new HashSet<String>();
+    final Set<String> result = new HashSet<>();
 
     doCollectActivityAliases(facet, result);
 
-    for (AndroidFacet depFacet : AndroidUtils.getAllAndroidDependencies(facet.getModule(), true)) {
+    for (AndroidFacet depFacet : AndroidDependenciesCache.getAllAndroidDependencies(facet.getModule(), true)) {
       doCollectActivityAliases(depFacet, result);
     }
     return result;

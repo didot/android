@@ -18,12 +18,12 @@ package com.android.tools.idea.gradle.dsl.parser.files;
 import static com.android.tools.idea.gradle.dsl.model.notifications.NotificationTypeReference.CIRCULAR_APPLICATION;
 
 import com.android.tools.idea.gradle.dsl.model.BuildModelContext;
-import com.google.common.base.Charsets;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -40,7 +40,6 @@ import org.jetbrains.annotations.Nullable;
  * file hundreds of times.
  */
 public class GradleDslFileCache {
-  public static final Logger LOG = Logger.getInstance(GradleDslFileCache.class);
   @NotNull private Project myProject;
   @NotNull private Map<String, GradleDslFile> myParsedBuildFiles = new HashMap<>();
   @NotNull private Deque<VirtualFile> myParsingStack = new ArrayDeque<>();
@@ -109,9 +108,7 @@ public class GradleDslFileCache {
   }
 
   @Nullable
-  public GradlePropertiesFile getOrCreatePropertiesFile(@NotNull VirtualFile file,
-                                                        @NotNull String moduleName,
-                                                        @NotNull BuildModelContext context) {
+  public GradlePropertiesFile getOrCreatePropertiesFile(@NotNull VirtualFile file, @NotNull String moduleName, @NotNull BuildModelContext context) {
     GradleDslFile dslFile = myParsedBuildFiles.get(file.getUrl());
     if (dslFile == null) {
       try {
@@ -132,7 +129,7 @@ public class GradleDslFileCache {
 
   private static Properties getProperties(@NotNull VirtualFile file) throws IOException {
     Properties properties = new Properties();
-    try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), Charsets.UTF_8)) {
+    try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8)) {
       properties.load(reader);
     }
     return properties;

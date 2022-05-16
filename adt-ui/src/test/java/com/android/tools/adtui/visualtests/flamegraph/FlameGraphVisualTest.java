@@ -21,8 +21,6 @@ import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorS
 import com.android.tools.adtui.AnimatedComponent;
 import com.android.tools.adtui.AxisComponent;
 import com.android.tools.adtui.RangeSelectionComponent;
-import com.android.tools.adtui.*;
-import com.android.tools.adtui.model.*;
 import com.android.tools.adtui.chart.hchart.HTreeChart;
 import com.android.tools.adtui.chart.linechart.LineChart;
 import com.android.tools.adtui.model.DefaultDataSeries;
@@ -147,7 +145,7 @@ public class FlameGraphVisualTest extends VisualTest implements ActionListener {
     mSaveButton.addActionListener(this);
     buttonsPanel.add(mSaveButton);
 
-    mComboBox = new JComboBox<String>(new String[0]) {
+    mComboBox = new JComboBox<>(new String[0]) {
       @Override
       public Dimension getMaximumSize() {
         Dimension max = super.getMaximumSize();

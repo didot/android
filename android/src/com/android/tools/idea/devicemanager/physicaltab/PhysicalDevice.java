@@ -16,54 +16,99 @@
 package com.android.tools.idea.devicemanager.physicaltab;
 
 import com.android.tools.idea.devicemanager.Device;
-import icons.StudioIcons;
-import java.time.Instant;
-import java.util.Comparator;
+import com.android.tools.idea.devicemanager.DeviceType;
+import com.android.tools.idea.devicemanager.Resolution;
+import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.Objects;
 import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class PhysicalDevice extends Device implements Comparable<@NotNull PhysicalDevice> {
-  private static final @NotNull Comparator<@NotNull PhysicalDevice> COMPARATOR =
-    Comparator.<PhysicalDevice, Boolean>comparing(Device::isOnline, Comparator.reverseOrder())
-      .thenComparing(PhysicalDevice::getLastOnlineTime, Comparator.nullsLast(Comparator.reverseOrder()));
-
-  private final @NotNull String mySerialNumber;
-  private final @Nullable Instant myLastOnlineTime;
+public final class PhysicalDevice extends Device {
+  private final @NotNull String myNameOverride;
+  private final @NotNull ImmutableCollection<@NotNull ConnectionType> myConnectionTypes;
+  private final @Nullable Battery myPower;
+  private final @Nullable Resolution myResolution;
+  private final int myDensity;
+  private final @NotNull ImmutableCollection<@NotNull String> myAbis;
+  private final @Nullable StorageDevice myStorageDevice;
 
   public static final class Builder extends Device.Builder {
-    private @Nullable String mySerialNumber;
-    private @Nullable Instant myLastOnlineTime;
+    private @NotNull String myNameOverride = "";
+    private final @NotNull Collection<@NotNull ConnectionType> myConnectionTypes = EnumSet.noneOf(ConnectionType.class);
+    private @Nullable Battery myPower;
+    private @Nullable Resolution myResolution;
+    private int myDensity = -1;
+    private final @NotNull Collection<@NotNull String> myAbis = new ArrayList<>();
+    private @Nullable StorageDevice myStorageDevice;
 
-    // TODO Initialize myName and myTarget properly
-    public Builder() {
-      myName = "Physical Device";
-      myTarget = "Target";
-    }
-
-    public @NotNull Builder setSerialNumber(@NotNull String serialNumber) {
-      mySerialNumber = serialNumber;
+    public @NotNull Builder setKey(@NotNull Key key) {
+      myKey = key;
       return this;
     }
 
-    @NotNull Builder setLastOnlineTime(@Nullable Instant lastOnlineTime) {
-      myLastOnlineTime = lastOnlineTime;
+    @NotNull Builder setType(@NotNull DeviceType type) {
+      myType = type;
       return this;
     }
 
-    @NotNull Builder setName(@NotNull String name) {
+    public @NotNull Builder setName(@NotNull String name) {
       myName = name;
       return this;
     }
 
-    public @NotNull Builder setOnline(@SuppressWarnings("SameParameterValue") boolean online) {
-      myOnline = online;
+    @NotNull Builder setNameOverride(@NotNull String nameOverride) {
+      myNameOverride = nameOverride;
       return this;
     }
 
-    @NotNull Builder setTarget(@NotNull String target) {
+    public @NotNull Builder setTarget(@NotNull String target) {
       myTarget = target;
+      return this;
+    }
+
+    public @NotNull Builder setApi(@NotNull String api) {
+      myApi = api;
+      return this;
+    }
+
+    public @NotNull Builder addConnectionType(@NotNull ConnectionType connectionType) {
+      myConnectionTypes.add(connectionType);
+      return this;
+    }
+
+    @NotNull Builder addAllConnectionTypes(@NotNull Collection<@NotNull ConnectionType> connectionTypes) {
+      myConnectionTypes.addAll(connectionTypes);
+      return this;
+    }
+
+    @NotNull Builder setPower(@Nullable Battery power) {
+      myPower = power;
+      return this;
+    }
+
+    @NotNull Builder setResolution(@Nullable Resolution resolution) {
+      myResolution = resolution;
+      return this;
+    }
+
+    @NotNull Builder setDensity(int density) {
+      myDensity = density;
+      return this;
+    }
+
+    @NotNull Builder addAllAbis(@NotNull Collection<@NotNull String> abis) {
+      myAbis.addAll(abis);
+      return this;
+    }
+
+    @NotNull Builder setStorageDevice(@Nullable StorageDevice storageDevice) {
+      myStorageDevice = storageDevice;
       return this;
     }
 
@@ -76,43 +121,68 @@ public final class PhysicalDevice extends Device implements Comparable<@NotNull 
   private PhysicalDevice(@NotNull Builder builder) {
     super(builder);
 
-    assert builder.mySerialNumber != null;
-    mySerialNumber = builder.mySerialNumber;
-
-    myLastOnlineTime = builder.myLastOnlineTime;
-  }
-
-  @NotNull String getSerialNumber() {
-    return mySerialNumber;
-  }
-
-  @Nullable Instant getLastOnlineTime() {
-    return myLastOnlineTime;
-  }
-
-  @NotNull String toDebugString() {
-    String separator = System.lineSeparator();
-
-    return "serialNumber = " + mySerialNumber + separator
-           + "lastOnlineTime = " + myLastOnlineTime + separator
-           + "name = " + myName + separator
-           + "online = " + myOnline + separator
-           + "target = " + myTarget + separator;
+    myNameOverride = builder.myNameOverride;
+    myConnectionTypes = ImmutableSet.copyOf(builder.myConnectionTypes);
+    myPower = builder.myPower;
+    myResolution = builder.myResolution;
+    myDensity = builder.myDensity;
+    myAbis = ImmutableList.copyOf(builder.myAbis);
+    myStorageDevice = builder.myStorageDevice;
   }
 
   @Override
-  protected @NotNull Icon getIcon() {
-    return StudioIcons.DeviceExplorer.PHYSICAL_DEVICE_PHONE;
+  public @NotNull Icon getIcon() {
+    return myType.getPhysicalIcon();
+  }
+
+  @NotNull String getNameOverride() {
+    return myNameOverride;
+  }
+
+  @Override
+  public boolean isOnline() {
+    return !myConnectionTypes.isEmpty();
+  }
+
+  @NotNull Collection<@NotNull ConnectionType> getConnectionTypes() {
+    return myConnectionTypes;
+  }
+
+  @Nullable Battery getPower() {
+    return myPower;
+  }
+
+  @Nullable Resolution getResolution() {
+    return myResolution;
+  }
+
+  @Nullable Resolution getDp() {
+    return getDp(myDensity, myResolution);
+  }
+
+  @NotNull Collection<@NotNull String> getAbis() {
+    return myAbis;
+  }
+
+  @Nullable StorageDevice getStorageDevice() {
+    return myStorageDevice;
   }
 
   @Override
   public int hashCode() {
-    int hashCode = mySerialNumber.hashCode();
+    int hashCode = myKey.hashCode();
 
-    hashCode = 31 * hashCode + Objects.hashCode(myLastOnlineTime);
+    hashCode = 31 * hashCode + myType.hashCode();
     hashCode = 31 * hashCode + myName.hashCode();
-    hashCode = 31 * hashCode + Boolean.hashCode(myOnline);
+    hashCode = 31 * hashCode + myNameOverride.hashCode();
     hashCode = 31 * hashCode + myTarget.hashCode();
+    hashCode = 31 * hashCode + myApi.hashCode();
+    hashCode = 31 * hashCode + myConnectionTypes.hashCode();
+    hashCode = 31 * hashCode + Objects.hashCode(myPower);
+    hashCode = 31 * hashCode + Objects.hashCode(myResolution);
+    hashCode = 31 * hashCode + myDensity;
+    hashCode = 31 * hashCode + myAbis.hashCode();
+    hashCode = 31 * hashCode + Objects.hashCode(myStorageDevice);
 
     return hashCode;
   }
@@ -125,15 +195,17 @@ public final class PhysicalDevice extends Device implements Comparable<@NotNull 
 
     PhysicalDevice device = (PhysicalDevice)object;
 
-    return mySerialNumber.equals(device.mySerialNumber) &&
-           Objects.equals(myLastOnlineTime, device.myLastOnlineTime) &&
+    return myKey.equals(device.myKey) &&
+           myType.equals(device.myType) &&
            myName.equals(device.myName) &&
-           myOnline == device.myOnline &&
-           myTarget.equals(device.myTarget);
-  }
-
-  @Override
-  public int compareTo(@NotNull PhysicalDevice device) {
-    return COMPARATOR.compare(this, device);
+           myNameOverride.equals(device.myNameOverride) &&
+           myTarget.equals(device.myTarget) &&
+           myApi.equals(device.myApi) &&
+           myConnectionTypes.equals(device.myConnectionTypes) &&
+           Objects.equals(myPower, device.myPower) &&
+           Objects.equals(myResolution, device.myResolution) &&
+           myDensity == device.myDensity &&
+           myAbis.equals(device.myAbis) &&
+           Objects.equals(myStorageDevice, device.myStorageDevice);
   }
 }

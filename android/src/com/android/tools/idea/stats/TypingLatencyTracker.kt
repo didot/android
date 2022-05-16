@@ -15,15 +15,12 @@
  */
 package com.android.tools.idea.stats
 
-import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.stats.TypingLatencyTracker.reportTypingLatency
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.EditorFileType
-import com.google.wireless.android.sdk.stats.TypingLatencyStats
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.LatencyListener
 import com.intellij.openapi.fileEditor.FileDocumentManager
-//import com.intellij.util.analytics.toProto // FIXME-ank-3: move from AOSP's platform sources to android-plugin sources (see code below)
 import org.HdrHistogram.SingleWriterRecorder
 import java.util.concurrent.ConcurrentHashMap
 
@@ -53,5 +50,6 @@ object TypingLatencyTracker : LatencyListener {
    * Resets statistics so that latencies are not double-counted in the next report.
    */
   fun reportTypingLatency() {
+    // method body was removed because it depends on modified platform
   }
 }

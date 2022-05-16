@@ -16,6 +16,7 @@
 package com.android.tools.idea.gradle.model.impl
 
 import com.android.tools.idea.gradle.model.IdeModuleLibrary
+import com.android.tools.idea.gradle.model.IdeModuleSourceSet
 import com.google.common.annotations.VisibleForTesting
 import java.io.File
 import java.io.Serializable
@@ -24,64 +25,53 @@ import java.io.Serializable
  * The implementation of IdeLibrary for modules.
  **/
 data class IdeModuleLibraryImpl(
-  val core: IdeModuleLibraryCore,
-  override val isProvided: Boolean
+  val core: IdeModuleLibraryCore
 ) : IdeModuleLibrary by core, Serializable {
   @VisibleForTesting
   constructor(
     projectPath: String,
-    artifactAddress: String,
-    buildId: String?,
+    buildId: String,
     variant: String? = null
   ) : this(
       IdeModuleLibraryCore(
           projectPath = projectPath,
-          artifactAddress = artifactAddress,
           buildId = buildId,
           variant = variant,
-          lintJar = null
-      ),
-      isProvided = false
+          lintJar = null,
+          sourceSet = IdeModuleSourceSet.MAIN,
+          artifact = null
+      )
   )
 }
 
 data class IdeModuleLibraryCore(
-  override val artifactAddress: String,
-  override val buildId: String?,
+  override val buildId: String,
   override val projectPath: String,
   override val variant: String?,
-  override val lintJar: String?
-
+  override val lintJar: String?,
+  override val sourceSet: IdeModuleSourceSet,
+  override val artifact: File?
 ) : IdeModuleLibrary, Serializable {
 
   // Used for serialization by the IDE.
   constructor() : this(
-    artifactAddress = "",
-    buildId = null,
+    buildId = "",
     projectPath = "",
     variant = null,
-    lintJar = null
+    lintJar = null,
+    sourceSet = IdeModuleSourceSet.MAIN,
+    artifact = null
   )
 
   constructor(
     projectPath: String,
-    artifactAddress: String,
-    buildId: String?
+    buildId: String
   ) : this(
-    artifactAddress = artifactAddress,
     buildId = buildId,
     projectPath = projectPath,
     variant = null,
-    lintJar = null
+    lintJar = null,
+    sourceSet = IdeModuleSourceSet.MAIN,
+    artifact = null
   )
-
-  override val artifact: File
-    get() = throw unsupportedMethodForModuleLibrary("getArtifact()")
-
-  override val isProvided: Nothing
-    get() = error("abstract")
-}
-
-private fun unsupportedMethodForModuleLibrary(methodName: String): UnsupportedOperationException {
-  return UnsupportedOperationException("$methodName() cannot be called when getType() returns LIBRARY_MODULE")
 }

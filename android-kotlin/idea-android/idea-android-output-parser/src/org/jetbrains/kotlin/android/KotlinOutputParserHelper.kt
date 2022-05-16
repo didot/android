@@ -11,7 +11,7 @@ import com.google.common.collect.ImmutableList
 import com.intellij.openapi.util.text.StringUtil
 import org.jetbrains.kotlin.kapt3.diagnostic.KaptError
 import java.io.File
-import java.util.*
+import java.util.Locale
 import java.util.regex.Pattern
 
 fun parse(lineText: String, reader: OutputLineReader, messages: MutableList<Message>): Boolean {

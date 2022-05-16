@@ -36,6 +36,7 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiReference;
+import com.intellij.psi.impl.source.xml.XmlAttributeImpl;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlAttributeValue;
 import com.intellij.psi.xml.XmlChildRole;
@@ -49,12 +50,15 @@ import com.intellij.util.xml.GenericAttributeValue;
 import com.intellij.util.xml.XmlName;
 import com.intellij.util.xml.converters.DelimitedListConverter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.jetbrains.android.dom.AndroidDomElement;
 import org.jetbrains.android.dom.AndroidResourceDomFileDescription;
 import org.jetbrains.android.dom.AttributeProcessingUtil;
@@ -94,6 +98,13 @@ import org.jetbrains.annotations.NotNull;
 public class AndroidXmlCompletionContributor extends CompletionContributor {
 
   private static final String LAYOUT_ATTRIBUTE_PREFIX = "layout_";
+
+  private static final String NAMESPACE_PREFIX = "xmlns";
+  private static final String[] AVAILABLE_NAMESPACES = new String[] {
+    "android=\"http://schemas.android.com/apk/res/android\"",
+    "app=\"http://schemas.android.com/apk/res-auto\"",
+    "tools=\"http://schemas.android.com/tools\"",
+  };
 
   @Override
   public void fillCompletionVariants(@NotNull CompletionParameters parameters, @NotNull CompletionResultSet resultSet) {
@@ -167,11 +178,32 @@ public class AndroidXmlCompletionContributor extends CompletionContributor {
       if (element instanceof LayoutElement) {
         addAndCustomizeAttributesForLayoutElement(facet, parameters, attribute, resultSet);
       }
+
+      if (tag.getParentTag() == null) {
+        if (attribute.getNamespacePrefix().equals(NAMESPACE_PREFIX)) {
+          addNamespaces(resultSet, tag.getLocalNamespaceDeclarations(), false);
+        }
+        else if (namespace.isEmpty()) {
+          addNamespaces(resultSet, tag.getLocalNamespaceDeclarations(), true);
+        }
+      }
     }
     else if (originalParent instanceof XmlAttributeValue) {
       completeTailsInFlagAttribute(parameters, resultSet, (XmlAttributeValue)originalParent);
       completeDataBindingTypeAttr(parameters, resultSet, (XmlAttributeValue)originalParent);
     }
+  }
+
+  private void addNamespaces(CompletionResultSet resultSet,
+                             @NotNull Map<String, String> namespaces,
+                             boolean withPrefix) {
+    Collection<String> declaredNamespaces = namespaces.values();
+    Stream<String> lookupStrings = Arrays.stream(AVAILABLE_NAMESPACES)
+      .filter(availableNamespace -> declaredNamespaces.stream().noneMatch(availableNamespace::contains));
+    if (withPrefix) {
+      lookupStrings = lookupStrings.map(it -> NAMESPACE_PREFIX + ":" + it);
+    }
+    resultSet.addAllElements(lookupStrings.map(LookupElementBuilder::create).collect(Collectors.toList()));
   }
 
   private static void addAll(Collection<String> collection, CompletionResultSet set) {
@@ -180,6 +212,7 @@ public class AndroidXmlCompletionContributor extends CompletionContributor {
     }
   }
 
+  // TODO: replace with namespaces. See org.jetbrains.android.dom.AndroidXmlExtension.getNSDescriptor
   private static boolean completeRootTagNames(@NotNull AndroidFacet facet, @NotNull XmlFile xmlFile, @NotNull CompletionResultSet resultSet) {
     if (ManifestDomFileDescription.isManifestFile(xmlFile, facet)) {
       resultSet.addElement(LookupElementBuilder.create("manifest"));
@@ -195,10 +228,6 @@ public class AndroidXmlCompletionContributor extends CompletionContributor {
     }
     else if (XmlResourceDomFileDescription.isXmlResourceFile(xmlFile)) {
       addAll(AndroidXmlResourcesUtil.ROOT_TAGS, resultSet);
-      return false;
-    }
-    else if (AndroidDrawableDomUtil.isDrawableResourceFile(xmlFile)) {
-      addAll(AndroidDrawableDomUtil.getPossibleRoots(facet), resultSet);
       return false;
     }
     else if (TransitionDomFileDescription.isTransitionFile(xmlFile)) {
@@ -245,13 +274,12 @@ public class AndroidXmlCompletionContributor extends CompletionContributor {
       AttributeProcessingUtil.processLayoutAttributes(facet, tag, (LayoutElement)element, registeredAttributes,
                                                       (xmlName, attrDef, parentStyleableName) -> {
         if (SdkConstants.ANDROID_URI.equals(xmlName.getNamespaceKey())) {
-          final String localName = xmlName.getLocalName();
+          String realName = XmlAttributeImpl.getRealName(attribute);
+          final String lookupElementString =
+            realName.length() == 0 ? namespacePrefix + ":" + xmlName.getLocalName() : xmlName.getLocalName();
 
-          // Lookup string is something that would be inserted when attribute is completed, so we want to use
-          // local name as an argument of .create(), otherwise we'll end up with getting completions like
-          // "tools:tools:src".
           final LookupElementBuilder lookupElement =
-            LookupElementBuilder.create(psiElement, localName).withInsertHandler(XmlAttributeInsertHandler.INSTANCE);
+            LookupElementBuilder.create(psiElement, lookupElementString).withInsertHandler(XmlAttributeInsertHandler.INSTANCE);
           resultSet.addElement(lookupElement);
         }
         return null;
@@ -336,7 +364,7 @@ public class AndroidXmlCompletionContributor extends CompletionContributor {
                                                                         final boolean markDeprecated) {
     if (!localName.startsWith(LAYOUT_ATTRIBUTE_PREFIX)) {
       if (markDeprecated) {
-        return result.withLookupElement(PrioritizedLookupElement.withPriority(new LookupElementDecorator<LookupElement>(lookupElement) {
+        return result.withLookupElement(PrioritizedLookupElement.withPriority(new LookupElementDecorator<>(lookupElement) {
           @Override
           public void renderElement(LookupElementPresentation presentation) {
             super.renderElement(presentation);
@@ -352,7 +380,7 @@ public class AndroidXmlCompletionContributor extends CompletionContributor {
       final HashSet<String> lookupStrings = new HashSet<>(lookupElement.getAllLookupStrings());
       lookupStrings.add(localSuffix);
 
-      lookupElement = new LookupElementDecorator<LookupElement>(lookupElement) {
+      lookupElement = new LookupElementDecorator<>(lookupElement) {
         @Override
         public Set<String> getAllLookupStrings() {
           return lookupStrings;

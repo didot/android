@@ -15,27 +15,19 @@
  */
 package com.android.tools.idea.gradle.dsl.parser.files;
 
-import com.android.tools.idea.gradle.dsl.GradleUtil;
+import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
+
 import com.android.tools.idea.gradle.dsl.api.BuildModelNotification;
 import com.android.tools.idea.gradle.dsl.model.BuildModelContext;
-import com.android.tools.idea.gradle.dsl.model.GradleBlockModelMap;
-import com.android.tools.idea.gradle.dsl.parser.GradleDslConverterFactory;
 import com.android.tools.idea.gradle.dsl.parser.GradleDslParser;
+import com.android.tools.idea.gradle.dsl.parser.GradleDslTransformerFactory;
 import com.android.tools.idea.gradle.dsl.parser.GradleDslWriter;
-import com.android.tools.idea.gradle.dsl.parser.android.AndroidDslElement;
-import com.android.tools.idea.gradle.dsl.parser.apply.ApplyDslElement;
-import com.android.tools.idea.gradle.dsl.parser.build.BuildScriptDslElement;
-import com.android.tools.idea.gradle.dsl.parser.build.SubProjectsDslElement;
-import com.android.tools.idea.gradle.dsl.parser.configurations.ConfigurationsDslElement;
-import com.android.tools.idea.gradle.dsl.parser.crashlytics.CrashlyticsDslElement;
-import com.android.tools.idea.gradle.dsl.parser.dependencies.DependenciesDslElement;
-import com.android.tools.idea.gradle.dsl.parser.elements.*;
-import com.android.tools.idea.gradle.dsl.parser.ext.ExtDslElement;
-import com.android.tools.idea.gradle.dsl.parser.java.JavaDslElement;
-import com.android.tools.idea.gradle.dsl.parser.plugins.PluginsDslElement;
-import com.android.tools.idea.gradle.dsl.parser.repositories.RepositoriesDslElement;
-import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.google.common.collect.ImmutableList;
+import com.android.tools.idea.gradle.dsl.parser.elements.ElementState;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElementEnum;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslGlobalValue;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement;
 import com.google.common.collect.ImmutableMap;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
@@ -44,47 +36,33 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
+import java.io.File;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Predicate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.plugins.groovy.lang.psi.GroovyFile;
-
-import java.io.File;
-import java.util.*;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
-import static com.android.tools.idea.gradle.dsl.parser.GradleDslConverterFactory.EXTENSION_POINT_NAME;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
 
 /**
- * Provides Gradle specific abstraction over a {@link GroovyFile}.
+ * Provides Gradle-specific abstraction over Gradle build and related files, whatever their implementation language.
  */
 public abstract class GradleDslFile extends GradlePropertiesDslElement {
   private static final Logger LOG = Logger.getInstance(GradleDslFile.class);
+
   @NotNull private final ElementList myGlobalProperties = new ElementList();
   @NotNull private final VirtualFile myFile;
   @NotNull private final Project myProject;
-  @NotNull private final Set<GradleDslFile> myChildModuleDslFiles = new HashSet<>();
   @NotNull private final GradleDslWriter myGradleDslWriter;
   @NotNull private final GradleDslParser myGradleDslParser;
-
-  @Nullable private GradleDslFile myParentModuleDslFile;
-  @Nullable private GradleDslFile mySiblingDslFile;
-
-  @Nullable private ApplyDslElement myApplyDslElement;
   @NotNull private final BuildModelContext myBuildModelContext;
-
-  @NotNull
-  @Override
-  protected ImmutableMap<String, PropertiesElementDescription> getChildPropertiesElementsDescriptionMap() {
-    return GradleBlockModelMap.getElementMap(GradleBuildFile.class);
-  }
 
   protected GradleDslFile(@NotNull VirtualFile file,
                           @NotNull Project project,
@@ -97,36 +75,41 @@ public abstract class GradleDslFile extends GradlePropertiesDslElement {
 
     Application application = ApplicationManager.getApplication();
     PsiFile psiFile = application.runReadAction((Computable<PsiFile>)() -> PsiManager.getInstance(myProject).findFile(myFile));
-    List<GradleDslConverterFactory> extensionList = EXTENSION_POINT_NAME.getExtensionList();
 
-    GradleDslParser parser = null;
-    GradleDslWriter writer = null;
-    for(GradleDslConverterFactory factory: extensionList) {
-      if (factory.canConvert(psiFile)) {
-        parser = factory.createParser(psiFile, this);
-        writer = factory.createWriter();
-        setPsiElement(psiFile);
-        break;
+    List<GradleDslTransformerFactory> factories = GradleDslTransformerFactory.EXTENSION_POINT_NAME.getExtensionList();
+    boolean foundFactory = false;
+
+    // If we don't support the language we ignore the PsiElement and set stubs for the writer and parser.
+    // This means this file will produce an empty model.
+    @NotNull GradleDslParser dslParser = new GradleDslParser.Adapter(context);
+    @NotNull GradleDslWriter dslWriter = new GradleDslWriter.Adapter(context);
+    // Search for something that does support the build language.
+    if (psiFile == null) {
+      LOG.debug("Failed to find psiFile for virtualFile " + myFile.getName());
+    }
+    else {
+      for (GradleDslTransformerFactory factory : factories) {
+        if (factory.canTransform(psiFile)) {
+          dslParser = factory.createParser(psiFile, context, this);
+          dslWriter = factory.createWriter(context);
+          setPsiElement(psiFile);
+          foundFactory = true;
+          break;
+        }
+      }
+      if (!foundFactory) {
+        LOG.debug("Failed to find transformer for file " + psiFile.getName() + " (" + psiFile.getClass().getCanonicalName() + ")");
       }
     }
 
-    if(parser !=null) {
-      myGradleDslParser = parser;
-      myGradleDslWriter = writer;
-    } else {
-      // If we don't support the language we ignore the PsiElement and set stubs for the writer and parser.
-      // This means this file will produce an empty model.
-      if(LOG.isDebugEnabled()) {
-        LOG.debug("cannot find converter factory for " + psiFile.getName() + "(" + psiFile.getClass().getCanonicalName() + ")");
-      }
-      myGradleDslParser = new GradleDslParser.Adapter();
-      myGradleDslWriter = new GradleDslWriter.Adapter();
-    }
+    myGradleDslWriter = dslWriter;
+    myGradleDslParser = dslParser;
     populateGlobalProperties();
   }
 
   private void populateGlobalProperties() {
-    GradleDslElement rootDir = new GradleDslGlobalValue(this, GradleUtil.getBaseDirPath(myProject).getPath(), "rootDir");
+    GradleDslElement rootDir =
+      new GradleDslGlobalValue(this, new File(FileUtil.toCanonicalPath(Optional.ofNullable(myProject.getBasePath()).orElse(""))).getPath(), "rootDir");
     myGlobalProperties.addElement(rootDir, ElementState.DEFAULT, false);
     GradleDslElement projectDir = new GradleDslGlobalValue(this, getDirectoryPath().getPath(), "projectDir");
     myGlobalProperties.addElement(projectDir, ElementState.DEFAULT, false);
@@ -192,45 +175,6 @@ public abstract class GradleDslFile extends GradlePropertiesDslElement {
   }
 
   @NotNull
-  public List<GradleDslFile> getApplyDslElement() {
-    return myApplyDslElement == null ? ImmutableList.of() : myApplyDslElement.getAppliedDslFiles();
-  }
-
-  public void setParentModuleDslFile(@NotNull GradleDslFile parentModuleDslFile) {
-    myParentModuleDslFile = parentModuleDslFile;
-    myParentModuleDslFile.myChildModuleDslFiles.add(this);
-  }
-
-  @Nullable
-  public GradleDslFile getParentModuleDslFile() {
-    return myParentModuleDslFile;
-  }
-
-  @NotNull
-  public Collection<GradleDslFile> getChildModuleDslFiles() {
-    return myChildModuleDslFiles;
-  }
-
-  /**
-   * Sets the sibling dsl file of this file.
-   *
-   * <p>build.gradle and gradle.properties files belongs to the same module are considered as sibling files.
-   */
-  public void setSiblingDslFile(@NotNull GradleDslFile siblingDslFile) {
-    mySiblingDslFile = siblingDslFile;
-  }
-
-  /**
-   * Returns the sibling dsl file of this file.
-   *
-   * <p>build.gradle and gradle.properties files belongs to the same module are considered as sibling files.
-   */
-  @Nullable
-  public GradleDslFile getSiblingDslFile() {
-    return mySiblingDslFile;
-  }
-
-  @NotNull
   public GradleDslWriter getWriter() {
     return myGradleDslWriter;
   }
@@ -244,24 +188,6 @@ public abstract class GradleDslFile extends GradlePropertiesDslElement {
   public BuildModelContext getContext() {
     return myBuildModelContext;
   }
-
-  @Override
-  protected void apply() {
-    // First make sure we update all our applied files.
-    if (myApplyDslElement != null) {
-      for (GradleDslFile file : myApplyDslElement.getAppliedDslFiles()) {
-        file.apply();
-      }
-    }
-
-    // And update us.
-    super.apply();
-  }
-
-  public void registerApplyElement(@NotNull ApplyDslElement applyElement) {
-    myApplyDslElement = applyElement;
-  }
-
   @NotNull
   public List<BuildModelNotification> getPublicNotifications() {
     return myBuildModelContext.getPublicNotifications(this);
@@ -311,9 +237,4 @@ public abstract class GradleDslFile extends GradlePropertiesDslElement {
     }
     return null;
   }
-
-  public boolean isKotlin() {
-    return myGradleDslParser.isKotlin();
-  }
-
 }

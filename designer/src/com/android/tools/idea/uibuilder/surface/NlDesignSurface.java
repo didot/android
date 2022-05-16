@@ -58,8 +58,8 @@ import com.android.tools.idea.uibuilder.api.ViewGroupHandler;
 import com.android.tools.idea.uibuilder.api.ViewHandler;
 import com.android.tools.idea.uibuilder.editor.NlActionManager;
 import com.android.tools.idea.uibuilder.error.RenderIssueProvider;
+import com.android.tools.idea.uibuilder.lint.VisualLintService;
 import com.android.tools.idea.uibuilder.mockup.editor.MockupEditor;
-import com.android.tools.idea.uibuilder.model.NlComponentHelper;
 import com.android.tools.idea.uibuilder.model.NlComponentHelperKt;
 import com.android.tools.idea.uibuilder.scene.LayoutlibSceneManager;
 import com.android.tools.idea.uibuilder.scene.RenderListener;
@@ -71,23 +71,26 @@ import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.DataProvider;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.progress.PerformInBackgroundOption;
+import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.update.Update;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.swing.*;
+import javax.swing.SwingUtilities;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -95,7 +98,6 @@ import org.jetbrains.annotations.Nullable;
  * The {@link DesignSurface} for the layout editor, which contains the full background, rulers, one
  * or more device renderings, etc
  */
-@SuppressWarnings("ClassWithOnlyPrivateConstructors")
 public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.AccessoryPanelVisibility, LayoutPreviewHandler {
 
   private boolean myPreviewWithToolsVisibilityAndPosition = true;
@@ -115,7 +117,6 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
     private BiFunction<NlDesignSurface, NlModel, LayoutlibSceneManager> mySceneManagerProvider =
       NlDesignSurface::defaultSceneManagerProvider;
     private boolean myShowModelName = false;
-    private boolean myIsEditable = true;
     private SurfaceLayoutManager myLayoutManager;
     private NavigationHandler myNavigationHandler;
     @SurfaceScale private double myMinScale = DEFAULT_MIN_SCALE;
@@ -140,6 +141,8 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
     @Nullable private SelectionModel mySelectionModel = null;
     private ZoomControlsPolicy myZoomControlsPolicy = ZoomControlsPolicy.VISIBLE;
     @NotNull private Set<NlSupportedActions> mySupportedActions = Collections.emptySet();
+
+    private boolean myShouldRunVisualLintService = false;
 
     private Builder(@NotNull Project project, @NotNull Disposable parentDisposable) {
       myProject = project;
@@ -195,19 +198,6 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
     @NotNull
     public Builder setActionManagerProvider(@NotNull Function<DesignSurface, ActionManager<? extends DesignSurface>> actionManagerProvider) {
       myActionManagerProvider = actionManagerProvider;
-      return this;
-    }
-
-    /**
-     * Specify if {@link NlDesignSurface} can edit editable content. For example, a xml layout file is a editable content. But
-     * an image drawable file is not editable, so {@link NlDesignSurface} cannot edit the image drawable file even we set
-     * editable for {@link NlDesignSurface}.
-     * <p>
-     * The default value is true (editable)
-     */
-    @NotNull
-    public Builder setEditable(boolean editable) {
-      myIsEditable = editable;
       return this;
     }
 
@@ -303,6 +293,16 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
     }
 
     /**
+     * The surface will run visual lint analysis on the background.
+     * Default value is false.
+     */
+    @NotNull
+    public Builder setRunVisualLintAnalysis(boolean value) {
+      myShouldRunVisualLintService = value;
+      return this;
+    }
+
+    /**
      * Set the supported {@link NlSupportedActions} for the built NlDesignSurface.
      * These actions are registered by xml and can be found globally, we need to assign if the built NlDesignSurface supports it or not.
      * By default, the builder assumes there is no supported {@link NlSupportedActions}.
@@ -325,7 +325,6 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
       return new NlDesignSurface(myProject,
                                  myParentDisposable,
                                  myIsPreview,
-                                 myIsEditable,
                                  myShowModelName,
                                  mySceneManagerProvider,
                                  layoutManager,
@@ -338,6 +337,7 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
                                  myDelegateDataProvider,
                                  mySelectionModel != null ? mySelectionModel : new DefaultSelectionModel(),
                                  myZoomControlsPolicy,
+                                 myShouldRunVisualLintService,
                                  mySupportedActions);
     }
   }
@@ -401,16 +401,18 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
 
   private boolean myIsRenderingSynchronously = false;
   private boolean myIsAnimationScrubbing = false;
+  private float myRotateSurfaceDegree = Float.NaN;
 
   private final Dimension myScrollableViewMinSize = new Dimension();
   @Nullable private LayoutScannerControl myScannerControl;
 
   @NotNull private final Set<NlSupportedActions> mySupportedActions;
 
+  private final boolean myShouldRunVisualLintService;
+
   private NlDesignSurface(@NotNull Project project,
                           @NotNull Disposable parentDisposable,
                           boolean isInPreview,
-                          boolean isEditable,
                           boolean showModelNames,
                           @NotNull BiFunction<NlDesignSurface, NlModel, LayoutlibSceneManager> sceneManagerProvider,
                           @NotNull SurfaceLayoutManager defaultLayoutManager,
@@ -423,8 +425,9 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
                           @Nullable DataProvider delegateDataProvider,
                           @NotNull SelectionModel selectionModel,
                           ZoomControlsPolicy zoomControlsPolicy,
+                          boolean shouldRunVisualLintService,
                           @NotNull Set<NlSupportedActions> supportedActions) {
-    super(project, parentDisposable, actionManagerProvider, interactionHandlerProvider, isEditable,
+    super(project, parentDisposable, actionManagerProvider, interactionHandlerProvider,
           (surface) -> new NlDesignSurfacePositionableContentLayoutManager((NlDesignSurface)surface, defaultLayoutManager),
           actionHandlerProvider,
           selectionModel,
@@ -437,6 +440,7 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
     mySceneManagerProvider = sceneManagerProvider;
     myNavigationHandler = navigationHandler;
     mySupportedActions = supportedActions;
+    myShouldRunVisualLintService = shouldRunVisualLintService;
 
     if (myNavigationHandler != null) {
       Disposer.register(this, myNavigationHandler);
@@ -627,7 +631,7 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
 
       for (SceneManager manager : getSceneManagers()) {
         manager.updateSceneView();
-        manager.requestLayoutAndRender(false);
+        manager.requestLayoutAndRenderAsync(false);
       }
       revalidateScrollArea();
     }
@@ -746,12 +750,6 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
     super.notifyComponentActivate(component, x, y);
   }
 
-  @NotNull
-  @Override
-  public Consumer<NlComponent> getComponentRegistrar() {
-    return component -> NlComponentHelper.INSTANCE.registerComponent(component);
-  }
-
   public void setMockupVisible(boolean mockupVisible) {
     myMockupVisible = mockupVisible;
     repaint();
@@ -788,7 +786,9 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
       @Override
       public void run() {
         // Whenever error queue is active, make sure to resume any paused scanner control.
-        myScannerControl.resume();
+        if (myScannerControl != null) {
+          myScannerControl.resume();
+        }
         // Look up *current* result; a newer one could be available
         Map<LayoutlibSceneManager, RenderResult> results = getSceneManagers().stream()
           .filter(LayoutlibSceneManager.class::isInstance)
@@ -800,7 +800,10 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
         }
         if (NELE_LAYOUT_SCANNER_IN_EDITOR.get() && myScannerControl != null) {
           for (Map.Entry<LayoutlibSceneManager, RenderResult> entry : results.entrySet()) {
-            myScannerControl.validateAndUpdateLint(entry.getValue(), entry.getKey().getModel());
+            LayoutlibSceneManager manager = entry.getKey();
+            if (manager.getLayoutScannerConfig().isIntegrateWithDefaultIssuePanel()) {
+              myScannerControl.validateAndUpdateLint(entry.getValue(), manager.getModel());
+            }
           }
         }
 
@@ -828,8 +831,7 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
             renderIssueProviders = results.entrySet().stream()
               .map(entry -> {
                 RenderErrorModel errorModel = RenderErrorModelFactory
-                  .createErrorModel(NlDesignSurface.this, entry.getValue(),
-                                    null);
+                  .createErrorModel(NlDesignSurface.this, entry.getValue(), null);
                 return new RenderIssueProvider(entry.getKey().getModel(), errorModel);
               })
               .collect(ImmutableList.toImmutableList());
@@ -838,6 +840,10 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
           myRenderIssueProviders = renderIssueProviders;
           renderIssueProviders.forEach(renderIssueProvider -> getIssueModel().addIssueProvider(renderIssueProvider));
         });
+
+        if (myShouldRunVisualLintService) {
+          VisualLintService.getInstance().runVisualLintAnalysis(getModels(), myIssueModel, NlDesignSurface.this);
+        }
       }
 
       @Override
@@ -856,7 +862,26 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
   @NotNull
   @Override
   public CompletableFuture<Void> forceUserRequestedRefresh() {
-    return requestSequentialRender(manager -> ((LayoutlibSceneManager)manager).requestUserInitiatedRender());
+    // When the user initiates the refresh, give some feedback via progress indicator.
+    BackgroundableProcessIndicator refreshProgressIndicator = new BackgroundableProcessIndicator(
+      getProject(),
+      "Refreshing...",
+      PerformInBackgroundOption.ALWAYS_BACKGROUND,
+      "",
+      "",
+      false
+    );
+    return forceRefresh().whenComplete((r, t) -> refreshProgressIndicator.processFinish());
+  }
+
+  @NotNull
+  @Override
+  public CompletableFuture<Void> forceRefresh() {
+    return requestSequentialRender(manager -> {
+      LayoutlibSceneManager layoutlibSceneManager = ((LayoutlibSceneManager)manager);
+      layoutlibSceneManager.forceReinflate();
+      return layoutlibSceneManager.requestRenderAsync();
+    });
   }
 
   @Override
@@ -1002,10 +1027,13 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
   public void setRenderSynchronously(boolean enabled) {
     myIsRenderingSynchronously = enabled;
     // If animation is enabled, scanner must be paused.
-    if (enabled) {
-      myScannerControl.pause();
-    } else {
-      myScannerControl.resume();
+    if (myScannerControl != null) {
+      if (enabled) {
+        myScannerControl.pause();
+      }
+      else {
+        myScannerControl.resume();
+      }
     }
   }
 
@@ -1015,6 +1043,20 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
     myIsAnimationScrubbing = value;
   }
 
+  /**
+   * Set the rotation degree of the surface to simulate the phone rotation.
+   * @param value angle of the rotation.
+   */
+  public void setRotateSufaceDegree(float value) {
+    myRotateSurfaceDegree = value;
+  }
+
+  /**
+   * Return the rotation degree of the surface to simulate the phone rotation.
+   */
+  public float getRotateSurfaceDegree() {
+    return myRotateSurfaceDegree;
+  }
   public boolean isInAnimationScrubbing() { return myIsAnimationScrubbing; }
 
   /**
@@ -1053,7 +1095,7 @@ public class NlDesignSurface extends DesignSurface implements ViewGroupHandler.A
   public void setPreviewWithToolsVisibilityAndPosition(boolean isPreviewWithToolsVisibilityAndPosition) {
     if (myPreviewWithToolsVisibilityAndPosition != isPreviewWithToolsVisibilityAndPosition) {
       myPreviewWithToolsVisibilityAndPosition = isPreviewWithToolsVisibilityAndPosition;
-      forceUserRequestedRefresh();
+      forceRefresh();
     }
   }
 

@@ -29,40 +29,52 @@ import com.intellij.openapi.project.ProjectManager
 @Service
 class ComposeExperimentalConfiguration : SimplePersistentStateComponent<ComposeExperimentalConfiguration.State>(State()) {
   class State: BaseState() {
-    var isDeployToDeviceEnabled by property(true)
-    var isInteractiveEnabled by property(false)
+    var isAnimationPreviewEnabled by property(true)
+    var isPreviewPickerEnabled by property(true)
+    var isBuildOnSaveEnabled by property(true)
   }
 
   /**
-   * True if the deploy to device is enabled.
+   * True if animation preview is enabled.
    */
-  var isDeployToDeviceEnabled
-    get() = state.isDeployToDeviceEnabled
+  var isAnimationPreviewEnabled
+    get() = state.isAnimationPreviewEnabled
     set(value) {
-      if (value != state.isDeployToDeviceEnabled) {
-        state.isDeployToDeviceEnabled = value
-        // Force update of the actions to hide/show deploy to device icon
-        ActivityTracker.getInstance().inc()
-        // Force update of the highlights so the gutter icons are updated
-        ProjectManager.getInstance().openProjects.forEach {
-          DaemonCodeAnalyzer.getInstance(it).restart()
-        }
-      }
+      state.isAnimationPreviewEnabled = value
+      // Force update of the actions to hide/show start animation preview icons
+      ActivityTracker.getInstance().inc()
     }
 
   /**
-   * True if the interactive and animations preview are enabled.
+   * True if the @Preview picker from the Gutter is enabled.
    */
-  var isInteractiveEnabled
-    get() = state.isInteractiveEnabled
+  var isPreviewPickerEnabled
+    get() = state.isPreviewPickerEnabled
     set(value) {
-      state.isInteractiveEnabled = value
-      // Force update of the actions to hide/show start interactive icons
-      ActivityTracker.getInstance().inc()
+      state.isPreviewPickerEnabled = value
+      updateGutterIcons()
+    }
+
+  /**
+   * True if the @Preview build on save is enabled. This settings only applies when Live Edit is enabled.
+   */
+  var isBuildOnSaveEnabled
+    get() = state.isBuildOnSaveEnabled
+    set(value) {
+      state.isBuildOnSaveEnabled = value
     }
 
   companion object {
     @JvmStatic
     fun getInstance(): ComposeExperimentalConfiguration = ApplicationManager.getApplication().getService(ComposeExperimentalConfiguration::class.java)
+  }
+}
+
+/**
+ * Force update of the highlights so the gutter icons are updated
+ */
+private fun updateGutterIcons() {
+  ProjectManager.getInstance().openProjects.forEach {
+    DaemonCodeAnalyzer.getInstance(it).restart()
   }
 }

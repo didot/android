@@ -29,17 +29,25 @@ import com.android.sdklib.devices.Device;
 import com.android.sdklib.devices.Screen;
 import com.android.tools.adtui.ImageUtils;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.reference.SoftReference;
 import com.intellij.ui.Gray;
-import com.intellij.util.ui.UIUtil;
-import java.awt.*;
+import com.intellij.util.ui.StartupUiUtil;
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.Composite;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -62,7 +70,7 @@ import org.jetbrains.annotations.Nullable;
 public class DeviceArtPainter {
   @NotNull private static final DeviceArtPainter ourInstance = new DeviceArtPainter();
   @Nullable private static volatile String ourSystemPath;
-  @NotNull private Map<Device,DeviceData> myDeviceData = Maps.newHashMap();
+  @NotNull private Map<Device,DeviceData> myDeviceData = new HashMap<>();
   @Nullable private List<DeviceArtDescriptor> myDescriptors;
 
   /** Use {@link #getInstance()} */
@@ -303,7 +311,7 @@ public class DeviceArtPainter {
 
     if (withRetina) {
       //noinspection ConstantConditions
-      UIUtil.drawImage(g, image, x, y, null);
+      StartupUiUtil.drawImage(g, image, x, y, null);
     } else {
       g.drawImage(image, x, y, null);
     }
@@ -569,9 +577,9 @@ public class DeviceArtPainter {
     private final FrameData myDouble;
 
     @SuppressWarnings("ConstantConditions")
-    @NotNull private SoftReference<BufferedImage> myPlainImage = new SoftReference<BufferedImage>(null);
+    @NotNull private SoftReference<BufferedImage> myPlainImage = new SoftReference<>(null);
     @SuppressWarnings("ConstantConditions")
-    @NotNull private SoftReference<BufferedImage> myEffectsImage = new SoftReference<BufferedImage>(null);
+    @NotNull private SoftReference<BufferedImage> myEffectsImage = new SoftReference<>(null);
 
     private boolean isPortrait() {
       return myOrientation == ScreenOrientation.PORTRAIT;
@@ -809,9 +817,9 @@ public class DeviceArtPainter {
 
       if (image != null) {
         if (showEffects) {
-          myEffectsImage = new SoftReference<BufferedImage>(image);
+          myEffectsImage = new SoftReference<>(image);
         } else {
-          myPlainImage = new SoftReference<BufferedImage>(image);
+          myPlainImage = new SoftReference<>(image);
         }
       }
 

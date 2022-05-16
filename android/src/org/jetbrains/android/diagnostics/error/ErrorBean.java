@@ -3,7 +3,6 @@ package org.jetbrains.android.diagnostics.error;
 
 import com.intellij.openapi.diagnostic.Attachment;
 import com.intellij.util.ExceptionUtil;
-
 import java.util.List;
 
 public final class ErrorBean {

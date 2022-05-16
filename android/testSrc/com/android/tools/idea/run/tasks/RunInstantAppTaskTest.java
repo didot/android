@@ -16,9 +16,9 @@
 package com.android.tools.idea.run.tasks;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -36,6 +36,7 @@ import com.google.android.instantapps.sdk.api.StatusCode;
 import com.google.common.collect.ImmutableList;
 import com.intellij.execution.Executor;
 import com.intellij.execution.process.ProcessHandler;
+import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import java.io.File;
 import java.net.URL;
@@ -58,6 +59,7 @@ public class RunInstantAppTaskTest extends AndroidTestCase {
   @Mock private LaunchStatus launchStatus;
   @Mock private ConsolePrinter consolePrinter;
   @Mock private ProcessHandler handler;
+  @Mock private ProgressIndicator indicator;
 
   @Override
   public void setUp() throws Exception {
@@ -76,14 +78,16 @@ public class RunInstantAppTaskTest extends AndroidTestCase {
     when(launchStatus.isLaunchTerminated()).thenReturn(true);
 
     RunInstantAppTask task = new RunInstantAppTask(apkInfoListForZip, "");
-    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler)).getSuccess()).isFalse();
+    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler, indicator)).getSuccess())
+      .isFalse();
     verifyNoMoreInteractions(runHandler);
   }
 
   @Test
   public void testPerformWithNoZipFile() {
     RunInstantAppTask task = new RunInstantAppTask(ImmutableList.of(), "");
-    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler)).getSuccess()).isFalse();
+    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler, indicator)).getSuccess())
+      .isFalse();
     verifyNoMoreInteractions(runHandler);
   }
 
@@ -100,7 +104,8 @@ public class RunInstantAppTaskTest extends AndroidTestCase {
       /* resultStream= */ any(),
       /* progressIndicator= */ any()))
       .thenReturn(StatusCode.SUCCESS);
-    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler)).getSuccess()).isTrue();
+    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler, indicator)).getSuccess())
+      .isTrue();
   }
 
   @Test
@@ -115,7 +120,8 @@ public class RunInstantAppTaskTest extends AndroidTestCase {
       /* resultStream= */ any(),
       /* progressIndicator= */ any()))
       .thenReturn(StatusCode.SUCCESS);
-    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler)).getSuccess()).isTrue();
+    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler, indicator)).getSuccess())
+      .isTrue();
   }
 
   @Test
@@ -142,7 +148,8 @@ public class RunInstantAppTaskTest extends AndroidTestCase {
       /* progressIndicator= */ any()))
       .thenReturn(StatusCode.SUCCESS);
 
-    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler)).getSuccess()).isTrue();
+    assertThat(task.run(new LaunchContext(project, executor, device, launchStatus, consolePrinter, handler, indicator)).getSuccess())
+      .isTrue();
 
     verify(runHandler).runApks(
       /* apkFiles= */ eq(ImmutableList.of(apk1, apk2)),

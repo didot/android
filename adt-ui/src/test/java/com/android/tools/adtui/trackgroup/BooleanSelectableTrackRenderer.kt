@@ -16,13 +16,12 @@
 package com.android.tools.adtui.trackgroup
 
 import com.android.tools.adtui.model.trackgroup.BooleanSelectable
-import com.android.tools.adtui.model.trackgroup.TestTrackRendererType
 import com.android.tools.adtui.model.trackgroup.TrackModel
 import javax.swing.JComponent
 import javax.swing.JLabel
 
-class BooleanSelectableTrackRenderer : TrackRenderer<BooleanSelectable, TestTrackRendererType> {
-  override fun render(trackModel: TrackModel<BooleanSelectable, TestTrackRendererType>): JComponent {
+class BooleanSelectableTrackRenderer : TrackRenderer<BooleanSelectable> {
+  override fun render(trackModel: TrackModel<BooleanSelectable, *>): JComponent {
     return JLabel(trackModel.dataModel.value.toString())
   }
 }

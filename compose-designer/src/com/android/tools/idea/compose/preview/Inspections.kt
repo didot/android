@@ -22,7 +22,6 @@ import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.util.MAX_HEIGHT
 import com.android.tools.idea.compose.preview.util.MAX_WIDTH
 import com.android.tools.idea.compose.preview.util.isValidPreviewLocation
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.kotlin.findValueArgument
 import com.android.tools.idea.kotlin.fqNameMatches
 import com.android.tools.idea.util.androidFacet
@@ -63,8 +62,7 @@ abstract class BasePreviewAnnotationInspection : AbstractKotlinInspection() {
   final override fun buildVisitor(holder: ProblemsHolder,
                                   isOnTheFly: Boolean,
                                   session: LocalInspectionToolSession): PsiElementVisitor =
-    if (StudioFlags.COMPOSE_PREVIEW.get() &&
-        (session.file.androidFacet != null || ApplicationManager.getApplication().isUnitTestMode)) {
+    if (session.file.androidFacet != null || ApplicationManager.getApplication().isUnitTestMode) {
       object : KtVisitorVoid() {
         override fun visitImportDirective(importDirective: KtImportDirective) {
           super.visitImportDirective(importDirective)

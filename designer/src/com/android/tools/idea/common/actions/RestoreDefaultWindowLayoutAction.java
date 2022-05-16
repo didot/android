@@ -28,7 +28,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Restores the layout of tool windows.
  */
-public final class RestoreDefaultWindowLayoutAction extends AnAction implements DumbAware {
+public class RestoreDefaultWindowLayoutAction extends AnAction implements DumbAware {
   private final RestoreDefaultLayoutAction myDelegate;
 
   public RestoreDefaultWindowLayoutAction() {

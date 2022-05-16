@@ -22,6 +22,7 @@ import com.android.emulator.control.SnapshotPackage
 import com.android.prefs.AndroidLocationsSingleton
 import com.android.sdklib.internal.avd.AvdInfo
 import com.android.sdklib.internal.avd.AvdManager
+import com.android.sdklib.repository.AndroidSdkHandler
 import com.android.tools.idea.avdmanager.AvdManagerConnection
 import com.android.tools.idea.avdmanager.emulatorcommand.EmulatorCommandBuilder
 import com.android.tools.idea.emulator.EmulatorController
@@ -40,6 +41,7 @@ import com.android.tools.idea.testartifacts.instrumented.IS_MANAGED_DEVICE
 import com.android.tools.idea.testartifacts.instrumented.PACKAGE_NAME_KEY
 import com.android.tools.idea.testartifacts.instrumented.RETENTION_AUTO_CONNECT_DEBUGGER_KEY
 import com.android.tools.idea.testartifacts.instrumented.RETENTION_ON_FINISH_KEY
+import com.android.utils.ILogger
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.util.concurrent.ListenableFuture
 import com.intellij.debugger.ui.DebuggerContentInfo
@@ -71,6 +73,7 @@ import org.jetbrains.android.actions.AndroidConnectDebuggerAction
 import java.io.File
 import java.io.IOException
 import java.nio.charset.Charset
+import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 
 // Const values for the progress bar
@@ -85,7 +88,11 @@ private const val NOTIFICATION_GROUP_NAME = "Retention Snapshot Load"
 /**
  * An action to load an Android Test Retention snapshot.
  */
-class FindEmulatorAndSetupRetention : AnAction() {
+class FindEmulatorAndSetupRetention(private val avdManagerBuilder: (AndroidSdkHandler,
+                                                                    Path,
+                                                                    ILogger) -> AvdManager? = { sdkHandler, path, logger ->
+  AvdManager.getInstance(sdkHandler, path, logger)
+}) : AnAction() {
   override fun actionPerformed(event: AnActionEvent) {
     val dataContext = event.dataContext
     val project = dataContext.getData<Project>(CommonDataKeys.PROJECT) ?: return
@@ -108,9 +115,9 @@ class FindEmulatorAndSetupRetention : AnAction() {
           } else {
             AndroidLocationsSingleton.avdLocation
           }
-          val avdManager = AvdManager.getInstance(
+          val avdManager = avdManagerBuilder(
             androidSdkHandler,
-            baseAvdFolder.toFile(),
+            baseAvdFolder,
             logWrapper
           )
           val avdInfo = avdManager?.getAvd(deviceName, true)
@@ -132,7 +139,7 @@ class FindEmulatorAndSetupRetention : AnAction() {
             val deviceFuture = bootEmulator(project,
                                             avdInfo,
                                             isManagedDevice,
-                                            (dataContext.getData(EMULATOR_SNAPSHOT_LAUNCH_PARAMETERS) ?: listOf<String>()) as List<String>
+                                            (dataContext.getData(EMULATOR_SNAPSHOT_LAUNCH_PARAMETERS) ?: listOf())
             )
             val device = ProgressIndicatorUtils.awaitWithCheckCanceled(deviceFuture)
             ProgressIndicatorUtils.awaitWithCheckCanceled { device.isOnline }

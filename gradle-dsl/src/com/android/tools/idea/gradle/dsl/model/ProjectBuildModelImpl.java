@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -36,7 +37,7 @@ import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class ProjectBuildModelImpl implements ProjectBuildModel {
+public class ProjectBuildModelImpl implements ProjectBuildModel {
   @NotNull private final BuildModelContext myBuildModelContext;
   @Nullable private final GradleBuildFile myProjectBuildFile;
 
@@ -50,6 +51,11 @@ public final class ProjectBuildModelImpl implements ProjectBuildModel {
     myProjectBuildFile = myBuildModelContext.parseProjectBuildFile(project, file);
   }
 
+  @Override
+  @NotNull
+  public BuildModelContext getContext() {
+    return myBuildModelContext;
+  }
 
   @Override
   @Nullable
@@ -150,7 +156,8 @@ public final class ProjectBuildModelImpl implements ProjectBuildModel {
 
     // TODO(b/166739137): buildSrc is actually more like an included build; buildSrc could in principle have sub-projects, libraries, etc.,
     //  all themselves configured and built by the top-level Gradle build file in the buildSrc directory.
-    File buildSrc = new File(FileUtil.toCanonicalPath(myBuildModelContext.getProject().getBasePath()), "buildSrc");
+    File buildSrc =
+      new File(FileUtil.toCanonicalPath(Optional.ofNullable(myBuildModelContext.getProject().getBasePath()).orElse("")), "buildSrc");
     VirtualFile buildSrcVirtualFile = myBuildModelContext.getGradleBuildFile(buildSrc);
     if (buildSrcVirtualFile != null) {
       allModels.add(getModuleBuildModel(buildSrcVirtualFile));

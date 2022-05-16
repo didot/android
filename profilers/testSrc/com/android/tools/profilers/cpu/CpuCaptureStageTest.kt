@@ -86,12 +86,23 @@ class CpuCaptureStageTest {
     val stage = CpuCaptureStage.create(profilers, ProfilersTestData.DEFAULT_CONFIG,
                                        CpuProfilerTestUtils.getTraceFile("basic.trace"), SESSION_ID)
     var stateHit = false
-    stage.aspect.addDependency(aspect).onChange(CpuCaptureStage.Aspect.STATE, Runnable { stateHit = true })
+    stage.aspect.addDependency(aspect).onChange(CpuCaptureStage.Aspect.STATE) { stateHit = true }
     profilers.stage = stage
     assertThat(profilers.stage).isInstanceOf(CpuCaptureStage::class.java)
     assertThat(stage.state).isEqualTo(CpuCaptureStage.State.ANALYZING)
     assertThat(services.notification).isNull()
     assertThat(stateHit).isTrue()
+  }
+
+  @Test
+  fun emptyTraceIsAccepted() {
+    val stage = CpuCaptureStage.create(profilers, ProfilersTestData.DEFAULT_CONFIG,
+                                       CpuProfilerTestUtils.getTraceFile("simpleperf_empty.trace"), SESSION_ID)
+    profilers.stage = stage
+    assertThat(profilers.stage).isInstanceOf(CpuCaptureStage::class.java)
+    assertThat(stage.trackGroupModels).isEmpty()
+    assertThat(stage.pinnedAnalysisModels).isEmpty()
+    assertThat(services.notification).isNull()
   }
 
   @Test
@@ -148,9 +159,10 @@ class CpuCaptureStageTest {
 
   @Test
   fun trackGroupModelsAreSetForPerfetto() {
+    services.enableJankDetectionUi(false)
     services.setListBoxOptionsMatcher { option -> option.contains("system_server") }
     val stage = CpuCaptureStage.create(profilers, ProfilersTestData.DEFAULT_CONFIG,
-                                       CpuProfilerTestUtils.getTraceFile("perfetto.trace"), SESSION_ID)
+                                       CpuProfilerTestUtils.getTraceFile("perfetto_cpu_usage.trace"), SESSION_ID)
     profilers.stage = stage
 
     assertThat(stage.trackGroupModels.size).isEqualTo(4)
@@ -171,10 +183,44 @@ class CpuCaptureStageTest {
 
     val rssMemoryTrackGroup = stage.trackGroupModels[2]
     assertThat(rssMemoryTrackGroup.title).isEqualTo("Process Memory (RSS)")
+    assertThat(rssMemoryTrackGroup.size).isEqualTo(5)
+    assertThat(rssMemoryTrackGroup[0].title).isEqualTo("Total")
+    assertThat(rssMemoryTrackGroup[1].title).isEqualTo("Allocated")
+    assertThat(rssMemoryTrackGroup[2].title).isEqualTo("File Mappings")
+    assertThat(rssMemoryTrackGroup[3].title).isEqualTo("Shared")
+    assertThat(rssMemoryTrackGroup[4].title).isEqualTo("Swapped-Out")
 
     val threadsTrackGroup = stage.trackGroupModels[3]
-    assertThat(threadsTrackGroup.title).isEqualTo("Threads (17)")
-    assertThat(threadsTrackGroup.size).isEqualTo(17)
+    assertThat(threadsTrackGroup.title).isEqualTo("Threads (148)")
+    assertThat(threadsTrackGroup.size).isEqualTo(148)
+  }
+
+  @Test
+  fun trackGroupModelsAreSetForPerfettoWithFrameLifecycle() {
+    services.enableJankDetectionUi(false)
+    services.setListBoxOptionsMatcher { option -> option.contains("profilertester") }
+    val stage = CpuCaptureStage.create(profilers, ProfilersTestData.DEFAULT_CONFIG,
+                                       CpuProfilerTestUtils.getTraceFile("perfetto_frame_lifecycle.trace"), SESSION_ID)
+    profilers.stage = stage
+
+    assertThat(stage.trackGroupModels.size).isEqualTo(5)
+
+    // The Frames track is hidden when frame lifecycle data is available.
+    val displayTrackGroup = stage.trackGroupModels[0]
+    assertThat(displayTrackGroup.size).isEqualTo(3)
+    assertThat(displayTrackGroup[0].title).isEqualTo("SurfaceFlinger")
+    assertThat(displayTrackGroup[1].title).isEqualTo("VSYNC")
+    assertThat(displayTrackGroup[2].title).isEqualTo("BufferQueue")
+
+    // The Frame Lifecycle track group is displayed.
+    val frameLifecycleTrackGroup = stage.trackGroupModels[1]
+    assertThat(frameLifecycleTrackGroup.title).isEqualTo("Frame Lifecycle (android.com.java.profilertester.MainActivity#0)")
+    assertThat(frameLifecycleTrackGroup.size).isEqualTo(4)
+    assertThat(frameLifecycleTrackGroup.isCollapsedInitially).isFalse()
+    assertThat(frameLifecycleTrackGroup[0].title).isEqualTo("Application")
+    assertThat(frameLifecycleTrackGroup[1].title).isEqualTo("Wait for GPU")
+    assertThat(frameLifecycleTrackGroup[2].title).isEqualTo("Composition")
+    assertThat(frameLifecycleTrackGroup[3].title).isEqualTo("Frames on display")
   }
 
   @Test
@@ -206,9 +252,9 @@ class CpuCaptureStageTest {
     val stage = CpuCaptureStage.create(profilers, ProfilersTestData.DEFAULT_CONFIG,
                                        CpuProfilerTestUtils.getTraceFile("basic.trace"), SESSION_ID)
     profilers.stage = stage
-    assertThat(stage.analysisModels.size).isEqualTo(1)
-    assertThat(stage.analysisModels[0].javaClass).isEqualTo(CpuFullTraceAnalysisModel::class.java)
-    assertThat(stage.analysisModels[0].tabModels).isNotEmpty()
+    assertThat(stage.pinnedAnalysisModels.size).isEqualTo(1)
+    assertThat(stage.pinnedAnalysisModels[0].javaClass).isEqualTo(CpuFullTraceAnalysisModel::class.java)
+    assertThat(stage.pinnedAnalysisModels[0].tabModels).isNotEmpty()
   }
 
   @Test
@@ -229,6 +275,7 @@ class CpuCaptureStageTest {
 
   @Test
   fun captureHintSelectsProperProcessStringName() {
+    services.enableJankDetectionUi(false)
     services.setListBoxOptionsIndex(-1) // This makes process selector throws if we didn't selected based on name hint first.
     val stage = CpuCaptureStage(profilers, ProfilersTestData.DEFAULT_CONFIG, CpuProfilerTestUtils.getTraceFile("perfetto.trace"),
                                 SESSION_ID, "/system/bin/surfaceflinger", 0)
@@ -240,6 +287,7 @@ class CpuCaptureStageTest {
 
   @Test
   fun captureHintSelectsProperProcessPID() {
+    services.enableJankDetectionUi(false)
     services.setListBoxOptionsIndex(-1) // This makes process selector throws if we didn't selected based on pid hint first.
     val stage = CpuCaptureStage(profilers, ProfilersTestData.DEFAULT_CONFIG, CpuProfilerTestUtils.getTraceFile("perfetto.trace"),
                                 SESSION_ID, null, 709)
@@ -251,6 +299,7 @@ class CpuCaptureStageTest {
 
   @Test
   fun nullCaptureHintSelectsCaptureFromDialog() {
+    services.enableJankDetectionUi(false)
     services.setListBoxOptionsMatcher { option -> option.contains("system_server") }
     val stage = CpuCaptureStage(profilers, ProfilersTestData.DEFAULT_CONFIG, CpuProfilerTestUtils.getTraceFile("perfetto.trace"),
                                 SESSION_ID, null, 0)
@@ -265,9 +314,9 @@ class CpuCaptureStageTest {
     val stage = CpuCaptureStage.create(profilers, ProfilersTestData.DEFAULT_CONFIG,
                                        CpuProfilerTestUtils.getTraceFile("basic.trace"), SESSION_ID)
     profilers.stage = stage
-    assertThat(stage.analysisModels.size).isEqualTo(1)
-    assertThat(stage.analysisModels[0].javaClass).isEqualTo(CpuFullTraceAnalysisModel::class.java)
-    val tabTypes = stage.analysisModels[0].tabModels.map { it.tabType }.toList()
+    assertThat(stage.pinnedAnalysisModels.size).isEqualTo(1)
+    assertThat(stage.pinnedAnalysisModels[0].javaClass).isEqualTo(CpuFullTraceAnalysisModel::class.java)
+    val tabTypes = stage.pinnedAnalysisModels[0].tabModels.map { it.tabType }.toList()
     assertThat(tabTypes).containsExactly(Type.SUMMARY, Type.TOP_DOWN, Type.FLAME_CHART, Type.BOTTOM_UP).inOrder()
   }
 

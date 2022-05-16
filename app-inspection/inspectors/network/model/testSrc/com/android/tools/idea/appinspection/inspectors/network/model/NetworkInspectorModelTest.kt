@@ -22,10 +22,7 @@ import com.android.tools.adtui.model.axis.AxisComponentModel
 import com.android.tools.adtui.model.legend.LegendComponentModel
 import com.android.tools.idea.appinspection.inspectors.network.model.httpdata.createFakeHttpData
 import com.android.tools.idea.protobuf.ByteString
-import com.android.tools.inspectors.common.api.stacktrace.CodeLocation
-import com.android.tools.inspectors.common.api.stacktrace.CodeNavigator
 import com.google.common.truth.Truth.assertThat
-import com.google.common.util.concurrent.MoreExecutors
 import org.junit.Before
 import org.junit.Test
 import studio.network.inspection.NetworkInspectorProtocol.Event
@@ -36,15 +33,11 @@ class NetworkInspectorModelTest {
   private lateinit var model: NetworkInspectorModel
   private val timer = FakeTimer()
 
+
   @Before
   fun setUp() {
-    val codeNavigationProvider = object : CodeNavigationProvider {
-      override val codeNavigator = object : CodeNavigator() {
-        override fun isNavigatable(location: CodeLocation) = true
-        override fun handleNavigate(location: CodeLocation) = Unit
-      }
-    }
-    val services = NetworkInspectorServices(codeNavigationProvider, 0, timer, MoreExecutors.directExecutor())
+    val codeNavigationProvider = FakeCodeNavigationProvider()
+    val services = TestNetworkInspectorServices(codeNavigationProvider, timer)
     model = NetworkInspectorModel(services, FakeNetworkInspectorDataSource(speedEventList = listOf(
       Event.newBuilder().apply {
         timestamp = 0

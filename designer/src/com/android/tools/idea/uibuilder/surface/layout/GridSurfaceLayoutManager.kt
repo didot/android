@@ -27,11 +27,11 @@ import kotlin.math.max
  * The [horizontalViewDelta] and [verticalViewDelta] are the gaps between different [PositionableContent]s.
  * The [centralizeContent] decides if the content should be placed at the center when the content is smaller then the surface size.
  */
-class GridSurfaceLayoutManager(private val horizontalPadding: Int,
-                               private val verticalPadding: Int,
-                               private val horizontalViewDelta: Int,
-                               private val verticalViewDelta: Int,
-                               private val centralizeContent: Boolean = true)
+open class GridSurfaceLayoutManager(private val horizontalPadding: Int,
+                                    private val verticalPadding: Int,
+                                    private val horizontalViewDelta: Int,
+                                    private val verticalViewDelta: Int,
+                                    private val centralizeContent: Boolean = true)
   : SurfaceLayoutManager {
 
   private var previousHorizontalPadding = 0
@@ -78,20 +78,21 @@ class GridSurfaceLayoutManager(private val horizontalPadding: Int,
    * Arrange [PositionableContent]s into a 2-dimension list which represent a list of row of [PositionableContent].
    * The [widthFunc] is for getting the preferred widths of [PositionableContent]s when filling the horizontal spaces.
    */
-  private fun layoutGrid(content: Collection<PositionableContent>,
-                         availableWidth: Int,
-                         widthFunc: PositionableContent.() -> Int): List<List<PositionableContent>> {
-    if (content.isEmpty()) {
+  protected open fun layoutGrid(content: Collection<PositionableContent>,
+                                availableWidth: Int,
+                                widthFunc: PositionableContent.() -> Int): List<List<PositionableContent>> {
+    val visibleContent = content.filter { it.isVisible }
+    if (visibleContent.isEmpty()) {
       return listOf(emptyList())
     }
     val startX = horizontalPadding
     val gridList = mutableListOf<List<PositionableContent>>()
 
-    val firstView = content.first()
+    val firstView = visibleContent.first()
     var nextX = startX + firstView.widthFunc() + firstView.margin.horizontal + horizontalViewDelta
 
     var columnList = mutableListOf(firstView)
-    for (view in content.drop(1)) {
+    for (view in visibleContent.drop(1)) {
       // The full width is the view width + any horizontal margins
       val totalWidth = view.widthFunc() + view.margin.horizontal
       if (nextX + totalWidth > availableWidth) {
@@ -140,6 +141,9 @@ class GridSurfaceLayoutManager(private val horizontalPadding: Int,
     var maxBottomInRow = 0
     for (row in grid) {
       for (view in row) {
+        if (!view.isVisible) {
+          continue
+        }
         view.setLocation(nextX + view.margin.left, nextY)
         nextX += view.scaledContentSize.width + horizontalViewDelta + view.margin.horizontal
         maxBottomInRow = max(maxBottomInRow, nextY + view.margin.vertical + view.scaledContentSize.height)
@@ -147,5 +151,7 @@ class GridSurfaceLayoutManager(private val horizontalPadding: Int,
       nextX = startX
       nextY = maxBottomInRow + verticalViewDelta
     }
+
+    content.filterNot { it.isVisible }.forEach { it.setLocation(-1, -1) }
   }
 }

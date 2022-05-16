@@ -19,8 +19,6 @@ import com.android.SdkConstants
 import com.android.tools.idea.projectsystem.getProjectSystem
 import com.android.tools.idea.util.androidFacet
 import com.android.tools.idea.util.computeUserDataIfAbsent
-import com.intellij.facet.ProjectFacetManager
-import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
@@ -34,7 +32,6 @@ import org.jetbrains.android.augment.ManifestClass
 import org.jetbrains.android.dom.manifest.getCustomPermissionGroups
 import org.jetbrains.android.dom.manifest.getCustomPermissions
 import org.jetbrains.android.facet.AndroidFacet
-import org.jetbrains.android.util.AndroidUtils
 
 /**
  * [PsiElementFinder] that provides light Manifest classes.
@@ -70,8 +67,7 @@ class AndroidManifestClassPsiElementFinder(private val project: Project) : PsiEl
     }
     val packageName = qualifiedName.dropLast(SUFFIX.length)
 
-    return project.getProjectSystem()
-      .getAndroidFacetsWithPackageName(project, packageName, GlobalSearchScope.projectScope(project)).mapNotNull { facet ->
+    return project.getProjectSystem().getAndroidFacetsWithPackageName(project, packageName).mapNotNull { facet ->
         getManifestClassForFacet(facet)?.takeIf { PsiSearchScopeUtil.isInScope(scope, it) }
       }.toTypedArray()
   }
@@ -85,8 +81,7 @@ class AndroidManifestClassPsiElementFinder(private val project: Project) : PsiEl
   }
 
   override fun findPackage(qualifiedName: String): PsiPackage? {
-    val canFindFacets = project.getProjectSystem().getAndroidFacetsWithPackageName(project, qualifiedName,
-                                                                                   GlobalSearchScope.projectScope(project)).isNotEmpty()
+    val canFindFacets = project.getProjectSystem().getAndroidFacetsWithPackageName(project, qualifiedName).isNotEmpty()
     return if (canFindFacets) {
       AndroidLightPackage.withName(qualifiedName, project)
     }
@@ -100,7 +95,7 @@ class AndroidManifestClassPsiElementFinder(private val project: Project) : PsiEl
 
     val result = mutableListOf<PsiClass>()
     getManifestClassForFacet(androidFacet)?.let(result::add)
-    for (dependency in AndroidUtils.getAllAndroidDependencies(module, false)) {
+    for (dependency in AndroidDependenciesCache.getAllAndroidDependencies(module, false)) {
       getManifestClassForFacet(dependency)?.let(result::add)
     }
 

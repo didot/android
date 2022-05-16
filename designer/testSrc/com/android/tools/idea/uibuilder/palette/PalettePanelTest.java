@@ -20,8 +20,8 @@ import static com.android.SdkConstants.AD_VIEW;
 import static com.android.SdkConstants.CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.LINEAR_LAYOUT;
 import static com.android.SdkConstants.TEXT_VIEW;
-import static com.android.tools.idea.uibuilder.LayoutTestUtilities.cleanUsageTrackerAfterTesting;
-import static com.android.tools.idea.uibuilder.LayoutTestUtilities.mockNlUsageTracker;
+import static com.android.tools.idea.common.LayoutTestUtilities.cleanUsageTrackerAfterTesting;
+import static com.android.tools.idea.common.LayoutTestUtilities.mockNlUsageTracker;
 import static com.google.common.truth.Truth.assertThat;
 import static java.awt.dnd.DnDConstants.ACTION_MOVE;
 import static org.mockito.Mockito.any;
@@ -38,6 +38,7 @@ import static org.mockito.Mockito.when;
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.tools.adtui.workbench.PropertiesComponentMock;
 import com.android.tools.adtui.workbench.ToolWindowCallback;
+import com.android.tools.idea.common.LayoutTestUtilities;
 import com.android.tools.idea.common.SyncNlModel;
 import com.android.tools.idea.common.fixtures.ModelBuilder;
 import com.android.tools.idea.common.model.DnDTransferComponent;
@@ -49,7 +50,6 @@ import com.android.tools.idea.common.util.NlTreeDumper;
 import com.android.tools.idea.concurrency.FutureUtils;
 import com.android.tools.idea.gradle.dependencies.GradleDependencyManager;
 import com.android.tools.idea.uibuilder.LayoutTestCase;
-import com.android.tools.idea.uibuilder.LayoutTestUtilities;
 import com.android.tools.idea.uibuilder.analytics.NlUsageTracker;
 import com.android.tools.idea.uibuilder.type.LayoutFileType;
 import com.android.tools.idea.uibuilder.type.MenuFileType;
@@ -76,7 +76,9 @@ import com.intellij.openapi.wm.ex.StatusBarEx;
 import com.intellij.openapi.wm.ex.WindowManagerEx;
 import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.util.ArrayUtil;
-import java.awt.*;
+import java.awt.Component;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -87,7 +89,11 @@ import java.awt.event.MouseEvent;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JList;
+import javax.swing.JPopupMenu;
+import javax.swing.KeyStroke;
+import javax.swing.TransferHandler;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -123,7 +129,7 @@ public class PalettePanelTest extends LayoutTestCase {
     registerApplicationService(BrowserLauncher.class, myBrowserLauncher);
     registerApplicationService(CopyPasteManager.class, myCopyPasteManager);
     registerApplicationService(PropertiesComponent.class, new PropertiesComponentMock());
-    //registerApplicationService(ActionManager.class, myActionManager);  // ActionManager is too complex to be mocked in a heavy test
+    registerApplicationService(ActionManager.class, myActionManager);
     registerProjectService(GradleDependencyManager.class, myGradleDependencyManager);
     // Some IntelliJ platform code might ask for actions during the initialization. Mock a generic one.
     when(myActionManager.getAction(anyString())).thenReturn(new AnAction("Empty") {
@@ -158,6 +164,7 @@ public class PalettePanelTest extends LayoutTestCase {
       myPopupMenuComponent = null;
       myActionManager = null;
       myTrackingDesignSurface = null;
+      myPopupMenu = null;
       myPanel = null;
       myModel = null;
     }

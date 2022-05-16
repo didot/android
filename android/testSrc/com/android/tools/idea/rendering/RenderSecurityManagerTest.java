@@ -15,14 +15,19 @@
  */
 package com.android.tools.idea.rendering;
 
+import static com.google.common.truth.Truth.assertThat;
+import static java.io.File.separator;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import com.android.ide.common.resources.RecordingLogger;
 import com.android.utils.SdkUtils;
 import com.google.common.io.Files;
-import org.jetbrains.android.AndroidTestBase;
-import org.junit.Test;
-
-import javax.imageio.ImageIO;
-import javax.swing.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -37,10 +42,10 @@ import java.util.TimeZone;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static com.google.common.truth.Truth.assertThat;
-import static java.io.File.separator;
-import static org.junit.Assert.*;
+import javax.imageio.ImageIO;
+import javax.swing.SwingUtilities;
+import org.jetbrains.android.AndroidTestBase;
+import org.junit.Test;
 
 public class RenderSecurityManagerTest {
   private Object myCredential = new Object();
@@ -387,7 +392,7 @@ public class RenderSecurityManagerTest {
 
   @Test
   public void testThread2() throws Exception {
-    final List<Thread> threads = Collections.synchronizedList(new ArrayList<Thread>());
+    final List<Thread> threads = Collections.synchronizedList(new ArrayList<>());
     // Check that when a new thread is created simultaneously from an unrelated
     // thread during rendering, that new thread does not pick up the security manager.
     //
@@ -658,7 +663,7 @@ public class RenderSecurityManagerTest {
   }
 
   @Test
-  public void testEnterExitSafeRegion() throws Exception {
+  public void testEnterExitSafeRegion() {
     RenderSecurityManager manager = new RenderSecurityManager(null, null);
     Object credential = new Object();
     try {
@@ -724,6 +729,55 @@ public class RenderSecurityManagerTest {
       catch (Exception e) {
         // pass
         assertEquals("java.lang.NoSuchFieldException: sCredential", e.toString());
+      }
+    }
+    finally {
+      manager.dispose(credential);
+    }
+  }
+
+  @Test
+  public void testRunSafeRegion() throws Exception {
+    RenderSecurityManager manager = new RenderSecurityManager(null, null);
+    Object credential = new Object();
+    try {
+      manager.setActive(true, credential);
+
+      // Correct call with the right credential
+      try {
+        RenderSecurityManager.runInSafeRegion(credential, () -> {
+          manager.checkPermission(new FilePermission("/foo", "execute"));
+        });
+        assertEquals(123L, (long)RenderSecurityManager.runInSafeRegion(credential, () -> {
+          manager.checkPermission(new FilePermission("/foo", "execute"));
+          return 123L;
+        }));
+      }
+      catch (SecurityException e) {
+        fail("Unexpected exception");
+      }
+
+      // Wrong credential
+      Object wrongCredential = new Object();
+      try {
+         RenderSecurityManager.runInSafeRegion(wrongCredential, () -> {
+          manager.checkPermission(new FilePermission("/foo", "execute"));
+        });
+        fail("Should have thrown exception");
+      }
+      catch (SecurityException e) {
+        // pass
+      }
+
+      try {
+        RenderSecurityManager.runInSafeRegion(wrongCredential, () -> {
+          manager.checkPermission(new FilePermission("/foo", "execute"));
+          return 123L;
+        });
+        fail("Should have thrown exception");
+      }
+      catch (SecurityException e) {
+        // pass
       }
     }
     finally {

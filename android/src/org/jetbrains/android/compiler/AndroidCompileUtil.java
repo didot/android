@@ -1,11 +1,10 @@
 // Copyright 2000-2021 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.android.compiler;
 
-import static com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName;
-
 import com.android.tools.idea.lang.aidl.AidlFileType;
 import com.android.tools.idea.lang.rs.AndroidRenderscriptFileType;
 import com.android.tools.idea.model.AndroidModel;
+import com.android.tools.idea.res.AndroidDependenciesCache;
 import com.intellij.CommonBundle;
 import com.intellij.compiler.CompilerConfiguration;
 import com.intellij.compiler.CompilerConfigurationImpl;
@@ -47,8 +46,8 @@ import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.LocalFileSystem;
-import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
@@ -93,7 +92,7 @@ import org.jetbrains.jps.model.java.JpsJavaExtensionService;
 public class AndroidCompileUtil {
   private static final Logger LOG = Logger.getInstance("#org.jetbrains.android.compiler.AndroidCompileUtil");
 
-  private static final Key<Boolean> RELEASE_BUILD_KEY = new Key<Boolean>(AndroidBuildCommonUtils.RELEASE_BUILD_OPTION);
+  private static final Key<Boolean> RELEASE_BUILD_KEY = new Key<>(AndroidBuildCommonUtils.RELEASE_BUILD_OPTION);
   @NonNls private static final String RESOURCES_CACHE_DIR_NAME = "res-cache";
   @NonNls private static final String GEN_MODULE_PREFIX = "~generated_";
 
@@ -106,7 +105,7 @@ public class AndroidCompileUtil {
 
   @NotNull
   public static <T> Map<CompilerMessageCategory, T> toCompilerMessageCategoryKeys(@NotNull Map<AndroidCompilerMessageKind, T> map) {
-    final Map<CompilerMessageCategory, T> result = new HashMap<CompilerMessageCategory, T>();
+    final Map<CompilerMessageCategory, T> result = new HashMap<>();
 
     for (Map.Entry<AndroidCompilerMessageKind, T> entry : map.entrySet()) {
       final AndroidCompilerMessageKind key = entry.getKey();
@@ -135,12 +134,12 @@ public class AndroidCompileUtil {
     }
     final VirtualFile proguardCfg = root.findChild(AndroidBuildCommonUtils.PROGUARD_CFG_FILE_NAME);
     if (proguardCfg != null) {
-      return new Pair<VirtualFile, Boolean>(proguardCfg, true);
+      return new Pair<>(proguardCfg, true);
     }
 
     final VirtualFile oldProguardCfg = root.findChild(OLD_PROGUARD_CFG_FILE_NAME);
     if (oldProguardCfg != null) {
-      return new Pair<VirtualFile, Boolean>(oldProguardCfg, false);
+      return new Pair<>(oldProguardCfg, false);
     }
     return null;
   }
@@ -221,7 +220,7 @@ public class AndroidCompileUtil {
   private static void unexcludeRootIfNecessary(@NotNull VirtualFile root,
                                                @NotNull ModifiableRootModel model,
                                                @NotNull Ref<Boolean> modelChangedFlag) {
-    Set<VirtualFile> excludedRoots = new HashSet<VirtualFile>(Arrays.asList(model.getExcludeRoots()));
+    Set<VirtualFile> excludedRoots = new HashSet<>(Arrays.asList(model.getExcludeRoots()));
     VirtualFile excludedRoot = root;
     while (excludedRoot != null && !excludedRoots.contains(excludedRoot)) {
       excludedRoot = excludedRoot.getParent();
@@ -229,7 +228,7 @@ public class AndroidCompileUtil {
     if (excludedRoot == null) {
       return;
     }
-    Set<VirtualFile> rootsToExclude = new HashSet<VirtualFile>();
+    Set<VirtualFile> rootsToExclude = new HashSet<>();
     collectChildrenRecursively(excludedRoot, root, rootsToExclude);
     ContentEntry contentEntry = findContentEntryForRoot(model, excludedRoot);
     if (contentEntry != null) {
@@ -392,12 +391,13 @@ public class AndroidCompileUtil {
 
     if (contentEntry == null) {
       final Project project = model.getProject();
-      final String message = "Cannot mark directory '" + FileUtil.toSystemDependentName(root.getPath()) +
+      final String message = "Cannot mark directory '" + FileUtilRt.toSystemDependentName(root.getPath()) +
                              "' as source root, because it is not located under content root of module '" +
                              model.getModule().getName() + "'\n<a href='fix'>Open Project Structure</a>";
-      new Notification(NotificationGroup.createIdWithTitle("Android Autogeneration", AndroidBundle.message("android.autogeneration.notification.group")),
-                       "Autogeneration Error", message, NotificationType.ERROR)
-        .setListener(new NotificationListener.Adapter() {
+      final Notification notification = new Notification(
+        NotificationGroup.createIdWithTitle("Android Autogeneration", AndroidBundle.message("android.autogeneration.notification.group")),
+        "Autogeneration Error", message, NotificationType.ERROR).setListener(
+        new NotificationListener.Adapter() {
           @Override
           protected void hyperlinkActivated(@NotNull Notification notification,
                                             @NotNull HyperlinkEvent e) {
@@ -418,8 +418,8 @@ public class AndroidCompileUtil {
                 }
               });
           }
-        })
-        .notify(project);
+        });
+      notification.notify(project);
       LOG.debug(message);
       return null;
     }
@@ -506,8 +506,8 @@ public class AndroidCompileUtil {
       return null;
     }
 
-    final String pngCacheDirPath = VfsUtil.urlToPath(projectOutputDirUrl) + '/' + RESOURCES_CACHE_DIR_NAME + '/' + module.getName();
-    final String pngCacheDirOsPath = FileUtil.toSystemDependentName(pngCacheDirPath);
+    final String pngCacheDirPath = VfsUtilCore.urlToPath(projectOutputDirUrl) + '/' + RESOURCES_CACHE_DIR_NAME + '/' + module.getName();
+    final String pngCacheDirOsPath = FileUtilRt.toSystemDependentName(pngCacheDirPath);
 
     final File pngCacheDir = new File(pngCacheDirOsPath);
     if (pngCacheDir.exists()) {
@@ -561,8 +561,8 @@ public class AndroidCompileUtil {
     if (facet.getConfiguration().isLibraryProject()) {
       removeGenModule(model, modelChangedFlag);
     }
-    final Set<String> genRootsToCreate = new HashSet<String>();
-    final Set<String> genRootsToInit = new HashSet<String>();
+    final Set<String> genRootsToCreate = new HashSet<>();
+    final Set<String> genRootsToInit = new HashSet<>();
 
     final String buildConfigGenRootPath = AndroidRootUtil.getBuildconfigGenSourceRootPath(facet);
 
@@ -598,7 +598,7 @@ public class AndroidCompileUtil {
   private static void excludeAllBuildConfigsFromCompilation(AndroidFacet facet, VirtualFile sourceRoot) {
     final Module module = facet.getModule();
     final Project project = module.getProject();
-    final Set<String> packages = new HashSet<String>();
+    final Set<String> packages = new HashSet<>();
 
     final Manifest manifest = Manifest.getMainManifest(facet);
     final String aPackage = manifest != null ? manifest.getPackage().getStringValue() : null;
@@ -662,7 +662,7 @@ public class AndroidCompileUtil {
     final String[] classFilesDirOsPaths = new String[classFilesDirs.length];
 
     for (int i = 0; i < classFilesDirs.length; i++) {
-      classFilesDirOsPaths[i] = FileUtil.toSystemDependentName(classFilesDirs[i].getPath());
+      classFilesDirOsPaths[i] = FileUtilRt.toSystemDependentName(classFilesDirs[i].getPath());
     }
     return classFilesDirOsPaths;
   }
@@ -729,11 +729,11 @@ public class AndroidCompileUtil {
       return null;
     }
 
-    for (AndroidFacet depFacet : AndroidUtils.getAllAndroidDependencies(facet.getModule(), true)) {
+    for (AndroidFacet depFacet : AndroidDependenciesCache.getAllAndroidDependencies(facet.getModule(), true)) {
       final Manifest depManifest = Manifest.getMainManifest(depFacet);
       final String depPackage = depManifest != null ? depManifest.getPackage().getValue() : null;
       if (aPackage.equals(depPackage)) {
-        final List<AndroidFacet> depDependencies = AndroidUtils.getAllAndroidDependencies(depFacet.getModule(), false);
+        final List<AndroidFacet> depDependencies = AndroidDependenciesCache.getAllAndroidDependencies(depFacet.getModule(), false);
 
         if (depDependencies.contains(facet)) {
           // circular dependency on library with the same package
@@ -746,10 +746,10 @@ public class AndroidCompileUtil {
 
   @NotNull
   public static String[] getLibPackages(@NotNull Module module, @NotNull String packageName) {
-    final Set<String> packageSet = new HashSet<String>();
+    final Set<String> packageSet = new HashSet<>();
     packageSet.add(packageName);
 
-    final List<String> result = new ArrayList<String>();
+    final List<String> result = new ArrayList<>();
 
     for (String libPackage : AndroidUtils.getDepLibsPackages(module)) {
       if (packageSet.add(libPackage)) {
@@ -767,7 +767,7 @@ public class AndroidCompileUtil {
       return false;
     }
 
-    final List<AndroidFacet> dependencies = AndroidUtils.getAllAndroidDependencies(facet.getModule(), false);
+    final List<AndroidFacet> dependencies = AndroidDependenciesCache.getAllAndroidDependencies(facet.getModule(), false);
 
     final Manifest manifest = Manifest.getMainManifest(facet);
     if (manifest == null) {
@@ -780,7 +780,7 @@ public class AndroidCompileUtil {
     }
 
     for (AndroidFacet depFacet : dependencies) {
-      final List<AndroidFacet> depDependencies = AndroidUtils.getAllAndroidDependencies(depFacet.getModule(), true);
+      final List<AndroidFacet> depDependencies = AndroidDependenciesCache.getAllAndroidDependencies(depFacet.getModule(), true);
 
       if (depDependencies.contains(facet) &&
           dependencies.contains(depFacet) &&
@@ -799,7 +799,7 @@ public class AndroidCompileUtil {
       return getOutputPackage(facet.getModule());
     }
     @SystemIndependent String moduleDirPath = AndroidRootUtil.getModuleDirPath(facet.getModule());
-    return moduleDirPath != null ? toSystemDependentName(moduleDirPath + path) : null;
+    return moduleDirPath != null ? FileUtilRt.toSystemDependentName(moduleDirPath + path) : null;
   }
 
   public static void reportException(@NotNull CompileContext context, @NotNull String messagePrefix, @NotNull Exception e) {
@@ -827,7 +827,7 @@ public class AndroidCompileUtil {
     ApplicationManager.getApplication().runWriteAction(new Runnable() {
       @Override
       public void run() {
-        final List<ModifiableRootModel> modelsToCommit = new ArrayList<ModifiableRootModel>();
+        final List<ModifiableRootModel> modelsToCommit = new ArrayList<>();
 
         for (final AndroidFacet facet : facets) {
           if (AndroidModel.isRequired(facet)) {

@@ -20,10 +20,10 @@ import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_MODEL_DISA
 import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_MODEL_ONLY;
 import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_MODEL_ONLY_ADVANCED;
 import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_MODEL_ONLY_VERSIONED;
-import static com.android.builder.model.AndroidProject.PROPERTY_INVOKED_FROM_IDE;
-import static com.android.builder.model.AndroidProject.PROPERTY_REFRESH_EXTERNAL_NATIVE_MODEL;
-import static com.android.tools.idea.gradle.project.sync.idea.AndroidGradleProjectResolverKeys.REFRESH_EXTERNAL_NATIVE_MODELS_KEY;
+import static com.android.builder.model.InjectedProperties.PROPERTY_INVOKED_FROM_IDE;
+import static com.android.builder.model.InjectedProperties.PROPERTY_REFRESH_EXTERNAL_NATIVE_MODEL;
 import static com.android.tools.idea.gradle.project.sync.hyperlink.SyncProjectWithExtraCommandLineOptionsHyperlink.EXTRA_GRADLE_COMMAND_LINE_OPTIONS_KEY;
+import static com.android.tools.idea.gradle.project.sync.idea.AndroidGradleProjectResolverKeys.REFRESH_EXTERNAL_NATIVE_MODELS_KEY;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -38,7 +38,6 @@ import com.android.tools.idea.testing.IdeComponents;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.HeavyPlatformTestCase;
 import java.util.List;
-import org.jetbrains.android.AndroidTestCase;
 import org.jetbrains.annotations.NotNull;
 import org.mockito.Mock;
 

@@ -15,6 +15,7 @@
  */
 package com.android.tools.property.testing
 
+import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoThreadLocalsCleaner
 import com.intellij.diagnostic.PerformanceWatcher
 import com.intellij.ide.plugins.PluginUtil
@@ -67,8 +68,19 @@ open class ApplicationRule : ExternalResource() {
    */
   override fun before() {
     rootDisposable = Disposer.newDisposable("ApplicationRule::rootDisposable")
-    application = TestApplication(rootDisposable!!, testName)
-    ApplicationManager.setApplication(application!!, rootDisposable!!)
+    // If there was no previous application,
+    // ApplicationManager leaves the MockApplication in place, which can break future tests.
+    if (ApplicationManager.getApplication() == null) {
+      Disposer.register(testRootDisposable) {
+        object : ApplicationManager() {
+          init {
+            ourApplication = null
+          }
+        }
+      }
+    }
+    application = TestApplication(testRootDisposable, testName)
+    ApplicationManager.setApplication(testApplication, testRootDisposable)
     mockitoCleaner = MockitoThreadLocalsCleaner()
     mockitoCleaner!!.setup()
 
@@ -91,7 +103,7 @@ open class ApplicationRule : ExternalResource() {
     //  LoadingState.CONFIGURATION_STORE_INITIALIZED.isOccurred
     application!!.registerService(UISettings::class.java, UISettings(NotRoamableUiSettings()))
     application!!.registerService(PluginUtil::class.java, PluginUtilImpl::class.java)
-    application!!.registerService(PerformanceWatcher::class.java, PerformanceWatcher::class.java)
+    application!!.registerService(PerformanceWatcher::class.java, mock(), rootDisposable!!)
   }
 
   override fun after() {

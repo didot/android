@@ -15,9 +15,8 @@
  */
 package com.android.tools.idea.databinding.finders
 
-import com.android.tools.idea.databinding.LayoutBindingEnabledFacetsProvider
-import com.android.tools.idea.databinding.LayoutBindingPackageFactory
 import com.android.tools.idea.databinding.module.LayoutBindingModuleCache
+import com.android.tools.idea.databinding.project.LayoutBindingEnabledFacetsProvider
 import com.android.tools.idea.databinding.project.ProjectLayoutResourcesModificationTracker
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
@@ -68,7 +67,7 @@ class LayoutBindingPackageFinder(project: Project) : PsiElementFinder() {
           val lightClasses = groups.mapNotNull { group -> bindingModuleCache.getLightBindingClasses(group).firstOrNull() }
           lightClasses.map { lightClass ->
             val packageName = lightClass.qualifiedName.substringBeforeLast('.')
-            packageFactory.getOrCreatePsiPackage(packageName)
+            packageFactory.getOrCreatePsiPackage(facet, packageName)
           }
         }
         .associateBy { psiPackage -> psiPackage.qualifiedName }

@@ -23,12 +23,12 @@ import com.android.tools.idea.gradle.dsl.api.java.JavaModel;
 import com.android.tools.idea.gradle.dsl.api.repositories.RepositoryModel;
 import com.android.tools.idea.gradle.dsl.model.GradleFileModelTestCase;
 import com.android.tools.idea.gradle.dsl.model.repositories.JCenterRepositoryModel;
+import com.google.common.collect.ImmutableSet;
 import com.intellij.openapi.module.Module;
 import com.intellij.pom.java.LanguageLevel;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.Set;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.SystemDependent;
 import org.junit.Test;
@@ -100,9 +100,9 @@ public class SubProjectsTest extends GradleFileModelTestCase {
     GradleBuildModel sub2Model = buildModel.getModuleBuildModel(otherSub);
     List<PluginModel> sub2Plugins = sub2Model.plugins();
 
-    assertSameElements(PluginModel.extractNames(mainPlugins), Set.of("foo"));
-    assertSameElements(PluginModel.extractNames(subPlugins), Set.of("bar", "baz"));
-    assertSameElements(PluginModel.extractNames(sub2Plugins), Set.of("bar", "quux"));
+    assertSameElements(PluginModel.extractNames(mainPlugins), ImmutableSet.of("foo"));
+    assertSameElements(PluginModel.extractNames(subPlugins), ImmutableSet.of("bar", "baz"));
+    assertSameElements(PluginModel.extractNames(sub2Plugins), ImmutableSet.of("bar", "quux"));
   }
 
   @Test
@@ -232,7 +232,6 @@ public class SubProjectsTest extends GradleFileModelTestCase {
     ;
 
     @NotNull private @SystemDependent String path;
-
     TestFile(@NotNull @SystemDependent String path) {
       this.path = path;
     }

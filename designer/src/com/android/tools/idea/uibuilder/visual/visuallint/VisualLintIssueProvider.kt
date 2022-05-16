@@ -18,34 +18,120 @@ package com.android.tools.idea.uibuilder.visual.visuallint
 import com.android.tools.idea.common.error.Issue
 import com.android.tools.idea.common.error.IssueProvider
 import com.android.tools.idea.common.error.IssueSource
+import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.common.model.NlModel
-import com.android.tools.idea.common.surface.DesignSurface
-import com.android.tools.idea.rendering.errors.ui.RenderErrorModel
+import com.android.tools.idea.uibuilder.lint.getTextRange
+import com.android.utils.HtmlBuilder
 import com.google.common.collect.ImmutableCollection
+import com.intellij.lang.annotation.HighlightSeverity
+import com.intellij.openapi.application.runReadAction
+import com.intellij.openapi.util.TextRange
+import java.util.Objects
+import javax.swing.event.HyperlinkListener
 
-class VisualLintIssueProvider(private val sourceModel: NlModel, val renderErrorModel: RenderErrorModel) : IssueProvider() {
+class VisualLintIssueProvider : IssueProvider() {
+  private val issues = VisualLintIssues()
 
   override fun collectIssues(issueListBuilder: ImmutableCollection.Builder<Issue>) {
-    renderErrorModel.issues.forEach { issue: RenderErrorModel.Issue ->
-      issueListBuilder.add(VisualLintRenderIssueWrapper(issue, sourceModel))
+    issueListBuilder.addAll(issues.list)
+  }
+
+  fun addIssue(errorType: VisualLintErrorType, issue: Issue) = issues.add(errorType, issue)
+
+  fun addAllIssues(errorType: VisualLintErrorType, issues: List<Issue>) = this.issues.addAll(errorType, issues)
+
+  fun getIssues() = issues.list
+
+  fun clear() = issues.clear()
+
+  data class VisualLintIssueSource(val models: Set<NlModel>, val components: List<NlComponent>) : IssueSource {
+    override val displayText = ""
+  }
+}
+
+/** Lint issues that is generated from visual sources (e.g. Layout Validation) */
+class VisualLintRenderIssue private constructor(private val builder: Builder): Issue(), VisualLintHighlightingIssue {
+  val models = builder.model?.let { mutableSetOf(it) } ?: mutableSetOf()
+  val components = builder.components!!
+  val type = builder.type
+  override val source = VisualLintIssueProvider.VisualLintIssueSource(models, components)
+  override val summary = builder.summary!!
+  override val severity = builder.severity!!
+  override val category = "Visual Lint Issue"
+  override val hyperlinkListener = builder.hyperlinkListener
+  override fun shouldHighlight(model: NlModel): Boolean {
+    return models.contains(model)
+  }
+  override val description: String get() = builder.contentDescriptionProvider!!.invoke(models.size).stringBuilder.toString()
+
+  /** Returns the text range of the issue. */
+  private var range: TextRange? = null
+
+  init {
+    runReadAction {
+      updateRange()
     }
   }
 
-  class VisualLintRenderIssueWrapper(myIssue: RenderErrorModel.Issue, val sourceModel: NlModel) : Issue() {
-    override val source = VisualLintIssueSource(sourceModel)
-    override val summary = myIssue.summary
-    override val description = myIssue.htmlContent
-    override val severity = myIssue.severity
-    override val category = "Visual Lint Issue"
-    override val hyperlinkListener = myIssue.hyperlinkListener
-  }
-
-  data class VisualLintIssueSource(private val model: NlModel) : IssueSource {
-    override val displayText: String = model.modelDisplayName.orEmpty()
-    override val onIssueSelected: (DesignSurface) -> Unit = {
-      // Repaint DesignSurface when issue is selected to update visibility of WarningLayer
-      it.repaint()
-      it.scrollToVisible(model, false)
+  private fun updateRange() {
+    source.components.forEach { component ->
+      component.let {
+        range = getTextRange(it)
+        return@forEach
+      }
     }
   }
+
+  /** Hash code that depends on xml range rather than component. */
+  fun rangeBasedHashCode() = Objects.hash(severity, summary, category, range)
+
+  override fun equals(other: Any?) = other === this
+
+  override fun hashCode() = Objects.hash(severity, summary, category)
+
+  /** Builder for [VisualLintRenderIssue] */
+  data class Builder(
+    var summary: String? = null,
+    var severity: HighlightSeverity? = null,
+    var contentDescriptionProvider: ((Int) -> HtmlBuilder)? = null,
+    var model: NlModel? = null,
+    var components: MutableList<NlComponent>? = null,
+    var hyperlinkListener: HyperlinkListener? = null,
+    var type: VisualLintErrorType? = null) {
+
+    fun summary(summary: String) = apply { this.summary = summary }
+    fun severity(severity: HighlightSeverity) = apply { this.severity = severity }
+    fun contentDescriptionProvider(provider: (Int) -> HtmlBuilder) = apply { this.contentDescriptionProvider = provider }
+    fun model(model: NlModel) = apply { this.model = model }
+    fun components(components: MutableList<NlComponent>) = apply { this.components = components }
+    fun hyperlinkListener(hyperlinkListener: HyperlinkListener?) = apply { this.hyperlinkListener = hyperlinkListener }
+    fun type(type: VisualLintErrorType) = apply { this.type = type }
+
+    fun build(): VisualLintRenderIssue {
+      requireNotNull(summary)
+      requireNotNull(severity)
+      requireNotNull(contentDescriptionProvider)
+      requireNotNull(model)
+      requireNotNull(components)
+      requireNotNull(type)
+
+      return VisualLintRenderIssue(this)
+    }
+  }
+
+  companion object {
+    fun builder(): Builder {
+      return Builder()
+    }
+  }
+}
+
+/** Issue that highlights */
+interface VisualLintHighlightingIssue {
+
+  /**
+   * return true if the issue should be highlighting when selected.
+   * @param model Currently displaying model.
+   * */
+  fun shouldHighlight(model: NlModel): Boolean
 }

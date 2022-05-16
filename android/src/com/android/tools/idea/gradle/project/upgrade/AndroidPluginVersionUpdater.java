@@ -163,8 +163,8 @@ public class AndroidPluginVersionUpdater {
     }
 
     if (result.isPluginVersionUpdated() && gradleVersion != null) {
-      AgpGradleVersionRefactoringProcessor rp3 =
-        new AgpGradleVersionRefactoringProcessor(myProject, oldPluginVersion, pluginVersion);
+      GradleVersionRefactoringProcessor rp3 =
+        new GradleVersionRefactoringProcessor(myProject, oldPluginVersion, pluginVersion);
       try {
         rp3.run();
         result.gradleVersionUpdated();

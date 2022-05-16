@@ -15,8 +15,14 @@
  */
 package com.android.tools.idea.serverflags
 
-import com.android.tools.idea.ServerFlagList
-import com.android.tools.idea.ServerFlagTest
+import com.android.tools.analytics.CommonMetricsData.OS_NAME_CHROMIUM
+import com.android.tools.analytics.CommonMetricsData.OS_NAME_FREE_BSD
+import com.android.tools.analytics.CommonMetricsData.OS_NAME_LINUX
+import com.android.tools.analytics.CommonMetricsData.OS_NAME_MAC
+import com.android.tools.analytics.CommonMetricsData.OS_NAME_WINDOWS
+import com.android.tools.idea.serverflags.protos.OSType
+import com.android.tools.idea.serverflags.protos.ServerFlagList
+import com.android.tools.idea.serverflags.protos.ServerFlagTest
 import com.android.utils.FileUtils
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.util.io.FileUtil
@@ -32,6 +38,7 @@ private val TEST_PROTO = ServerFlagTest.newBuilder().apply {
 class ServerFlagInitializerTest : TestCase() {
   lateinit var testDirectoryPath: Path
   lateinit var localPath: Path
+  var service = ServerFlagServiceEmpty
 
   override fun setUp() {
     super.setUp()
@@ -51,38 +58,73 @@ class ServerFlagInitializerTest : TestCase() {
   }
 
   fun testFileNotPresent() {
-    ServerFlagInitializer.initializeService(localPath, VERSION, EXPERIMENTS)
+    ServerFlagServiceImpl.initializer = { ServerFlagInitializer.initializeService(localPath, VERSION, OS_NAME_MAC, EXPERIMENTS) }
+    val service = ServerFlagServiceImpl()
 
-    ServerFlagService.instance.apply {
+    service.apply {
       assertThat(getBoolean("boolean")).isNull()
       assertThat(getInt("int")).isNull()
       assertThat(getFloat("float")).isNull()
       assertThat(getString("string")).isNull()
+      assertThat(getString("linux")).isNull()
     }
   }
 
   fun testPercentEnabled() {
     val expected = serverFlagTestData
-    saveServerFlagList(expected, localPath, VERSION)
-    ServerFlagInitializer.initializeService(localPath, VERSION, emptyList())
 
-    ServerFlagService.instance.apply {
+    ServerFlagServiceImpl.initializer = { ServerFlagInitializer.initializeService(localPath, VERSION, OS_NAME_MAC, emptyList()) }
+    saveServerFlagList(expected, localPath, VERSION)
+    val service = ServerFlagServiceImpl()
+
+    service.apply {
       assertThat(getBoolean("boolean")).isNull()
       assertThat(getInt("int")).isNull()
       assertThat(getFloat("float")).isEqualTo(1f)
       assertThat(getString("string")).isEqualTo("foo")
+      assertThat(getString("linux")).isNull()
     }
   }
 
-  private fun testServerFlagInitializer(expected: ServerFlagList) {
-    ServerFlagInitializer.initializeService(localPath, VERSION, EXPERIMENTS)
+  fun testMac() {
+    testOsType(OS_NAME_MAC, OSType.OS_TYPE_MAC)
+  }
 
-    ServerFlagService.instance.apply {
+  fun testWin() {
+    testOsType(OS_NAME_WINDOWS, OSType.OS_TYPE_WIN)
+  }
+
+  fun testLinux() {
+    testOsType(OS_NAME_LINUX, OSType.OS_TYPE_LINUX)
+  }
+
+  fun testChromium() {
+    testOsType(OS_NAME_CHROMIUM, OSType.OS_TYPE_CHROMIUM)
+  }
+
+  fun testFreeBSD() {
+    testOsType(OS_NAME_FREE_BSD, OSType.OS_TYPE_FREE_BSD)
+  }
+
+  private fun testOsType(osName: String, osType: OSType) {
+    saveServerFlagList(serverFlagTestDataByOs, localPath, VERSION)
+
+    ServerFlagServiceImpl.initializer = { ServerFlagInitializer.initializeService(localPath, VERSION, osName, emptyList()) }
+    val service = ServerFlagServiceImpl()
+    assertThat(service.names).containsExactlyElementsIn(listOf(osType.toString()))
+  }
+
+  private fun testServerFlagInitializer(expected: ServerFlagList) {
+    ServerFlagServiceImpl.initializer = { ServerFlagInitializer.initializeService(localPath, VERSION, OS_NAME_MAC, EXPERIMENTS) }
+    val service = ServerFlagServiceImpl()
+
+    service.apply {
       assertThat(getBoolean("boolean")).isEqualTo(true)
       assertThat(getInt("int")).isEqualTo(1)
       assertThat(getFloat("float")).isNull()
       assertThat(getFloat("string")).isNull()
       assertThat(getProto(name, TEST_PROTO).content).isEqualTo("content")
+      assertThat(getString("linux")).isNull()
     }
 
     val actual = loadServerFlagList(localPath, VERSION)

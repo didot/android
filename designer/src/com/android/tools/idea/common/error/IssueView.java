@@ -22,17 +22,26 @@ import com.intellij.ui.IdeBorderFactory;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.RoundedLineBorder;
 import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.StyleSheetUtil;
 import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JEditorPane;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextPane;
 import javax.swing.border.Border;
 import javax.swing.text.Element;
 import javax.swing.text.MutableAttributeSet;
@@ -49,12 +58,11 @@ import org.jetbrains.annotations.Nullable;
 public class IssueView extends JPanel {
 
   private static final int COLLAPSED_ROW_HEIGHT = 30;
-  private static final String SUGGESTED_FIXES = "Suggestion(s)";
   private static final int BORDER_THICKNESS = 1;
   private static final JBColor SELECTED_BG_COLOR = new JBColor(0xf2f2f2, 0x232425);
 
   private final IssuePanel myContainerIssuePanel;
-  private RoundedLineBorder mySelectedBorder = IdeBorderFactory.createRoundedBorder(JBUI.scale(BORDER_THICKNESS));
+  private RoundedLineBorder mySelectedBorder = IdeBorderFactory.createRoundedBorder(JBUIScale.scale(BORDER_THICKNESS));
   private Border myUnselectedBorder = JBUI.Borders.empty(BORDER_THICKNESS);
   @SuppressWarnings("FieldCanBeLocal") // Used for the form
   private JPanel myContent;
@@ -65,13 +73,12 @@ public class IssueView extends JPanel {
   private JBLabel myErrorTitle;
   private JPanel myFixPanel;
   private JPanel myDetailPanel;
-  private JBLabel mySuggestedFixLabel;
   private boolean myIsExpanded;
   private final int myDisplayPriority;
   private boolean myInitialized;
 
   @NotNull
-  private final String myErrorDescriptionContent;
+  private String myErrorDescriptionContent;
 
   /**
    * Construct a new {@link IssueView} representing the provided {@link Issue}
@@ -105,12 +112,11 @@ public class IssueView extends JPanel {
     setBackground(UIUtil.getEditorPaneBackground());
 
     if (myInitialized) {
-      mySelectedBorder = IdeBorderFactory.createRoundedBorder(JBUI.scale(BORDER_THICKNESS));
+      mySelectedBorder = IdeBorderFactory.createRoundedBorder(JBUIScale.scale(BORDER_THICKNESS));
       mySelectedBorder.setColor(UIUtil.getTreeSelectionBorderColor());
       myUnselectedBorder = JBUI.Borders.empty(BORDER_THICKNESS);
       myErrorDescription.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true);
       myErrorTitle.setFont(StartupUiUtil.getLabelFont().deriveFont(Font.BOLD));
-      mySuggestedFixLabel.setFont(StartupUiUtil.getLabelFont().deriveFont(Font.BOLD));
     }
   }
 
@@ -133,10 +139,6 @@ public class IssueView extends JPanel {
     issue.getFixes().forEach(this::createFixEntry);
     if (myFixPanel.getComponentCount() > 0) {
       myFixPanel.setVisible(true);
-      mySuggestedFixLabel.setVisible(true);
-      if (myFixPanel.getComponentCount() > 1) {
-        mySuggestedFixLabel.setText(SUGGESTED_FIXES);
-      }
     }
     else {
       myFixPanel.setVisible(false);
@@ -154,6 +156,10 @@ public class IssueView extends JPanel {
         setFocused(true);
       }
     });
+  }
+
+  public void updateDescription(@NotNull Issue issue) {
+    myErrorDescriptionContent = new HtmlBuilder().openHtmlBody().addHtml(issue.getDescription()).closeHtmlBody().getHtml();
   }
 
   /**

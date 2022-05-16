@@ -29,12 +29,12 @@ import com.intellij.openapi.wm.ToolWindowAnchor
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.testFramework.registerServiceInstance
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.any
 import org.mockito.Mockito.clearInvocations
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 
 /**
  * Test cases that verify behavior of the profiler service. A PlatformTestCase is used for access to the Application and Project
@@ -54,7 +54,6 @@ class AndroidProfilerServiceTest : HeavyPlatformTestCase() {
     // We need to clear any override we use inside tests here.
     // We should do this during tear down, in case any test case fails or throws an exception.
     StudioFlags.PROFILER_ENERGY_PROFILER_ENABLED.clearOverride()
-    StudioFlags.PROFILER_SAMPLE_LIVE_ALLOCATIONS.clearOverride()
   }
 
   fun testProfilerServiceTriggeredOnceForMultipleToolWindows() {
@@ -88,7 +87,6 @@ class AndroidProfilerServiceTest : HeavyPlatformTestCase() {
   }
 
   fun testAllocationTrackingIsNoneForStartupNativeMemory() {
-    StudioFlags.PROFILER_SAMPLE_LIVE_ALLOCATIONS.override(true)
     val configBuilder = Agent.AgentConfig.newBuilder()
     val runConfig = mock(AndroidRunConfigurationBase::class.java)
     val state = ProfilerState();
@@ -123,9 +121,8 @@ class AndroidProfilerServiceTest : HeavyPlatformTestCase() {
 
   fun testCpuRunConfigSetsAttachTypeAndCommand() {
     // TODO: migrate test to intellij test, or simplify api.
-    // Disable live allocation flag to simplify test. This flag and the CPU_PROFILING_ENABLED flag enabled
+    // This flag and the CPU_PROFILING_ENABLED flag enabled
     // require a project + project service to test.
-    StudioFlags.PROFILER_SAMPLE_LIVE_ALLOCATIONS.override(false);
     val configBuilder = Agent.AgentConfig.newBuilder()
     val runConfig = mock(AndroidRunConfigurationBase::class.java)
     val state = ProfilerState();

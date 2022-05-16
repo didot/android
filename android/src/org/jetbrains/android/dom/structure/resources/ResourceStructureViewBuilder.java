@@ -17,6 +17,7 @@ package org.jetbrains.android.dom.structure.resources;
 
 import com.android.ide.common.rendering.api.ResourceReference;
 import com.android.resources.ResourceType;
+import com.android.tools.idea.res.IdeResourcesUtil;
 import com.intellij.ide.structureView.StructureViewModel;
 import com.intellij.ide.structureView.StructureViewModelBase;
 import com.intellij.ide.structureView.StructureViewTreeElement;
@@ -37,7 +38,6 @@ import org.jetbrains.android.dom.resources.ResourceElement;
 import org.jetbrains.android.dom.resources.Resources;
 import org.jetbrains.android.dom.resources.StyleItem;
 import org.jetbrains.android.dom.structure.StructureUtils;
-import com.android.tools.idea.res.IdeResourcesUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

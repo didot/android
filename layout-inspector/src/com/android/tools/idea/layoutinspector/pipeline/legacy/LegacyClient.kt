@@ -16,43 +16,41 @@
 package com.android.tools.idea.layoutinspector.pipeline.legacy
 
 import com.android.annotations.concurrency.Slow
-import com.android.ddmlib.AndroidDebugBridge
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.layoutinspector.metrics.LayoutInspectorMetrics
-import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model.InspectorModel
 import com.android.tools.idea.layoutinspector.pipeline.AbstractInspectorClient
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
 import com.android.tools.idea.layoutinspector.properties.ViewNodeAndResourceLookup
+import com.android.tools.idea.layoutinspector.snapshots.saveLegacySnapshot
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorEvent.DynamicLayoutInspectorEventType
-import com.intellij.openapi.application.invokeLater
-
-private const val MAX_CONNECTION_ATTEMPTS = 5
+import com.intellij.openapi.Disposable
+import java.nio.file.Path
 
 /**
  * [InspectorClient] that supports pre-api 29 devices.
- * Since it doesn't use [com.android.tools.idea.transport.TransportService], some relevant event listeners are manually fired.
+ * Since it doesn't use `com.android.tools.idea.transport.TransportService`, some relevant event listeners are manually fired.
  */
 class LegacyClient(
-  adb: AndroidDebugBridge,
   process: ProcessDescriptor,
-  model: InspectorModel,
-  stats: SessionStatistics,
+  isInstantlyAutoConnected: Boolean,
+  val model: InspectorModel,
+  private val metrics: LayoutInspectorMetrics,
+  parentDisposable: Disposable,
   treeLoaderForTest: LegacyTreeLoader? = null
-) : AbstractInspectorClient(process) {
+) : AbstractInspectorClient(process, isInstantlyAutoConnected, parentDisposable) {
 
   private val lookup: ViewNodeAndResourceLookup = model
+  private val project = model.project
 
   override val isCapturing = false
 
   override val provider = LegacyPropertiesProvider()
 
-  private var loggedInitialAttach = false
   private var loggedInitialRender = false
 
-  private val metrics = LayoutInspectorMetrics.create(model.project, process, stats)
   private val composeWarning = ComposeWarning(model.project)
 
   fun logEvent(type: DynamicLayoutInspectorEventType) {
@@ -72,24 +70,23 @@ class LegacyClient(
       else -> false
     }
 
-  override val treeLoader = treeLoaderForTest ?: LegacyTreeLoader(adb, this)
+  override val treeLoader = treeLoaderForTest ?: LegacyTreeLoader(this)
 
   val latestScreenshots = mutableMapOf<String, ByteArray>()
+  var latestData = mutableMapOf<String, ByteArray>()
+
 
   init {
     loggedInitialRender = false
   }
 
   override fun doConnect(): ListenableFuture<Nothing> {
-    attach()
-    return Futures.immediateFuture(null)
-  }
-
-  private fun attach() {
-    loggedInitialAttach = false
-    if (!doAttach()) {
-      // TODO: create a different event for when there are no windows
-      metrics.logEvent(DynamicLayoutInspectorEventType.COMPATIBILITY_RENDER_NO_PICTURE)
+    return try {
+      doAttach()
+      Futures.immediateFuture(null)
+    }
+    catch (exception: Exception) {
+      Futures.immediateFailedFuture(exception)
     }
   }
 
@@ -98,29 +95,32 @@ class LegacyClient(
    *
    * Return <code>true</code> if windows were found otherwise false.
    */
-  private fun doAttach(): Boolean {
-    if (!loggedInitialAttach) {
-      metrics.logEvent(DynamicLayoutInspectorEventType.COMPATIBILITY_REQUEST)
-      loggedInitialAttach = true
-    }
-
-    var attempts = 0
+  private fun doAttach() {
+    metrics.logEvent(DynamicLayoutInspectorEventType.COMPATIBILITY_REQUEST)
     while (!reloadAllWindows()) {
-      // The windows may not be available yet, try again: b/185936377
-      if (++attempts > MAX_CONNECTION_ATTEMPTS) {
-        return false
+      // We were killed by InspectorClientLaunchMonitor
+      if (state == InspectorClient.State.DISCONNECTED) {
+        return
       }
-      Thread.sleep(500) // wait 0.5 secs
+      // The windows may not be available yet, try again: b/185936377
+      Thread.sleep(1000) // wait 1 second
     }
     logEvent(DynamicLayoutInspectorEventType.COMPATIBILITY_SUCCESS)
-    invokeLater {
-      composeWarning.performCheck(this)
-    }
-    return true
+    composeWarning.performCheck(this)
   }
 
   override fun refresh() {
     reloadAllWindows()
+  }
+
+  @Slow
+  override fun saveSnapshot(path: Path) {
+    val startTime = System.currentTimeMillis()
+    val snapshotMetadata = saveLegacySnapshot(path, latestData, latestScreenshots, process)
+    snapshotMetadata.saveDuration = System.currentTimeMillis() - startTime
+    // Use a separate metrics instance since we don't want the snapshot metadata to hang around
+    val saveMetrics = LayoutInspectorMetrics(project, process, snapshotMetadata = snapshotMetadata)
+    saveMetrics.logEvent(DynamicLayoutInspectorEventType.SNAPSHOT_CAPTURED)
   }
 
   /**
@@ -150,13 +150,9 @@ class LegacyClient(
 
   class LegacyFetchingUnsupportedOperationException : UnsupportedOperationException("Fetching is not supported by legacy clients")
 
-  override fun startFetching() {
-    throw LegacyFetchingUnsupportedOperationException()
-  }
+  override fun startFetching() = throw LegacyFetchingUnsupportedOperationException()
 
-  override fun stopFetching() {
-    throw LegacyFetchingUnsupportedOperationException()
-  }
+  override fun stopFetching() = throw LegacyFetchingUnsupportedOperationException()
 }
 
 data class LegacyEvent(val windowId: String, val propertyUpdater: LegacyPropertiesProvider.Updater, val allWindows: List<String>)

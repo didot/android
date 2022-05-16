@@ -15,12 +15,19 @@
  */
 package com.android.tools.property.ptable2.impl
 
+import com.android.testutils.MockitoKt.eq
+import com.android.testutils.MockitoKt.mock
+import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.stdui.KeyStrokes
+import com.android.tools.adtui.swing.FakeKeyboardFocusManager
 import com.android.tools.adtui.swing.FakeUi
+import com.android.tools.adtui.swing.IconLoaderRule
 import com.android.tools.property.ptable2.DefaultPTableCellRendererProvider
 import com.android.tools.property.ptable2.PTable
 import com.android.tools.property.ptable2.PTableCellEditor
 import com.android.tools.property.ptable2.PTableCellEditorProvider
+import com.android.tools.property.ptable2.PTableCellRenderer
+import com.android.tools.property.ptable2.PTableCellRendererProvider
 import com.android.tools.property.ptable2.PTableColumn
 import com.android.tools.property.ptable2.PTableGroupItem
 import com.android.tools.property.ptable2.PTableItem
@@ -29,24 +36,38 @@ import com.android.tools.property.ptable2.item.Item
 import com.android.tools.property.ptable2.item.PTableTestModel
 import com.android.tools.property.ptable2.item.createModel
 import com.android.tools.property.testing.ApplicationRule
-import com.android.tools.property.testing.RunWithTestFocusManager
-import com.android.tools.property.testing.SwingFocusRule
 import com.google.common.truth.Truth.assertThat
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.hover.TableHoverListener
+import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.RuleChain
+import org.mockito.ArgumentCaptor
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 import java.awt.AWTEvent
+import java.awt.BorderLayout
+import java.awt.Color
+import java.awt.Component
+import java.awt.Cursor
 import java.awt.Dimension
+import java.awt.datatransfer.Clipboard
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.StringSelection
+import java.awt.datatransfer.Transferable
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
+import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.KeyStroke
 import javax.swing.LayoutFocusTraversalPolicy
+import javax.swing.TransferHandler
 import javax.swing.UIManager
 import javax.swing.event.ChangeEvent
 import javax.swing.event.TableModelEvent
@@ -61,11 +82,12 @@ class PTableImplTest {
   private var model: PTableTestModel? = null
   private var table: PTableImpl? = null
   private var editorProvider: SimplePTableCellEditorProvider? = null
-  private val appRule = ApplicationRule()
-  private val focusRule = SwingFocusRule()
 
   @get:Rule
-  val ruleChain: RuleChain = RuleChain.outerRule(focusRule).around(appRule)
+  val appRule = ApplicationRule()
+
+  @get:Rule
+  val iconLoader = IconLoaderRule()
 
   @Before
   fun setUp() {
@@ -73,7 +95,7 @@ class PTableImplTest {
     UIManager.put("TextField.caretBlinkRate", 0)
 
     editorProvider = SimplePTableCellEditorProvider()
-    model = createModel(Item("weight"), Item("size"), Item("readonly"), Item("visible"),
+    model = createModel(Item("weight"), Item("size"), Item("readonly"), Item("visible", "true"),
                         Group("weiss", Item("siphon"), Item("extra"), Group("flower", Item("rose"))),
                         Item("new"))
     table = PTableImpl(model!!, null, DefaultPTableCellRendererProvider(), editorProvider!!)
@@ -459,33 +481,38 @@ class PTableImplTest {
     assertThat(table!!.isEditing).isFalse()
   }
 
-  @RunWithTestFocusManager
   @Test
   fun testNavigateForwardsIntoTable() {
+    val focusManager = FakeKeyboardFocusManager(appRule.testRootDisposable)
     val panel = createPanel()
+    FakeUi(panel, createFakeWindow = true)
+    focusManager.focusOwner = panel
     panel.components[0].transferFocus()
     assertThat(table!!.editingRow).isEqualTo(0)
     assertThat(table!!.editingColumn).isEqualTo(1)
-    assertThat(focusRule.focusOwner?.name).isEqualTo(TEXT_CELL_EDITOR)
+    assertThat(focusManager.focusOwner?.name).isEqualTo(TEXT_CELL_EDITOR)
   }
 
-  @RunWithTestFocusManager
   @Test
   fun testNavigateForwardsIntoReadOnlyTable() {
+    val focusManager = FakeKeyboardFocusManager(appRule.testRootDisposable)
     model!!.readOnly = true
     val panel = createPanel()
+    FakeUi(panel, createFakeWindow = true)
+    focusManager.focusOwner = panel
     panel.components[0].transferFocus()
     assertThat(table!!.isEditing).isFalse()
     assertThat(table!!.selectedRow).isEqualTo(0)
-    assertThat(focusRule.focusOwner?.name).isEqualTo(TABLE_NAME)
-    focusRule.focusOwner?.transferFocus()
-    assertThat(focusRule.focusOwner?.name).isEqualTo(LAST_FIELD_EDITOR)
+    assertThat(focusManager.focusOwner?.name).isEqualTo(TABLE_NAME)
+    focusManager.focusOwner?.transferFocus()
+    assertThat(focusManager.focusOwner?.name).isEqualTo(LAST_FIELD_EDITOR)
   }
 
-  @RunWithTestFocusManager
   @Test
   fun testNavigateForwardsThroughTable() {
+    val focusManager = FakeKeyboardFocusManager(appRule.testRootDisposable)
     val panel = createPanel()
+    FakeUi(panel, createFakeWindow = true)
     panel.components[0].requestFocusInWindow()
     for (row in 0..5) {
       var column = 1
@@ -498,24 +525,25 @@ class PTableImplTest {
         column = 0
       }
       val name = "value in row $row"
-      focusRule.focusOwner?.transferFocus()
+      focusManager.focusOwner?.transferFocus()
       assertThat(table!!.editingRow).named(name).isEqualTo(row)
       assertThat(table!!.editingColumn).named(name).isEqualTo(column)
-      assertThat(focusRule.focusOwner?.name).named(name).isEqualTo(TEXT_CELL_EDITOR)
-      focusRule.focusOwner?.transferFocus()
+      assertThat(focusManager.focusOwner?.name).named(name).isEqualTo(TEXT_CELL_EDITOR)
+      focusManager.focusOwner?.transferFocus()
       assertThat(table!!.editingRow).named(name).isEqualTo(row)
       assertThat(table!!.editingColumn).named(name).isEqualTo(column)
-      assertThat(focusRule.focusOwner?.name).named(name).isEqualTo(ICON_CELL_EDITOR)
+      assertThat(focusManager.focusOwner?.name).named(name).isEqualTo(ICON_CELL_EDITOR)
     }
-    focusRule.focusOwner?.transferFocus()
+    focusManager.focusOwner?.transferFocus()
     assertThat(table!!.isEditing).isFalse()
-    assertThat(focusRule.focusOwner?.name).isEqualTo(LAST_FIELD_EDITOR)
+    assertThat(focusManager.focusOwner?.name).isEqualTo(LAST_FIELD_EDITOR)
   }
 
-  @RunWithTestFocusManager
   @Test
   fun testNavigateBackwardsThroughTable() {
+    val focusManager = FakeKeyboardFocusManager(appRule.testRootDisposable)
     val panel = createPanel()
+    FakeUi(panel, createFakeWindow = true)
     panel.components[2].requestFocusInWindow()
     for (row in 5 downTo 0) {
       var column = 1
@@ -528,41 +556,43 @@ class PTableImplTest {
         column = 0
       }
       val name = "value in row $row"
-      focusRule.focusOwner?.transferFocusBackward()
+      focusManager.focusOwner?.transferFocusBackward()
       assertThat(table!!.editingRow).named(name).isEqualTo(row)
       assertThat(table!!.editingColumn).named(name).isEqualTo(column)
-      assertThat(focusRule.focusOwner?.name).named(name).isEqualTo(ICON_CELL_EDITOR)
-      focusRule.focusOwner?.transferFocusBackward()
+      assertThat(focusManager.focusOwner?.name).named(name).isEqualTo(ICON_CELL_EDITOR)
+      focusManager.focusOwner?.transferFocusBackward()
       assertThat(table!!.editingRow).named(name).isEqualTo(row)
       assertThat(table!!.editingColumn).named(name).isEqualTo(column)
-      assertThat(focusRule.focusOwner?.name).named(name).isEqualTo(TEXT_CELL_EDITOR)
+      assertThat(focusManager.focusOwner?.name).named(name).isEqualTo(TEXT_CELL_EDITOR)
     }
-    focusRule.focusOwner?.transferFocusBackward()
+    focusManager.focusOwner?.transferFocusBackward()
     assertThat(table!!.isEditing).isFalse()
-    assertThat(focusRule.focusOwner?.name).isEqualTo(FIRST_FIELD_EDITOR)
+    assertThat(focusManager.focusOwner?.name).isEqualTo(FIRST_FIELD_EDITOR)
   }
 
-  @RunWithTestFocusManager
   @Test
   fun testNavigateBackwardsIntoTable() {
+    val focusManager = FakeKeyboardFocusManager(appRule.testRootDisposable)
     val panel = createPanel()
+    FakeUi(panel, createFakeWindow = true)
     panel.components[2].transferFocusBackward()
     assertThat(table!!.editingRow).isEqualTo(5)
     assertThat(table!!.editingColumn).isEqualTo(0)
-    assertThat(focusRule.focusOwner?.name).isEqualTo(ICON_CELL_EDITOR)
+    assertThat(focusManager.focusOwner?.name).isEqualTo(ICON_CELL_EDITOR)
   }
 
-  @RunWithTestFocusManager
   @Test
   fun testNavigateBackwardsIntoReadOnlyTable() {
+    val focusManager = FakeKeyboardFocusManager(appRule.testRootDisposable)
     model!!.readOnly = true
     val panel = createPanel()
+    FakeUi(panel, createFakeWindow = true)
     panel.components[2].transferFocusBackward()
     assertThat(table!!.isEditing).isFalse()
     assertThat(table!!.selectedRow).isEqualTo(5)
-    assertThat(focusRule.focusOwner?.name).isEqualTo(TABLE_NAME)
-    focusRule.focusOwner?.transferFocus()
-    assertThat(focusRule.focusOwner?.name).isEqualTo(LAST_FIELD_EDITOR)
+    assertThat(focusManager.focusOwner?.name).isEqualTo(TABLE_NAME)
+    focusManager.focusOwner?.transferFocus()
+    assertThat(focusManager.focusOwner?.name).isEqualTo(LAST_FIELD_EDITOR)
   }
 
   @Test
@@ -612,6 +642,138 @@ class PTableImplTest {
     assertThat(model!!.countOfIsCellEditable).isEqualTo(1)
   }
 
+  @Test
+  fun testCopy() {
+    table!!.setRowSelectionInterval(3, 3)
+    val transferHandler = table!!.transferHandler
+    val clipboard: Clipboard = mock()
+    transferHandler.exportToClipboard(table!!, clipboard, TransferHandler.COPY)
+    val transferableCaptor = ArgumentCaptor.forClass(Transferable::class.java)
+    verify(clipboard).setContents(transferableCaptor.capture(), eq(null))
+    val transferable = transferableCaptor.value
+    assertThat(transferable.isDataFlavorSupported(DataFlavor.stringFlavor)).isTrue()
+    assertThat(transferable.getTransferData(DataFlavor.stringFlavor)).isEqualTo("visible\ttrue")
+  }
+
+  @Test
+  fun testCut() {
+    table!!.setRowSelectionInterval(3, 3)
+    val transferHandler = table!!.transferHandler
+    val clipboard: Clipboard = mock()
+    transferHandler.exportToClipboard(table!!, clipboard, TransferHandler.MOVE)
+
+    // Deletes are not supported in the model, do not expect anything copied to the clipboard, and the row should still exist:
+    verifyNoInteractions(clipboard)
+    assertThat(model!!.items.size).isEqualTo(6)
+
+    model!!.supportDeletes = true
+    transferHandler.exportToClipboard(table!!, clipboard, TransferHandler.MOVE)
+
+    val transferableCaptor = ArgumentCaptor.forClass(Transferable::class.java)
+    verify(clipboard).setContents(transferableCaptor.capture(), eq(null))
+    val transferable = transferableCaptor.value
+    assertThat(transferable.isDataFlavorSupported(DataFlavor.stringFlavor)).isTrue()
+    assertThat(transferable.getTransferData(DataFlavor.stringFlavor)).isEqualTo("visible\ttrue")
+    assertThat(model!!.items.size).isEqualTo(5)
+  }
+
+  @Test
+  fun testPaste() {
+    table!!.setRowSelectionInterval(3, 3)
+    val transferHandler = table!!.transferHandler
+    transferHandler.importData(table!!, StringSelection("data\t123"))
+
+    // Inserts are not supported in the model, do not expect the model to be changed:
+    assertThat(model!!.items.size).isEqualTo(6)
+
+    model!!.supportInserts = true
+    transferHandler.importData(table!!, StringSelection("data\t123"))
+    assertThat(model!!.items.size).isEqualTo(7)
+    assertThat(model!!.items[6].name).isEqualTo("data")
+    assertThat(model!!.items[6].value).isEqualTo("123")
+  }
+
+  @Test
+  fun testBackgroundColor() {
+    val hoverColor = JBUI.CurrentTheme.Table.Hover.background(true)
+    val selectedColor = UIUtil.getTableBackground(true, true)
+
+    // Without focus:
+    assertThat(cellBackground(table!!, selected = false, hovered = false)).isEqualTo(table!!.background)
+    assertThat(cellBackground(table!!, selected = false, hovered = true)).isEqualTo(hoverColor)
+    assertThat(cellBackground(table!!, selected = true, hovered = false)).isEqualTo(table!!.background)
+    assertThat(cellBackground(table!!, selected = true, hovered = true)).isEqualTo(hoverColor)
+
+    val focusManager = FakeKeyboardFocusManager(appRule.testRootDisposable)
+    focusManager.focusOwner = table
+
+    // With focus:
+    assertThat(cellBackground(table!!, selected = false, hovered = false)).isEqualTo(table!!.background)
+    assertThat(cellBackground(table!!, selected = false, hovered = true)).isEqualTo(hoverColor)
+    assertThat(cellBackground(table!!, selected = true, hovered = false)).isEqualTo(selectedColor)
+    assertThat(cellBackground(table!!, selected = true, hovered = true)).isEqualTo(selectedColor)
+  }
+
+  @Suppress("UnstableApiUsage")
+  private fun cellBackground(table: PTableImpl, selected: Boolean, hovered: Boolean): Color {
+    val selectedRow = if (selected) 3 else 2
+    table.setRowSelectionInterval(selectedRow, selectedRow)
+
+    val hoverListener = TableHoverListener.DEFAULT
+    val cell = table.getCellRect(3, 1, false)
+    if (hovered) {
+      hoverListener.mouseEntered(table, cell.centerX.toInt(), cell.centerY.toInt())
+    } else {
+      hoverListener.mouseExited(table)
+    }
+    val renderer = PTableCellRendererWrapper()
+    val component = table.prepareRenderer(renderer, 3, 1)
+    return component.background
+  }
+
+  @Test
+  fun testCustomCursor() {
+    val component = JPanel(BorderLayout())
+    val left = JLabel(StudioIcons.Common.ANDROID_HEAD).also { it.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) }
+    val middle = JLabel(StudioIcons.Common.CHECKED).also { it.cursor = Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR) }
+    val right = JLabel(StudioIcons.Common.CLEAR).also { it.cursor = Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR) }
+    component.add(left, BorderLayout.WEST)
+    component.add(middle, BorderLayout.CENTER)
+    component.add(right, BorderLayout.EAST)
+
+    val specialRenderer = object : PTableCellRenderer {
+      override fun getEditorComponent(
+        table: PTable,
+        item: PTableItem,
+        column: PTableColumn,
+        depth: Int,
+        isSelected: Boolean,
+        hasFocus: Boolean,
+        isExpanded: Boolean
+      ): JComponent = component
+    }
+    val rendererProvider = object : PTableCellRendererProvider {
+      override fun invoke(table: PTable, property: PTableItem, column: PTableColumn): PTableCellRenderer {
+        return specialRenderer
+      }
+    }
+
+    model!!.hasCustomCursors = true
+    table = PTableImpl(model!!, null, rendererProvider, editorProvider!!)
+
+    table!!.size = Dimension(600, 800)
+    val ui = FakeUi(table!!)
+    val cell = table!!.getCellRect(3, 1, false)
+    component.size = cell.size
+    TreeWalker(component).descendantStream().forEach(Component::doLayout)
+    ui.mouse.moveTo(cell.x + 8, cell.centerY.toInt())
+    assertThat(table?.cursor).isSameAs(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
+    ui.mouse.moveTo(cell.centerX.toInt(), cell.centerY.toInt())
+    assertThat(table?.cursor).isSameAs(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR))
+    ui.mouse.moveTo(cell.x + cell.width - 8, cell.centerY.toInt())
+    assertThat(table?.cursor).isSameAs(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR))
+  }
+
   private fun createPanel(): JPanel {
     val panel = JPanel()
     panel.isFocusCycleRoot = true
@@ -622,7 +784,6 @@ class PTableImplTest {
     panel.components[0].name = FIRST_FIELD_EDITOR
     panel.components[1].name = TABLE_NAME
     panel.components[2].name = LAST_FIELD_EDITOR
-    focusRule.setRootPeer(panel)
     return panel
   }
 
@@ -661,7 +822,6 @@ class PTableImplTest {
       textEditor.name = TEXT_CELL_EDITOR
       editorComponent.add(textEditor)
       editorComponent.add(icon)
-      focusRule.setPeer(editorComponent)
     }
 
     override fun toggleValue() {

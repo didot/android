@@ -22,19 +22,17 @@ import com.android.tools.adtui.model.Range
 import com.android.tools.adtui.stdui.TooltipLayeredPane
 import com.android.tools.adtui.swing.FakeUi
 import com.android.tools.adtui.swing.laf.HeadlessTableUI
-import com.android.tools.idea.appinspection.inspectors.network.model.CodeNavigationProvider
+import com.android.tools.idea.appinspection.inspectors.network.model.FakeCodeNavigationProvider
 import com.android.tools.idea.appinspection.inspectors.network.model.FakeNetworkInspectorDataSource
 import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorModel
-import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorServices
+import com.android.tools.idea.appinspection.inspectors.network.model.TestNetworkInspectorServices
+import com.android.tools.idea.appinspection.inspectors.network.model.analytics.StubNetworkInspectorTracker
 import com.android.tools.idea.appinspection.inspectors.network.model.httpdata.HttpData
 import com.android.tools.idea.appinspection.inspectors.network.model.httpdata.HttpDataModel
 import com.android.tools.idea.appinspection.inspectors.network.model.httpdata.JavaThread
 import com.android.tools.idea.appinspection.inspectors.network.model.httpdata.createFakeHttpData
-import com.android.tools.inspectors.common.api.stacktrace.CodeLocation
-import com.android.tools.inspectors.common.api.stacktrace.CodeNavigator
 import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
-import com.google.common.util.concurrent.MoreExecutors
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
 import org.junit.Before
@@ -81,13 +79,8 @@ class ThreadsViewTest {
 
   @Before
   fun setUp() {
-    val codeNavigationProvider = object : CodeNavigationProvider {
-      override val codeNavigator = object : CodeNavigator() {
-        override fun isNavigatable(location: CodeLocation) = true
-        override fun handleNavigate(location: CodeLocation) = Unit
-      }
-    }
-    val services = NetworkInspectorServices(codeNavigationProvider, 0, timer, MoreExecutors.directExecutor())
+    val codeNavigationProvider = FakeCodeNavigationProvider()
+    val services = TestNetworkInspectorServices(codeNavigationProvider, timer)
     model = NetworkInspectorModel(services, FakeNetworkInspectorDataSource(), object : HttpDataModel {
       private val dataList = FAKE_DATA
       override fun getData(timeCurrentRangeUs: Range): List<HttpData> {
@@ -96,7 +89,7 @@ class ThreadsViewTest {
     })
     val parentPanel = JPanel()
     val component = TooltipLayeredPane(parentPanel)
-    inspectorView = NetworkInspectorView(model, FakeUiComponentsProvider(), component)
+    inspectorView = NetworkInspectorView(model, FakeUiComponentsProvider(), component, StubNetworkInspectorTracker())
     parentPanel.add(inspectorView.component)
 
     threadsView = ThreadsView(model, component)

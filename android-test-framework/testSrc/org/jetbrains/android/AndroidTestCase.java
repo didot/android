@@ -1,4 +1,4 @@
-// Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 
 package org.jetbrains.android;
 
@@ -10,20 +10,12 @@ import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.model.TestAndroidModel;
 import com.android.tools.idea.rendering.RenderSecurityManager;
 import com.android.tools.idea.sdk.IdeSdks;
+import com.android.tools.idea.testing.AndroidTestUtils;
 import com.android.tools.idea.testing.IdeComponents;
 import com.android.tools.idea.testing.Sdks;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
-import com.intellij.analysis.AnalysisScope;
 import com.intellij.application.options.CodeStyle;
-import com.intellij.codeInspection.CommonProblemDescriptor;
-import com.intellij.codeInspection.GlobalInspectionTool;
-import com.intellij.codeInspection.InspectionManager;
-import com.intellij.codeInspection.ex.GlobalInspectionToolWrapper;
-import com.intellij.codeInspection.ex.InspectionManagerEx;
-import com.intellij.codeInspection.ex.InspectionToolWrapper;
-import com.intellij.codeInspection.reference.RefEntity;
-import com.intellij.codeInspection.ui.util.SynchronizedBidiMultiMap;
 import com.intellij.facet.Facet;
 import com.intellij.facet.FacetConfiguration;
 import com.intellij.facet.FacetManager;
@@ -50,8 +42,6 @@ import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.codeStyle.CodeStyleSchemes;
 import com.intellij.psi.codeStyle.CodeStyleSettings;
 import com.intellij.psi.codeStyle.CodeStyleSettingsManager;
-import com.intellij.testFramework.InspectionTestUtil;
-import com.intellij.testFramework.InspectionsKt;
 import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.ThreadTracker;
 import com.intellij.testFramework.builders.JavaModuleFixtureBuilder;
@@ -60,7 +50,6 @@ import com.intellij.testFramework.fixtures.IdeaTestFixtureFactory;
 import com.intellij.testFramework.fixtures.JavaTestFixtureFactory;
 import com.intellij.testFramework.fixtures.ModuleFixture;
 import com.intellij.testFramework.fixtures.TestFixtureBuilder;
-import com.intellij.testFramework.fixtures.impl.GlobalInspectionContextForTests;
 import com.intellij.testFramework.fixtures.impl.JavaModuleFixtureBuilderImpl;
 import com.intellij.testFramework.fixtures.impl.ModuleFixtureImpl;
 import com.intellij.util.ArrayUtilRt;
@@ -69,8 +58,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.AndroidFacetType;
@@ -121,8 +110,6 @@ public abstract class AndroidTestCase extends AndroidTestBase {
     configureAdditionalModules(projectBuilder, modules);
 
     myFixture.setUp();
-    PlatformTestUtil.getOrCreateProjectBaseDir(projectBuilder.getFixture().getProject());
-
     myFixture.setTestDataPath(getTestDataPath());
     myModule = moduleFixtureBuilder.getFixture().getModule();
 
@@ -136,10 +123,6 @@ public abstract class AndroidTestCase extends AndroidTestBase {
       setupJdk(jdkPath);
     });
     myFacet = addAndroidFacet(myModule);
-
-    // Disable sources autogeneration by default. Tests which need it will enable it per-class.
-    // This is mostly to avoid "AE: VFS changes are not allowed during highlighting" caused by files added to VFS by the generator.
-    myFacet.getProperties().ENABLE_SOURCES_AUTOGENERATION = false;
 
     removeFacetOn(myFixture.getProjectDisposable(), myFacet);
 
@@ -455,32 +438,6 @@ public abstract class AndroidTestCase extends AndroidTestBase {
     });
   }
 
-  protected final SynchronizedBidiMultiMap<RefEntity, CommonProblemDescriptor> doGlobalInspectionTest(
-    @NotNull GlobalInspectionTool inspection, @NotNull String globalTestDir, @NotNull AnalysisScope scope) {
-    return doGlobalInspectionTest(new GlobalInspectionToolWrapper(inspection), globalTestDir, scope);
-  }
-
-  /**
-   * Given an inspection and a path to a directory that contains an "expected.xml" file, run the
-   * inspection on the current test project and verify that its output matches that of the
-   * expected file.
-   */
-  protected final SynchronizedBidiMultiMap<RefEntity, CommonProblemDescriptor> doGlobalInspectionTest(
-    @NotNull GlobalInspectionToolWrapper wrapper, @NotNull String globalTestDir, @NotNull AnalysisScope scope) {
-    myFixture.enableInspections(wrapper.getTool());
-
-    scope.invalidate();
-
-    InspectionManagerEx inspectionManager = (InspectionManagerEx)InspectionManager.getInstance(getProject());
-    GlobalInspectionContextForTests globalContext =
-      InspectionsKt.createGlobalContextForTool(scope, getProject(), Arrays.<InspectionToolWrapper<?, ?>>asList(wrapper));
-
-    InspectionTestUtil.runTool(wrapper, scope, globalContext);
-    InspectionTestUtil.compareToolResults(globalContext, wrapper, false, getTestDataPath() + globalTestDir);
-
-    return globalContext.getPresentation(wrapper).getProblemElements();
-  }
-
   public <T> void registerApplicationComponent(@NotNull Class<T> key, @NotNull T instance) {
     myApplicationComponentStack.registerComponentInstance(key, instance);
   }
@@ -503,6 +460,11 @@ public abstract class AndroidTestCase extends AndroidTestBase {
 
   public <T> void replaceProjectService(@NotNull Class<T> serviceType, @NotNull T newServiceInstance) {
     myIdeComponents.replaceProjectService(serviceType, newServiceInstance);
+  }
+
+  /** Waits 2 seconds for the app resource repository to finish currently pending updates. */
+  protected void waitForResourceRepositoryUpdates() throws InterruptedException, TimeoutException {
+    AndroidTestUtils.waitForResourceRepositoryUpdates(myFacet);
   }
 
   protected final static class MyAdditionalModuleData {

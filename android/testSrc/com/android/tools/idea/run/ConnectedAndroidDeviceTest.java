@@ -16,7 +16,7 @@
 package com.android.tools.idea.run;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -29,13 +29,13 @@ public class ConnectedAndroidDeviceTest {
   @Test
   public void getName_emulatorWithNoAvdName() {
     IDevice emulatorWithNoAvdName = createMockRunningEmulator(null);
-    assertThat(new ConnectedAndroidDevice(emulatorWithNoAvdName, null).getName()).isEqualTo("Google Pixel [local:5554]");
+    assertThat(new ConnectedAndroidDevice(emulatorWithNoAvdName).getName()).isEqualTo("Google Pixel [local:5554]");
   }
 
   @Test
   public void getName_emulatorWithAvdName() {
     IDevice emulatorWithNoAvdName = createMockRunningEmulator("My Pixel");
-    assertThat(new ConnectedAndroidDevice(emulatorWithNoAvdName, null).getName()).isEqualTo("Google Pixel [My Pixel]");
+    assertThat(new ConnectedAndroidDevice(emulatorWithNoAvdName).getName()).isEqualTo("Google Pixel [My Pixel]");
   }
 
   private static IDevice createMockRunningEmulator(@Nullable String avdName) {

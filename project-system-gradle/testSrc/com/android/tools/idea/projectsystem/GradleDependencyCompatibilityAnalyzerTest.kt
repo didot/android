@@ -16,10 +16,10 @@
 package com.android.tools.idea.projectsystem
 
 import com.android.SdkConstants
-import com.android.tools.idea.gradle.model.IdeAndroidProjectType
-import com.android.tools.idea.gradle.model.impl.IdeAndroidLibraryImpl
 import com.android.ide.common.repository.GoogleMavenRepository
 import com.android.ide.common.repository.GradleCoordinate
+import com.android.tools.idea.gradle.model.IdeAndroidProjectType
+import com.android.tools.idea.gradle.model.impl.IdeAndroidLibraryImpl
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager
 import com.android.tools.idea.projectsystem.gradle.CHECK_DIRECT_GRADLE_DEPENDENCIES
 import com.android.tools.idea.projectsystem.gradle.GradleDependencyCompatibilityAnalyzer
@@ -492,6 +492,7 @@ class GradleDependencyCompatibilityAnalyzerTest : AndroidTestCase() {
 private fun ideAndroidLibrary(artifactAddress: String) =
   IdeAndroidLibraryImpl(
     artifactAddress = artifactAddress,
+    name = artifactAddress,
     folder = File("libraryFolder"),
     manifest = "manifest.xml",
     compileJarFiles = listOf("file.jar"),

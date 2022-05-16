@@ -41,11 +41,13 @@ import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec
 import com.android.tools.idea.gradle.dsl.api.dependencies.DependenciesModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.DependencyConfigurationModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ExcludedDependencyModel;
+import com.android.tools.idea.gradle.dsl.api.dependencies.PlatformDependencyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ExtModel;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.InterpolatedText;
-import com.android.tools.idea.gradle.dsl.api.ext.InterpolatedText.*;
+import com.android.tools.idea.gradle.dsl.api.ext.InterpolatedText.InterpolatedTextItem;
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType;
+import com.android.tools.idea.gradle.dsl.api.ext.RawText;
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.model.GradleFileModelTestCase;
@@ -603,11 +605,11 @@ public class ArtifactDependencyTest extends GradleFileModelTestCase {
     assertThat(dependencies).hasSize(4);
 
     ArtifactDependencyModel guiceGuava = dependencies.get(1);
-    assertThat(guiceGuava.compactNotation()).isEqualTo("com.google.code.guice:guava:1.0");
+    assertThat(guiceGuava.compactNotation().toString()).isEqualTo("com.google.code.guice:guava:1.0");
     dependenciesModel.remove(guiceGuava);
 
     ArtifactDependencyModel guava = dependencies.get(2);
-    assertThat(guava.compactNotation()).isEqualTo("com.google.guava:guava:18.0");
+    assertThat(guava.compactNotation().toString()).isEqualTo("com.google.guava:guava:18.0");
     dependenciesModel.remove(guava);
 
     assertTrue(buildModel.isModified());
@@ -1403,6 +1405,23 @@ public class ArtifactDependencyTest extends GradleFileModelTestCase {
   }
 
   @Test
+  public void testCompactNotationSetToRawText() throws IOException {
+    writeToBuildFile(TestFile.COMPACT_NOTATION_SET_TO_RAW_TEXT);
+
+    GradleBuildModel buildModel = getGradleBuildModel();
+    DependenciesModel dependencies = buildModel.dependencies();
+
+    List<ArtifactDependencyModel> artifacts = dependencies.artifacts();
+    assertSize(1, artifacts);
+
+    ArtifactDependencyModel firstModel = artifacts.get(0);
+    firstModel.version().setValue(new RawText("\"${3+1}.0.0\"", "\"${listOf(4, 0, 0).joinToString(\".\")}\""));
+
+    applyChangesAndReparse(buildModel);
+    verifyFileContents(myBuildFile, TestFile.COMPACT_NOTATION_SET_TO_RAW_TEXT_EXPECTED);
+  }
+
+  @Test
   public void testCompactNotationElementUnsupportedOperations() throws IOException {
     writeToBuildFile(TestFile.COMPACT_NOTATION_ELEMENT_UNSUPPORTED_OPERATIONS);
 
@@ -2079,6 +2098,62 @@ public class ArtifactDependencyTest extends GradleFileModelTestCase {
     assertThat(artifacts.get(0).configurationName()).isEqualTo("implementation");
   }
 
+  @Test
+  public void testParsePlatformDependencies() throws IOException {
+    writeToBuildFile(TestFile.PARSE_PLATFORM_DEPENDENCIES);
+    GradleBuildModel buildModel = getGradleBuildModel();
+    List<ArtifactDependencyModel> artifacts = buildModel.dependencies().artifacts();
+
+    assertThat(artifacts).hasSize(5);
+    assertThat(artifacts.get(0).compactNotation()).isEqualTo("mapGroup:mapName:3.0");
+    assertThat(artifacts.get(0)).isInstanceOf(PlatformDependencyModel.class);
+    assertThat(((PlatformDependencyModel)(artifacts.get(0))).enforced()).isTrue();
+    assertThat(artifacts.get(1).compactNotation()).isEqualTo("stringGroup:stringName:3.1");
+    assertThat(artifacts.get(1)).isInstanceOf(PlatformDependencyModel.class);
+    assertThat(((PlatformDependencyModel)(artifacts.get(1))).enforced()).isFalse();
+    assertThat(artifacts.get(2).compactNotation()).isEqualTo("group:name:3.14");
+    assertThat(artifacts.get(2)).isInstanceOf(PlatformDependencyModel.class);
+    assertThat(((PlatformDependencyModel)(artifacts.get(2))).enforced()).isFalse();
+    assertThat(artifacts.get(3).compactNotation()).isEqualTo("argGroup:argName:3.141");
+    assertThat(artifacts.get(3)).isInstanceOf(PlatformDependencyModel.class);
+    assertThat(((PlatformDependencyModel)(artifacts.get(3))).enforced()).isFalse();
+    assertThat(artifacts.get(4).compactNotation()).isEqualTo("group:name:3.1415");
+    assertThat(artifacts.get(4)).isInstanceOf(PlatformDependencyModel.class);
+    assertThat(((PlatformDependencyModel)(artifacts.get(4))).enforced()).isTrue();
+  }
+
+  @Test
+  public void testSetPlatformDependencyVersions() throws IOException {
+    writeToBuildFile(TestFile.PARSE_PLATFORM_DEPENDENCIES);
+    GradleBuildModel buildModel = getGradleBuildModel();
+    List<ArtifactDependencyModel> artifacts = buildModel.dependencies().artifacts();
+    for (ArtifactDependencyModel artifact : artifacts) {
+      artifact.enableSetThrough();
+    }
+
+    artifacts.get(0).version().setValue("2.0");
+    artifacts.get(1).version().setValue("2.7");
+    artifacts.get(2).version().setValue("2.71");
+    artifacts.get(3).version().setValue("2.718");
+    artifacts.get(4).version().setValue("2.7182");
+
+    applyChangesAndReparse(buildModel);
+    verifyFileContents(myBuildFile, TestFile.SET_PLATFORM_DEPENDENCY_VERSIONS_EXPECTED);
+  }
+
+  @Test
+  public void testDeletePlatformDependencies() throws IOException {
+    writeToBuildFile(TestFile.PARSE_PLATFORM_DEPENDENCIES);
+    GradleBuildModel buildModel = getGradleBuildModel();
+    // TODO(b/199871443): there is currently no way to delete an artifact dependency with a map reference argument.
+    for (ArtifactDependencyModel artifact : buildModel.dependencies().artifacts().subList(1, 5)) {
+      artifact.completeModel().getUnresolvedModel().delete();
+    }
+
+    applyChangesAndReparse(buildModel);
+    verifyFileContents(myBuildFile, TestFile.DELETE_PLATFORM_DEPENDENCIES_EXPECTED);
+  }
+
   public static class ExpectedArtifactDependency extends ArtifactDependencySpecImpl {
     @NotNull public String configurationName;
 
@@ -2174,6 +2249,8 @@ public class ArtifactDependencyTest extends GradleFileModelTestCase {
     COMPACT_NOTATION_SET_TO_REFERENCE_EXPECTED("compactNotationSetToReferenceExpected"),
     COMPACT_NOTATION_SET_TO_INTERPOLATION("compactNotationSetToInterpolation"),
     COMPACT_NOTATION_SET_TO_INTERPOLATION_EXPECTED("compactNotationSetToInterpolationExpected"),
+    COMPACT_NOTATION_SET_TO_RAW_TEXT("compactNotationSetToRawText"),
+    COMPACT_NOTATION_SET_TO_RAW_TEXT_EXPECTED("compactNotationSetToRawTextExpected"),
     COMPACT_NOTATION_ELEMENT_UNSUPPORTED_OPERATIONS("compactNotationElementUnsupportedOperations"),
     SET_I_STR_IN_COMPACT_NOTATION("setIStrInCompactNotation"),
     SET_I_STR_IN_COMPACT_NOTATION_EXPECTED("setIStrInCompactNotationExpected"),
@@ -2215,6 +2292,9 @@ public class ArtifactDependencyTest extends GradleFileModelTestCase {
     INSERTION_ORDER("insertionOrder"),
     INSERTION_ORDER_EXPECTED("insertionOrderExpected"),
     SET_FULL_REFERENCE_MAP_EXPECTED("setFullReferenceMapExpected"),
+    PARSE_PLATFORM_DEPENDENCIES("parsePlatformDependencies"),
+    SET_PLATFORM_DEPENDENCY_VERSIONS_EXPECTED("setPlatformDependencyVersionsExpected"),
+    DELETE_PLATFORM_DEPENDENCIES_EXPECTED("deletePlatformDependenciesExpected"),
     ;
 
     @NotNull private @SystemDependent String path;

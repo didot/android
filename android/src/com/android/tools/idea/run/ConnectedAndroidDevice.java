@@ -19,7 +19,6 @@ import com.android.ddmlib.IDevice;
 import com.android.sdklib.AndroidVersion;
 import com.android.sdklib.IAndroidTarget;
 import com.android.sdklib.devices.Abi;
-import com.android.sdklib.internal.avd.AvdInfo;
 import com.android.tools.idea.ddms.DeviceNameRendererEx;
 import com.android.tools.idea.ddms.DevicePropertyUtil;
 import com.android.tools.idea.run.util.LaunchUtils;
@@ -28,7 +27,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.Function;
 import java.util.EnumSet;
@@ -39,33 +37,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class ConnectedAndroidDevice implements AndroidDevice {
-  private static final ExtensionPointName<DeviceNameRendererEx> EP_NAME = ExtensionPointName.create("com.android.run.deviceNameRenderer");
-
   @NotNull private final IDevice myDevice;
-  @Nullable private final String myAvdName;
   @Nullable private final DeviceNameRendererEx myDeviceNameRenderer;
   private volatile String myDeviceManufacturer;
   private volatile String myDeviceModel;
 
-  public ConnectedAndroidDevice(@NotNull IDevice device, @Nullable List<AvdInfo> avds) {
+  public ConnectedAndroidDevice(@NotNull IDevice device) {
     myDevice = device;
-
-    AvdInfo avd = getAvdInfo(device, avds);
-    myAvdName = avd == null ? null : avd.getDisplayName();
     myDeviceNameRenderer = getRendererExtension(device);
-  }
-
-  @Nullable
-  private static AvdInfo getAvdInfo(@NotNull IDevice device, @Nullable List<AvdInfo> avds) {
-    if (avds != null && device.isEmulator()) {
-      for (AvdInfo avd : avds) {
-        if (avd.getName().equals(device.getAvdName())) {
-          return avd;
-        }
-      }
-    }
-
-    return null;
   }
 
   @Override
@@ -131,14 +110,7 @@ public final class ConnectedAndroidDevice implements AndroidDevice {
     }
 
     if (isVirtual()) {
-      if (myAvdName != null) {
-        return myAvdName;
-      }
-      else {
-        // if the avd name is not available, then include the serial number in order to differentiate
-        // between multiple emulators
-        return getDeviceName() + " [" + getSerial() + "]";
-      }
+      return getDeviceName() + " [" + getSerial() + "]";
     }
     return getDeviceName();
   }
@@ -190,7 +162,7 @@ public final class ConnectedAndroidDevice implements AndroidDevice {
     if (application == null || application.isUnitTestMode()) {
       return null;
     }
-    for (DeviceNameRendererEx extensionRenderer : EP_NAME.getExtensions()) {
+    for (DeviceNameRendererEx extensionRenderer : DeviceNameRendererEx.EP_NAME.getExtensions()) {
       if (extensionRenderer.isApplicable(device)) {
         return extensionRenderer;
       }
@@ -204,7 +176,7 @@ public final class ConnectedAndroidDevice implements AndroidDevice {
                                     @NotNull IAndroidTarget projectTarget,
                                     @NotNull AndroidFacet facet,
                                     Function<AndroidFacet, EnumSet<IDevice.HardwareFeature>> getRequiredHardwareFeatures,
-                                    @NotNull Set<String> supportedAbis) {
+                                    @NotNull Set<Abi> supportedAbis) {
     return LaunchCompatibility.canRunOnDevice(minSdkVersion, projectTarget, facet, getRequiredHardwareFeatures, supportedAbis, this);
   }
 

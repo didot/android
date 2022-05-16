@@ -30,8 +30,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -41,14 +39,13 @@ import org.jetbrains.annotations.NotNull;
  * This is useful for installation commands which require administrator privileges
  * on Windows version 7 and above.
  */
-public final class ElevatedCommandLine extends GeneralCommandLine {
+public class ElevatedCommandLine extends GeneralCommandLine {
   private static final int SEE_MASK_NO_CLOSE_PROCESS = 0x00000040;
   private static final int INFINITE = -1;
   private String myTempFilePrefix;
 
   public ElevatedCommandLine(@NotNull String @NotNull ... command) {
     super(command);
-
     myTempFilePrefix = "temp";
   }
 
@@ -78,16 +75,14 @@ public final class ElevatedCommandLine extends GeneralCommandLine {
     // directory.
     // Note: This was needed for the Haxm silent_install.bat.
     String exeName = new File(getExePath()).getName();
-    Path wrapper = FileUtil.createTempFile(FileUtil.getNameWithoutExtension(exeName) + "_wrapper", ".bat", true).toPath();
+    File wrapper = FileUtil.createTempFile(FileUtil.getNameWithoutExtension(exeName) + "_wrapper", ".bat", true);
     String exePath = new File(getExePath()).getParent();
-    Files.createDirectories(wrapper.getParent());
-    //noinspection SpellCheckingInspection
-    Files.writeString(wrapper, String.format(
+    FileUtil.writeToFile(wrapper, String.format(
       "@echo off\n" +
       "setlocal enableextensions\n\n" +
       "cd /d \"%1$s\"\n\n" +
       "%2$s %%*", exePath, exeName));
-    setExePath(wrapper.toString());
+    setExePath(wrapper.getPath());
 
     // Setup capturing of stdout and stderr in files.
     // ShellExecuteEx does not allow for the capture from code.
@@ -115,7 +110,7 @@ public final class ElevatedCommandLine extends GeneralCommandLine {
    * A fake Process which will wait for the created process to finish
    * and wrap stdout and stderr into their respective {@link InputStream}.
    */
-  private static final class ProcessWrapper extends Process {
+  private static class ProcessWrapper extends Process {
     private HANDLE myProcess;
     private final IntByReference myExitCode;
     private final File myOutFile;

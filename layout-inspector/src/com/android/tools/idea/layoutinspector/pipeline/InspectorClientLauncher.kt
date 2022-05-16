@@ -15,19 +15,18 @@
  */
 package com.android.tools.idea.layoutinspector.pipeline
 
-import com.android.ddmlib.AndroidDebugBridge
 import com.android.sdklib.AndroidVersion
 import com.android.tools.idea.appinspection.api.process.ProcessesModel
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.concurrency.AndroidExecutors
-import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
+import com.android.tools.idea.layoutinspector.metrics.LayoutInspectorMetrics
 import com.android.tools.idea.layoutinspector.model.InspectorModel
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.AppInspectionInspectorClient
 import com.android.tools.idea.layoutinspector.pipeline.legacy.LegacyClient
-import com.android.tools.idea.layoutinspector.pipeline.transport.TransportInspectorClient
+import com.android.tools.idea.layoutinspector.ui.InspectorBannerService
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import org.jetbrains.annotations.TestOnly
 import java.util.concurrent.CountDownLatch
@@ -44,58 +43,55 @@ import java.util.concurrent.TimeUnit
  * @param executor The executor which will handle connecting / launching the current client. This
  * should not be the UI thread, in order to avoid blocking the UI during this time.
  */
-class InspectorClientLauncher(private val adb: AndroidDebugBridge,
-                              private val processes: ProcessesModel,
-                              private val clientCreators: List<(Params) -> InspectorClient?>,
-                              private val parentDisposable: Disposable,
-                              @VisibleForTesting val executor: Executor = AndroidExecutors.getInstance().workerThreadExecutor) {
+class InspectorClientLauncher(
+  private val processes: ProcessesModel,
+  private val clientCreators: List<(Params) -> InspectorClient?>,
+  private val project: Project,
+  private val parentDisposable: Disposable,
+  private val metrics: LayoutInspectorMetrics? = null,
+  @VisibleForTesting val executor: Executor = AndroidExecutors.getInstance().workerThreadExecutor
+) {
   companion object {
 
     /**
      * Convenience method for creating a launcher with useful client creation rules used in production
      */
     fun createDefaultLauncher(
-      adb: AndroidDebugBridge,
       processes: ProcessesModel,
       model: InspectorModel,
-      stats: SessionStatistics,
+      metrics: LayoutInspectorMetrics,
       parentDisposable: Disposable
     ): InspectorClientLauncher {
-      val transportComponents = TransportInspectorClient.TransportComponents()
-      Disposer.register(parentDisposable, transportComponents)
-
       return InspectorClientLauncher(
-        adb,
         processes,
         listOf(
           { params ->
             if (params.process.device.apiLevel >= AndroidVersion.VersionCodes.Q) {
-              if (StudioFlags.DYNAMIC_LAYOUT_INSPECTOR_USE_INSPECTION.get()) {
-                AppInspectionInspectorClient(params.adb, params.process, model, stats)
-              }
-              else {
-                TransportInspectorClient(params.adb, params.process, model, stats, transportComponents)
-              }
+              AppInspectionInspectorClient(params.process, params.isInstantlyAutoConnected, model, metrics, parentDisposable)
             }
             else {
               null
             }
           },
-          { params -> LegacyClient(params.adb, params.process, model, stats) }
+          { params -> LegacyClient(params.process, params.isInstantlyAutoConnected, model, metrics, parentDisposable) }
         ),
-        parentDisposable)
+        model.project,
+        parentDisposable,
+        metrics)
     }
   }
 
   interface Params {
-    val adb: AndroidDebugBridge
     val process: ProcessDescriptor
+    val isInstantlyAutoConnected: Boolean
     val disposable: Disposable
   }
 
   init {
     processes.addSelectedProcessListeners(executor) {
-      handleProcess(processes.selectedProcess)
+      if (!project.isDisposed) {
+        handleProcess(processes.selectedProcess, processes.isAutoConnected)
+      }
     }
 
     Disposer.register(parentDisposable) {
@@ -103,15 +99,15 @@ class InspectorClientLauncher(private val adb: AndroidDebugBridge,
     }
   }
 
-  private fun handleProcess(process: ProcessDescriptor?) {
+  private fun handleProcess(process: ProcessDescriptor?, isInstantlyAutoConnected: Boolean) {
     var validClientConnected = false
     if (process != null && process.isRunning && enabled) {
       val params = object : Params {
-        override val adb: AndroidDebugBridge = this@InspectorClientLauncher.adb
         override val process: ProcessDescriptor = process
+        override val isInstantlyAutoConnected: Boolean = isInstantlyAutoConnected
         override val disposable: Disposable = parentDisposable
       }
-
+      metrics?.setProcess(process)
       for (createClient in clientCreators) {
         val client = createClient(params)
         if (client != null) {
@@ -125,7 +121,8 @@ class InspectorClientLauncher(private val adb: AndroidDebugBridge,
             }
 
             activeClient = client // client.connect() call internally might throw
-            latch.await()
+            // InspectorClientLaunchMonitor should kill it before this, but just in case, don't wait forever.
+            latch.await(1, TimeUnit.MINUTES)
             if (validClientConnected) {
               break
             }
@@ -136,8 +133,17 @@ class InspectorClientLauncher(private val adb: AndroidDebugBridge,
       }
     }
 
-    if (!validClientConnected) {
+    if (!validClientConnected && !project.isDisposed) {
+      val bannerService = InspectorBannerService.getInstance(project)
+      // Save the banner so we can put it back after it's cleared by the client change, to show the error that made us disconnect.
+      val currentBanner = bannerService.notification
       activeClient = DisconnectedClient
+      if (enabled) {
+        // If we're enabled, don't show the process as selected anymore. If we're not (the window is minimized), we'll try to reconnect
+        // when we're reenabled, so leave the process selected.
+        processes.selectedProcess = null
+      }
+      bannerService.notification = currentBanner
     }
   }
 
@@ -147,6 +153,7 @@ class InspectorClientLauncher(private val adb: AndroidDebugBridge,
         if (field.isConnected) {
           field.disconnect()
         }
+        Disposer.dispose(field)
         field = value
         clientChangedCallbacks.forEach { callback -> callback(value) }
         value.connect()
@@ -175,7 +182,7 @@ class InspectorClientLauncher(private val adb: AndroidDebugBridge,
 
             if (runningProcess != null) {
               processes.selectedProcess = runningProcess // As a side effect, will ensure the pulldown is updated
-              executor.execute { handleProcess(processes.selectedProcess) }
+              executor.execute { handleProcess(processes.selectedProcess, isInstantlyAutoConnected = false) }
             }
           }
         }

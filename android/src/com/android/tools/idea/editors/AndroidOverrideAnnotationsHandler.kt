@@ -19,7 +19,11 @@ import com.intellij.codeInsight.AnnotationUtil
 import com.intellij.codeInsight.generation.OverrideImplementsAnnotationsHandler
 import com.intellij.codeInsight.intention.AddAnnotationPsiFix
 import com.intellij.openapi.project.Project
-import com.intellij.psi.*
+import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.PsiNameValuePair
 
 class AndroidOverrideAnnotationsHandler : OverrideImplementsAnnotationsHandler {
   @Suppress("OverridingDeprecatedMember")

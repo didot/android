@@ -16,9 +16,12 @@
 package com.android.tools.idea.gradle.project.upgrade
 
 import com.android.ide.common.repository.GradleVersion
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider
+import com.android.tools.idea.gradle.repositories.IdeGoogleMavenRepository
 import com.intellij.openapi.actionSystem.DataContext
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
@@ -31,8 +34,6 @@ class AgpUpgradeAction: BaseRefactoringAction() {
   override fun isEnabledOnDataContext(dataContext: DataContext) = true
   override fun isEnabledOnElements(elements: Array<out PsiElement>) = true
   override fun getHandler(dataContext: DataContext): RefactoringActionHandler? = AgpUpgradeActionHandler()
-
-  override fun isHidden() = !StudioFlags.AGP_UPGRADE_ASSISTANT.get()
 }
 
 class AgpUpgradeActionHandler: RefactoringActionHandler {
@@ -41,7 +42,13 @@ class AgpUpgradeActionHandler: RefactoringActionHandler {
 
   fun invoke(project: Project) {
     val current = project.findPluginInfo()?.pluginVersion ?: return
-    val new = GradleVersion.parse(LatestKnownPluginVersionProvider.INSTANCE.get())
-    showAndInvokeAgpUpgradeRefactoringProcessor(project, current, new)
+    val latestKnown = GradleVersion.parse(LatestKnownPluginVersionProvider.INSTANCE.get())
+    ApplicationManager.getApplication().executeOnPooledThread {
+      val published = IdeGoogleMavenRepository.getVersions("com.android.tools.build", "gradle")
+      val state = computeGradlePluginUpgradeState(current, latestKnown, published)
+      invokeLater(ModalityState.NON_MODAL) {
+        showAndInvokeAgpUpgradeRefactoringProcessor(project, current, state.target)
+      }
+    }
   }
 }

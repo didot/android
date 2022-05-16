@@ -16,7 +16,6 @@
 package com.android.tools.idea.res
 
 import com.android.tools.idea.projectsystem.getProjectSystem
-import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project

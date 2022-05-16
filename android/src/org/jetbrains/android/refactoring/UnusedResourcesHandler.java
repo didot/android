@@ -64,7 +64,7 @@ public class UnusedResourcesHandler implements RefactoringActionHandler {
 
   @Override
   public void invoke(@NotNull final Project project, @NotNull PsiElement[] elements, DataContext dataContext) {
-    Set<Module> moduleSet = new HashSet<Module>();
+    Set<Module> moduleSet = new HashSet<>();
     Module[] modules = LangDataKeys.MODULE_CONTEXT_ARRAY.getData(dataContext);
     if (modules != null) {
       Collections.addAll(moduleSet, modules);

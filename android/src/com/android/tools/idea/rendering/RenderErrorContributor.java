@@ -40,7 +40,6 @@ import static com.android.tools.lint.detector.api.Lint.stripIdPrefix;
 import com.android.ide.common.rendering.api.AttributeFormat;
 import com.android.ide.common.rendering.api.ILayoutLog;
 import com.android.ide.common.resources.ResourceResolver;
-import com.android.layoutlib.bridge.impl.RenderSessionImpl;
 import com.android.sdklib.IAndroidTarget;
 import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.model.AndroidModuleInfo;
@@ -48,6 +47,7 @@ import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.psi.TagToClassMapper;
 import com.android.tools.idea.rendering.classloading.ClassConverter;
 import com.android.tools.idea.rendering.classloading.InconvertibleClassError;
+import com.android.tools.idea.rendering.errors.ComposeRenderErrorContributor;
 import com.android.tools.idea.rendering.errors.ui.RenderErrorModel;
 import com.android.tools.idea.sdk.AndroidSdks;
 import com.android.tools.idea.ui.designer.EditorDesignSurface;
@@ -113,7 +113,7 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.swing.*;
+import javax.swing.JEditorPane;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.text.html.HTMLDocument;
@@ -136,7 +136,7 @@ import org.jetbrains.jps.model.java.compiler.JpsJavaCompilerOptions;
  * Class that finds {@link RenderErrorModel.Issue}s in a {@link RenderResult}.
  */
 public class RenderErrorContributor {
-  private static final String RENDER_SESSION_IMPL_FQCN = RenderSessionImpl.class.getCanonicalName();
+  private static final String RENDER_SESSION_IMPL_FQCN = "com.android.layoutlib.bridge.impl.RenderSessionImpl";
   private static final Key<CachedValue<Set<String>>> VIEWS_CACHE_KEY =
     new Key<>(RenderErrorContributor.class.getName() + ".VIEWS_CACHE");
 
@@ -678,20 +678,9 @@ public class RenderErrorContributor {
   private void addRefreshAction(@NotNull HtmlBuilder builder) {
     builder.newlineIfNecessary()
       .newline()
-      .addIcon(HtmlBuilderHelper.getRefreshIconPath())
+      .addIcon(HtmlBuilderHelper.getTipIconPath())
       .addLink("Tip: Try to ", "refresh", " the layout.",
                myLinkManager.createRefreshRenderUrl()).newline();
-  }
-
-  /**
-   * Adds a build call action to the given {@link HtmlBuilder}.
-   */
-  private void addBuildAction(@NotNull HtmlBuilder builder) {
-    builder.newlineIfNecessary()
-      .newline()
-      .addIcon(HtmlBuilderHelper.getRefreshIconPath())
-      .addLink(null, "Build", " the project.",
-               myLinkManager.createBuildProjectUrl()).newline();
   }
 
   private void reportRtlNotEnabled(@NotNull RenderLogger logger) {
@@ -793,15 +782,6 @@ public class RenderErrorContributor {
     }
   }
 
-  /**
-   * Returns true if the {@link Throwable} represents a failure to instantiate a Preview Composable. This means that the user probably
-   * added one or more previews and a build is needed.
-   */
-  private static boolean isComposeNotFoundThrowable(@Nullable Throwable throwable) {
-    return throwable instanceof NoSuchMethodException &&
-           "invokeComposableViaReflection".equals(throwable.getStackTrace()[1].getMethodName());
-  }
-
   private void reportOtherProblems(@NotNull RenderLogger logger) {
     List<RenderProblem> messages = logger.getMessages();
 
@@ -809,7 +789,7 @@ public class RenderErrorContributor {
       return;
     }
 
-    Set<String> seenTags = new HashSet<String>();
+    Set<String> seenTags = new HashSet<>();
     for (RenderProblem message : messages) {
       String tag = message.getTag();
       if (tag != null && seenTags.contains(tag)) {
@@ -843,21 +823,6 @@ public class RenderErrorContributor {
               .build();
             continue;
           }
-          case ILayoutLog.TAG_INFLATE: {
-            Throwable throwable = message.getThrowable();
-            if (isComposeNotFoundThrowable(throwable)) {
-              HtmlBuilder builder = new HtmlBuilder().add("The preview will display after rebuilding the project.");
-              addBuildAction(builder);
-              // This is a Compose not found error. This is not a high severity error so transform to a warning.
-              addIssue()
-                .setSeverity(HighlightSeverity.WARNING)
-                .setSummary("Unable to find @Preview '" + throwable.getMessage() + "'")
-                .setHtmlContent(builder)
-                .build();
-              continue;
-            }
-            break;
-          }
         }
       }
 
@@ -869,7 +834,7 @@ public class RenderErrorContributor {
       String summary = "Render problem";
       if (throwable != null) {
         if (!reportSandboxError(throwable, false, true)) {
-          if (isComposeNotFoundThrowable(throwable)) continue; // This is handled as a warning above.
+          if (ComposeRenderErrorContributor.isHandledByComposeContributor(throwable)) continue; // This is handled as a warning above.
           if (reportThrowable(builder, throwable, !html.isEmpty() || !message.isDefaultHtml())) {
             // The error was hidden.
             if (!html.isEmpty()) {
@@ -1129,11 +1094,11 @@ public class RenderErrorContributor {
     builder.endList();
 
     builder
-      .addIcon(HtmlBuilderHelper.getRefreshIconPath())
+      .addIcon(HtmlBuilderHelper.getTipIconPath())
       .addLink("Tip: Try to ", "build", " the project.",
                     myLinkManager.createBuildProjectUrl())
       .newline()
-      .addIcon(HtmlBuilderHelper.getRefreshIconPath())
+      .addIcon(HtmlBuilderHelper.getTipIconPath())
       .addLink("Tip: Try to ", "refresh", " the layout.",
                myLinkManager.createRefreshRenderUrl())
       .newline();
@@ -1371,7 +1336,7 @@ public class RenderErrorContributor {
             String matchText = clz.getText();
             final Pattern LAYOUT_FIELD_PATTERN = Pattern.compile("R\\.layout\\.([a-z0-9_]+)");
             Matcher matcher = LAYOUT_FIELD_PATTERN.matcher(matchText);
-            Set<String> layouts = new TreeSet<String>();
+            Set<String> layouts = new TreeSet<>();
             int index = 0;
             while (true) {
               if (matcher.find(index)) {
@@ -1458,6 +1423,7 @@ public class RenderErrorContributor {
     reportOtherProblems(logger);
     reportUnknownFragments(logger);
     reportRenderingFidelityProblems(logger);
+    myIssues.addAll(ComposeRenderErrorContributor.reportComposeErrors(logger, myLinkManager, myLinkHandler));
 
     return getIssues();
   }

@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.gradle.dsl.parser
 
-import com.android.tools.idea.gradle.dsl.api.util.GradleNameElementUtil
 import com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.UNKNOWN
 import com.android.tools.idea.gradle.dsl.parser.apply.ApplyDslElement
 import com.android.tools.idea.gradle.dsl.parser.apply.ApplyDslElement.APPLY_BLOCK_NAME
@@ -28,8 +27,10 @@ import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement
 import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement
 import com.android.tools.idea.gradle.dsl.parser.ext.ExtDslElement.EXT
 import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile
+import com.android.tools.idea.gradle.dsl.parser.files.GradleScriptFile
 import com.android.tools.idea.gradle.dsl.parser.repositories.FlatDirRepositoryDslElement
 import com.android.tools.idea.gradle.dsl.parser.repositories.MavenRepositoryDslElement
+import com.android.tools.idea.gradle.dsl.parser.semantics.ModelSemanticsDescription
 import com.android.tools.idea.gradle.dsl.parser.settings.ProjectPropertiesDslElement
 import com.google.common.collect.Lists
 import com.intellij.psi.PsiElement
@@ -80,8 +81,8 @@ fun GradleDslFile.getPropertiesElement(
           resultElement.setParsedElement(newElement)
           return@fold newElement
         }
-        APPLY_BLOCK_NAME -> {
-          val newApplyElement = ApplyDslElement(resultElement)
+        APPLY_BLOCK_NAME -> (resultElement.dslFile as? GradleScriptFile)?.let {
+          val newApplyElement = ApplyDslElement(resultElement, it)
           resultElement.setParsedElement(newApplyElement)
           return@fold newApplyElement
         }
@@ -185,13 +186,19 @@ fun maybeTrimForParent(element: GradleDslElement, converter: GradleDslNameConver
     null -> part
     else -> effect.property.name
   }
-  val parentParts = GradleNameElementUtil.split(parent.qualifiedName)
+  val parentParts = GradleNameElement.split(parent.qualifiedName)
   var i = 0
   while (i < parentParts.size && !parts.isEmpty() && parentParts[i] == parts[0]) {
     parts.removeAt(0)
     i++
   }
 
+  effect?.let {
+    if (it.semantics == ModelSemanticsDescription.CREATE_WITH_VALUE && it.property.name != part) {
+      parts.add(part)
+      return ExternalNameInfo(parts, element.externalSyntax, name.isFake)
+    }
+  }
   val externalNameInfo = converter.externalNameForParent(lastNamePart, parent)
   parts.addAll(externalNameInfo.externalNameParts)
   return ExternalNameInfo(parts, externalNameInfo.syntax, name.isFake)

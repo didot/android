@@ -35,12 +35,14 @@ import com.intellij.ui.ComboboxWithBrowseButton;
 import com.intellij.ui.ContextHelpLabel;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.util.Function;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.function.Function;
-import javax.swing.*;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -119,7 +121,7 @@ public class JdkSetupStep extends FirstRunWizardStep {
       @Override
       public void validateSelectedFiles(VirtualFile[] files) {
         for (VirtualFile virtualFile : files) {
-          validation.apply(virtualFile.toNioPath());
+          validation.fun(virtualFile.toNioPath());
         }
       }
     };

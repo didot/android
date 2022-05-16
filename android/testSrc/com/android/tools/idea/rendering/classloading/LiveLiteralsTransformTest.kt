@@ -20,7 +20,6 @@ import com.android.tools.idea.run.util.StopWatch
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
-import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.name.FqName
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -30,6 +29,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
+import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.time.Duration
@@ -187,7 +187,7 @@ class LiveLiteralsTransformTest {
       testClassLoader, usageReference("Test.kt", 3), 3.0f, 90f)
     ProjectConstantRemapper.getInstance(project).addConstant(
       testClassLoader, usageReference("Test.kt", 5), 0, 999)
-    val newTestClassInstance = testClassLoader.load("Test").newInstance() as LiveLiteralsInterface
+    val newTestClassInstance = testClassLoader.loadClass("Test").newInstance() as LiveLiteralsInterface
 
     assertTrue(hasLiveLiterals)
 
@@ -229,7 +229,7 @@ class LiveLiteralsTransformTest {
 
     val testClassLoader = setupTestClassLoader(mapOf("Test" to LiveLiteralsTestClass::class.java))
     ProjectConstantRemapper.getInstance(project).addConstant(testClassLoader, usageReference("Test", 0), "A1", "Remapped A1")
-    val newTestClassInstance = testClassLoader.load("Test").newInstance() as LiveLiteralsInterface
+    val newTestClassInstance = testClassLoader.loadClass("Test").newInstance() as LiveLiteralsInterface
 
     println(time {
       repeat(iterations) {

@@ -34,7 +34,6 @@ import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
-import com.intellij.testFramework.UsefulTestCase
 import org.jetbrains.android.AndroidTestCase
 import org.junit.Rule
 import org.junit.Test
@@ -219,6 +218,7 @@ private fun libModuleBuilderWithLib(gradleCacheRoot: File) =
 private fun ideAndroidLibrary(gradleCacheRoot: File, artifactAddress: String) =
   IdeAndroidLibraryImpl(
     artifactAddress = artifactAddress,
+    name = artifactAddress,
     folder = gradleCacheRoot.resolve(File("libraryFolder")),
     manifest = "manifest.xml",
     compileJarFiles = listOf("api.jar"),

@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.gradle.dsl.parser.android;
 
+import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR;
 import static com.android.tools.idea.gradle.dsl.model.android.FlavorTypeModelImpl.APPLICATION_ID_SUFFIX;
 import static com.android.tools.idea.gradle.dsl.model.android.FlavorTypeModelImpl.BUILD_CONFIG_FIELD;
 import static com.android.tools.idea.gradle.dsl.model.android.FlavorTypeModelImpl.CONSUMER_PROGUARD_FILES;
@@ -31,9 +32,12 @@ import static com.android.tools.idea.gradle.dsl.model.android.FlavorTypeModelImp
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.atLeast;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.exactly;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.property;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.AUGMENT_LIST;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.CLEAR_AND_AUGMENT_LIST;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.OTHER;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.SET;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelMapCollector.toModelMap;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelSemanticsDescription.CREATE_WITH_VALUE;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAL;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS;
@@ -43,9 +47,9 @@ import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
+import com.android.tools.idea.gradle.dsl.parser.semantics.VersionConstraint;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
@@ -54,39 +58,25 @@ import org.jetbrains.annotations.NotNull;
  */
 public abstract class AbstractFlavorTypeDslElement extends GradleDslBlockElement {
   @NotNull
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelNameMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap ktsToModelNameMap = Stream.of(new Object[][]{
     {"applicationIdSuffix", property, APPLICATION_ID_SUFFIX, VAR},
     {"setApplicationIdSuffix", exactly(1), APPLICATION_ID_SUFFIX, SET},
     {"buildConfigField", exactly(3), BUILD_CONFIG_FIELD, OTHER}, // ADD: add argument list as property to Dsl
-    {"consumerProguardFiles", atLeast(0), CONSUMER_PROGUARD_FILES, OTHER}, // APPENDN: append each argument
-    {"setConsumerProguardFiles", exactly(1), CONSUMER_PROGUARD_FILES, SET},
-    // in AGP 4.0, the manifestPlaceholders property is defined as a Java Map<String, Object>.  It is legal to use
-    // assignment to set this property to e.g. mapOf("a" to "b"), but not to mutableMapOf("a" to "b") because the inferred type of the
-    // mutableMapOf expression is MutableMap<String,String>, which is not compatible with (Mutable)Map<String!, Any!> (imagine something
-    // later on adding an entry to the property with String key and Integer value).
-    //
-    // in AGP 4.1, the manifestPlaceholders property is defined as a Kotlin MutableMap<String,Any>.  It would no longer be legal to assign
-    // a plain map; the assignment must be of a mutableMap.
-    //
-    // The DSL writer does not (as of January 2020) make use of information about which version of AGP is in use for this particular
-    // project.  It is therefore difficult to support writing out an assignment to manifestPlaceholders which will work in both cases:
-    // it would have to emit mutableMapOf<String,Any>(...).  This is perhaps desirable, but we don't have the general support
-    // for this: properties would need to be decorated with their types  TODO(b/148657110) so that we could get both manifestPlaceholders
-    //  and testInstrumentationRunnerArguments correct, and it is further complicated by setting the property through variables or extra
-    // properties.
-    //
-    // Instead, then, we will continue parsing assignments to manifestPlaceholders permissively, but when writing we will use the setter
-    // method rather than assignment.
-    {"manifestPlaceholders", property, MANIFEST_PLACEHOLDERS, VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS},
-    {"setManifestPlaceholders", exactly(1), MANIFEST_PLACEHOLDERS, OTHER}, // CLEAR + PUTALL, which is not quite the same as SET
+    {"consumerProguardFiles", atLeast(0), CONSUMER_PROGUARD_FILES, AUGMENT_LIST},
+    {"consumerProguardFile", exactly(1), CONSUMER_PROGUARD_FILES, AUGMENT_LIST},
+    {"setConsumerProguardFiles", exactly(1), CONSUMER_PROGUARD_FILES, CLEAR_AND_AUGMENT_LIST},
+    {"manifestPlaceholders", property, MANIFEST_PLACEHOLDERS, VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS, VersionConstraint.agpBefore("4.1.0")},
+    {"manifestPlaceholders", property, MANIFEST_PLACEHOLDERS, VAL, VersionConstraint.agpFrom("4.1.0")},
+    {"setManifestPlaceholders", exactly(1), MANIFEST_PLACEHOLDERS, SET, VersionConstraint.agpBefore("8.0.0")},
     {"matchingFallbacks", property, MATCHING_FALLBACKS, VAL},
-    {"setMatchingFallbacks", atLeast(1), MATCHING_FALLBACKS, OTHER}, // CLEAR + PUTALL, which is not quite the same as SET
+    {"setMatchingFallbacks", atLeast(1), MATCHING_FALLBACKS, CLEAR_AND_AUGMENT_LIST, VersionConstraint.agpBefore("8.0.0")},
     {"multiDexEnabled", property, MULTI_DEX_ENABLED, VAR},
     {"setMultiDexEnabled", exactly(1), MULTI_DEX_ENABLED, SET},
     {"multiDexKeepFile", property, MULTI_DEX_KEEP_FILE, VAR},
     {"multiDexKeepProguard", property, MULTI_DEX_KEEP_PROGUARD, VAR},
-    {"proguardFiles", atLeast(0), PROGUARD_FILES, OTHER},
-    {"setProguardFiles", exactly(1), PROGUARD_FILES, SET},
+    {"proguardFiles", atLeast(0), PROGUARD_FILES, AUGMENT_LIST},
+    {"proguardFile", exactly(1), PROGUARD_FILES, AUGMENT_LIST},
+    {"setProguardFiles", exactly(1), PROGUARD_FILES, CLEAR_AND_AUGMENT_LIST},
     {"resValue", exactly(3), RES_VALUE, OTHER},
     {"signingConfig", property, SIGNING_CONFIG, VAR},
     {"useJack", property, USE_JACK, VAR}, // actually deprecated / nonexistent
@@ -97,21 +87,30 @@ public abstract class AbstractFlavorTypeDslElement extends GradleDslBlockElement
     .collect(toModelMap());
 
   @NotNull
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelNameMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap groovyToModelNameMap = Stream.of(new Object[][]{
     {"applicationIdSuffix", property, APPLICATION_ID_SUFFIX, VAR},
     {"applicationIdSuffix", exactly(1), APPLICATION_ID_SUFFIX, SET},
     {"buildConfigField", exactly(3), BUILD_CONFIG_FIELD, OTHER},
-    {"consumerProguardFiles", atLeast(0), CONSUMER_PROGUARD_FILES, OTHER},
+    {"consumerProguardFiles", atLeast(0), CONSUMER_PROGUARD_FILES, AUGMENT_LIST},
     {"consumerProguardFiles", property, CONSUMER_PROGUARD_FILES, VAR},
+    {"consumerProguardFile", exactly(1), CONSUMER_PROGUARD_FILES, AUGMENT_LIST},
+    {"setConsumerProguardFiles", exactly(1), CONSUMER_PROGUARD_FILES, CLEAR_AND_AUGMENT_LIST},
     {"manifestPlaceholders", property, MANIFEST_PLACEHOLDERS, VAR},
     {"manifestPlaceholders", exactly(1), MANIFEST_PLACEHOLDERS, SET},
+    // TODO(xof): if we want to support the method call syntax (as opposed to the application statement syntax) of
+    //  setManifestPlaceholders([a: 'b']) more properly, this SET could become CLEAR_AND_AUGMENT_MAP (and we would need something a bit
+    //  like mungeElementsForAddToParsedElementList() in addToParsedElementMap).
+    {"setManifestPlaceholders", exactly(1), MANIFEST_PLACEHOLDERS, SET, VersionConstraint.agpBefore("8.0.0")},
     {"matchingFallbacks", property, MATCHING_FALLBACKS, VAR},
+    {"setMatchingFallbacks", atLeast(1), MATCHING_FALLBACKS, CLEAR_AND_AUGMENT_LIST, VersionConstraint.agpBefore("8.0.0")},
     {"multiDexEnabled", property, MULTI_DEX_ENABLED, VAR},
     {"multiDexEnabled", exactly(1), MULTI_DEX_ENABLED, SET},
     {"multiDexKeepFile", exactly(1), MULTI_DEX_KEEP_FILE, SET},
     {"multiDexKeepProguard", exactly(1), MULTI_DEX_KEEP_PROGUARD, SET},
-    {"proguardFiles", atLeast(0), PROGUARD_FILES, OTHER},
+    {"proguardFiles", atLeast(0), PROGUARD_FILES, AUGMENT_LIST},
     {"proguardFiles", property, PROGUARD_FILES, VAR},
+    {"proguardFile", exactly(1), PROGUARD_FILES, AUGMENT_LIST},
+    {"setProguardFiles", exactly(1), PROGUARD_FILES, CLEAR_AND_AUGMENT_LIST},
     {"resValue", exactly(3), RES_VALUE, OTHER},
     {"signingConfig", property, SIGNING_CONFIG, VAR},
     {"signingConfig", exactly(1), SIGNING_CONFIG, SET},
@@ -123,62 +122,16 @@ public abstract class AbstractFlavorTypeDslElement extends GradleDslBlockElement
     .collect(toModelMap());
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter.isKotlin()) {
-      return ktsToModelNameMap;
-    }
-    else if (converter.isGroovy()) {
-      return groovyToModelNameMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelNameMap, ktsToModelNameMap);
   }
 
   protected AbstractFlavorTypeDslElement(@NotNull GradleDslElement parent, @NotNull GradleNameElement name) {
     super(parent, name);
-    addDefaultProperty(new GradleDslExpressionMap(this, GradleNameElement.fake(MANIFEST_PLACEHOLDERS)));
-  }
-
-  @Override
-  public void addParsedElement(@NotNull GradleDslElement element) {
-    String property = element.getName();
-
-    // setProguardFiles has the same name in Groovy and Kotlin
-    if (property.equals("setProguardFiles")) {
-      // Clear the property since setProguardFiles overwrites these.
-      removeProperty(PROGUARD_FILES);
-      addToParsedExpressionList(PROGUARD_FILES, element);
-      return;
-    }
-
-    // setConsumerProguardFiles has the same name in Groovy and Kotlin
-    if (property.equals("setConsumerProguardFiles")) {
-      removeProperty(CONSUMER_PROGUARD_FILES);
-      addToParsedExpressionList(CONSUMER_PROGUARD_FILES, element);
-      return;
-    }
-
-    // proguardFiles and proguardFile have the same name in Groovy and Kotlin
-    if (property.equals("proguardFiles") || property.equals("proguardFile")) {
-      addToParsedExpressionList(PROGUARD_FILES, element);
-      return;
-    }
-
-    // consumerProguardFiles and consumerProguardFile have the same name in Groovy and Kotlin
-    if (property.equals("consumerProguardFiles") || property.equals("consumerProguardFile")) {
-      addToParsedExpressionList(CONSUMER_PROGUARD_FILES, element);
-      return;
-    }
-
-    if (property.equals("setMatchingFallbacks")) {
-      // Clear the property since setMatchingFallbacks overwrites these.
-      removeProperty(MATCHING_FALLBACKS);
-      addToParsedExpressionList(MATCHING_FALLBACKS, element);
-      return;
-    }
-
-
-    super.addParsedElement(element);
+    GradleDslExpressionMap manifestPlaceholders = new GradleDslExpressionMap(this, GradleNameElement.fake(MANIFEST_PLACEHOLDERS.name));
+    ModelEffectDescription effect = new ModelEffectDescription(MANIFEST_PLACEHOLDERS, CREATE_WITH_VALUE);
+    manifestPlaceholders.setModelEffect(effect);
+    manifestPlaceholders.setElementType(REGULAR);
+    addDefaultProperty(manifestPlaceholders);
   }
 }

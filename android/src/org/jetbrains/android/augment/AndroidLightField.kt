@@ -9,7 +9,15 @@ import com.google.common.base.MoreObjects
 import com.intellij.lang.java.JavaLanguage
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
+import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiExpression
+import com.intellij.psi.PsiField
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiModifier
+import com.intellij.psi.PsiType
+import com.intellij.psi.PsiTypeElement
+import com.intellij.psi.PsiVariable
 import com.intellij.psi.impl.ElementPresentationUtil
 import com.intellij.psi.impl.PsiClassImplUtil
 import com.intellij.psi.impl.PsiVariableEx

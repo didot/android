@@ -39,7 +39,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Stores the messages to be displayed in the "Messages" window.
  */
-public final class GradleBuildTreeStructure extends ErrorViewStructure {
+public class GradleBuildTreeStructure extends ErrorViewStructure {
   private final List<ErrorTreeElement> myMessages = ContainerUtil.createLockFreeCopyOnWriteList();
   private final ListMultimap<ErrorTreeElementKind, ErrorTreeElement> myMessagesByType = ArrayListMultimap.create();
   private final ListMultimap<String, NavigatableMessageElement> myGroupNameToMessagesMap = ArrayListMultimap.create();

@@ -21,19 +21,18 @@ import com.android.SdkConstants.ATTR_TEXT_COLOR
 import com.android.ide.common.rendering.api.ResourceNamespace
 import com.android.ide.common.rendering.api.ResourceReference
 import com.android.resources.ResourceType
-import com.android.testutils.ImageDiffUtil
-import com.android.testutils.TestUtils.resolveWorkspacePath
-import com.android.tools.adtui.common.secondaryPanelBackground
-import com.android.tools.adtui.imagediff.ImageDiffTestUtil
+import com.android.testutils.TestUtils
 import com.android.tools.adtui.stdui.KeyStrokes
 import com.android.tools.adtui.swing.FakeUi
 import com.android.tools.adtui.swing.IconLoaderRule
+import com.android.tools.adtui.swing.SetPortableUiFontRule
 import com.android.tools.idea.layoutinspector.model
 import com.android.tools.idea.layoutinspector.model.ResolutionStackModel
 import com.android.tools.idea.layoutinspector.properties.InspectorGroupPropertyItem
 import com.android.tools.idea.layoutinspector.properties.InspectorPropertiesModel
 import com.android.tools.idea.layoutinspector.properties.InspectorPropertyItem
 import com.android.tools.idea.layoutinspector.properties.PropertySection
+import com.android.tools.idea.layoutinspector.util.CheckUtil
 import com.android.tools.idea.layoutinspector.util.ComponentUtil.flatten
 import com.android.tools.idea.layoutinspector.util.DemoExample
 import com.android.tools.idea.layoutinspector.util.FakeTreeSettings
@@ -44,87 +43,67 @@ import com.android.tools.property.panel.impl.model.TextFieldPropertyEditorModel
 import com.android.tools.property.panel.impl.ui.PropertyTextField
 import com.google.common.truth.Truth.assertThat
 import com.intellij.ide.ui.laf.IntelliJLaf
-import com.intellij.openapi.util.SystemInfo
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
-import org.junit.After
-import org.junit.Before
-import org.junit.Ignore
+import com.intellij.ui.JBColor
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
 import org.junit.rules.RuleChain
 import java.awt.BorderLayout
-import java.awt.Component
-import java.awt.Container
 import java.awt.Dimension
-import java.awt.Font
 import java.awt.event.ActionEvent
-import java.awt.geom.AffineTransform
-import java.awt.image.BufferedImage
+import javax.swing.Box.Filler
+import javax.swing.BoxLayout
 import javax.swing.JComponent
+import javax.swing.JPanel
 import javax.swing.LookAndFeel
 import javax.swing.UIManager
+import javax.swing.plaf.metal.MetalLookAndFeel
+import javax.swing.plaf.metal.MetalTheme
 import com.android.tools.idea.layoutinspector.properties.PropertyType as Type
 
+
 private const val TEST_DATA_PATH = "tools/adt/idea/layout-inspector/testData/ui"
-private const val DIFF_THRESHOLD = 0.2
+private const val DIFF_THRESHOLD = 0.01
 
 @RunsInEdt
 class ResolutionElementEditorTest {
   private val projectRule = AndroidProjectRule.withSdk()
-  private var laf: LookAndFeel? = null
-  private var font: Font? = null
+
+  @get:Rule
+  val lafRuleChain = RuleChain.outerRule(IntelliJLafRule()).around(SetPortableUiFontRule())!!
 
   @get:Rule
   val ruleChain = RuleChain.outerRule(projectRule).around(EdtRule()).around(IconLoaderRule())!!
 
-  @Before
-  fun storeLAF() {
-    laf = UIManager.getLookAndFeel()
-    font = UIManager.getFont("Label.font")
-  }
-
-  @After
-  fun restoreLAF() {
-    setLookAndFeel(laf!!, font!!)
-    laf = null
-    font = null
-  }
-
   @Test
   fun testPaintClosed() {
-    setLookAndFeel(IntelliJLaf(), ImageDiffTestUtil.getDefaultFont())
     val editors = createEditors()
+    getEditor(editors, 1).isVisible = false
     checkImage(editors, "Closed")
   }
 
-  @Ignore("b/187441420")
   @Test
   fun testPaintOpen() {
-    setLookAndFeel(IntelliJLaf(), ImageDiffTestUtil.getDefaultFont())
     val editors = createEditors()
-    editors[0].editorModel.isExpandedTableItem = true
     checkImage(editors, "Open")
   }
 
-  @Ignore("b/187441420")
   @Test
   fun testPaintOpenWithDetails() {
-    setLookAndFeel(IntelliJLaf(), ImageDiffTestUtil.getDefaultFont())
     val editors = createEditors()
-    editors[0].editorModel.isExpandedTableItem = true
-    expandFirstLabel(editors[0], true)
+    getEditor(editors, 0).editorModel.isExpandedTableItem = true
+    expandFirstLabel(getEditor(editors, 0), true)
     checkImage(editors, "OpenWithDetails")
   }
 
-  @Ignore("b/187441420")
   @Test
   fun testPaintOpenWithTwoDetails() {
-    setLookAndFeel(IntelliJLaf(), ImageDiffTestUtil.getDefaultFont())
     val editors = createEditors()
-    editors[0].editorModel.isExpandedTableItem = true
-    expandFirstLabel(editors[0], true)
-    expandFirstLabel(editors[1], true)
+    getEditor(editors, 0).editorModel.isExpandedTableItem = true
+    expandFirstLabel(getEditor(editors, 0), true)
+    expandFirstLabel(getEditor(editors, 1), true)
     checkImage(editors, "OpenWithTwoDetails")
   }
 
@@ -132,7 +111,7 @@ class ResolutionElementEditorTest {
   fun testDynamicHeight() {
     var updateCount = 0
     val editors = createEditors()
-    val editor = editors[0]
+    val editor = getEditor(editors, 0)
     val model = editor.editorModel
     model.tableSupport = object : TableSupport {
       override fun updateRowHeight(scrollIntoView: Boolean) {
@@ -167,7 +146,7 @@ class ResolutionElementEditorTest {
     val item2 = InspectorPropertyItem(
       ANDROID_URI, ATTR_ELEVATION, ATTR_ELEVATION, Type.FLOAT, null, PropertySection.DEFAULT, null, node.drawId, model)
 
-    // The "textColor" attribute is defined in the layout file and we should have a link to the layout definition
+    // The "textColor" attribute is defined in the layout file, and we should have a link to the layout definition
     assertThat(ResolutionElementEditor.hasLinkPanel(item1)).isTrue()
 
     // The "elevation" attribute is never set so there will not be a link to follow:
@@ -177,7 +156,7 @@ class ResolutionElementEditorTest {
   @Test
   fun testDoubleClick() {
     val editors = createEditors()
-    val editor = editors[0]
+    val editor = getEditor(editors, 0)
     var toggleCount = 0
     val model = editor.editorModel
     model.tableSupport = object : TableSupport {
@@ -195,41 +174,12 @@ class ResolutionElementEditorTest {
     assertThat(toggleCount).isEqualTo(2)
   }
 
-  private fun checkImage(editors: List<ResolutionElementEditor>, expected: String) {
-    editors.forEach { updateSize(it) }
-    @Suppress("UndesirableClassUsage")
-    val generatedImage = BufferedImage(200, 300, BufferedImage.TYPE_INT_ARGB)
-    val graphics = generatedImage.createGraphics()
-    graphics.color = secondaryPanelBackground
-    graphics.fillRect(0, 0, 200, 300)
-    editors[0].setSize(200, editors[0].height)
-    editors[0].doLayout()
-    editors[0].paint(graphics)
-    var y = editors[0].height
-    if (editors[0].editorModel.isExpandedTableItem) {
-      for (index in 1 until editors.size) {
-        graphics.transform = AffineTransform.getTranslateInstance(0.0, y.toDouble())
-        editors[index].setSize(200, editors[index].height)
-        editors[index].doLayout()
-        editors[index].paint(graphics)
-        y += editors[index].height
-      }
-    }
-    val platform = SystemInfo.OS_NAME.replace(' ', '_')
-    val filename = "$TEST_DATA_PATH/testResolutionEditorPaint$expected$platform.png"
-    ImageDiffUtil.assertImageSimilar(resolveWorkspacePath(filename), generatedImage, DIFF_THRESHOLD)
-  }
-
-  private fun updateSize(component: Component) {
-    component.invalidate()
-    if (component is Container) {
-      component.components.forEach { updateSize(it) }
-      component.size = component.preferredSize
-      component.doLayout()
-    }
-    else {
-      component.size = component.preferredSize
-    }
+  private fun checkImage(editors: JPanel, expected: String) {
+    editors.setBounds(0, 0, 200, 300)
+    val ui = FakeUi(editors)
+    val generatedImage = ui.render()
+    CheckUtil.assertImageSimilarPerPlatform(TestUtils.resolveWorkspacePath(TEST_DATA_PATH), "testResolutionEditorPaint$expected",
+                                            generatedImage, DIFF_THRESHOLD)
   }
 
   private fun expandFirstLabel(editor: ResolutionElementEditor, open: Boolean) {
@@ -240,7 +190,7 @@ class ResolutionElementEditorTest {
     action.actionPerformed(event)
   }
 
-  private fun createEditors(): List<ResolutionElementEditor> {
+  private fun createEditors(): JPanel {
     val model = model(projectRule.project, FakeTreeSettings(), DemoExample.setUpDemo(projectRule.fixture))
     val node = model["title"]!!
     val item = InspectorPropertyItem(
@@ -250,11 +200,18 @@ class ResolutionElementEditorTest {
     val value = model.resourceLookup.findAttributeValue(item, node, item.source!!)
     val property = InspectorGroupPropertyItem(
       ANDROID_URI, item.attrName, item.type, value, null, item.section, item.source, node.drawId, model, map)
-    val editors = mutableListOf<ResolutionElementEditor>()
+    val editors = JPanel()
+    editors.layout = BoxLayout(editors, BoxLayout.PAGE_AXIS)
     val propertiesModel = InspectorPropertiesModel()
     editors.add(createEditor(property, propertiesModel))
     property.children.forEach { editors.add(createEditor(it, propertiesModel)) }
+    editors.add(Filler(Dimension(0,0), Dimension(Int.MAX_VALUE, Int.MAX_VALUE), Dimension(Int.MAX_VALUE, Int.MAX_VALUE)))
+    editors.background = JBColor.WHITE
     return editors
+  }
+
+  private fun getEditor(editors: JPanel, index: Int): ResolutionElementEditor {
+    return editors.getComponent(index) as ResolutionElementEditor
   }
 
   private fun createEditor(property: PropertyItem, propertiesModel: InspectorPropertiesModel): ResolutionElementEditor {
@@ -265,15 +222,30 @@ class ResolutionElementEditorTest {
     return ResolutionElementEditor(model, editorModel, editorComponent)
   }
 
-  private fun setLookAndFeel(laf: LookAndFeel, defaultFont: Font) {
-    UIManager.setLookAndFeel(laf)
-    val defaults = UIManager.getDefaults()
-    defaults["TextField.font"] = defaultFont
-    defaults["Label.font"] = defaultFont
-    defaults["Panel.font"] = defaultFont
-    defaults["TabbedPane.font"] = defaultFont
-  }
-
   private fun findFirstLinkComponent(editor: ResolutionElementEditor): JComponent? =
     flatten(editor).filter { (it as? JComponent)?.actionMap?.get("open") != null }[0] as JComponent?
+}
+
+class IntelliJLafRule : ExternalResource() {
+  private var laf: LookAndFeel? = null
+  private var theme: MetalTheme? = null
+
+  override fun before() {
+    laf = UIManager.getLookAndFeel()
+    // If the current LaF is MetalLookAndFeel, we also need to save away the theme, which provides the colors and fonts to MetalLookAndFeel,
+    // since IntelliJLaf changes is.
+    theme = MetalLookAndFeel.getCurrentTheme()
+    // Clear out anything set explicitly by previous tests
+    UIManager.getDefaults().clear()
+    UIManager.setLookAndFeel(IntelliJLaf())
+  }
+
+  override fun after() {
+    UIManager.getDefaults().clear()
+
+    MetalLookAndFeel.setCurrentTheme(theme)
+    UIManager.setLookAndFeel(laf)
+    laf = null
+    theme = null
+  }
 }

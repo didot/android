@@ -60,8 +60,8 @@ public class AndroidProfilerToolWindowFactory implements DumbAware, ToolWindowFa
     toolWindow.setStripeTitle(PROFILER_TOOL_WINDOW_TITLE);
     // Android Studio wants to always show the stripe button for profiler. It's a common entry point into
     // profiler for Studio users.
-    // FIXME-ank6: Double check that we don't show strip in non-android IDEA projects
-    toolWindow.setShowStripeButton(true);
+    // In IDEA there is JAVA profiler which should have priority
+    toolWindow.setShowStripeButton(false);
 
     // When we initialize the ToolWindow we call to the profiler service to also make sure it is initialized.
     // The default behavior for intellij is to lazy load services so having this call here forces intellij to
@@ -69,11 +69,13 @@ public class AndroidProfilerToolWindowFactory implements DumbAware, ToolWindowFa
     // Note: The AndroidProfilerService is where all application level components should be managed. This means if
     // we have something that impacts the TransportPipeline or should be done only once for X instances of
     // profilers or projects it will need to be handled there.
-    AndroidProfilerService.getInstance(); // FIXME-ank2: too early!
+    AndroidProfilerService.getInstance();
   }
 
   private static void createContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-    AndroidProfilerToolWindow view = new AndroidProfilerToolWindow(new ToolWindowWrapperImpl(project, toolWindow), project);
+    ToolWindowWrapper wrapper = new ToolWindowWrapperImpl(project, toolWindow);
+    AndroidProfilerToolWindow view = new AndroidProfilerToolWindow(wrapper, project);
+
     ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
     Content content = contentFactory.createContent(view.getComponent(), "", false);
     Disposer.register(project, view);
@@ -99,7 +101,7 @@ public class AndroidProfilerToolWindowFactory implements DumbAware, ToolWindowFa
     }
 
     ContentManager contentManager = window.getContentManager();
-    if (contentManager.getContentCount() == 0) {
+    if (contentManager == null || contentManager.getContentCount() == 0) {
       return null;
     }
 

@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.layoutinspector.util
 
+import com.android.SdkConstants
 import com.android.testutils.ImageDiffUtil
 import com.android.tools.idea.layoutinspector.model.DrawViewChild
 import com.android.tools.idea.layoutinspector.model.DrawViewImage
@@ -26,11 +27,14 @@ import com.intellij.openapi.vfs.VirtualFile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import java.awt.image.BufferedImage
+import java.nio.file.Path
 
 /**
  * Various checks for tests.
  */
 object CheckUtil {
+
+  const val ANY_DRAW_ID = Long.MIN_VALUE
 
   /**
    * Return the line at the [offset] of the specified [file] as a string.
@@ -47,10 +51,14 @@ object CheckUtil {
    * Right now the check is pretty cursory, but it can be expanded as needed.
    */
   fun assertDrawTreesEqual(expected: ViewNode, actual: ViewNode, treeSettings: TreeSettings = FakeTreeSettings()) {
-    assertEquals(expected.drawId, actual.drawId)
-    ViewNode.readDrawChildren { drawChildren ->
-      assertEquals("for node ${expected.drawId}", expected.drawChildren().size, actual.drawChildren().size)
-      expected.drawChildren().zip(actual.drawChildren()).forEach { (expected, actual) -> checkTreesEqual(expected, actual, treeSettings) }
+    if (expected.drawId != ANY_DRAW_ID) {
+      assertEquals(expected.drawId, actual.drawId)
+    }
+    ViewNode.readAccess {
+      assertEquals("for node ${expected.drawId}", expected.drawChildren.size, actual.drawChildren.size)
+      expected.drawChildren.zip(actual.drawChildren).forEach {
+        (expected, actual) -> checkTreesEqual(expected, actual, treeSettings)
+      }
     }
   }
 
@@ -68,4 +76,15 @@ object CheckUtil {
       fail("$actual was expected to be a ${expected.javaClass.name}")
     }
   }
+
+  fun assertImageSimilarPerPlatform(testDataPath: Path, fileNameBase: String, actual: BufferedImage, maxPercentDifferent: Double) {
+    val os = when (SdkConstants.currentPlatform()) {
+      SdkConstants.PLATFORM_LINUX -> "linux"
+      SdkConstants.PLATFORM_DARWIN -> "mac"
+      SdkConstants.PLATFORM_WINDOWS -> "windows"
+      else -> throw IllegalArgumentException("unknown platform ${SdkConstants.currentPlatform()}")
+    }
+    ImageDiffUtil.assertImageSimilar(testDataPath.resolve("$fileNameBase-$os.png"), actual, maxPercentDifferent)
+  }
+
 }

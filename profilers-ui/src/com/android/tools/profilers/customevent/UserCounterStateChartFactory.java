@@ -19,7 +19,6 @@ import com.android.tools.adtui.chart.statechart.DefaultStateChartReducer;
 import com.android.tools.adtui.chart.statechart.StateChart;
 import com.android.tools.adtui.chart.statechart.StateChartColorProvider;
 import com.android.tools.adtui.chart.statechart.StateChartConfig;
-import com.android.tools.adtui.model.Range;
 import com.android.tools.adtui.model.StateChartModel;
 import com.android.tools.adtui.model.formatter.UserCounterAxisFormatter;
 import com.android.tools.profilers.ProfilerColors;
@@ -33,7 +32,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class UserCounterStateChartFactory {
 
-  private static final StateChartColorProvider<Long> DURATION_STATE_COLOR_PROVIDER = new StateChartColorProvider<Long>() {
+  private static final StateChartColorProvider<Long> DURATION_STATE_COLOR_PROVIDER = new StateChartColorProvider<>() {
     @NotNull
     @Override
     public Color getColor(boolean isMouseOver, @NotNull Long value) {
@@ -55,7 +54,8 @@ public class UserCounterStateChartFactory {
 
   @NotNull
   public static StateChart<Long> create(@NotNull StateChartModel<Long> model) {
-    return new StateChart<>(model, new StateChartConfig<>(new DefaultStateChartReducer<>(), 0.33, 1, 0.33f), DURATION_STATE_COLOR_PROVIDER);
+    return new StateChart<>(model, DURATION_STATE_COLOR_PROVIDER, Object::toString,
+                            new StateChartConfig<>(new DefaultStateChartReducer<>(), 0.33, 1, 0.33f));
   }
 
   @VisibleForTesting

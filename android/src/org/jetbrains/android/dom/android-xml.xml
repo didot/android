@@ -62,12 +62,15 @@
     <dom.fileDescription implementation="org.jetbrains.android.dom.resources.ResourcesDomFileDescription"/>
     <dom.fileDescription implementation="org.jetbrains.android.dom.xml.PreferenceClassDomFileDescription"/>
     <dom.fileDescription implementation="org.jetbrains.android.dom.xml.XmlResourceDomFileDescription"/>
+    <dom.fileMetaData implementation="org.jetbrains.android.dom.xml.AppRestrictionsDomFileDescription" rootTagName="restrictions"/>
     <dom.fileDescription implementation="org.jetbrains.android.dom.lint.LintSettingsFileDescription"/>
     <dom.fileDescription implementation="org.jetbrains.android.dom.font.FontFamilyDomFileDescription"/>
     <dom.fileDescription implementation="com.android.tools.idea.dom.xml.PathsDomFileDescription"/>
     <dom.fileDescription implementation="org.jetbrains.android.dom.motion.MotionDomFileDescription"/>
     <dom.fileDescription implementation="org.jetbrains.android.dom.layout.MergeDomFileDescription"/>
     <dom.fileDescription implementation="org.jetbrains.android.dom.layout.ViewTagDomFileDescription"/>
+    <dom.fileDescription implementation="org.jetbrains.android.dom.navigation.NavigationDomFileDescription"/>
+    <dom.fileMetaData implementation="org.jetbrains.android.dom.drawable.fileDescriptions.CustomDrawableElementDomFileDescription"/>
 
     <!--  The dynamic DOM extender:  -->
     <dom.extender domClass="org.jetbrains.android.dom.AndroidDomElement" extenderClass="org.jetbrains.android.dom.AndroidDomExtender"/>

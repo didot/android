@@ -1,4 +1,5 @@
 load("//tools/base/bazel:bazel.bzl", "iml_module")
+load("//tools/base/bazel:maven.bzl", "maven_repository")
 
 # managed by go/iml_to_build
 iml_module(
@@ -21,11 +22,12 @@ iml_module(
         "//tools/base/flags:studio.android.sdktools.flags[module]",
         "//tools/adt/idea/artwork:intellij.android.artwork[module]",
         "//tools/adt/idea/android-common:intellij.android.common[module]",
-        "//tools/adt/idea/nav/editor:eclipse-layout-kernel",
+        "//prebuilts/tools/common/m2:eclipse-layout-kernel",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
         "//tools/adt/idea/adt-ui-model:intellij.android.adt.ui.model[module]",
         "//tools/adt/idea/observable:intellij.android.observable[module]",
         "//tools/adt/idea/observable-ui:intellij.android.observable.ui[module]",
+        "//tools/adt/idea/android-npw:intellij.android.newProjectWizard[module]",
     ],
 )
 
@@ -39,6 +41,7 @@ iml_module(
     ],
     test_class = "com.android.tools.idea.naveditor.NavEditorTestSuite",
     test_data = [
+        ":test_deps",
         "//prebuilts/studio/layoutlib:build.prop",
         "//prebuilts/studio/layoutlib/data/fonts",
         "//prebuilts/studio/layoutlib/data:framework_res.jar",
@@ -46,7 +49,6 @@ iml_module(
         "//prebuilts/studio/layoutlib/data:native_libs",
         "//tools/adt/idea/android/testData",
         "//tools/adt/idea/designer/testData",
-        "//tools/adt/idea/android:test_deps.zip",
         "//prebuilts/studio/sdk:platforms/latest",
     ] + glob(["testData/**"]),
     test_srcs = ["testSrc"],
@@ -57,7 +59,6 @@ iml_module(
         "//prebuilts/studio/intellij-sdk:studio-sdk",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin",
-        "//tools/adt/idea/designer:intellij.android.designer.tests[module, test]",
         "//tools/adt/idea/.idea/libraries:mockito[test]",
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
         "//tools/analytics-library/shared:analytics-shared[module, test]",
@@ -75,19 +76,20 @@ iml_module(
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module, test]",
         "//tools/adt/idea/adt-ui-model:intellij.android.adt.ui.model[module, test]",
+        "//tools/adt/idea/layoutlib:intellij.android.layoutlib[module]",
     ],
 )
 
-# managed by go/iml_to_build
-java_import(
-    name = "eclipse-layout-kernel",
-    # do not sort: must match IML order
-    jars = [
-        "//prebuilts/tools/common/m2/repository/org/eclipse/elk/org.eclipse.elk.alg.layered/0.3.0:eclipse-layout-kernel_files",
-        "//prebuilts/tools/common/m2/repository/org/eclipse/elk/org.eclipse.elk.core/0.3.0:eclipse-layout-kernel_files",
-        "//prebuilts/tools/common/m2/repository/org/eclipse/elk/org.eclipse.elk.graph/0.3.0:eclipse-layout-kernel_files",
-        "//prebuilts/tools/common/m2/repository/org/eclipse/emf/org.eclipse.emf.common/2.12.0:eclipse-layout-kernel_files",
-        "//prebuilts/tools/common/m2/repository/org/eclipse/emf/org.eclipse.emf.ecore/2.12.0:eclipse-layout-kernel_files",
+maven_repository(
+    name = "test_deps",
+    artifacts = [
+        "@maven//:android.arch.navigation.navigation-fragment_1.0.0",
+        "@maven//:androidx.navigation.navigation-fragment_2.3.5",
+        "@maven//:com.google.jimfs.jimfs_1.1",
+        "@maven//:com.sun.activation.javax.activation_1.2.0",
+        "@maven//:javax.inject.javax.inject_1",
+        "@maven//:junit.junit_4.12",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk7_1.4.32",
+        "@maven//:xmlpull.xmlpull_1.1.3.1",
     ],
-    visibility = ["//visibility:public"],
 )

@@ -20,18 +20,20 @@ import com.android.repository.impl.meta.TypeDetails
 import com.android.sdklib.AndroidVersion
 import com.android.sdklib.repository.AndroidSdkHandler
 import com.google.common.collect.ImmutableMultimap
+import com.intellij.ide.util.PropertiesComponent
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
+import kotlin.test.assertEquals
 
 /**
  * Tests for the node tree inside the [PlatformComponentsPanel]
  */
 class PlatformComponentsPanelTest {
-
   @Mock private lateinit var myConfigurable: SdkUpdaterConfigurable
+  @Mock private lateinit var propertiesComponent: PropertiesComponent
   private lateinit var closeable: AutoCloseable
 
   @Before
@@ -45,54 +47,93 @@ class PlatformComponentsPanelTest {
   }
 
   @Test
-  fun testInvalidSdk() {
-    //SDKs with AndroidVersion api 0 will be ignored (b/191014630)
-    val panel = PlatformComponentsPanel()
+  fun testSdkExtensions() {
+    val panel = PlatformComponentsPanel(propertiesComponent)
     panel.setConfigurable(myConfigurable)
     val typeDetails = AndroidSdkHandler.getRepositoryModule().createLatestFactory().createPlatformDetailsType() as TypeDetails
     panel.setPackages(ImmutableMultimap.of(
       AndroidVersion(30), UpdatablePackage(createLocalPackage("android-30", 1, typeDetails = typeDetails)),
-      AndroidVersion(29), UpdatablePackage(createLocalPackage("android-29", 2,typeDetails = typeDetails)),
-      AndroidVersion(0), UpdatablePackage(createLocalPackage("android-0", 0, typeDetails = typeDetails)) // Invalid AndroidVersion
+      AndroidVersion(30, null, 1, false), UpdatablePackage(createLocalPackage("android-30-1", 1, typeDetails = typeDetails)),
+      AndroidVersion(30, null, 2, false), UpdatablePackage(createLocalPackage("android-30-2", 1, typeDetails = typeDetails)),
+      AndroidVersion(30, "Codename"), UpdatablePackage(createLocalPackage("android-Codename", 2, typeDetails = typeDetails))
     ))
-    verifyNodes(
-      Node("", listOf("Android 11.0 (R)", "Android 10.0 (Q)").map { Node(it) }), panel.myPlatformSummaryRootNode)
+    assertEquals("""
+      Root
+       Android Codename Preview
+       Android 11.0 (R)
+    """.trimIndent(), panel.myPlatformSummaryRootNode.asString())
 
-    verifyNodes(
-      Node("", listOf(
-        Node("Android 11.0 (R)", listOf(Node("android-30"))),
-        Node("Android 10.0 (Q)", listOf(Node("android-29")))
-      )), panel.myPlatformDetailsRootNode)
+    assertEquals("""
+      Root
+       Android Codename Preview
+        android-Codename
+       Android 11.0 (R)
+        android-30
+       Android 11.0 (R), Extension Level 1
+        android-30-1
+       Android 11.0 (R), Extension Level 2
+        android-30-2
+    """.trimIndent(), panel.myPlatformDetailsRootNode.asString())
+  }
+
+  @Test
+  fun testInvalidSdk() {
+    //SDKs with AndroidVersion api 0 will be ignored (b/191014630)
+    val panel = PlatformComponentsPanel(propertiesComponent)
+    panel.setConfigurable(myConfigurable)
+    val typeDetails = AndroidSdkHandler.getRepositoryModule().createLatestFactory().createPlatformDetailsType() as TypeDetails
+    panel.setPackages(ImmutableMultimap.of(
+      AndroidVersion(30), UpdatablePackage(createLocalPackage("android-30", 1, typeDetails = typeDetails)),
+      AndroidVersion(29), UpdatablePackage(createLocalPackage("android-29", 2, typeDetails = typeDetails)),
+      AndroidVersion(AndroidVersion.VersionCodes.UNDEFINED),
+      UpdatablePackage(createLocalPackage("android-0", 0, typeDetails = typeDetails)) // Invalid AndroidVersion
+    ))
+    assertEquals("""
+      Root
+       Android 11.0 (R)
+       Android 10.0 (Q)
+    """.trimIndent(), panel.myPlatformSummaryRootNode.asString())
+
+    assertEquals("""
+      Root
+       Android 11.0 (R)
+        android-30
+       Android 10.0 (Q)
+        android-29
+    """.trimIndent(), panel.myPlatformDetailsRootNode.asString())
   }
 
   @Test
   fun testValidNodes() {
-    val panel = PlatformComponentsPanel()
+    val panel = PlatformComponentsPanel(propertiesComponent)
     panel.setConfigurable(myConfigurable)
     val typeDetails = AndroidSdkHandler.getRepositoryModule().createLatestFactory().createPlatformDetailsType() as TypeDetails
     panel.setPackages(ImmutableMultimap.of(
       AndroidVersion(30), UpdatablePackage(createLocalPackage("android-30", 1, typeDetails = typeDetails)),
-      AndroidVersion(7), UpdatablePackage(createLocalPackage("android-7", 2, typeDetails = typeDetails)),
       AndroidVersion(21), UpdatablePackage(createLocalPackage("android-21", 2, typeDetails = typeDetails)),
       AndroidVersion(21), UpdatablePackage(createLocalPackage("android-21", 1)),
-      AndroidVersion(29), UpdatablePackage(createLocalPackage("android-29", 2, typeDetails = typeDetails)),
+      AndroidVersion(500), UpdatablePackage(createLocalPackage("android-500", 2, typeDetails = typeDetails)),
+      AndroidVersion(501, "Codename"), UpdatablePackage(createLocalPackage("android-501", 2, typeDetails = typeDetails))
     ))
-    verifyNodes(
-      Node(
-        "",
-        listOf(
-          "Android 11.0 (R)",
-          "Android 10.0 (Q)",
-          "Android 5.0 (Lollipop)",
-          "Android 2.1 (Eclair)").map { Node(it) }
-      ), panel.myPlatformSummaryRootNode)
+    assertEquals("""
+      Root
+       Android Codename Preview
+       Android API 500
+       Android 11.0 (R)
+       Android 5.0 (Lollipop)
+    """.trimIndent(), panel.myPlatformSummaryRootNode.asString())
 
-    verifyNodes(
-      Node("", listOf(
-        Node("Android 11.0 (R)", listOf(Node("android-30"))),
-        Node("Android 10.0 (Q)", listOf(Node("android-29"))),
-        Node("Android 5.0 (Lollipop)", listOf(Node("android-21"), Node("android-21"))),
-        Node("Android 2.1 (Eclair)", listOf(Node("android-7"))))
-      ), panel.myPlatformDetailsRootNode)
+    assertEquals("""
+      Root
+       Android Codename Preview
+        android-501
+       Android API 500
+        android-500
+       Android 11.0 (R)
+        android-30
+       Android 5.0 (Lollipop)
+        android-21
+        android-21
+    """.trimIndent(), panel.myPlatformDetailsRootNode.asString())
   }
 }

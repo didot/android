@@ -16,6 +16,7 @@
 package com.android.tools.idea.diagnostics.report
 
 import com.android.tools.analytics.crash.CrashReport
+import com.android.tools.analytics.crash.GoogleCrashReporter
 import com.android.tools.idea.diagnostics.crash.StudioExceptionReport
 import com.google.common.base.Charsets
 import com.google.common.base.Joiner
@@ -33,7 +34,7 @@ class PerformanceThreadDumpReport
 constructor(val threadDumpPath: Path?,
             val description: String?,
             baseProperties: DiagnosticReportProperties = DiagnosticReportProperties())
-  : DiagnosticReport("PerformanceThreadDump", baseProperties) {
+  : DiagnosticReport(REPORT_TYPE, baseProperties) {
 
   @Throws(IOException::class)
   override fun asCrashReport(): CrashReport {
@@ -51,6 +52,8 @@ constructor(val threadDumpPath: Path?,
   }
 
   companion object {
+    const val REPORT_TYPE = "PerformanceThreadDump"
+
     fun deserialize(baseProperties: DiagnosticReportProperties,
                     properties: Map<String, String>,
                     format: Long): PerformanceThreadDumpReport {
@@ -79,9 +82,7 @@ class PerformanceThreadDumpCrashReport(properties: DiagnosticReportProperties,
     super.serializeTo(builder)
     val edtStack = ThreadDumper.getEdtStackForCrash(threadDump, EXCEPTION_TYPE)
 
-    builder.addTextBody(StudioExceptionReport.KEY_EXCEPTION_INFO,
-                        edtStack ?: EMPTY_ANR_STACKTRACE)
-    builder.addTextBody(fileName, threadDump,
-                        ContentType.create("text/plain", Charsets.UTF_8))
+    GoogleCrashReporter.addBodyToBuilder(builder, StudioExceptionReport.KEY_EXCEPTION_INFO, edtStack ?: EMPTY_ANR_STACKTRACE)
+    GoogleCrashReporter.addBodyToBuilder(builder, fileName, threadDump, ContentType.create("text/plain", Charsets.UTF_8))
   }
 }

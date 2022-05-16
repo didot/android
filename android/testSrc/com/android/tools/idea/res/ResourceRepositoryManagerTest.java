@@ -86,7 +86,6 @@ public class ResourceRepositoryManagerTest extends AndroidTestCase {
       List<ResourceRepository> repositories = new ArrayList<>(repositoriesToDispose);
 
       Project project;
-      Set<ResourceRepository> repositoriesToDispose = this.repositoriesToDispose;
       try {
         project = getProject();
       } finally {

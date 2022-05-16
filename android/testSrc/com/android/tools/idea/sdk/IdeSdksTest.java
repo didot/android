@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.sdk;
 
+import static com.android.testutils.TestUtils.getEmbeddedJdk8Path;
 import static com.android.testutils.TestUtils.getSdk;
-import static com.android.tools.idea.testing.AndroidGradleTests.getEmbeddedJdk8Path;
 import static com.android.tools.idea.testing.Facets.createAndAddAndroidFacet;
 import static com.android.tools.idea.testing.Facets.createAndAddGradleFacet;
 import static com.google.common.truth.Truth.assertThat;
@@ -26,9 +26,8 @@ import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_14;
 import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_1_7;
 import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_1_8;
 import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_1_9;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -39,8 +38,6 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.android.repository.api.LocalPackage;
 import com.android.repository.api.RepoManager;
 import com.android.repository.impl.meta.RepositoryPackages;
-import com.android.repository.io.FileOp;
-import com.android.repository.io.FileOpUtils;
 import com.android.repository.testframework.FakePackage;
 import com.android.repository.testframework.FakeRepoManager;
 import com.android.sdklib.IAndroidTarget;
@@ -57,10 +54,9 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.projectRoots.impl.ProjectJdkImpl;
 import com.intellij.openapi.util.Computable;
-import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.testFramework.HeavyPlatformTestCase;
-import com.intellij.testFramework.ServiceContainerUtil;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -142,20 +138,17 @@ public class IdeSdksTest extends HeavyPlatformTestCase {
   }
 
   public void testGetAndroidNdkPath() {
-    FileOp fop = FileOpUtils.create();
-    FakePackage.FakeLocalPackage value = new FakePackage.FakeLocalPackage("ndk;21.0.0", fop);
-    setupSdkData(ImmutableList.of(value), fop);
+    FakePackage.FakeLocalPackage value = new FakePackage.FakeLocalPackage("ndk;21.0.0");
+    setupSdkData(ImmutableList.of(value));
 
     File ndkPath = myIdeSdks.getAndroidNdkPath();
-    String osPrefix = SystemInfo.isWindows ? "C:" : "";
     assertThat(ndkPath.getAbsolutePath())
-      .matches(osPrefix + Pattern.quote(toSystemDependentName("/sdk/ndk/")) + "[0-9.]+");
+      .matches(Pattern.quote(Paths.get("/sdk/ndk").toAbsolutePath().toString() + File.separatorChar) + "[0-9.]+");
   }
 
   public void testGetAndroidNdkPathWithPredicate() {
-    FileOp fop = FileOpUtils.create();
-    FakePackage.FakeLocalPackage value = new FakePackage.FakeLocalPackage("ndk;21.0.0", fop);
-    setupSdkData(ImmutableList.of(value), fop);
+    FakePackage.FakeLocalPackage value = new FakePackage.FakeLocalPackage("ndk;21.0.0");
+    setupSdkData(ImmutableList.of(value));
 
     File ndkPath = myIdeSdks.getAndroidNdkPath(revision -> false);
     assertThat(ndkPath).isNull();
@@ -227,7 +220,7 @@ public class IdeSdksTest extends HeavyPlatformTestCase {
 
   public void testIsJavaSameVersionTrue() {
     Jdks spyJdks = spy(Jdks.getInstance());
-    ServiceContainerUtil.replaceService(ApplicationManager.getApplication(), Jdks.class, spyJdks, getTestRootDisposable());
+    new IdeComponents(myProject).replaceApplicationService(Jdks.class, spyJdks);
     Path fakeFile = Paths.get(myProject.getBasePath());
     doReturn(JDK_1_8).when(spyJdks).findVersion(same(fakeFile));
     assertTrue(IdeSdks.isJdkSameVersion(fakeFile, JDK_1_8));
@@ -235,7 +228,7 @@ public class IdeSdksTest extends HeavyPlatformTestCase {
 
   public void testIsJavaSameVersionLower() {
     Jdks spyJdks = spy(Jdks.getInstance());
-    ServiceContainerUtil.replaceService(ApplicationManager.getApplication(), Jdks.class, spyJdks, getTestRootDisposable());
+    new IdeComponents(myProject).replaceApplicationService(Jdks.class, spyJdks);
     Path fakeFile = Paths.get(myProject.getBasePath());
     doReturn(JDK_1_7).when(spyJdks).findVersion(same(fakeFile));
     assertFalse(IdeSdks.isJdkSameVersion(fakeFile, JDK_1_8));
@@ -243,7 +236,7 @@ public class IdeSdksTest extends HeavyPlatformTestCase {
 
   public void testIsJavaSameVersionHigher() {
     Jdks spyJdks = spy(Jdks.getInstance());
-    ServiceContainerUtil.replaceService(ApplicationManager.getApplication(), Jdks.class, spyJdks, getTestRootDisposable());
+    new IdeComponents(myProject).replaceApplicationService(Jdks.class, spyJdks);
     Path fakeFile = Paths.get(myProject.getBasePath());
     doReturn(JDK_1_9).when(spyJdks).findVersion(same(fakeFile));
     assertFalse(IdeSdks.isJdkSameVersion(fakeFile, JDK_1_8));
@@ -253,7 +246,7 @@ public class IdeSdksTest extends HeavyPlatformTestCase {
     myIdeSdks.overrideJdkEnvVariable(null);
     assertThat(myIdeSdks.isJdkEnvVariableDefined()).isFalse();
     assertThat(myIdeSdks.isJdkEnvVariableValid()).isFalse();
-    assertThat((Object)myIdeSdks.getEnvVariableJdkFile()).isNull();
+    assertThat(myIdeSdks.getEnvVariableJdkFile()).isNull();
     assertThat(myIdeSdks.getEnvVariableJdkValue()).isNull();
     assertThat(myIdeSdks.isUsingEnvVariableJdk()).isFalse();
     assertThat(myIdeSdks.setUseEnvVariableJdk(true)).isFalse();
@@ -265,7 +258,7 @@ public class IdeSdksTest extends HeavyPlatformTestCase {
     myIdeSdks.overrideJdkEnvVariable(invalidPath);
     assertThat(myIdeSdks.isJdkEnvVariableDefined()).isTrue();
     assertThat(myIdeSdks.isJdkEnvVariableValid()).isFalse();
-    assertThat((Object)myIdeSdks.getEnvVariableJdkFile()).isNull();
+    assertThat(myIdeSdks.getEnvVariableJdkFile()).isNull();
     assertThat(myIdeSdks.getEnvVariableJdkValue()).isEqualTo(invalidPath);
     assertThat(myIdeSdks.isUsingEnvVariableJdk()).isFalse();
     assertThat(myIdeSdks.setUseEnvVariableJdk(true)).isFalse();
@@ -277,22 +270,23 @@ public class IdeSdksTest extends HeavyPlatformTestCase {
     myIdeSdks.overrideJdkEnvVariable(validPath);
     assertThat(myIdeSdks.isJdkEnvVariableDefined()).isTrue();
     assertThat(myIdeSdks.isJdkEnvVariableValid()).isTrue();
-    assertThat((Object)myIdeSdks.getEnvVariableJdkFile()).isEqualTo(Paths.get(validPath));
+    assertThat(myIdeSdks.getEnvVariableJdkFile()).isEqualTo(new File(validPath));
     assertThat(myIdeSdks.getEnvVariableJdkValue()).isEqualTo(validPath);
     assertThat(myIdeSdks.isUsingEnvVariableJdk()).isTrue();
     assertThat(myIdeSdks.setUseEnvVariableJdk(false)).isTrue();
     assertThat(myIdeSdks.isUsingEnvVariableJdk()).isFalse();
     assertThat(myIdeSdks.setUseEnvVariableJdk(true)).isTrue();
     assertThat(myIdeSdks.isUsingEnvVariableJdk()).isTrue();
-    File expectedFile = new File(toSystemDependentName(validPath));
-    File jdkFile = new File(toSystemDependentName(myIdeSdks.getJdk().getHomePath()));
+    File expectedFile = new File(FileUtilRt.toSystemDependentName(validPath));
+    File jdkFile = new File(FileUtilRt.toSystemDependentName(myIdeSdks.getJdk().getHomePath()));
     assertThat(jdkFile).isEqualTo(expectedFile);
   }
 
-  private void setupSdkData(ImmutableList<LocalPackage> localPackages, FileOp fop) {
+  private void setupSdkData(ImmutableList<LocalPackage> localPackages) {
     RepositoryPackages packages = new RepositoryPackages(localPackages, Collections.emptyList());
     RepoManager repoManager = new FakeRepoManager(packages);
-    AndroidSdkHandler androidSdkHandler = new AndroidSdkHandler(null, null, fop, repoManager);
+    AndroidSdkHandler androidSdkHandler = new AndroidSdkHandler(localPackages.get(0).getLocation().getRoot().resolve("sdk"), null,
+                                                                repoManager);
     AndroidSdkData androidSdkData = mock(AndroidSdkData.class);
     doReturn(androidSdkHandler).when(androidSdkData).getSdkHandler();
     myAndroidSdks.setSdkData(androidSdkData);
@@ -357,12 +351,15 @@ public class IdeSdksTest extends HeavyPlatformTestCase {
     assertThat(currentFieldNames).isEqualTo(expectedFieldNames);
 
     List<String> expectedMethodNames = Arrays.asList(
-      "addRoot", "changeType", "clone", "commitChanges", "copyCopyableDataTo", "copyUserDataTo", "dispose", "equals", "getClass",
-      "getCopyableUserData", "getGlobalVirtualFilePointerListener", "getHomeDirectory", "getHomePath", "getName", "getRootProvider",
-      "getRoots", "getSdkAdditionalData", "getSdkModificator", "getSdkType", "getUrls", "getUserData", "getUserDataString",
-      "getVersionString", "hashCode", "isUserDataEmpty", "isWritable", "notify", "notifyAll", "putCopyableUserData", "putUserData",
-      "putUserDataIfAbsent", "readExternal", "removeAllRoots", "removeRoot", "removeRoots", "replace", "resetVersionString", "setHomePath",
-      "setName", "setSdkAdditionalData", "setVersionString", "toString", "wait", "writeExternal"
+      "accumulateAndGet", "addRoot", "changeType", "clone", "commitChanges", "compareAndExchange", "compareAndExchangeAcquire",
+      "compareAndExchangeRelease", "compareAndSet", "copyCopyableDataTo", "copyUserDataTo", "dispose", "equals", "get", "getAcquire",
+      "getAndAccumulate", "getAndSet", "getAndUpdate", "getClass", "getCopyableUserData", "getGlobalVirtualFilePointerListener",
+      "getHomeDirectory", "getHomePath", "getName", "getOpaque", "getPlain", "getRootProvider", "getRoots", "getSdkAdditionalData",
+      "getSdkModificator", "getSdkType", "getUrls", "getUserData", "getUserDataString", "getVersionString", "hashCode", "isUserDataEmpty",
+      "isWritable", "lazySet", "notify", "notifyAll", "putCopyableUserData", "putUserData", "putUserDataIfAbsent", "readExternal",
+      "removeAllRoots", "removeRoot", "removeRoots", "replace", "resetVersionString", "set", "setHomePath", "setName", "setOpaque",
+      "setPlain", "setRelease", "setSdkAdditionalData", "setVersionString", "toString", "updateAndGet", "wait", "weakCompareAndSet",
+      "weakCompareAndSetAcquire", "weakCompareAndSetPlain", "weakCompareAndSetRelease", "weakCompareAndSetVolatile", "writeExternal"
     );
     List<String> currentMethodNames = Arrays.stream(ProjectJdkImpl.class.getMethods())
       .map(Method::getName)

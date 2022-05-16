@@ -15,12 +15,16 @@
  */
 package com.android.tools.idea.avdmanager;
 
+import static com.android.tools.idea.wearpairing.WearPairingManagerKt.isWearOrPhone;
+
 import com.android.sdklib.internal.avd.AvdInfo;
 import com.android.tools.adtui.common.ColoredIconGenerator;
+import com.android.tools.idea.devicemanager.virtualtab.ViewDetailsAction;
 import com.android.tools.idea.devicemanager.virtualtab.columns.ExploreAvdAction;
+import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.log.LogWrapper;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.sdk.AndroidSdks;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -29,15 +33,26 @@ import com.intellij.openapi.ui.JBPopupMenu;
 import com.intellij.ui.HyperlinkLabel;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.scale.JBUIScale;
+import com.intellij.util.ui.JBDimension;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
-import java.awt.*;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Graphics;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.JComponent;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -50,11 +65,10 @@ import org.jetbrains.annotations.Nullable;
 public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvider {
   @NotNull private final AvdInfo myAvdInfo;
   private final AvdRefreshProvider myRefreshProvider;
-  private final JBPopupMenu myOverflowMenu = new JBPopupMenu();
+  private final @NotNull Collection<@NotNull AvdUiAction> myOverflowActions = new ArrayList<>();
   private final FocusableHyperlinkLabel myOverflowMenuButton = new FocusableHyperlinkLabel("", AllIcons.Actions.MoveDown);
-  private final Border myMargins = JBUI.Borders.empty(5, 3, 5, 3);
 
-  public List<FocusableHyperlinkLabel> myVisibleComponents = new ArrayList<>();
+  private final @NotNull List<@NotNull HyperlinkLabel> myVisibleComponents = new ArrayList<>();
 
   private boolean myFocused;
   private int myFocusedComponent = -1;
@@ -62,19 +76,25 @@ public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvide
 
   public interface AvdRefreshProvider {
     void refreshAvds();
+
     void refreshAvdsAndSelect(@Nullable AvdInfo avdToSelect);
+
     @Nullable Project getProject();
 
     @NotNull JComponent getComponent();
   }
 
-  public AvdActionPanel(@NotNull AvdInfo avdInfo, int numVisibleActions, AvdRefreshProvider refreshProvider) {
+  public AvdActionPanel(@NotNull AvdRefreshProvider refreshProvider,
+                        @NotNull AvdInfo avdInfo,
+                        boolean logDeviceManagerEvents,
+                        boolean projectOpen,
+                        int numVisibleActions) {
     myRefreshProvider = refreshProvider;
     setOpaque(true);
     setBorder(JBUI.Borders.empty(10));
     myAvdInfo = avdInfo;
-    List<AvdUiAction> actions = getActions();
-    setLayout(new FlowLayout(FlowLayout.RIGHT, 3, 0));
+    List<AvdUiAction> actions = getActions(logDeviceManagerEvents, projectOpen);
+    setLayout(new FlowLayout(FlowLayout.RIGHT, JBUIScale.scale(12), 0));
     int visibleActionCount = 0;
     boolean errorState = false;
     if (avdInfo.getStatus() != AvdInfo.AvdStatus.OK) {
@@ -90,7 +110,8 @@ public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvide
         add(repairAction);
         repairAction.addHyperlinkListener(action);
         myVisibleComponents.add(repairAction);
-      } else {
+      }
+      else {
         add(new JBLabel("Failed to load", AllIcons.General.BalloonError, SwingConstants.LEADING));
       }
       numVisibleActions = 0;
@@ -98,31 +119,26 @@ public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvide
     }
 
     for (AvdUiAction action : actions) {
-      JComponent actionLabel;
       // Add extra items to the overflow menu
       if (errorState || numVisibleActions != -1 && visibleActionCount >= numVisibleActions) {
-        JBMenuItem menuItem = new JBMenuItem(action);
-        myOverflowMenu.add(menuItem);
-        actionLabel = menuItem;
-      } else {
+        myOverflowActions.add(action);
+      }
+      else {
         // Add visible items to the panel
-        actionLabel = new FocusableHyperlinkLabel("", action.getIcon());
-        ((FocusableHyperlinkLabel)actionLabel).addHyperlinkListener(action);
+        FocusableHyperlinkLabel actionLabel = new FocusableHyperlinkLabel("", action.getIcon());
+        actionLabel.addHyperlinkListener(action);
+        actionLabel.setToolTipText(action.getDescription());
         add(actionLabel);
-        myVisibleComponents.add((FocusableHyperlinkLabel)actionLabel);
+        myVisibleComponents.add(actionLabel);
         visibleActionCount++;
       }
-      actionLabel.setToolTipText(action.getDescription());
-      actionLabel.setBorder(myMargins);
     }
-    myOverflowMenuButton.setBorder(myMargins);
     add(myOverflowMenuButton);
     myVisibleComponents.add(myOverflowMenuButton);
-    myOverflowMenuButton.addHyperlinkListener(event -> myOverflowMenu
-      .show(myOverflowMenuButton, myOverflowMenuButton.getX() - myOverflowMenu.getPreferredSize().width, myOverflowMenuButton.getY()));
+    myOverflowMenuButton.addHyperlinkListener(event -> showPopup(myOverflowMenuButton, JBUIScale.scale(28), JBUIScale.scale(10)));
     addKeyListener(new KeyAdapter() {
       @Override
-      public void keyTyped(KeyEvent e) {
+      public void keyPressed(KeyEvent e) {
         if (e.getKeyChar() == KeyEvent.VK_ENTER || e.getKeyChar() == KeyEvent.VK_SPACE) {
           runFocusedAction();
         }
@@ -130,26 +146,38 @@ public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvide
     });
   }
 
-  @NotNull
-  private List<AvdUiAction> getActions() {
+  private @NotNull List<@NotNull AvdUiAction> getActions(boolean logDeviceManagerEvents, boolean projectOpen) {
     List<AvdUiAction> actionList = new ArrayList<>();
+    actionList.add(new RunAvdAction(this, logDeviceManagerEvents));
 
-    actionList.add(new RunAvdAction(this));
-    actionList.add(new ExploreAvdAction(this));
-    actionList.add(new EditAvdAction(this));
-    actionList.add(new DuplicateAvdAction(this));
-    //actionList.add(new ExportAvdAction(this)); // TODO: implement export/import
-    actionList.add(new WipeAvdDataAction(this));
+    if (projectOpen) {
+      actionList.add(new ExploreAvdAction(this, logDeviceManagerEvents));
+    }
+
+    actionList.add(new EditAvdAction(this, logDeviceManagerEvents));
+    actionList.add(new DuplicateAvdAction(this, logDeviceManagerEvents));
+    actionList.add(new WipeAvdDataAction(this, logDeviceManagerEvents));
 
     if (EmulatorAdvFeatures.emulatorSupportsFastBoot(AndroidSdks.getInstance().tryToChooseSdkHandler(),
                                                      new StudioLoggerProgressIndicator(AvdActionPanel.class),
                                                      new LogWrapper(Logger.getInstance(AvdManagerConnection.class)))) {
-      actionList.add(new ColdBootNowAction(this));
+      actionList.add(new ColdBootNowAction(this, logDeviceManagerEvents));
     }
-    actionList.add(new ShowAvdOnDiskAction(this));
-    actionList.add(new AvdSummaryAction(this));
-    actionList.add(new DeleteAvdAction(this));
-    actionList.add(new StopAvdAction(this));
+
+    actionList.add(new ShowAvdOnDiskAction(this, logDeviceManagerEvents));
+    actionList.add(StudioFlags.ENABLE_NEW_DEVICE_MANAGER_PANEL.get() ? new ViewDetailsAction(this) : new AvdSummaryAction(this));
+    actionList.add(new Separator(this));
+
+    if (StudioFlags.WEAR_OS_VIRTUAL_DEVICE_PAIRING_ASSISTANT_ENABLED.get() && isWearOrPhone(myAvdInfo)) {
+      actionList.add(new PairDeviceAction(this, logDeviceManagerEvents));
+      actionList.add(new UnpairDeviceAction(this, logDeviceManagerEvents));
+    }
+
+    actionList.add(new DeleteAvdAction(this, logDeviceManagerEvents));
+
+    if (!StudioFlags.ENABLE_NEW_DEVICE_MANAGER_PANEL.get()) {
+      actionList.add(new StopAvdAction(this, logDeviceManagerEvents));
+    }
 
     return actionList;
   }
@@ -183,11 +211,47 @@ public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvide
   }
 
   public void showPopup(@NotNull Component c, @NotNull MouseEvent e) {
-    myOverflowMenu.show(c, e.getX(), e.getY());
+    showPopup(c, e.getX(), e.getY());
   }
 
-  public void runFocusedAction() {
+  private void showPopup(@NotNull Component c, int x, int y) {
+    JPopupMenu overflowMenu = new JBPopupMenu();
+    Border border = JBUI.Borders.empty(5, 3);
+
+    for (AvdUiAction action : myOverflowActions) {
+      if (action instanceof Separator) {
+        overflowMenu.addSeparator();
+      }
+      else {
+        JMenuItem menuItem = new JBMenuItem(action);
+
+        menuItem.setBorder(border);
+        menuItem.setToolTipText(action.getDescription());
+
+        overflowMenu.add(menuItem);
+      }
+    }
+
+    overflowMenu.show(c, x, y);
+  }
+
+  private void runFocusedAction() {
     myVisibleComponents.get(myFocusedComponent).doClick();
+  }
+
+  public int getFocusedComponent() {
+    return myFocusedComponent;
+  }
+
+  public void setFocusedComponent(int focusedComponent) {
+    assert 0 <= focusedComponent && focusedComponent < myVisibleComponents.size();
+
+    myFocusedComponent = focusedComponent;
+    myFocused = true;
+  }
+
+  public int getVisibleComponentCount() {
+    return myVisibleComponents.size();
   }
 
   public boolean cycleFocus(boolean backward) {
@@ -195,15 +259,18 @@ public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvide
       if (myFocusedComponent == -1) {
         myFocusedComponent = myVisibleComponents.size() - 1;
         return true;
-      } else {
+      }
+      else {
         myFocusedComponent--;
         return myFocusedComponent != -1;
       }
-    } else {
+    }
+    else {
       if (myFocusedComponent == myVisibleComponents.size() - 1) {
         myFocusedComponent = -1;
         return false;
-      } else {
+      }
+      else {
         myFocusedComponent++;
         return true;
       }
@@ -229,8 +296,13 @@ public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvide
       setIcon(icon);
       setOpaque(false);
       setUseIconAsLink(true);
+
+      if (text.isEmpty()) {
+        setMaximumSize(new JBDimension(22, 22));
+      }
+
       if (icon != null) {
-        myHighlightedIcon = ColoredIconGenerator.INSTANCE.generateWhiteIcon(myIcon);
+        myHighlightedIcon = ColoredIconGenerator.generateWhiteIcon(myIcon);
       }
     }
 
@@ -255,6 +327,15 @@ public class AvdActionPanel extends JPanel implements AvdUiAction.AvdInfoProvide
         }
         theIcon.paintIcon(this, g, 0, (getHeight() - theIcon.getIconHeight()) / 2);
       }
+    }
+
+    @Override
+    public @NotNull Dimension getPreferredSize() {
+      if (myText.isEmpty()) {
+        return new JBDimension(22, 22);
+      }
+
+      return super.getPreferredSize();
     }
   }
 }

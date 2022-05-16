@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.gradle.project;
 
+import static com.android.tools.idea.gradle.util.GradleUtil.GRADLE_SYSTEM_ID;
 import static com.android.tools.idea.gradle.util.GradleUtil.findGradleBuildFile;
 import static com.android.tools.idea.gradle.util.GradleUtil.findGradleSettingsFile;
 import static com.intellij.openapi.actionSystem.LangDataKeys.MODULE_CONTEXT_ARRAY;
@@ -28,6 +29,7 @@ import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncState;
 import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.project.AndroidProjectInfo;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.google.common.collect.ImmutableList;
 import com.intellij.facet.ProjectFacetManager;
 import com.intellij.ide.DataManager;
@@ -38,6 +40,7 @@ import com.intellij.openapi.application.AccessToken;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
@@ -47,9 +50,10 @@ import com.intellij.openapi.util.UserDataHolderEx;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.Consumer;
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.JComponent;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -113,6 +117,10 @@ public class GradleProjectInfo {
       if (isBeingInitializedAsGradleProject(myProject)) {
         return true;
       }
+      if (Arrays.stream(ModuleManager.getInstance(myProject).getModules())
+        .anyMatch(it -> ExternalSystemApiUtil.isExternalSystemAwareModule(GRADLE_SYSTEM_ID, it))) {
+        return true;
+      }
       if (myFacetManager.hasFacets(GradleFacet.getFacetTypeId())) {
         return true;
       }
@@ -165,7 +173,7 @@ public class GradleProjectInfo {
         return;
       }
 
-      for (Module module : ModuleManager.getInstance(myProject).getModules()) {
+      for (Module module : ProjectSystemUtil.getAndroidModulesForDisplay(myProject, null)) {
         if (AndroidFacet.getInstance(module) != null && GradleFacet.getInstance(module) != null) {
           modules.add(module);
         }
@@ -185,7 +193,7 @@ public class GradleProjectInfo {
         return;
       }
 
-      for (Module module : ModuleManager.getInstance(myProject).getModules()) {
+      for (Module module : ProjectSystemUtil.getAndroidModulesForDisplay(myProject, null)) {
         AndroidFacet androidFacet = AndroidFacet.getInstance(module);
         if (androidFacet != null && GradleFacet.getInstance(module) != null) {
           consumer.consume(androidFacet);

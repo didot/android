@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:Suppress("JAVA_MODULE_DOES_NOT_EXPORT_PACKAGE")
 package com.android.tools.idea.ui.resourcechooser.colorpicker2
 
 import com.google.common.annotations.VisibleForTesting

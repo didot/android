@@ -31,7 +31,7 @@ import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.ColorPanel;
 import com.intellij.ui.TextAccessor;
-import java.awt.*;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
@@ -40,10 +40,18 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JRadioButton;
+import javax.swing.JSlider;
+import javax.swing.JSpinner;
+import javax.swing.JTextField;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
@@ -117,17 +125,17 @@ public class ScopedDataBinder implements ScopedStateStore.ScopedStoreListener, F
   private final Map<Document, JComponent> myDocumentsToComponent = Maps.newIdentityHashMap();
 
   // Map of keys to custom value derivations
-  private final Map<Key, ValueDeriver> myValueDerivers = Maps.newHashMap();
+  private final Map<Key, ValueDeriver> myValueDerivers = new HashMap<>();
 
   // Table mapping components and keys to bindings
   private final Table<JComponent, Key<?>, ComponentBinding<?, ?>> myComponentBindings = HashBasedTable.create();
 
   // Record of keys that have already been changed or updated during a round to prevent
   // recursive derivations.
-  private final Set<Key> myGuardedKeys = new HashSet<Key>();
+  private final Set<Key> myGuardedKeys = new HashSet<>();
 
   // Record of keys that the user has manually edited
-  private final Set<Key> myUserEditedKeys = new HashSet<Key>();
+  private final Set<Key> myUserEditedKeys = new HashSet<>();
 
   // Flags to guard against cyclical updates
   private boolean myAlreadySavingState;
@@ -364,7 +372,7 @@ public class ScopedDataBinder implements ScopedStateStore.ScopedStoreListener, F
 
     @Nullable
     protected static Set<Key<?>> makeSetOf(Key<?>... elements) {
-      Set<Key<?>> keys = new HashSet<Key<?>>(elements.length);
+      Set<Key<?>> keys = new HashSet<>(elements.length);
       Collections.addAll(keys, elements);
       return keys;
     }

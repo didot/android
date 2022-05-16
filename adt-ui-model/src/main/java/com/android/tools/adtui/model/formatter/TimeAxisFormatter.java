@@ -22,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
  * This formatter assumes a microsecond input value.
  */
 public final class TimeAxisFormatter extends BaseAxisFormatter {
+
   private static final int[] MULTIPLIERS = new int[]{1000, 1000, 60, 60, 24};   // 1ms, 1s, 1m, 1h, 1d
   private static final int[] BASES = new int[]{10, 10, 60, 60, 24};
   private static final int[] MIN_INTERVALS = new int[]{10, 10, 1, 1, 1};    // 10ms, 1s, 1m, 1h

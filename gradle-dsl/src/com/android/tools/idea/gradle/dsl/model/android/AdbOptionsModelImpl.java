@@ -15,10 +15,9 @@
  */
 package com.android.tools.idea.gradle.dsl.model.android;
 
-import com.android.tools.idea.gradle.dsl.api.android.externalNativeBuild.AdbOptionsModel;
+import com.android.tools.idea.gradle.dsl.api.android.AdbOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.model.GradleDslBlockModel;
-import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
 import com.android.tools.idea.gradle.dsl.parser.android.AdbOptionsDslElement;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -34,12 +33,12 @@ public class AdbOptionsModelImpl extends GradleDslBlockModel implements AdbOptio
   @Override
   @NotNull
   public ResolvedPropertyModel installOptions() {
-    return GradlePropertyModelBuilder.create(myDslElement, INSTALL_OPTIONS).buildResolved();
+    return getModelForProperty(INSTALL_OPTIONS);
   }
 
   @Override
   @NotNull
   public ResolvedPropertyModel timeOutInMs() {
-    return GradlePropertyModelBuilder.create(myDslElement, TIME_OUT_IN_MS).buildResolved();
+    return getModelForProperty(TIME_OUT_IN_MS);
   }
 }

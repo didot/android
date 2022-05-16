@@ -23,6 +23,26 @@ import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import javax.swing.Icon
 
+/**
+ * Data which is needed to launch an inspector and get a [AppInspectorMessenger] connected to it.
+ */
+class AppInspectorLaunchConfig(
+  /** The ID of the inspector, e.g. "example.inspection" */
+  val id: String,
+  val params: AppInspectorLaunchParams
+)
+
+/** A wrapper around a target inspector jar that either was successfully resolved or not. */
+sealed class AppInspectorMessengerTarget {
+  class Resolved(val messenger: AppInspectorMessenger) : AppInspectorMessengerTarget()
+
+  /**
+   * Represents inspectors that cannot be launched, e.g. the target library used by the app is too
+   * old or the user's app was proguarded.
+   */
+  class Unresolved(val error: String) : AppInspectorMessengerTarget()
+}
+
 interface AppInspectorTabProvider: Comparable<AppInspectorTabProvider> {
   companion object {
     @JvmField
@@ -31,10 +51,19 @@ interface AppInspectorTabProvider: Comparable<AppInspectorTabProvider> {
     )
   }
 
-  val inspectorId: String
+  /**
+   * A list of configurations for launching relevant inspectors.
+   *
+   * The overridden value provided here must contain at least one configuration. See also: [createTab].
+   *
+   * When the number of configs is one, the App Inspection framework will handle basic errors in
+   * the inspector. For example, when an inspector crashes, app inspection will show a toast that
+   * prompts the user to restart the tab.
+   */
+  val launchConfigs: List<AppInspectorLaunchConfig>
   val displayName: String
   val icon: Icon? get() = null
-  val inspectorLaunchParams: AppInspectorLaunchParams
+  val learnMoreUrl: String? get() = null
   fun isApplicable(): Boolean = true
 
   /**
@@ -57,13 +86,19 @@ interface AppInspectorTabProvider: Comparable<AppInspectorTabProvider> {
    * @param ideServices Various functions which clients may use to request IDE-specific behaviors
    * @param processDescriptor Information about the process and device that the associated inspector
    *   that will drive this UI is attached to
-   * @param messenger A class for communicating to the associated inspector
+   * @param messengerTargets A list of inspector messenger targets, one generated per config
+   *   specified in [launchConfigs]. Children should check if the target is
+   *   [AppInspectorMessengerTarget.Resolved] or, if not, may want to consider showing the wrapped
+   *   error to users. Furthermore, resolved messengers can be individually checked for disposal
+   *   using [AppInspectorMessenger.awaitForDisposal]. For inspector tabs that host multiple inspector
+   *   agents, this can be a useful method to determine which inspector terminated and show an
+   *   appropriate error message to user.
    */
   fun createTab(
     project: Project,
     ideServices: AppInspectionIdeServices,
     processDescriptor: ProcessDescriptor,
-    messenger: AppInspectorMessenger,
+    messengerTargets: List<AppInspectorMessengerTarget>,
     parentDisposable: Disposable
   ): AppInspectorTab
 

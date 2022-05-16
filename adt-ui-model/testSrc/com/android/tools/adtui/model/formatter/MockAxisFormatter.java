@@ -23,7 +23,8 @@ import org.jetbrains.annotations.NotNull;
  * A mock {@link BaseAxisFormatter} that works with length units.
  * e.g. mm, cm, m, km
  */
-public final class MockAxisFormatter extends BaseAxisFormatter {
+public class MockAxisFormatter extends BaseAxisFormatter {
+
   private static final int[] MULTIPLIERS = new int[]{10, 100, 10};   //
   private static final int BASE = 10;
   private static final int MIN_INTERVAL = 1;

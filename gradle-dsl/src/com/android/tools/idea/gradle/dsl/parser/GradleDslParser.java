@@ -15,8 +15,10 @@
  */
 package com.android.tools.idea.gradle.dsl.parser;
 
+import static com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter.Kind.NONE;
+
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
-import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
+import com.android.tools.idea.gradle.dsl.model.BuildModelContext;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslLiteral;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
@@ -76,12 +78,6 @@ public interface GradleDslParser extends GradleDslNameConverter {
   Object extractValue(@NotNull GradleDslSimpleExpression context, @NotNull PsiElement literal, boolean resolve);
 
   /**
-   * Builds an excludes block for a list of {@link ArtifactDependencySpec}s
-   */
-  @Nullable
-  PsiElement convertToExcludesBlock(@NotNull List<ArtifactDependencySpec> excludes);
-
-  /**
    * @param elementToCheck GradleDslElement, returns false if a non-string element is provided.
    * @return whether the string represented by this GradleDslElement should be interpolated.
    */
@@ -118,15 +114,13 @@ public interface GradleDslParser extends GradleDslNameConverter {
                                                   @Nullable GradleNameElement nameElement);
 
   class Adapter implements GradleDslParser {
-    @Override
-    public boolean isGroovy() {
-      return false;
+    @NotNull private final BuildModelContext context;
+    public Adapter(@NotNull BuildModelContext context) {
+      this.context = context;
     }
 
     @Override
-    public boolean isKotlin() {
-      return false;
-    }
+    public Kind getKind() { return NONE; }
 
     @Override
     public void parse() { }
@@ -145,10 +139,6 @@ public interface GradleDslParser extends GradleDslNameConverter {
     public Object extractValue(@NotNull GradleDslSimpleExpression context, @NotNull PsiElement literal, boolean resolve) {
       return null;
     }
-
-    @Override
-    @Nullable
-    public PsiElement convertToExcludesBlock(@NotNull List<ArtifactDependencySpec> specs) { return null; }
 
     @Override
     public boolean shouldInterpolate(@NotNull GradleDslElement elementToCheck) { return false; }
@@ -172,5 +162,9 @@ public interface GradleDslParser extends GradleDslNameConverter {
                                                            @Nullable GradleNameElement nameElement) {
       return null;
     }
+
+    @Override
+    @NotNull
+    public BuildModelContext getContext() { return context; }
   }
 }

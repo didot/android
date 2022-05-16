@@ -31,7 +31,6 @@ import com.android.tools.idea.apk.viewer.ApkFileEditorComponent;
 import com.android.tools.proguard.ProguardMap;
 import com.android.tools.proguard.ProguardSeedsMap;
 import com.android.tools.proguard.ProguardUsagesMap;
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
@@ -74,10 +73,11 @@ import com.intellij.util.PlatformIcons;
 import com.intellij.util.concurrency.EdtExecutorService;
 import com.intellij.util.ui.EmptyIcon;
 import com.intellij.util.ui.tree.TreeModelAdapter;
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.ParseException;
@@ -87,7 +87,11 @@ import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTree;
+import javax.swing.SortOrder;
+import javax.swing.SwingConstants;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeModel;
@@ -245,7 +249,7 @@ public class DexFileViewer extends UserDataHolderBase implements ApkFileEditorCo
       ProguardMap proguardMap = new ProguardMap();
       if (mappingFile != null) {
         try {
-          proguardMap.readFromReader(new InputStreamReader(Files.newInputStream(mappingFile), Charsets.UTF_8));
+          proguardMap.readFromReader(new InputStreamReader(Files.newInputStream(mappingFile), StandardCharsets.UTF_8));
           loaded.add(mappingFile.getFileName().toString());
         }
         catch (IOException | ParseException e) {
@@ -258,7 +262,7 @@ public class DexFileViewer extends UserDataHolderBase implements ApkFileEditorCo
       ProguardSeedsMap seeds = null;
       if (seedsFile != null) {
         try {
-          seeds = ProguardSeedsMap.parse(new InputStreamReader(Files.newInputStream(seedsFile), Charsets.UTF_8));
+          seeds = ProguardSeedsMap.parse(new InputStreamReader(Files.newInputStream(seedsFile), StandardCharsets.UTF_8));
           loaded.add(seedsFile.getFileName().toString());
         }
         catch (IOException e) {
@@ -275,7 +279,7 @@ public class DexFileViewer extends UserDataHolderBase implements ApkFileEditorCo
       ProguardUsagesMap usage = null;
       if (usageFile != null) {
         try {
-          usage = ProguardUsagesMap.parse(new InputStreamReader(Files.newInputStream(usageFile), Charsets.UTF_8));
+          usage = ProguardUsagesMap.parse(new InputStreamReader(Files.newInputStream(usageFile), StandardCharsets.UTF_8));
           loaded.add(usageFile.getFileName().toString());
         }
         catch (IOException e) {
@@ -318,7 +322,7 @@ public class DexFileViewer extends UserDataHolderBase implements ApkFileEditorCo
     });
 
     ListenableFuture<DexPackageNode> treeNodeFuture =
-      Futures.transform(dexFileFuture, new Function<Map<Path, DexBackedDexFile>, DexPackageNode>() {
+      Futures.transform(dexFileFuture, new Function<>() {
         @NotNull
         @Override
         public DexPackageNode apply(@Nullable Map<Path, DexBackedDexFile> input) {
@@ -328,7 +332,7 @@ public class DexFileViewer extends UserDataHolderBase implements ApkFileEditorCo
         }
       }, pooledThreadExecutor);
 
-    Futures.addCallback(treeNodeFuture, new FutureCallback<DexPackageNode>() {
+    Futures.addCallback(treeNodeFuture, new FutureCallback<>() {
       @Override
       public void onSuccess(DexPackageNode result) {
         myLoadingPanel.stopLoading();
@@ -363,7 +367,7 @@ public class DexFileViewer extends UserDataHolderBase implements ApkFileEditorCo
     }, EdtExecutorService.getInstance());
 
     ListenableFuture<DexFileStats> dexStatsFuture =
-      Futures.transform(dexFileFuture, new Function<Map<Path, DexBackedDexFile>, DexFileStats>() {
+      Futures.transform(dexFileFuture, new Function<>() {
         @NotNull
         @Override
         public DexFileStats apply(@Nullable Map<Path, DexBackedDexFile> input) {
@@ -380,7 +384,7 @@ public class DexFileViewer extends UserDataHolderBase implements ApkFileEditorCo
       titleComponent.append("Loading dex stats");
       myTopPanel.add(titleComponent, BorderLayout.EAST);
 
-      Futures.addCallback(dexStatsFuture, new FutureCallback<DexFileStats>() {
+      Futures.addCallback(dexStatsFuture, new FutureCallback<>() {
         @Override
         public void onSuccess(DexFileStats result) {
           titleComponent.clear();
@@ -487,7 +491,7 @@ public class DexFileViewer extends UserDataHolderBase implements ApkFileEditorCo
         }
         return files;
       });
-      myDexReferences = Futures.transform(dexFileFuture, new Function<DexBackedDexFile[], DexReferences>() {
+      myDexReferences = Futures.transform(dexFileFuture, new Function<>() {
         @Override
         public DexReferences apply(@Nullable DexBackedDexFile[] inputs) {
           assert inputs != null;

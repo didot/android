@@ -16,7 +16,6 @@
 package com.android.tools.idea.devicemanager.groupstab.create;
 
 import com.android.tools.idea.devicemanager.groupstab.GroupableDevice;
-import com.android.tools.layoutlib.annotations.NotNull;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
@@ -28,6 +27,7 @@ import javax.swing.Icon;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
+import org.jetbrains.annotations.NotNull;
 
 final class GroupableDeviceTableCellRenderer implements TableCellRenderer {
   private final @NotNull JPanel myPanel;
@@ -100,7 +100,7 @@ final class GroupableDeviceTableCellRenderer implements TableCellRenderer {
 
     myNameLabel.setText(groupableDevice.getName());
 
-    myStatusLabel.setIcon(groupableDevice.isOnline() ? StudioIcons.Common.CIRCLE_GREEN : StudioIcons.Common.CIRCLE_RED);
+    myStatusLabel.setIcon(groupableDevice.isOnline() ? StudioIcons.Avd.STATUS_DECORATOR_ONLINE : StudioIcons.Avd.STATUS_DECORATOR_OFFLINE);
 
     myDescriptionLabel.setText("TODO"); // TODO: "Android 10.0+ Google API | x86"
 

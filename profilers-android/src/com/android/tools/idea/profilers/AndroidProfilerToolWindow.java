@@ -15,14 +15,27 @@
  */
 package com.android.tools.idea.profilers;
 
+import static com.android.tools.profilers.ProfilerFonts.H1_FONT;
+import static com.android.tools.profilers.ProfilerFonts.STANDARD_FONT;
+
 import com.android.ddmlib.IDevice;
 import com.android.tools.adtui.model.AspectObserver;
+import com.android.tools.idea.codenavigation.CodeNavigator;
 import com.android.tools.idea.model.AndroidModuleInfo;
-import com.android.tools.idea.profilers.stacktrace.ProfilerCodeNavigator;
 import com.android.tools.idea.transport.TransportService;
 import com.android.tools.idea.transport.TransportServiceProxy;
+import com.android.tools.nativeSymbolizer.ProjectSymbolSource;
+import com.android.tools.nativeSymbolizer.SymbolFilesLocator;
+import com.android.tools.nativeSymbolizer.SymbolSource;
 import com.android.tools.profiler.proto.Common;
-import com.android.tools.profilers.*;
+import com.android.tools.profilers.IdeProfilerComponents;
+import com.android.tools.profilers.Notification;
+import com.android.tools.profilers.ProfilerAspect;
+import com.android.tools.profilers.ProfilerClient;
+import com.android.tools.profilers.ProfilerColors;
+import com.android.tools.profilers.ProfilerMode;
+import com.android.tools.profilers.StudioProfilers;
+import com.android.tools.profilers.StudioProfilersView;
 import com.android.tools.profilers.sessions.SessionAspect;
 import com.android.tools.profilers.sessions.SessionsManager;
 import com.intellij.execution.runners.ExecutionUtil;
@@ -54,14 +67,6 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.awt.*;
-import java.io.File;
-import java.util.function.Predicate;
-
-import static com.android.tools.profilers.ProfilerFonts.H1_FONT;
-import static com.android.tools.profilers.ProfilerFonts.STANDARD_FONT;
 
 public class AndroidProfilerToolWindow implements Disposable {
 
@@ -99,8 +104,11 @@ public class AndroidProfilerToolWindow implements Disposable {
     myWindow = window;
     myProject = project;
 
-    myIdeProfilerServices = new IntellijProfilerServices(myProject);
+    SymbolSource symbolSource = new ProjectSymbolSource(project);
+    SymbolFilesLocator symbolLocator = new SymbolFilesLocator(symbolSource);
+    myIdeProfilerServices = new IntellijProfilerServices(myProject, symbolLocator);
     Disposer.register(this, myIdeProfilerServices);
+
     myPanel = new JPanel(new BorderLayout());
     if (!tryInitializeProfilers()) {
       myIdeProfilerServices.getFeatureTracker().trackProfilerInitializationFailed();
@@ -174,14 +182,7 @@ public class AndroidProfilerToolWindow implements Disposable {
     return myProfilersWrapper != null ? myProfilersWrapper.getProfilers() : null;
   }
 
-  /**
-   * Sets the profiler's auto-profiling process in case it has been unset.
-   *
-   * @param module           The module being profiled.
-   * @param device           The target {@link IDevice} that the app will launch in.
-   * @param processPredicate Additional filter used for choosing the most desirable process. e.g. Process of a particular pid,
-   *                         or process that starts after a certain time.
-   */
+  /** Sets the profiler's auto-profiling process in case it has been unset. */
   public void profile(@NotNull PreferredProcessInfo processInfo) {
     if (tryInitializeProfilers()) {
       StudioProfilers profilers = myProfilersWrapper.getProfilers();
@@ -291,9 +292,9 @@ public class AndroidProfilerToolWindow implements Disposable {
       myWindow = window;
       ProfilerClient client = new ProfilerClient(TransportService.CHANNEL_NAME);
       myProfilers = new StudioProfilers(client, ideProfilerServices);
-      ProfilerCodeNavigator navigator = (ProfilerCodeNavigator)ideProfilerServices.getCodeNavigator();
+      CodeNavigator navigator = ideProfilerServices.getCodeNavigator();
       // CPU ABI architecture, when needed by the code navigator, should be retrieved from StudioProfiler selected session.
-      navigator.setCpuAbiArchSupplier(() ->
+      navigator.setCpuArchSource(() ->
         myProfilers.getSessionsManager().getSelectedSessionMetaData().getProcessAbi()
       );
 

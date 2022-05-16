@@ -15,18 +15,19 @@
  */
 package com.android.tools.idea.gradle.dsl.model;
 
+import static com.android.tools.idea.Projects.getBaseDirPath;
 import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction;
 
-import com.android.ide.common.repository.GradleVersion;
-import com.android.tools.idea.gradle.dsl.GradleUtil;
 import com.android.tools.idea.gradle.dsl.TestFileName;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.GradleSettingsModel;
+import com.android.tools.idea.gradle.dsl.api.PluginModel;
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel;
 import com.android.tools.idea.gradle.dsl.api.repositories.RepositoriesModel;
-import com.android.tools.idea.gradle.dsl.api.repositories.RepositoriesModelExtensionKt;
 import com.android.tools.idea.gradle.dsl.api.repositories.RepositoryModel;
 import com.android.tools.idea.gradle.dsl.api.settings.DependencyResolutionManagementModel;
+import com.android.tools.idea.gradle.dsl.api.settings.PluginManagementModel;
+import com.android.tools.idea.gradle.dsl.api.settings.PluginsModel;
 import com.google.common.collect.ImmutableSet;
 import com.intellij.openapi.module.Module;
 import java.io.File;
@@ -55,6 +56,7 @@ public class GradleSettingsModelTest extends GradleFileModelTestCase {
 
     ProjectBuildModel projectModel = getProjectBuildModel();
     GradleBuildModel buildModel = projectModel.getModuleBuildModel(newModule);
+
     assertNotNull(buildModel);
   }
 
@@ -196,7 +198,7 @@ public class GradleSettingsModelTest extends GradleFileModelTestCase {
     assertEquals(ImmutableSet.of(":", ":app", ":libs", ":libs:mylibrary", ":olibs", ":olibs:mylibrary", ":notamodule:deepmodule"),
                  settingsModel.modulePaths());
 
-    File rootDir = GradleUtil.getBaseDirPath(myProject);
+    File rootDir = getBaseDirPath(myProject);
     assertEquals(rootDir, settingsModel.moduleDirectory(":"));
     assertEquals(new File(rootDir, "app"), settingsModel.moduleDirectory("app"));
     assertEquals(new File(rootDir, "libs"), settingsModel.moduleDirectory(":libs"));
@@ -213,7 +215,7 @@ public class GradleSettingsModelTest extends GradleFileModelTestCase {
     assertEquals(ImmutableSet.of(":", ":app", ":libs", ":libs:mylibrary", ":olibs", ":olibs:mylibrary", ":notamodule:deepmodule"),
                  settingsModel.modulePaths());
 
-    File rootDir = GradleUtil.getBaseDirPath(myProject);
+    File rootDir = getBaseDirPath(myProject);
     assertEquals(":", settingsModel.moduleWithDirectory(rootDir));
     assertEquals(":app", settingsModel.moduleWithDirectory(new File(rootDir, "app")));
     assertEquals(":libs", settingsModel.moduleWithDirectory(new File(rootDir, "libs")));
@@ -229,7 +231,7 @@ public class GradleSettingsModelTest extends GradleFileModelTestCase {
     GradleSettingsModel settingsModel = getGradleSettingsModel();
     assertEquals(ImmutableSet.of(":", ":app", ":lib", ":olib"), settingsModel.modulePaths());
 
-    File rootDir = GradleUtil.getBaseDirPath(myProject);
+    File rootDir = getBaseDirPath(myProject);
     assertEquals(new File(rootDir, "build.gradle" + (isGroovy()?"":".kts")), settingsModel.buildFile(""));
     assertEquals(new File(rootDir, "app/build.gradle"), settingsModel.buildFile("app"));
     assertEquals(new File(rootDir, "lib/test.gradle" + (isGroovy()?"":".kts")), settingsModel.buildFile(":lib"));
@@ -358,7 +360,7 @@ public class GradleSettingsModelTest extends GradleFileModelTestCase {
     DependencyResolutionManagementModel dependencyResolutionManagementModel = settingsModel.dependencyResolutionManagement();
     RepositoriesModel repositoriesModel = dependencyResolutionManagementModel.repositories();
 
-    RepositoriesModelExtensionKt.addGoogleMavenRepository(repositoriesModel, GradleVersion.parse("7.0.0"));
+    repositoriesModel.addGoogleMavenRepository();
     applyChanges(settingsModel);
     verifyFileContents(mySettingsFile, TestFile.ADD_AND_APPLY_DEPENDENCY_RESOLUTION_MANAGEMENT_EXPECTED);
   }
@@ -371,9 +373,96 @@ public class GradleSettingsModelTest extends GradleFileModelTestCase {
     RepositoriesModel repositoriesModel = dependencyResolutionManagementModel.repositories();
 
     repositoriesModel.removeRepository(repositoriesModel.repositories().get(0));
-    RepositoriesModelExtensionKt.addGoogleMavenRepository(repositoriesModel, GradleVersion.parse("7.0.0"));
+    repositoriesModel.addGoogleMavenRepository();
     applyChanges(settingsModel);
     verifyFileContents(mySettingsFile, TestFile.EDIT_AND_APPLY_DEPENDENCY_RESOLUTION_MANAGEMENT_EXPECTED);
+  }
+
+  @Test
+  public void testParsePluginManagement() throws IOException {
+    writeToSettingsFile(TestFile.PARSE_PLUGIN_MANAGEMENT);
+    GradleSettingsModel settingsModel = getGradleSettingsModel();
+    PluginManagementModel pluginManagementModel = settingsModel.pluginManagement();
+    RepositoriesModel repositoriesModel = pluginManagementModel.repositories();
+    PluginsModel pluginsModel = pluginManagementModel.plugins();
+
+    List<RepositoryModel> repositories = repositoriesModel.repositories();
+    assertSize(2, repositories);
+    assertEquals("Google", repositories.get(0).name().forceString());
+    assertEquals("BintrayJCenter2", repositories.get(1).name().forceString());
+
+    List<PluginModel> plugins = pluginsModel.plugins();
+    assertSize(2, plugins);
+    assertEmpty(pluginsModel.appliedPlugins());
+    assertEquals("com.android.application", plugins.get(0).name().forceString());
+    assertEquals("4.2.0", plugins.get(0).version().forceString());
+    assertMissingProperty(plugins.get(0).apply());
+    assertEquals("org.jetbrains.kotlin.android", plugins.get(1).name().forceString());
+    assertEquals("1.4.10", plugins.get(1).version().forceString());
+    assertFalse(plugins.get(1).apply().toBoolean());
+  }
+
+  @Test
+  public void testAddAndApplyPluginManagement() throws IOException {
+    writeToSettingsFile(TestFile.ADD_AND_APPLY_PLUGIN_MANAGEMENT);
+    GradleSettingsModel settingsModel = getGradleSettingsModel();
+    PluginManagementModel pluginManagementModel = settingsModel.pluginManagement();
+    PluginsModel pluginsModel = pluginManagementModel.plugins();
+    RepositoriesModel repositoriesModel = pluginManagementModel.repositories();
+
+    repositoriesModel.addGoogleMavenRepository();
+    pluginsModel.applyPlugin("com.android.application", "7.0.0");
+    applyChanges(settingsModel);
+    verifyFileContents(mySettingsFile, TestFile.ADD_AND_APPLY_PLUGIN_MANAGEMENT_EXPECTED);
+  }
+
+  @Test
+  public void testAddAndApplyPluginManagementThreeArguments() throws IOException {
+    writeToSettingsFile(TestFile.ADD_AND_APPLY_PLUGIN_MANAGEMENT);
+    GradleSettingsModel settingsModel = getGradleSettingsModel();
+    PluginManagementModel pluginManagementModel = settingsModel.pluginManagement();
+    PluginsModel pluginsModel = pluginManagementModel.plugins();
+    RepositoriesModel repositoriesModel = pluginManagementModel.repositories();
+
+    repositoriesModel.addGoogleMavenRepository();
+    pluginsModel.applyPlugin("com.android.application", "7.0.0", false);
+    assertEmpty(pluginsModel.appliedPlugins());
+    applyChanges(settingsModel);
+    verifyFileContents(mySettingsFile, TestFile.ADD_AND_APPLY_PLUGIN_MANAGEMENT_THREE_ARGUMENTS_EXPECTED);
+  }
+
+  @Test
+  public void testEditAndApplyPluginManagement() throws IOException {
+    writeToSettingsFile(TestFile.EDIT_AND_APPLY_PLUGIN_MANAGEMENT);
+    GradleSettingsModel settingsModel = getGradleSettingsModel();
+    PluginManagementModel pluginManagementModel = settingsModel.pluginManagement();
+    PluginsModel pluginsModel = pluginManagementModel.plugins();
+    RepositoriesModel repositoriesModel = pluginManagementModel.repositories();
+
+    pluginsModel.removePlugin("com.android.application");
+    pluginsModel.applyPlugin("com.android.library", "7.0.0");
+    assertEmpty(pluginsModel.appliedPlugins());
+    repositoriesModel.removeRepository(repositoriesModel.repositories().get(0));
+    repositoriesModel.addGoogleMavenRepository();
+    applyChanges(settingsModel);
+    verifyFileContents(mySettingsFile, TestFile.EDIT_AND_APPLY_PLUGIN_MANAGEMENT_EXPECTED);
+  }
+
+  @Test
+  public void testEditAndApplyPluginManagementThreeArguments() throws IOException {
+    writeToSettingsFile(TestFile.EDIT_AND_APPLY_PLUGIN_MANAGEMENT);
+    GradleSettingsModel settingsModel = getGradleSettingsModel();
+    PluginManagementModel pluginManagementModel = settingsModel.pluginManagement();
+    PluginsModel pluginsModel = pluginManagementModel.plugins();
+    RepositoriesModel repositoriesModel = pluginManagementModel.repositories();
+
+    pluginsModel.removePlugin("com.android.application");
+    pluginsModel.applyPlugin("com.android.library", "7.0.0", false);
+    assertEmpty(pluginsModel.appliedPlugins());
+    repositoriesModel.removeRepository(repositoriesModel.repositories().get(0));
+    repositoriesModel.addGoogleMavenRepository();
+    applyChanges(settingsModel);
+    verifyFileContents(mySettingsFile, TestFile.EDIT_AND_APPLY_PLUGIN_MANAGEMENT_THREE_ARGUMENTS_EXPECTED);
   }
 
   private void applyChanges(@NotNull final GradleSettingsModel settingsModel) {
@@ -417,6 +506,13 @@ public class GradleSettingsModelTest extends GradleFileModelTestCase {
     ADD_AND_APPLY_DEPENDENCY_RESOLUTION_MANAGEMENT_EXPECTED("addAndApplyDependencyResolutionManagementExpected"),
     EDIT_AND_APPLY_DEPENDENCY_RESOLUTION_MANAGEMENT("editAndApplyDependencyResolutionManagement"),
     EDIT_AND_APPLY_DEPENDENCY_RESOLUTION_MANAGEMENT_EXPECTED("editAndApplyDependencyResolutionManagementExpected"),
+    PARSE_PLUGIN_MANAGEMENT("parsePluginManagement"),
+    ADD_AND_APPLY_PLUGIN_MANAGEMENT("addAndApplyPluginManagement"),
+    ADD_AND_APPLY_PLUGIN_MANAGEMENT_EXPECTED("addAndApplyPluginManagementExpected"),
+    ADD_AND_APPLY_PLUGIN_MANAGEMENT_THREE_ARGUMENTS_EXPECTED("addAndApplyPluginManagementThreeArgumentsExpected"),
+    EDIT_AND_APPLY_PLUGIN_MANAGEMENT("editAndApplyPluginManagement"),
+    EDIT_AND_APPLY_PLUGIN_MANAGEMENT_EXPECTED("editAndApplyPluginManagementExpected"),
+    EDIT_AND_APPLY_PLUGIN_MANAGEMENT_THREE_ARGUMENTS_EXPECTED("editAndApplyPluginManagementThreeArgumentsExpected"),
     ;
     @NotNull private @SystemDependent String path;
     TestFile(@NotNull @SystemDependent String path) {

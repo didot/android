@@ -15,8 +15,10 @@
  */
 package com.android.tools.idea.common.surface;
 
+import static com.android.tools.adtui.PannableKt.PANNABLE_KEY;
 import static java.awt.event.MouseWheelEvent.WHEEL_UNIT_SCROLL;
 
+import com.android.tools.adtui.Pannable;
 import com.android.tools.adtui.actions.ZoomType;
 import com.android.tools.adtui.common.AdtUiCursorType;
 import com.android.tools.adtui.common.AdtUiCursorsProvider;
@@ -421,7 +423,9 @@ public class InteractionManager implements Disposable {
         return;
       }
       else if (SwingUtilities.isMiddleMouseButton(event)) {
-        startInteraction(new MousePressedEvent(event, getInteractionInformation()), new PanInteraction(mySurface));
+        Pannable pannable = (Pannable)mySurface.getData(PANNABLE_KEY.getName());
+        startInteraction(new MousePressedEvent(event, getInteractionInformation()),
+                         new PanInteraction(pannable == null ? mySurface : pannable));
         updateCursor(myLastMouseX, myLastMouseY, myLastModifiersEx);
         return;
       }
@@ -495,6 +499,7 @@ public class InteractionManager implements Disposable {
     @Override
     public void mouseExited(@NotNull MouseEvent event) {
       myHoverTimer.stop();
+      myInteractionHandler.mouseExited();
     }
 
     // --- Implements MouseMotionListener ----
@@ -745,8 +750,13 @@ public class InteractionManager implements Disposable {
   }
 
   void setPanning(boolean panning) {
+    // The surface might decide to delegate the panning to some other element so we ask about the Pannable handling it.
+    Pannable pannable = (Pannable)getSurface().getData(PANNABLE_KEY.getName());
+    if (pannable == null) {
+      pannable = getSurface();
+    }
     if (panning && !(myCurrentInteraction instanceof PanInteraction)) {
-      startInteraction(new InteractionNonInputEvent(getInteractionInformation()), new PanInteraction(mySurface));
+      startInteraction(new InteractionNonInputEvent(getInteractionInformation()), new PanInteraction(pannable));
       updateCursor(myLastMouseX, myLastMouseY, myLastModifiersEx);
     }
     else if (!panning && myCurrentInteraction instanceof PanInteraction) {
@@ -757,7 +767,8 @@ public class InteractionManager implements Disposable {
 
   private void setPanning(@NotNull InteractionEvent event, boolean panning) {
     if (panning && !(myCurrentInteraction instanceof PanInteraction)) {
-      startInteraction(event, new PanInteraction(mySurface));
+      Pannable pannable = (Pannable)mySurface.getData(PANNABLE_KEY.getName());
+      startInteraction(event, new PanInteraction(pannable == null ? mySurface : pannable));
       updateCursor(myLastMouseX, myLastMouseY, myLastModifiersEx);
     }
     else if (!panning && myCurrentInteraction instanceof PanInteraction) {

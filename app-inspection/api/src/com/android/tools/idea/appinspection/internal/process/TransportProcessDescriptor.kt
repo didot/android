@@ -22,30 +22,23 @@ import com.android.tools.profiler.proto.Common
 /**
  * A [ProcessDescriptor] implementation build using transport-related protos.
  */
-class TransportProcessDescriptor(
-  val stream: Common.Stream,
-  val process: Common.Process
-): ProcessDescriptor {
-  override val device = object : DeviceDescriptor {
-    override val manufacturer: String = stream.device.manufacturer
-    override val model: String = stream.device.model
-    override val serial: String = stream.device.serial
-    override val isEmulator: Boolean = stream.device.isEmulator
-    override val apiLevel: Int = stream.device.apiLevel
-    override val version: String = stream.device.version
-    override val codename: String? = stream.device.codename.takeUnless { it.isNullOrBlank() }
-
-    override fun toString(): String {
-      return "DeviceDescriptor(manufacturer='$manufacturer', model='$model', serial='$serial', isEmulator='$isEmulator', apiLevel='$apiLevel')"
-    }
-  }
-  override val abiCpuArch: String = process.abiCpuArch
-  override val name: String = process.name
-  override val isRunning: Boolean = process.state != Common.Process.State.DEAD
-  override val pid: Int = process.pid
-  override val streamId: Long = stream.streamId
-
-  override fun toString(): String {
-    return "ProcessDescriptor(device='$device', name='$name', isRunning='$isRunning')"
-  }
+data class TransportProcessDescriptor(
+  override val device: DeviceDescriptor,
+  override val abiCpuArch: String,
+  override val name: String,
+  override val isRunning: Boolean,
+  override val pid: Int,
+  override val streamId: Long
+) : ProcessDescriptor {
+  constructor(
+    stream: Common.Stream,
+    process: Common.Process
+  ) : this(
+    stream.device.toDeviceDescriptor(),
+    process.abiCpuArch,
+    process.name,
+    process.state != Common.Process.State.DEAD,
+    process.pid,
+    stream.streamId
+  )
 }

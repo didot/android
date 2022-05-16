@@ -20,9 +20,11 @@ import static com.android.tools.idea.testartifacts.TestConfigurationTesting.crea
 import static com.android.tools.idea.testartifacts.TestConfigurationTesting.createAndroidTestConfigurationFromFile;
 import static com.android.tools.idea.testartifacts.TestConfigurationTesting.createConfigurationFromPsiElement;
 import static com.android.tools.idea.testing.TestProjectPaths.TEST_ARTIFACTS_KOTLIN;
+import static com.android.tools.idea.testing.TestProjectPaths.TEST_ARTIFACTS_KOTLIN_MULTIPLATFORM;
 import static com.android.tools.idea.testing.TestProjectPaths.TEST_ONLY_MODULE;
 import static com.google.common.truth.Truth.assertThat;
 
+import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
 import com.google.common.io.Files;
 import com.intellij.execution.Location;
@@ -45,6 +47,7 @@ import com.intellij.testFramework.MapDataContext;
 import com.intellij.testFramework.PlatformTestUtil;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import org.jetbrains.android.facet.AndroidFacet;
 
 /**
  * Test for {@link AndroidTestConfigurationProducer}
@@ -69,9 +72,16 @@ public class AndroidTestConfigurationProducerTest extends AndroidGradleTestCase 
     assertNull(createAndroidTestConfigurationFromClass(getProject(), "google.simpleapplication.UnitTest"));
   }
 
-  public void testCanCreateAndroidTestConfigurationFromAndroidTestDirectory() throws Exception {
+  public void testCanCreateAndroidTestConfigurationFromAndroidTestSubDirectory() throws Exception {
     loadSimpleApplication();
     AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromDirectory(getProject(), "app/src/androidTest/java");
+    assertNotNull(runConfig);
+    assertEmpty(runConfig.checkConfiguration(myAndroidFacet));
+  }
+
+  public void testCanCreateAndroidTestConfigurationFromAndroidTestDirectory() throws Exception {
+    loadSimpleApplication();
+    AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromDirectory(getProject(), "app/src/androidTest");
     assertNotNull(runConfig);
     assertEmpty(runConfig.checkConfiguration(myAndroidFacet));
   }
@@ -153,11 +163,26 @@ public class AndroidTestConfigurationProducerTest extends AndroidGradleTestCase 
     assertThat(runConfig.METHOD_NAME).isEmpty();
   }
 
-  public void testCanCreateAndroidTestConfigurationFromFromTestOnlyModule() throws Exception {
-    loadProject(TEST_ONLY_MODULE, "test");
-    AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromClass(getProject(), "com.example.android.app.ExampleTest");
+  public void testAllInDirectoryTestIsCreatedKotlin() throws Exception {
+    loadProject(TEST_ARTIFACTS_KOTLIN);
+    AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromDirectory(
+      getProject(), "app/src/androidTest");
     assertNotNull(runConfig);
     assertEmpty(runConfig.checkConfiguration(myAndroidFacet));
+    assertThat(runConfig.TESTING_TYPE).isEqualTo(AndroidTestRunConfiguration.TEST_ALL_IN_MODULE);
+    assertThat(runConfig.INSTRUMENTATION_RUNNER_CLASS).isEmpty();
+    assertThat(runConfig.PACKAGE_NAME).isEmpty();
+    assertThat(runConfig.CLASS_NAME).isEmpty();
+    assertThat(runConfig.METHOD_NAME).isEmpty();
+  }
+
+  public void testCanCreateAndroidTestConfigurationFromFromTestOnlyModule() throws Exception {
+    loadProject(TEST_ONLY_MODULE);
+    AndroidFacet mainTestFacet = AndroidFacet.getInstance(ModuleSystemUtil.getMainModule(getModule("test")));
+    assertNotNull(mainTestFacet);
+    AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromClass(getProject(), "com.example.android.app.ExampleTest");
+    assertNotNull(runConfig);
+    assertEmpty(runConfig.checkConfiguration(mainTestFacet));
   }
 
   public void testCanCreateAndroidTestConfigurationWhenOriginalConfigExists() throws Exception {
@@ -219,5 +244,44 @@ public class AndroidTestConfigurationProducerTest extends AndroidGradleTestCase 
 
     AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromClass(getProject(), "google.simpleapplication.SomeTest.InnerClassTest");
     assertEquals("google.simpleapplication.SomeTest$InnerClassTest", runConfig.CLASS_NAME);
+  }
+
+  public void testCreateAndroidAndroidTestKotlinMultiplatformFromSubDirectory() throws Exception {
+    loadProject(TEST_ARTIFACTS_KOTLIN_MULTIPLATFORM);
+    AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromDirectory(
+      getProject(), "module2/src/androidAndroidTest/kotlin");
+    assertNotNull(runConfig);
+    assertEmpty(runConfig.checkConfiguration(myAndroidFacet));
+    assertThat(runConfig.TESTING_TYPE).isEqualTo(AndroidTestRunConfiguration.TEST_ALL_IN_MODULE);
+    assertThat(runConfig.INSTRUMENTATION_RUNNER_CLASS).isEmpty();
+    assertThat(runConfig.PACKAGE_NAME).isEmpty();
+    assertThat(runConfig.CLASS_NAME).isEmpty();
+    assertThat(runConfig.METHOD_NAME).isEmpty();
+  }
+
+  public void testCreateAndroidAndroidTestKotlinMultiplatformFromDirectory() throws Exception {
+    loadProject(TEST_ARTIFACTS_KOTLIN_MULTIPLATFORM);
+    AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromDirectory(
+      getProject(), "module2/src/androidAndroidTest");
+    assertNotNull(runConfig);
+    assertEmpty(runConfig.checkConfiguration(myAndroidFacet));
+    assertThat(runConfig.TESTING_TYPE).isEqualTo(AndroidTestRunConfiguration.TEST_ALL_IN_MODULE);
+    assertThat(runConfig.INSTRUMENTATION_RUNNER_CLASS).isEmpty();
+    assertThat(runConfig.PACKAGE_NAME).isEmpty();
+    assertThat(runConfig.CLASS_NAME).isEmpty();
+    assertThat(runConfig.METHOD_NAME).isEmpty();
+  }
+
+  public void testCreateAndroidAndroidTestKotlinMultiplatfomFromClass() throws Exception {
+    loadProject(TEST_ARTIFACTS_KOTLIN_MULTIPLATFORM);
+    AndroidTestRunConfiguration runConfig = createAndroidTestConfigurationFromClass(
+      getProject(), "ExampleInstrumentedTest");
+    assertNotNull(runConfig);
+    assertEmpty(runConfig.checkConfiguration(myAndroidFacet));
+    assertThat(runConfig.TESTING_TYPE).isEqualTo(AndroidTestRunConfiguration.TEST_CLASS);
+    assertThat(runConfig.INSTRUMENTATION_RUNNER_CLASS).isEmpty();
+    assertThat(runConfig.PACKAGE_NAME).isEmpty();
+    assertThat(runConfig.CLASS_NAME).isEqualTo("ExampleInstrumentedTest");
+    assertThat(runConfig.METHOD_NAME).isEmpty();
   }
 }

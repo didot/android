@@ -1,12 +1,15 @@
 package org.jetbrains.android;
 
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.intellij.facet.ProjectFacetManager;
-import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.*;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiPackage;
+import com.intellij.psi.XmlRecursiveElementVisitor;
 import com.intellij.psi.util.PsiUtilCore;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlAttributeValue;
@@ -22,6 +25,8 @@ import com.intellij.util.Processor;
 import com.intellij.util.xml.DomElement;
 import com.intellij.util.xml.DomManager;
 import com.intellij.util.xml.GenericAttributeValue;
+import java.util.HashMap;
+import java.util.Map;
 import org.jetbrains.android.dom.converters.PackageClassConverter;
 import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -29,9 +34,6 @@ import org.jetbrains.android.facet.AndroidRootUtil;
 import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class AndroidApplicationPackageRenameProcessor extends RenamePsiElementProcessor {
   @Override
@@ -84,14 +86,13 @@ public class AndroidApplicationPackageRenameProcessor extends RenamePsiElementPr
   public void renameElement(@NotNull PsiElement element, @NotNull String newName, @NotNull UsageInfo[] usages, @Nullable RefactoringElementListener listener)
     throws IncorrectOperationException {
     if (element instanceof PsiPackage) {
-      final Map<GenericAttributeValue, String> newAttrValues = new HashMap<GenericAttributeValue, String>();
+      final Map<GenericAttributeValue, String> newAttrValues = new HashMap<>();
 
       final Project project = element.getProject();
       final String oldPackageQName = ((PsiPackage)element).getQualifiedName();
       final String newPackageQName = PsiUtilCore.getQualifiedNameAfterRename(oldPackageQName, newName);
 
-      for (Module module : ModuleManager.getInstance(project).getModules()) {
-        final AndroidFacet facet = AndroidFacet.getInstance(module);
+      for (AndroidFacet facet : ProjectSystemUtil.getAndroidFacets(project)) {
         final Manifest manifest = facet != null ? Manifest.getMainManifest(facet) : null;
 
         if (manifest != null) {
@@ -106,7 +107,7 @@ public class AndroidApplicationPackageRenameProcessor extends RenamePsiElementPr
             }
             processAllAttributesToUpdate(
               (XmlFile)manifestPsiFile, basePackage, oldPackageQName, newPackageQName,
-              new Processor<Pair<GenericAttributeValue, String>>() {
+              new Processor<>() {
                 @Override
                 public boolean process(Pair<GenericAttributeValue, String> pair) {
                   newAttrValues.put(pair.getFirst(), pair.getSecond());
@@ -153,9 +154,9 @@ public class AndroidApplicationPackageRenameProcessor extends RenamePsiElementPr
 
   @NotNull
   private static Map<GenericAttributeValue, PsiClass> buildAttr2ClassMap(@NotNull XmlFile file) {
-    final Map<GenericAttributeValue, PsiClass> map = new HashMap<GenericAttributeValue, PsiClass>();
+    final Map<GenericAttributeValue, PsiClass> map = new HashMap<>();
 
-    processAllClassAttrValues(file, new Processor<Pair<GenericAttributeValue, PsiClass>>() {
+    processAllClassAttrValues(file, new Processor<>() {
       @Override
       public boolean process(Pair<GenericAttributeValue, PsiClass> pair) {
         map.put(pair.getFirst(), pair.getSecond());
@@ -174,7 +175,7 @@ public class AndroidApplicationPackageRenameProcessor extends RenamePsiElementPr
         !AndroidUtils.isPackagePrefix(newPackageQName, basePackage)) {
       return;
     }
-    processAllClassAttrValues(file, new Processor<Pair<GenericAttributeValue, PsiClass>>() {
+    processAllClassAttrValues(file, new Processor<>() {
       @Override
       public boolean process(Pair<GenericAttributeValue, PsiClass> pair) {
         final GenericAttributeValue domValue = pair.getFirst();

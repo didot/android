@@ -18,11 +18,17 @@ package com.android.tools.nativeSymbolizer
 import com.android.tools.idea.util.StudioPathManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
+import java.io.File
 import java.io.IOException
 import java.nio.file.Paths
 
+/**
+ * @param name - The name of the symbol.
+ * @param module - The file path to the module containing the symbol.
+ * @param sourceFile - The file path to the source file where the symbol is defined.
+ * @param lineNumber - The line in [sourceFile] where the symbol is defined.
+ */
 data class Symbol(val name: String, val module: String, val sourceFile: String = "", val lineNumber: Int = 0)
 
 /**
@@ -38,20 +44,14 @@ interface NativeSymbolizer {
    * @return symbols info if it can be found, or null otherwise
    */
   @Throws(IOException::class)
-  fun symbolize(abiArch: String, module: String, offset: Long): Symbol?
+  fun symbolize(abiArch: String, module: File, offset: Long): Symbol?
   fun stop()
 }
 
-fun createNativeSymbolizer(project: Project): NativeSymbolizer {
-  val symDirMap = getArchToSymDirsMap(project)
+fun createNativeSymbolizer(locator:SymbolFilesLocator): NativeSymbolizer {
   val symbolizerPath = getLlvmSymbolizerPath()
-  val log = getLogger()
-  log.info("Creating a native symbolizer. Executable path: $symbolizerPath")
-  for ((arch, dirs) in symDirMap) {
-    log.debug("Native symbolizer paths for $arch is [$dirs]")
-  }
-  val symLocator = SymbolFilesLocator(symDirMap)
-  return LlvmSymbolizer(symbolizerPath, symLocator)
+  getLogger().info("Creating a native symbolizer. Executable path: $symbolizerPath")
+  return LlvmSymbolizer(symbolizerPath, locator)
 }
 
 /**
@@ -76,7 +76,7 @@ fun getLlvmSymbolizerPath(): String {
   val result = if (StudioPathManager.isRunningFromSources()) {
     Paths.get(StudioPathManager.resolveDevPath("prebuilts/tools/${os}/lldb/bin/$exe}"))
   } else {
-    Paths.get(PathManager.getBinPath(), "lldb", "bin", exe)
+    Paths.get(PathManager.getHomePath(), "plugins", "android-ndk", "resources", "lldb", "bin", exe)
   }
   return result.toString()
 }

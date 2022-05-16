@@ -23,9 +23,13 @@ import com.android.builder.model.InstantAppVariantBuildOutput
 import com.android.builder.model.ProjectBuildOutput
 import com.android.builder.model.VariantBuildOutput
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType
+import com.android.tools.idea.gradle.project.build.invoker.AssembleInvocationResult
+import com.android.tools.idea.gradle.project.build.invoker.GradleInvocationResult
+import com.android.tools.idea.gradle.project.build.invoker.GradleMultiInvocationResult
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel
 import com.android.tools.idea.gradle.run.OutputBuildAction.PostBuildModuleModels
 import com.android.tools.idea.gradle.run.OutputBuildAction.PostBuildProjectModels
+import com.android.tools.idea.gradle.util.BuildMode
 import com.android.tools.idea.gradle.util.GradleUtil
 import com.android.tools.idea.testing.AndroidModuleModelBuilder
 import com.android.tools.idea.testing.AndroidProjectBuilder
@@ -40,7 +44,6 @@ import junit.framework.TestCase
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito
 import java.io.File
-import java.util.ArrayList
 
 /**
  * Tests for [BuildsToPathsMapper].
@@ -72,127 +75,118 @@ class BuildsToPathsMapperTest : HeavyPlatformTestCase() {
   }
 
   fun testSingleOutputFromPostBuildModelForApk() {
-    initTestProject("3.5", IdeAndroidProjectType.PROJECT_TYPE_APP)
+    initTestProject("3.5.0", IdeAndroidProjectType.PROJECT_TYPE_APP)
     val output = File("path/to/apk")
     val androidModel = AndroidModuleModel.get(myModule)
     val buildVariant = androidModel!!.selectedVariant.name
     val buildsAndBundlePaths = myTask.getBuildsToPaths(
-      createPostBuildModel(setOf(output), buildVariant),
+      createPostBuildModel(setOf(output), buildVariant).toTestAssembleResult(),
       ImmutableList.of(),
       setOf(myModule),
-      false,
-      null)
+      false
+    )
     UsefulTestCase.assertSameElements(buildsAndBundlePaths.keys, myModule.name)
     TestCase.assertEquals(output, buildsAndBundlePaths[myModule.name])
   }
 
   fun testMultipleOutputsFromPostBuildModel() {
-    initTestProject("3.5", IdeAndroidProjectType.PROJECT_TYPE_APP)
+    initTestProject("3.5.0", IdeAndroidProjectType.PROJECT_TYPE_APP)
     val output1 = File("path/to/apk1")
     val output2 = File("path/to/apk2")
     TestCase.assertEquals(output1.parentFile, output2.parentFile)
     val androidModel = AndroidModuleModel.get(myModule)
     val buildVariant = androidModel!!.selectedVariant.name
     val buildsAndBundlePaths = myTask.getBuildsToPaths(
-      createPostBuildModel(Lists.newArrayList(output1, output2), buildVariant),
+      createPostBuildModel(Lists.newArrayList(output1, output2), buildVariant).toTestAssembleResult(),
       ImmutableList.of(),
       setOf(myModule),
-      false,
-      null)
+      false
+    )
     UsefulTestCase.assertSameElements(buildsAndBundlePaths.keys, myModule.name)
     TestCase.assertEquals(output1.parentFile, buildsAndBundlePaths[myModule.name])
   }
 
-  fun testSingleOutputFromPreBuildModel() {
-    initTestProject("2.3", IdeAndroidProjectType.PROJECT_TYPE_APP)
-    val buildsAndBundlePaths = myTask.getBuildsToPaths(null,
-                                                       ImmutableList.of(),
-                                                       setOf(myModule), false, null)
-    // TODO find some way to create module with meaningful output files.
-    TestCase.assertTrue(buildsAndBundlePaths.isEmpty())
-  }
-
   fun testSingleOutputFromPostBuildModelForSignedApk() {
-    initTestProject("3.5", IdeAndroidProjectType.PROJECT_TYPE_APP)
+    initTestProject("3.5.0", IdeAndroidProjectType.PROJECT_TYPE_APP)
     val output = File("path/to/apk")
     val buildsAndBundlePaths = myTask.getBuildsToPaths(
-      createPostBuildModel(setOf(output), buildVariant),
+      createPostBuildModel(setOf(output), buildVariant).toTestAssembleResult(),
       ImmutableList.of(buildVariant),
       setOf(myModule),
-      false,
-      "")
+      false
+    )
     UsefulTestCase.assertSameElements(buildsAndBundlePaths.keys, buildVariant)
     TestCase.assertEquals(output, buildsAndBundlePaths[buildVariant])
   }
 
   fun testMultipleOutputFromPostBuildModelForSignedApk() {
-    initTestProject("3.5", IdeAndroidProjectType.PROJECT_TYPE_APP)
+    initTestProject("3.5.0", IdeAndroidProjectType.PROJECT_TYPE_APP)
     val output1 = File("path/to/apk1")
     val output2 = File("path/to/apk2")
     TestCase.assertEquals(output1.parentFile, output2.parentFile)
     val buildsAndBundlePaths = myTask.getBuildsToPaths(
       createPostBuildModel(Lists.newArrayList(output1, output2),
-                           buildVariant),
+                           buildVariant).toTestAssembleResult(),
       ImmutableList.of(buildVariant),
       setOf(myModule),
-      false,
-      "")
+      false
+    )
     UsefulTestCase.assertSameElements(buildsAndBundlePaths.keys, buildVariant)
     TestCase.assertEquals(output1.parentFile,
                           buildsAndBundlePaths[buildVariant])
   }
 
   fun testSingleOutputFromInstantAppPostBuildModel() {
-    initTestProject("3.5", IdeAndroidProjectType.PROJECT_TYPE_INSTANTAPP)
+    initTestProject("3.5.0", IdeAndroidProjectType.PROJECT_TYPE_INSTANTAPP)
     val output = File("path/to/bundle")
     val androidModel = AndroidModuleModel.get(myModule)
     val buildVariant = androidModel!!.selectedVariant.name
     val buildsAndBundlePaths = myTask.getBuildsToPaths(
-      createInstantAppPostBuildModel(output, buildVariant),
+      createInstantAppPostBuildModel(output, buildVariant).toTestAssembleResult(),
       emptyList(),
       setOf(myModule),
-      false,
-      null)
+      false
+    )
     UsefulTestCase.assertSameElements(buildsAndBundlePaths.keys, myModule.name)
     TestCase.assertEquals(output, buildsAndBundlePaths[myModule.name])
   }
 
   fun testSingleOutputFromInstantAppPostBuildModelForSignedApk() {
-    initTestProject("3.5", IdeAndroidProjectType.PROJECT_TYPE_INSTANTAPP)
+    initTestProject("3.5.0", IdeAndroidProjectType.PROJECT_TYPE_INSTANTAPP)
     val output = File("path/to/bundle")
     val buildsAndBundlePaths = myTask.getBuildsToPaths(
-      createInstantAppPostBuildModel(output, buildVariant),
+      createInstantAppPostBuildModel(output, buildVariant).toTestAssembleResult(),
       ImmutableList.of(buildVariant),
       setOf(myModule),
-      false,
-      "")
+      false
+    )
     UsefulTestCase.assertSameElements(buildsAndBundlePaths.keys, buildVariant)
     TestCase.assertEquals(output, buildsAndBundlePaths[buildVariant])
   }
 
   fun testSingleOutputFromPostBuildModelForBundle() {
-    initTestProject("3.5", IdeAndroidProjectType.PROJECT_TYPE_APP)
+    initTestProject("3.5.0", IdeAndroidProjectType.PROJECT_TYPE_APP)
     val output = File("path/to/bundle")
     val buildsAndBundlePaths = myTask.getBuildsToPaths(
-      createAppBundleBuildModel(output, AndroidModuleModel.get(myModule)!!.selectedVariant.name),
+      createAppBundleBuildModel(output, AndroidModuleModel.get(myModule)!!.selectedVariant.name).toTestAssembleResult(),
       emptyList(),
       setOf(myModule),
-      true,
-      null)
+      true
+    )
 
     UsefulTestCase.assertSameElements(buildsAndBundlePaths.keys, myModule.name)
     TestCase.assertEquals(output, buildsAndBundlePaths[myModule.name])
   }
 
   fun testSingleOutputFromPostBuildModelForSignedBundle() {
-    initTestProject("3.5", IdeAndroidProjectType.PROJECT_TYPE_APP)
+    initTestProject("3.5.0", IdeAndroidProjectType.PROJECT_TYPE_APP)
     val output = File("path/to/bundle")
     val buildsAndBundlePaths = myTask.getBuildsToPaths(
-      createAppBundleBuildModel(output, buildVariant),
+      createAppBundleBuildModel(output, buildVariant).toTestAssembleResult(),
       ImmutableList.of(buildVariant),
       setOf(myModule),
-      true,
-      "")
+      true
+    )
     UsefulTestCase.assertSameElements(buildsAndBundlePaths.keys, buildVariant)
     TestCase.assertEquals(output, buildsAndBundlePaths[buildVariant])
   }
@@ -312,3 +306,18 @@ class BuildsToPathsMapperTest : HeavyPlatformTestCase() {
     }
   }
 }
+
+private fun PostBuildProjectModels.toTestAssembleResult() =
+  AssembleInvocationResult(
+    GradleMultiInvocationResult(
+      listOf(
+        GradleInvocationResult(
+          rootProjectPath = File("/not-expected-to-matter"),
+          tasks = listOf("not-expected-to-matter"),
+          buildError = null,
+          model = this
+        )
+      )
+    ),
+    BuildMode.ASSEMBLE
+  )

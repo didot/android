@@ -55,7 +55,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Exports an entire project into a zip file containing everything that is needed to run the project.
  */
-public final class ExportProjectZip extends AnAction implements DumbAware {
+public class ExportProjectZip extends AnAction implements DumbAware {
+
   @Override
   public void update(@NotNull final AnActionEvent e) {
     Project project = e.getProject();

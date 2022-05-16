@@ -16,17 +16,19 @@
 package com.android.tools.idea.gradle.dsl.api;
 
 import com.android.tools.idea.gradle.dsl.api.util.GradleDslModel;
+import com.android.tools.idea.gradle.dsl.model.BuildModelContext;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
-import java.util.List;
-import java.util.Map;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public interface GradleFileModel extends GradleDslModel {
   @NotNull
   Project getProject();
+
+  @NotNull
+  BuildModelContext getContext();
 
   void reparse();
 
@@ -38,9 +40,6 @@ public interface GradleFileModel extends GradleDslModel {
   VirtualFile getVirtualFile();
 
   void applyChanges();
-
-  @NotNull
-  Map<String, List<BuildModelNotification>> getNotifications();
 
   /**
    * @return the psi file representing this GradleFileModel. In order to continue using this instance of the model no modifications should

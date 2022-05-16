@@ -29,8 +29,8 @@ import com.intellij.psi.PsiFile
  */
 class AndroidXmlTargetElementEvaluatorEx : XmlTargetElementEvaluator(), TargetElementEvaluatorEx{
   override fun isIdentifierPart(file: PsiFile, text: CharSequence, offset: Int): Boolean {
-    val character = text.get(offset)
-     return if (file.androidFacet != null) {
+    val character = text?.get(offset) ?: return false
+     return if (file?.androidFacet != null) {
       Character.isJavaIdentifierPart(character) || character == '@'
     } else {
       Character.isJavaIdentifierPart(character)

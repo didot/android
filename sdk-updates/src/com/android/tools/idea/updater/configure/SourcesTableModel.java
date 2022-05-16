@@ -21,10 +21,10 @@ import com.android.repository.api.RepositorySourceProvider;
 import com.android.repository.api.SimpleRepositorySource;
 import com.android.repository.impl.sources.LocalSourceProvider;
 import com.android.sdklib.repository.AndroidSdkHandler;
+import com.android.tools.idea.progress.RepoProgressIndicatorAdapter;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.sdk.AndroidAuthenticator;
 import com.android.tools.idea.sdk.StudioDownloader;
-import com.android.tools.idea.sdk.progress.RepoProgressIndicatorAdapter;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
@@ -48,7 +48,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.JTable;
+import javax.swing.SwingConstants;
 import javax.swing.table.TableCellRenderer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -197,7 +199,7 @@ class SourcesTableModel extends ListTableModel<SourcesTableModel.Row> implements
     Application application = ApplicationManager.getApplication();
     application.executeOnPooledThread(() -> {
       final ArrayList<Row> items = new ArrayList<>();
-      final Set<RepositorySource> initial = new HashSet<RepositorySource>();
+      final Set<RepositorySource> initial = new HashSet<>();
       for (RepositorySource source : myConfigurable.getRepoManager().getSources(new StudioDownloader(), myLogger, force)) {
         items.add(new Row(source));
         initial.add(source);

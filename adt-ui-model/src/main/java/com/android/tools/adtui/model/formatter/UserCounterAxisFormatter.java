@@ -20,9 +20,10 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import org.jetbrains.annotations.NotNull;
 
 public class UserCounterAxisFormatter extends BaseAxisFormatter {
+
   // TODO: (b/140522169) Base default interval based on how many events users have registered.
   public static final int DEFAULT_MAJOR_INTERVAL = 2;
-  public static final String[] LABELS = {"Light", "Medium", "Heavy"};
+  public static String[] LABELS = {"Light", "Medium", "Heavy"};
   // Default formatter for the User Counter Axis value.
   public static final UserCounterAxisFormatter DEFAULT = new UserCounterAxisFormatter(1, LABELS.length, 1);
 

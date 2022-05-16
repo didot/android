@@ -20,7 +20,6 @@ import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.intellij.application.options.CodeStyle
 import com.intellij.lang.xml.XMLLanguage
-import com.intellij.psi.codeStyle.CodeStyleSettings
 import com.intellij.psi.codeStyle.CommonCodeStyleSettings.REARRANGE_ALWAYS
 import com.intellij.psi.codeStyle.JavaCodeStyleSettings
 import org.jetbrains.android.formatter.AndroidXmlCodeStyleSettings

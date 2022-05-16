@@ -19,18 +19,30 @@ import com.android.annotations.concurrency.UiThread
 import com.android.emulator.control.KeyboardEvent
 import com.android.emulator.control.KeyboardEvent.KeyEventType
 import com.android.emulator.control.Rotation.SkinRotation
-import com.android.tools.idea.uibuilder.surface.layout.horizontal
-import com.android.tools.idea.uibuilder.surface.layout.vertical
+import com.android.emulator.control.ThemingStyle
+import com.intellij.ide.ui.LafManager
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ex.ProjectEx
+import java.awt.Container
 import java.awt.Dimension
 import java.awt.Point
-import javax.swing.JPanel
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+
+/**
+ * Returns the emulator UI theme matching the current IDE theme.
+ */
+internal fun getEmulatorUiTheme(lafManager: LafManager): ThemingStyle.Style {
+  val themeName = lafManager.currentLookAndFeel.name
+  return when {
+    themeName.contains("High contrast", ignoreCase = true) -> ThemingStyle.Style.CONTRAST
+    themeName.contains("Light", ignoreCase = true) -> ThemingStyle.Style.LIGHT
+    else -> ThemingStyle.Style.DARK // Darcula and custom themes that are based on Darcula.
+  }
+}
 
 /**
  * Invokes given function on the UI thread regardless of the modality state.
@@ -114,8 +126,9 @@ internal fun Point.rotated(rotation: SkinRotation): Point {
   }
 }
 
-internal val JPanel.sizeWithoutInsets: Dimension
-  get() = Dimension(width - insets.horizontal, height - insets.vertical)
+internal val Container.sizeWithoutInsets: Dimension
+  get() = Dimension(width - insets.left - insets.right.coerceAtLeast(0),
+                    height - insets.top - insets.bottom.coerceAtLeast(0))
 
 val Project.earlyDisposable: Disposable
   get() = (this as? ProjectEx)?.earlyDisposable ?: this

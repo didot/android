@@ -23,7 +23,8 @@ import com.android.tools.adtui.model.Range;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.ide.ui.UISettings;
 import com.intellij.util.ui.ImageUtil;
-import com.intellij.util.ui.UIUtil;
+import com.intellij.util.ui.StartupUiUtil;
+import java.awt.AlphaComposite;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -33,13 +34,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import com.intellij.util.ui.StartupUiUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -246,7 +240,7 @@ public class HTreeChart<N extends HNode<N>> extends AnimatedComponent {
     if (myCanvas == null || ImageUtil.getUserHeight(myCanvas) != dim.height || ImageUtil.getUserWidth(myCanvas) != dim.width) {
       redrawToCanvas(dim);
     }
-    UIUtil.drawImage(g, myCanvas, 0, 0, null);
+    StartupUiUtil.drawImage(g, myCanvas, 0, 0, null);
     addDebugInfo("Draw time %.2fms", (System.nanoTime() - startTime) / 1e6);
     addDebugInfo("# of nodes %d", myNodes.size());
     addDebugInfo("# of reduced nodes %d", myDrawnNodes.size());
@@ -256,11 +250,13 @@ public class HTreeChart<N extends HNode<N>> extends AnimatedComponent {
     if (myCanvas == null || (ImageUtil.getUserWidth(myCanvas) < dim.width || ImageUtil.getUserHeight(myCanvas) < dim.height)) {
       // Note: We intentionally create an RGB image, not an ARGB image, because this allows nodes
       // to render their text clearly (ARGB prevents LCD rendering from working).
-      myCanvas = ImageUtil.createImage(dim.width, dim.height, BufferedImage.TYPE_INT_RGB);
+      myCanvas = ImageUtil.createImage(dim.width, dim.height, BufferedImage.TYPE_INT_ARGB);
     }
     final Graphics2D g = (Graphics2D)myCanvas.getGraphics();
     g.setColor(getBackground());
+    g.setComposite(AlphaComposite.Clear);
     g.fillRect(0, 0, dim.width, dim.height);
+    g.setComposite(AlphaComposite.Src);
 
     UISettings.setupAntialiasing(g);
     g.setFont(getFont());

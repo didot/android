@@ -17,18 +17,18 @@ package com.android.tools.idea.naveditor.scene;
 
 import com.android.resources.ResourceFolderType;
 import com.android.resources.ResourceType;
-import com.android.tools.adtui.ImageUtils;
 import com.android.testutils.ImageDiffUtil;
+import com.android.tools.adtui.ImageUtils;
 import com.android.tools.idea.common.model.NlModel;
 import com.android.tools.idea.configurations.Configuration;
 import com.android.tools.idea.configurations.ConfigurationManager;
 import com.android.tools.idea.naveditor.NavTestCase;
+import com.android.tools.idea.naveditor.model.NavComponentRegistrar;
 import com.android.tools.idea.naveditor.surface.NavDesignSurface;
 import com.android.tools.idea.rendering.RenderService;
 import com.android.tools.idea.rendering.RenderTask;
 import com.android.tools.idea.rendering.RenderTestUtil;
-import com.android.tools.idea.res.ResourceRepositoryManager;
-import com.intellij.idea.Bombed;
+import com.android.tools.idea.res.IdeResourcesUtil;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -41,7 +41,6 @@ import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Paths;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,7 +48,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.imageio.ImageIO;
 import org.jetbrains.android.facet.AndroidFacet;
-import com.android.tools.idea.res.IdeResourcesUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -67,7 +65,7 @@ public class ThumbnailManagerTest extends NavTestCase {
     mySurface = new NavDesignSurface(myFacet.getModule().getProject(), getMyRootDisposable());
   }
 
-  public void testCaching() {
+  public void testCaching() throws Exception {
     ThumbnailManager manager = ThumbnailManager.getInstance(myFacet);
     VirtualFile file = myFixture.findFileInTempDir("res/layout/activity_main.xml");
     XmlFile psiFile = (XmlFile)PsiManager.getInstance(getProject()).findFile(file);
@@ -75,7 +73,7 @@ public class ThumbnailManagerTest extends NavTestCase {
     VirtualFile virtualFile = psiFile.getVirtualFile();
     NlModel model = NlModel.builder(myFacet, virtualFile, ConfigurationManager.getOrCreateInstance(myFacet).getConfiguration(virtualFile))
       .withParentDisposable(getMyRootDisposable())
-      .withComponentRegistrar(mySurface.getComponentRegistrar())
+      .withComponentRegistrar(NavComponentRegistrar.INSTANCE)
       .build();
     RefinableImage imageFuture = manager.getThumbnail(psiFile, model.getConfiguration(), new Dimension(100, 200));
     BufferedImage image = imageFuture.getTerminalImage();
@@ -94,7 +92,7 @@ public class ThumbnailManagerTest extends NavTestCase {
     VirtualFile resDir = myFixture.findFileInTempDir("res");
     IdeResourcesUtil.createValueResource(getProject(), resDir, "foo", ResourceType.STRING, "strings.xml",
                                          Collections.singletonList(ResourceFolderType.VALUES.getName()), "bar");
-    ResourceRepositoryManager.getAppResources(myFacet).sync();
+    waitForResourceRepositoryUpdates();
 
     imageFuture = manager.getThumbnail(psiFile, model.getConfiguration(), new Dimension(100, 200));
     assertNotSame(image, imageFuture.getTerminalImage());
@@ -112,7 +110,7 @@ public class ThumbnailManagerTest extends NavTestCase {
     VirtualFile virtualFile = psiFile.getVirtualFile();
     NlModel model = NlModel.builder(myFacet, virtualFile, ConfigurationManager.getOrCreateInstance(myFacet).getConfiguration(virtualFile))
       .withParentDisposable(getMyRootDisposable())
-      .withComponentRegistrar(mySurface.getComponentRegistrar())
+      .withComponentRegistrar(NavComponentRegistrar.INSTANCE)
       .build();
     Configuration configuration = model.getConfiguration();
     RefinableImage thumbnail = manager.getThumbnail(psiFile, configuration, new Dimension(100, 200));
@@ -176,7 +174,7 @@ public class ThumbnailManagerTest extends NavTestCase {
     VirtualFile virtualFile = psiFile.getVirtualFile();
     NlModel model = NlModel.builder(myFacet, virtualFile, ConfigurationManager.getOrCreateInstance(myFacet).getConfiguration(virtualFile))
       .withParentDisposable(getMyRootDisposable())
-      .withComponentRegistrar(mySurface.getComponentRegistrar())
+      .withComponentRegistrar(NavComponentRegistrar.INSTANCE)
       .build();
     RefinableImage imageFuture = manager.getThumbnail(psiFile, model.getConfiguration(), new Dimension(100, 200));
     RefinableImage imageFuture2 = manager.getThumbnail(psiFile, model.getConfiguration(), new Dimension(100, 200));
@@ -191,8 +189,6 @@ public class ThumbnailManagerTest extends NavTestCase {
 
   private static final float MAX_PERCENT_DIFFERENT = 1f;
 
-  @Bombed(year = 2020, month = Calendar.OCTOBER, day = 1, user = "Andrei.Kuznetsov",
-    description = "missing path: ../unitTest/res/layout/activity_main.xml")
   public void testGeneratedImage() throws Exception {
     ThumbnailManager manager = ThumbnailManager.getInstance(myFacet);
 
@@ -202,7 +198,7 @@ public class ThumbnailManagerTest extends NavTestCase {
     VirtualFile virtualFile = psiFile.getVirtualFile();
     NlModel model = NlModel.builder(myFacet, virtualFile, ConfigurationManager.getOrCreateInstance(myFacet).getConfiguration(virtualFile))
       .withParentDisposable(getMyRootDisposable())
-      .withComponentRegistrar(mySurface.getComponentRegistrar())
+      .withComponentRegistrar(NavComponentRegistrar.INSTANCE)
       .build();
     BufferedImage image = manager.getThumbnail(psiFile, model.getConfiguration(), new Dimension(192, 320)).getTerminalImage();
 

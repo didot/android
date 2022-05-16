@@ -78,11 +78,23 @@ public abstract class CpuTreeNode<T extends CpuTreeNode> {
     return myGlobalChildrenTotal;
   }
 
-  public double getSelf() {
-    return getGlobalTotal() - getGlobalChildrenTotal();
+  public double getThreadChildrenTotal() {
+    return myThreadChildrenTotal;
   }
 
-  public void update(@NotNull Range range) {
+  public double getTotal(ClockType clockType) {
+    return clockType == ClockType.GLOBAL ? myGlobalTotal : myThreadTotal;
+  }
+
+  public double getChildrenTotal(ClockType clockType) {
+    return clockType == ClockType.GLOBAL ? myGlobalChildrenTotal : myThreadChildrenTotal;
+  }
+
+  public double getSelf(ClockType clockType) {
+    return getTotal(clockType) - getChildrenTotal(clockType);
+  }
+
+  public void update(@NotNull ClockType clockType, @NotNull Range range) {
     myGlobalTotal = 0.0;
     myGlobalChildrenTotal = 0;
     myThreadTotal = 0.0;

@@ -79,8 +79,8 @@ public class CaptureService {
   public CaptureService(@NotNull Project project) {
     myProject = project;
     myCaptures = LinkedListMultimap.create();
-    myListeners = new LinkedList<CaptureListener>();
-    myOpenCaptureHandles = new HashSet<CaptureHandle>();
+    myListeners = new LinkedList<>();
+    myOpenCaptureHandles = new HashSet<>();
 
     update();
   }
@@ -91,7 +91,7 @@ public class CaptureService {
   }
 
   private static Set<VirtualFile> findCaptureFiles(@NotNull VirtualFile[] files, @NotNull CaptureType type) {
-    Set<VirtualFile> set = new HashSet<VirtualFile>();
+    Set<VirtualFile> set = new HashSet<>();
     for (VirtualFile file : files) {
       if (type.isValidCapture(file)) {
         set.add(file);
@@ -258,7 +258,7 @@ public class CaptureService {
    * @param captureHandle is the handle returned by {@link #startCaptureFile(Class)}
    */
   public void cancelCaptureFile(@NotNull final CaptureHandle captureHandle) {
-    finalizeCaptureFileAsynchronous(captureHandle, new FutureCallback<Capture>() {
+    finalizeCaptureFileAsynchronous(captureHandle, new FutureCallback<>() {
       @Override
       public void onSuccess(@Nullable Capture result) {
         deleteBackingFile(captureHandle, result);
@@ -316,7 +316,7 @@ public class CaptureService {
   public void finalizeCaptureFileAsynchronous(@NotNull final CaptureHandle captureHandle,
                                               @Nullable FutureCallback<Capture> onCompletion,
                                               @Nullable Executor executor) {
-    final ListenableFutureTask<Capture> postCloseTask = ListenableFutureTask.create(new Callable<Capture>() {
+    final ListenableFutureTask<Capture> postCloseTask = ListenableFutureTask.create(new Callable<>() {
       @Override
       public Capture call() throws Exception {
         ApplicationManager.getApplication().assertIsDispatchThread();
@@ -540,7 +540,7 @@ public class CaptureService {
     assert !captureHandle.isWritable();
 
     final File file = captureHandle.getFile();
-    final VirtualFile vf = ApplicationManager.getApplication().runWriteAction(new Computable<VirtualFile>() {
+    final VirtualFile vf = ApplicationManager.getApplication().runWriteAction(new Computable<>() {
       @Override
       public VirtualFile compute() {
         return VfsUtil.findFileByIoFile(file, true);

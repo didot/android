@@ -125,7 +125,7 @@ public abstract class OnClickConverter extends Converter<String> implements Cust
     @Override
     public ResolveResult[] multiResolve(boolean incompleteCode) {
       return ResolveCache.getInstance(myElement.getProject())
-        .resolveWithCaching(this, new ResolveCache.PolyVariantResolver<MyReference>() {
+        .resolveWithCaching(this, new ResolveCache.PolyVariantResolver<>() {
           @NotNull
           @Override
           public ResolveResult[] resolve(@NotNull MyReference myReference, boolean incompleteCode) {
@@ -194,7 +194,7 @@ public abstract class OnClickConverter extends Converter<String> implements Cust
       final List<Object> result = new ArrayList<>();
       final Set<String> methodNames = new HashSet<>();
 
-      ClassInheritorsSearch.search(activityClass, module.getModuleWithDependenciesScope(), true).forEach(new Processor<PsiClass>() {
+      ClassInheritorsSearch.search(activityClass, module.getModuleWithDependenciesScope(), true).forEach(new Processor<>() {
         @Override
         public boolean process(PsiClass c) {
           for (PsiMethod method : c.getMethods()) {

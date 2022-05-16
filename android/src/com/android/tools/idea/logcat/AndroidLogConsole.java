@@ -18,9 +18,10 @@ package com.android.tools.idea.logcat;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.actions.BrowserHelpAction;
 import com.android.tools.idea.ddms.DeviceContext;
+import com.android.tools.idea.ddms.actions.DeviceScreenshotAction;
 import com.android.tools.idea.ddms.actions.ScreenRecorderAction;
-import com.android.tools.idea.ddms.actions.ScreenshotAction;
 import com.android.tools.idea.ddms.actions.TerminateVMAction;
+import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.logcat.AndroidLogcatView.MyConfigureLogcatHeaderAction;
 import com.android.tools.idea.logcat.AndroidLogcatView.MyRestartAction;
 import com.intellij.diagnostic.logging.LogConsoleBase;
@@ -33,11 +34,11 @@ import com.intellij.openapi.actionSystem.Separator;
 import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.search.GlobalSearchScope;
+import java.awt.Component;
+import java.awt.Container;
 import java.util.List;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
-
-import java.awt.*;
 
 public final class AndroidLogConsole extends LogConsoleBase {
   private static final String ACTION_ID_PREFIX = AndroidLogConsole.class.getSimpleName() + ".";
@@ -47,24 +48,32 @@ public final class AndroidLogConsole extends LogConsoleBase {
   private final RegexFilterComponent myRegexFilterComponent = new RegexFilterComponent("LOG_FILTER_HISTORY", 5);
   private final AndroidLogcatPreferences myPreferences;
 
+  @NotNull
+  private final Project myProject;
+
   AndroidLogConsole(@NotNull Project project,
                     @NotNull AndroidLogFilterModel model,
                     @NotNull LogFormatter formatter,
                     @NotNull AndroidLogcatView view) {
     super(project, null, "", false, model, GlobalSearchScope.allScope(project), formatter);
+    myProject = project;
     ConsoleView console = getConsole();
     ActionManager actionManager = ActionManager.getInstance();
     if (console instanceof ConsoleViewImpl) {
       ConsoleViewImpl c = ((ConsoleViewImpl)console);
+      DeviceContext context = view.getDeviceContext();
+
       c.addCustomConsoleAction(new Separator());
       c.addCustomConsoleAction(registerAction(actionManager, new MyRestartAction(view)));
       c.addCustomConsoleAction(registerAction(actionManager, new MyConfigureLogcatHeaderAction(view)));
 
-      DeviceContext context = view.getDeviceContext();
+      if (StudioFlags.LOGCAT_SUPPRESSED_TAGS_ENABLE.get()) {
+        c.addCustomConsoleAction(registerAction(actionManager, new SuppressLogTagsAction(context, this::refresh)));
+      }
 
       // TODO: Decide if these should be part of the profiler window
       c.addCustomConsoleAction(new Separator());
-      c.addCustomConsoleAction(registerAction(actionManager, new ScreenshotAction(project, context)));
+      c.addCustomConsoleAction(registerAction(actionManager, new DeviceScreenshotAction(project, context)));
       c.addCustomConsoleAction(registerAction(actionManager, new ScreenRecorderAction(project, context)));
       c.addCustomConsoleAction(new Separator());
       c.addCustomConsoleAction(registerAction(actionManager, new TerminateVMAction(context)));
@@ -86,13 +95,22 @@ public final class AndroidLogConsole extends LogConsoleBase {
     });
   }
 
+  @NotNull
+  public Project getProject() {
+    return myProject;
+  }
+
   /**
    * Register an action with the {@link ActionManager}. This makes the action show up in "Find Action" tool and Keymap etc'.
-   *
+   * <p>
    * The id is derived from the classname.
    */
   static AnAction registerAction(ActionManager actionManager, AnAction action) {
-    actionManager.registerAction(ACTION_ID_PREFIX + action.getClass().getSimpleName(), action, PLUGIN_ID);
+    String id = ACTION_ID_PREFIX + action.getClass().getSimpleName();
+    if (actionManager.getAction(id) != null) {
+      actionManager.unregisterAction(id);
+    }
+    actionManager.registerAction(id, action, PLUGIN_ID);
     return action;
   }
 

@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.gradle.dsl.model;
 
-import static com.android.tools.idea.gradle.dsl.GradleDslBuildScriptUtil.findGradleBuildFile;
 import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.FILE_CONSTRUCTOR_NAME;
 import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.FILE_METHOD_NAME;
 import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.ASSIGNMENT;
@@ -31,8 +30,10 @@ import com.android.tools.idea.gradle.dsl.api.GradleSettingsModel;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo;
 import com.android.tools.idea.gradle.dsl.api.settings.DependencyResolutionManagementModel;
+import com.android.tools.idea.gradle.dsl.api.settings.PluginManagementModel;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
 import com.android.tools.idea.gradle.dsl.model.settings.DependencyResolutionManagementModelImpl;
+import com.android.tools.idea.gradle.dsl.model.settings.PluginManagementModelImpl;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslLiteral;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslMethodCall;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
@@ -41,7 +42,9 @@ import com.android.tools.idea.gradle.dsl.parser.files.GradleBuildFile;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleSettingsFile;
 import com.android.tools.idea.gradle.dsl.parser.include.IncludeDslElement;
 import com.android.tools.idea.gradle.dsl.parser.settings.DependencyResolutionManagementDslElement;
+import com.android.tools.idea.gradle.dsl.parser.settings.PluginManagementDslElement;
 import com.android.tools.idea.gradle.dsl.parser.settings.ProjectPropertiesDslElement;
+import com.android.tools.idea.gradle.dsl.utils.BuildScriptUtil;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
@@ -52,8 +55,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class GradleSettingsModelImpl extends GradleFileModelImpl implements GradleSettingsModel {
+  @NotNull protected GradleSettingsFile myGradleSettingsFile;
+
   public GradleSettingsModelImpl(@NotNull GradleSettingsFile parsedModel) {
     super(parsedModel);
+    myGradleSettingsFile = parsedModel;
   }
 
   private static class ModulePathsCache {
@@ -161,11 +167,11 @@ public class GradleSettingsModelImpl extends GradleFileModelImpl implements Grad
   /**
    * WARNING: This method does not write in the same format as it is read, this means that the changes from this method
    * WON'T be visible until the file as been re-parsed.
-   * <p>
+   *
    * For example:
-   * gradleSettingsModel.setModuleDirectory(":app", new File("/cool/file"))
-   * File moduleDir = gradleSettingModel.moduleDirectory(":app") // returns projectDir/app not /cool/file
-   * <p>
+   *   gradleSettingsModel.setModuleDirectory(":app", new File("/cool/file"))
+   *   File moduleDir = gradleSettingModel.moduleDirectory(":app") // returns projectDir/app not /cool/file
+   *
    * TODO: FIX THIS
    */
   @Override
@@ -316,12 +322,12 @@ public class GradleSettingsModelImpl extends GradleFileModelImpl implements Grad
     String projectKey = "project('" + modulePath + "')";
     ProjectPropertiesDslElement projectProperties = myGradleDslFile.getPropertyElement(projectKey, ProjectPropertiesDslElement.class);
     if (projectProperties != null) {
-      buildFileName = projectProperties.getLiteral(BUILD_FILE_NAME, String.class);
+      buildFileName =  projectProperties.getLiteral(BUILD_FILE_NAME, String.class);
     }
 
     // If the BUILD_FILE_NAME property doesn't exist, look for the default build file in the module.
     if (buildFileName == null) {
-      return findGradleBuildFile(moduleDirectory);
+      return BuildScriptUtil.findGradleBuildFile(moduleDirectory);
     }
 
     return new File(moduleDirectory, buildFileName);
@@ -336,5 +342,12 @@ public class GradleSettingsModelImpl extends GradleFileModelImpl implements Grad
     DependencyResolutionManagementDslElement dependencyResolutionManagementElement =
       myGradleDslFile.ensurePropertyElement(DependencyResolutionManagementDslElement.DEPENDENCY_RESOLUTION_MANAGEMENT);
     return new DependencyResolutionManagementModelImpl(dependencyResolutionManagementElement);
+  }
+
+  @Override
+  public @NotNull PluginManagementModel pluginManagement() {
+    PluginManagementDslElement pluginManagementDslElement =
+      myGradleDslFile.ensurePropertyElementAt(PluginManagementDslElement.PLUGIN_MANAGEMENT_DSL_ELEMENT, 0);
+    return new PluginManagementModelImpl(pluginManagementDslElement);
   }
 }

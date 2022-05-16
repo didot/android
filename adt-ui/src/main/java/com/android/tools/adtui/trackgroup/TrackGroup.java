@@ -33,6 +33,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.ide.HelpTooltip;
+import com.intellij.ui.components.JBCheckBox;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.MouseEventHandler;
 import icons.StudioIcons;
@@ -47,7 +48,9 @@ import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.Map;
 import javax.swing.AbstractAction;
+import javax.swing.BoxLayout;
 import javax.swing.Icon;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -80,7 +83,8 @@ public class TrackGroup extends AspectObserver {
   private final JLabel myTitleInfoIcon;
   private final JPanel myOverlay = new JPanel();
   private final JPanel myTrackTitleOverlay = new JPanel();
-  private final DragAndDropList<TrackModel> myTrackList;
+  private final JPanel myTagCheckBoxPanel = new JPanel();
+  private final DragAndDropList<TrackModel<?, ?>> myTrackList;
   private final CommonDropDownButton myActionsDropdown;
   private final FlatSeparator mySeparator = new FlatSeparator();
   private final CommonButton myCollapseButton;
@@ -113,14 +117,14 @@ public class TrackGroup extends AspectObserver {
                                                     boolean cellHasFocus) {
         return myTrackMap
           .computeIfAbsent(value.getId(), id -> {
-            TrackRenderer<?, ?> renderer = rendererFactory.createRenderer(value.getRendererType());
+            TrackRenderer<?> renderer = rendererFactory.createRenderer(value.getRendererType());
             // When track's collapse state changes, render the track again.
             value.getAspectModel().addDependency(myObserver).onChange(TrackModel.Aspect.COLLAPSE_CHANGE, () -> {
               myTrackMap.put(id, Track.create(value, renderer));
             });
             return Track.create(value, renderer);
           })
-          .updateSelected(groupModel.isTrackSelectable() && isSelected)
+          .updateUiStates(groupModel.isTrackSelectable() && isSelected)
           .getComponent();
       }
     });
@@ -136,6 +140,9 @@ public class TrackGroup extends AspectObserver {
 
     JPanel toolbarPanel = new JPanel(new GridBagLayout());
     toolbarPanel.setBorder(JBUI.Borders.emptyRight(16));
+    myTagCheckBoxPanel.setLayout(new BoxLayout(myTagCheckBoxPanel, BoxLayout.X_AXIS));
+    toolbarPanel.add(myTagCheckBoxPanel);
+    groupModel.getAllDisplayToggles().forEach(tag -> myTagCheckBoxPanel.add(tagCheckBox(tag)));
     toolbarPanel.add(myActionsDropdown);
     toolbarPanel.add(mySeparator);
     toolbarPanel.add(myCollapseButton);
@@ -173,7 +180,6 @@ public class TrackGroup extends AspectObserver {
     myTrackTitleOverlay.setOpaque(false);
     MouseEventHandler trackTitleMouseEventHandler = new TrackTitleMouseEventHandler();
     myTrackTitleOverlay.addMouseListener(trackTitleMouseEventHandler);
-    myTrackTitleOverlay.addMouseMotionListener(trackTitleMouseEventHandler);
 
     myComponent = new JPanel(new TabularLayout(COL_SIZES));
     if (groupModel.getBoxSelectionModel() != null) {
@@ -201,6 +207,13 @@ public class TrackGroup extends AspectObserver {
     initKeyBindings(myTrackList);
   }
 
+  private JCheckBox tagCheckBox(String tag) {
+    JBCheckBox tagCheckbox = new JBCheckBox(tag, getModel().getActiveDisplayToggles().contains(tag));
+    tagCheckbox.setBorder(JBUI.Borders.empty(0, 2));
+    tagCheckbox.addItemListener(e -> getModel().setDisplayTag(tag, tagCheckbox.isSelected()));
+    return tagCheckbox;
+  }
+
   @NotNull
   public TrackGroupModel getModel() {
     return myModel;
@@ -216,6 +229,7 @@ public class TrackGroup extends AspectObserver {
       myTrackTitleOverlay.setVisible(false);
       mySeparator.setVisible(false);
       myActionsDropdown.setVisible(false);
+      myTagCheckBoxPanel.setVisible(false);
       myCollapseButton.setText("Expand Section");
       myCollapseButton.setIcon(EXPAND_ICON);
       getModel().getActionListeners().forEach(listener -> listener.onGroupCollapsed(getModel().getTitle()));
@@ -226,6 +240,7 @@ public class TrackGroup extends AspectObserver {
       myTrackTitleOverlay.setVisible(true);
       mySeparator.setVisible(true);
       myActionsDropdown.setVisible(true);
+      myTagCheckBoxPanel.setVisible(true);
       myCollapseButton.setText(null);
       myCollapseButton.setIcon(COLLAPSE_ICON);
       getModel().getActionListeners().forEach(listener -> listener.onGroupExpanded(getModel().getTitle()));
@@ -255,7 +270,7 @@ public class TrackGroup extends AspectObserver {
    * @return the underlying JList that displays all tracks.
    */
   @NotNull
-  public DragAndDropList<TrackModel> getTrackList() {
+  public DragAndDropList<TrackModel<?, ?>> getTrackList() {
     return myTrackList;
   }
 
@@ -345,6 +360,11 @@ public class TrackGroup extends AspectObserver {
   @VisibleForTesting
   JComponent getTrackTitleOverlay() {
     return myTrackTitleOverlay;
+  }
+
+  @VisibleForTesting
+  JPanel getTagCheckBoxPanel() {
+    return myTagCheckBoxPanel;
   }
 
   /**

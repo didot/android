@@ -20,9 +20,15 @@ import org.junit.Test
 import java.awt.Dimension
 
 /**
- * Test for the [computeBestLayout] function defined in `MultiDisplayLayoutOptimizer.kt`.
+ * Tests for the [computeBestLayout] function defined in `MultiDisplayLayoutOptimizer.kt`.
  */
 class MultiDisplayLayoutOptimizerTest {
+  @Test
+  fun test1Rectangle() {
+    val rectangleSizes = listOf(Dimension(2, 4))
+    assertThat(computeBestLayout(Dimension(4, 4), rectangleSizes).toString()).isEqualTo("#0")
+  }
+
   @Test
   fun test2Rectangles() {
     val rectangleSizes = listOf(Dimension(2, 4), Dimension(3, 2))
@@ -31,21 +37,44 @@ class MultiDisplayLayoutOptimizerTest {
   }
 
   @Test
-  fun test3Rectangles() {
+  fun test3Rectangles1() {
     val rectangleSizes = listOf(Dimension(2, 4), Dimension(3, 2), Dimension(2, 2))
     assertThat(computeBestLayout(Dimension(7, 4), rectangleSizes).toString()).isEqualTo("[[#0] | [#1] 0.40] | [#2] 0.71")
-    assertThat(computeBestLayout(Dimension(4, 4), rectangleSizes).toString()).isEqualTo("[[#0] — [#1] 0.67] | [#2] 0.60")
-    assertThat(computeBestLayout(Dimension(4, 7), rectangleSizes).toString()).isEqualTo("[[#0] — [#1] 0.67] — [#2] 0.75")
+    assertThat(computeBestLayout(Dimension(4, 4), rectangleSizes).toString()).isEqualTo("[#0] | [[#1] — [#2] 0.50] 0.40")
+    assertThat(computeBestLayout(Dimension(4, 7), rectangleSizes).toString()).isEqualTo("[[#0] | [#2] 0.50] — [#1] 0.67")
+  }
+
+  @Test
+  fun test3Rectangles2() {
+    val rectangleSizes = listOf(Dimension(1571, 3332), Dimension(720, 1280), Dimension(720, 1280))
+    assertThat(computeBestLayout(Dimension(1084, 1862), rectangleSizes).toString()).isEqualTo("[#0] | [[#1] — [#2] 0.50] 0.69")
   }
 
   @Test
   fun test4Rectangles() {
     val rectangleSizes = listOf(Dimension(2, 4), Dimension(3, 2), Dimension(4, 5), Dimension(2, 3))
     assertThat(computeBestLayout(Dimension(11, 5), rectangleSizes).toString()).isEqualTo("[[[#0] | [#1] 0.40] | [#2] 0.56] | [#3] 0.82")
-    assertThat(computeBestLayout(Dimension(9, 5), rectangleSizes).toString()).isEqualTo("[[[#0] | [#1] 0.40] — [#1] 0.67] | [#3] 0.71")
-    assertThat(computeBestLayout(Dimension(5, 5), rectangleSizes).toString()).isEqualTo("[[#0] — [#1] 0.67] | [[#0] — [#1] 0.67] 0.50")
-    assertThat(computeBestLayout(Dimension(5, 7), rectangleSizes).toString()).isEqualTo("[[[#0] — [#1] 0.67] | [#3] 0.60] — [#1] 0.75")
+    assertThat(computeBestLayout(Dimension(9, 5), rectangleSizes).toString()).isEqualTo("[[[#0] | [#3] 0.50] — [#1] 0.67] | [#2] 0.50")
+    assertThat(computeBestLayout(Dimension(5, 5), rectangleSizes).toString()).isEqualTo("[[#0] — [#3] 0.57] | [[#1] — [#2] 0.29] 0.33")
+    assertThat(computeBestLayout(Dimension(5, 9), rectangleSizes).toString()).isEqualTo("[[#0] | [[#1] — [#3] 0.40] 0.40] — [#2] 0.50")
     assertThat(computeBestLayout(Dimension(5, 11), rectangleSizes).toString()).isEqualTo("[[[#0] — [#1] 0.67] | [#3] 0.60] — [#2] 0.55")
     assertThat(computeBestLayout(Dimension(5, 14), rectangleSizes).toString()).isEqualTo("[[[#0] — [#1] 0.67] — [#2] 0.55] — [#3] 0.79")
+  }
+
+  @Test
+  fun test5Rectangles() {
+    val rectangleSizes = listOf(Dimension(2, 4), Dimension(3, 2), Dimension(4, 5), Dimension(2, 3), Dimension(1, 1))
+    assertThat(computeBestLayout(Dimension(12, 5), rectangleSizes).toString())
+        .isEqualTo("[[[[#0] | [#1] 0.40] | [#2] 0.56] | [#3] 0.82] | [#4] 0.92")
+    assertThat(computeBestLayout(Dimension(9, 5), rectangleSizes).toString())
+        .isEqualTo("[[[#0] | [[#1] — [#3] 0.40] 0.40] — [#4] 0.83] | [#2] 0.56")
+    assertThat(computeBestLayout(Dimension(4, 5), rectangleSizes).toString())
+        .isEqualTo("[[#0] — [#3] 0.57] | [[[#1] | [#4] 0.75] — [#2] 0.29] 0.33")
+    assertThat(computeBestLayout(Dimension(4, 7), rectangleSizes).toString())
+        .isEqualTo("[[[#0] — [#4] 0.80] | [[#1] — [#3] 0.40] 0.40] — [#2] 0.50")
+    assertThat(computeBestLayout(Dimension(4, 11), rectangleSizes).toString())
+        .isEqualTo("[[[[#0] | [#3] 0.50] — [#1] 0.67] | [#4] 0.80] — [#2] 0.55")
+    assertThat(computeBestLayout(Dimension(4, 15), rectangleSizes).toString())
+        .isEqualTo("[[[[#0] — [#1] 0.67] — [#2] 0.55] — [#3] 0.79] — [#4] 0.93")
   }
 }

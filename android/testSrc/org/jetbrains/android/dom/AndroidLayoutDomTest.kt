@@ -2,12 +2,9 @@ package org.jetbrains.android.dom
 
 import com.android.AndroidProjectTypes.PROJECT_TYPE_LIBRARY
 import com.android.SdkConstants
-import com.android.SdkConstants.DOT_XML
 import com.android.ide.common.rendering.api.ResourceNamespace
 import com.android.ide.common.rendering.api.ResourceReference
 import com.android.resources.ResourceType
-import com.android.tools.idea.lint.AndroidLintMotionLayoutInvalidSceneFileReferenceInspection
-import com.android.tools.idea.lint.common.LintExternalAnnotator
 import com.android.tools.idea.res.addAarDependency
 import com.android.tools.idea.res.addBinaryAarDependency
 import com.android.tools.idea.res.psi.ResourceReferencePsiElement
@@ -21,7 +18,6 @@ import com.intellij.codeInsight.documentation.DocumentationManager
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementPresentation
-import com.intellij.codeInsight.template.impl.LiveTemplateCompletionContributor
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.deadCode.UnusedDeclarationInspection
 import com.intellij.lang.documentation.DocumentationProvider
@@ -54,7 +50,6 @@ import org.jetbrains.android.refactoring.isAndroidx
 import org.jetbrains.android.refactoring.setAndroidxProperties
 import org.junit.Test
 import java.io.IOException
-import java.util.ArrayList
 import java.util.Arrays
 
 /**
@@ -751,48 +746,6 @@ class AndroidLayoutDomTest : AndroidDomTestCase("dom/layout") {
     toTestCompletion("inheritedAttributesForViewTag.xml", "inheritedAttributesForViewTag_after.xml")
   }
 
-  fun testLiveTemplateAttributeCompletion() {
-    LiveTemplateCompletionContributor.setShowTemplatesInTests(true, myFixture.testRootDisposable)
-    val virtualFile = myFixture.addFileToProject(
-      "res/layout/layout.xml",
-      //language=XML
-      """
-        <LinearLayout
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                ${caret}
-                android:orientation="vertical"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-        </LinearLayout>
-      """.trimIndent()).virtualFile
-    myFixture.configureFromExistingVirtualFile(virtualFile)
-    myFixture.type("too")
-    myFixture.completeBasic()
-    val lookupElementStrings = myFixture.lookupElementStrings
-    assertThat(lookupElementStrings).contains("toolsNs")
-  }
-
-  fun testLiveTemplateTagCompletion() {
-    LiveTemplateCompletionContributor.setShowTemplatesInTests(true, myFixture.testRootDisposable)
-    val virtualFile = myFixture.addFileToProject(
-      "res/layout/layout.xml",
-      //language=XML
-      """
-        <LinearLayout
-                xmlns:android="http://schemas.android.com/apk/res/android"
-                android:orientation="vertical"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-                ${caret}
-        </LinearLayout>
-      """.trimIndent()).virtualFile
-    myFixture.configureFromExistingVirtualFile(virtualFile)
-    myFixture.type("too")
-    myFixture.completeBasic()
-    val lookupElementStrings = myFixture.lookupElementStrings
-    assertThat(lookupElementStrings).doesNotContain("toolsNs")
-  }
-
   fun testOpenDrawerAttributeNameCompletion() {
     // For unit tests there are no support libraries, copy dummy DrawerLayout class that imitates the support library one
     myFixture.copyFileToProject("$myTestFolder/DrawerLayout.java", "src/android/support/v4/widget/DrawerLayout.java")
@@ -868,6 +821,11 @@ class AndroidLayoutDomTest : AndroidDomTestCase("dom/layout") {
   fun testDesigntimeAttributesCompletion2() {
     toTestFirstCompletion("tools_designtime_completion_background.xml",
                           "tools_designtime_completion_background_after.xml")
+  }
+
+  // Designtime attributes completion after having typed tools:
+  fun testDesigntimeAttributesCompletion3() {
+    doTestCompletionVariantsContains("tools_designtime_prefix_only.xml", "tools:background")
   }
 
   fun testToolsUseHandlerAttribute() {
@@ -972,18 +930,20 @@ class AndroidLayoutDomTest : AndroidDomTestCase("dom/layout") {
 
   fun testToolsAttributesForOldRecyclerView() {
     myFixture.addClass(recyclerViewOld)
-    doTestCompletionVariants("recycler_view_2.xml",
-                             "tools:targetApi",
-                             "tools:itemCount",
-                             "tools:listitem")
+    doTestCompletionVariantsContains("recycler_view_2.xml",
+                                     "tools:targetApi",
+                                     "tools:itemCount",
+                                     "tools:listitem",
+                                     "tools:viewBindingType")
   }
 
   fun testToolsAttributesForNewRecyclerView() {
     myFixture.addClass(recyclerViewNew)
-    doTestCompletionVariants("recycler_view_3.xml",
-                             "tools:targetApi",
-                             "tools:itemCount",
-                             "tools:listitem")
+    doTestCompletionVariantsContains("recycler_view_3.xml",
+                                     "tools:targetApi",
+                                     "tools:itemCount",
+                                     "tools:listitem",
+                                     "tools:viewBindingType")
   }
 
   fun testCustomTagCompletion() {
@@ -1254,7 +1214,7 @@ class AndroidLayoutDomTest : AndroidDomTestCase("dom/layout") {
                              "ScrollView", "SearchView", "StackView", "SurfaceView", "TextView", "TextureView", "VideoView", "View",
                              "ViewAnimator", "ViewFlipper", "ViewStub", "ViewSwitcher", "WebView", "android.appwidget.AppWidgetHostView",
                              "android.gesture.GestureOverlayView", "android.inputmethodservice.KeyboardView", "android.media.tv.TvView",
-                             "android.opengl.GLSurfaceView", "android.widget.inline.InlineContentView")
+                             "android.opengl.GLSurfaceView", "android.widget.inline.InlineContentView", "android.window.SplashScreenView")
   }
 
   /*public void testTagNameCompletion4() throws Throwable {
@@ -1534,9 +1494,10 @@ class AndroidLayoutDomTest : AndroidDomTestCase("dom/layout") {
   }
 
   fun testFragmentCompletion7() {
-    doTestCompletionVariants("fragmentCompletion7.xml",
-                             "tools:layout",
-                             "tools:targetApi")
+    doTestCompletionVariantsContains("fragmentCompletion7.xml",
+                                     "tools:layout",
+                                     "tools:targetApi",
+                                     "tools:ignore")
   }
 
   fun testCustomAttrsPerformance() {
@@ -2187,11 +2148,13 @@ class AndroidLayoutDomTest : AndroidDomTestCase("dom/layout") {
   fun testToolsCompletion() {
     // Don't offer tools: completion for the mockup editor yet.
     // Also tests that the current expected set of tools attributes are offered.
-    doTestCompletionVariants("toolsCompletion.xml",
-                             "tools:listfooter",
-                             "tools:listheader",
-                             "tools:listitem",
-                             "tools:targetApi")
+    doTestCompletionVariantsContains("toolsCompletion.xml",
+                                     "tools:listfooter",
+                                     "tools:listheader",
+                                     "tools:listitem",
+                                     "tools:targetApi",
+                                     "tools:viewBindingType",
+                                     "tools:ignore")
   }
 
   // Regression test for http://b/66240917
@@ -2414,6 +2377,52 @@ class AndroidLayoutDomTest : AndroidDomTestCase("dom/layout") {
     assertThat(myFixture.lookupElementStrings).containsExactlyElementsIn(arrayOf("editText", "textView"))
   }
 
+  fun testViewBindingTypeCompletion() {
+    run { // test autocompleting the tools:viewBindingType label
+      val file = myFixture.addFileToProject(
+        "res/layout/activity_view_binding_type_label.xml",
+        // language=XML
+        """
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout>
+            <EditText
+                xmlns:tools="http://schemas.android.com/tools"
+                tools:${caret} />
+          </LinearLayout>
+        """.trimIndent()
+      )
+
+      myFixture.configureFromExistingVirtualFile(file.virtualFile)
+      myFixture.completeBasic()
+      assertThat(myFixture.lookupElementStrings).contains("tools:viewBindingType")
+    }
+
+    run { // Test that Android views are suggested for the value of the tools:viewBindingType attribute
+      val file = myFixture.addFileToProject(
+        "res/layout/activity_view_binding_type_value.xml",
+        // language=XML
+        """
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout>
+            <EditText
+                xmlns:tools="http://schemas.android.com/tools"
+                tools:viewBindingType="Text${caret}" />
+          </LinearLayout>
+      """.trimIndent()
+      )
+
+      myFixture.configureFromExistingVirtualFile(file.virtualFile)
+      myFixture.completeBasic()
+      // Just choose a random sampling of autocompleted values, enough to show a pattern
+      assertThat(myFixture.lookupElementStrings).containsAllOf(
+        "android.widget.EditText",
+        "android.widget.TextView",
+        "android.view.TextureView")
+      // Make sure random non-view classes aren't showing up in the list
+      assertThat(myFixture.lookupElementStrings!!.all { suggestion -> suggestion.startsWith("android.") }).isTrue()
+    }
+  }
+
   fun testCoordinatorLayoutBehavior_classes() {
     setAndroidx()
     myFixture.addClass(coordinatorLayout)
@@ -2500,14 +2509,6 @@ class AndroidLayoutDomTest : AndroidDomTestCase("dom/layout") {
 
     myFixture.configureFromExistingVirtualFile(layout.virtualFile)
     myFixture.checkHighlighting()
-  }
-
-  fun testMotionLayoutWithoutLayoutDescription() {
-    myFixture.enableInspections(AndroidLintMotionLayoutInvalidSceneFileReferenceInspection())
-    val file = copyFileToProject(getTestName(true) + DOT_XML)
-    doTestOnClickQuickfix(file, LintExternalAnnotator.MyFixingIntention::class.java, getTestName(true) + "_after" + DOT_XML)
-    val sceneFile = "${getTestName(true)}_scene.xml"
-    myFixture.checkResultByFile("res/xml/$sceneFile", "$myTestFolder/$sceneFile", false)
   }
 
   /**

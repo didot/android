@@ -15,27 +15,29 @@
  */
 package com.android.tools.idea.profilers;
 
+import com.android.tools.idea.codenavigation.CodeNavigator;
+import com.android.tools.idea.codenavigation.IntelliJNavSource;
 import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.gradle.project.sync.hyperlink.OpenUrlHyperlink;
 import com.android.tools.idea.profilers.analytics.StudioFeatureTracker;
+import com.android.tools.idea.profilers.appinspection.AppInspectionIntellijMigrationServices;
 import com.android.tools.idea.profilers.perfetto.traceprocessor.TraceProcessorServiceImpl;
 import com.android.tools.idea.profilers.profilingconfig.CpuProfilerConfigConverter;
 import com.android.tools.idea.profilers.profilingconfig.CpuProfilingConfigService;
 import com.android.tools.idea.profilers.stacktrace.IntelliJNativeFrameSymbolizer;
-import com.android.tools.idea.profilers.stacktrace.ProfilerCodeNavigator;
 import com.android.tools.idea.project.AndroidNotification;
 import com.android.tools.idea.run.AndroidRunConfigurationBase;
 import com.android.tools.idea.run.editor.ProfilerState;
 import com.android.tools.idea.run.profiler.CpuProfilerConfigsState;
-import com.android.tools.inspectors.common.api.stacktrace.CodeNavigator;
 import com.android.tools.nativeSymbolizer.NativeSymbolizer;
 import com.android.tools.nativeSymbolizer.NativeSymbolizerKt;
-import com.android.tools.nativeSymbolizer.SymbolFilesLocatorKt;
+import com.android.tools.nativeSymbolizer.SymbolFilesLocator;
 import com.android.tools.profilers.FeatureConfig;
 import com.android.tools.profilers.IdeProfilerServices;
 import com.android.tools.profilers.Notification;
 import com.android.tools.profilers.ProfilerPreferences;
 import com.android.tools.profilers.analytics.FeatureTracker;
+import com.android.tools.profilers.appinspection.AppInspectionMigrationServices;
 import com.android.tools.profilers.cpu.config.ProfilingConfiguration;
 import com.android.tools.profilers.perfetto.traceprocessor.TraceProcessorService;
 import com.android.tools.profilers.stacktrace.NativeFrameSymbolizer;
@@ -54,8 +56,6 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
@@ -67,10 +67,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -88,23 +88,33 @@ public class IntellijProfilerServices implements IdeProfilerServices, Disposable
     return Logger.getInstance(IntellijProfilerServices.class);
   }
 
-  private final ProfilerCodeNavigator myCodeNavigator;
+  @NotNull private final SymbolFilesLocator mySymbolLocator;
+  private final CodeNavigator myCodeNavigator;
   @NotNull private final NativeFrameSymbolizer myNativeSymbolizer;
   private final StudioFeatureTracker myFeatureTracker;
 
   @NotNull private final Project myProject;
   @NotNull private final IntellijProfilerPreferences myPersistentPreferences;
   @NotNull private final TemporaryProfilerPreferences myTemporaryPreferences;
+  @NotNull private final AppInspectionMigrationServices myMigrationServices;
 
-  public IntellijProfilerServices(@NotNull Project project) {
+  public IntellijProfilerServices(@NotNull Project project,
+                                  @NotNull SymbolFilesLocator symbolLocator) {
     myProject = project;
     myFeatureTracker = new StudioFeatureTracker(myProject);
-    NativeSymbolizer nativeSymbolizer = NativeSymbolizerKt.createNativeSymbolizer(project);
+
+    mySymbolLocator = symbolLocator;
+
+    NativeSymbolizer nativeSymbolizer = NativeSymbolizerKt.createNativeSymbolizer(mySymbolLocator);
     Disposer.register(this, nativeSymbolizer::stop);
     myNativeSymbolizer = new IntelliJNativeFrameSymbolizer(nativeSymbolizer);
-    myCodeNavigator = new ProfilerCodeNavigator(project, nativeSymbolizer, myFeatureTracker);
     myPersistentPreferences = new IntellijProfilerPreferences();
     myTemporaryPreferences = new TemporaryProfilerPreferences();
+    myMigrationServices = new AppInspectionIntellijMigrationServices(myPersistentPreferences, project);
+
+    myCodeNavigator = new CodeNavigator(new IntelliJNavSource(project, nativeSymbolizer),
+                                        CodeNavigator.Companion.getApplicationExecutor());
+    myCodeNavigator.addListener(location -> myFeatureTracker.trackNavigateToCode());
   }
 
   @Override
@@ -276,12 +286,9 @@ public class IntellijProfilerServices implements IdeProfilerServices, Disposable
   @NotNull
   @Override
   public List<String> getNativeSymbolsDirectories() {
-    String arch = myCodeNavigator.fetchCpuAbiArch();
-    Map<String, Set<File>> archToDirectories = SymbolFilesLocatorKt.getArchToSymDirsMap(myProject);
-    if (!archToDirectories.containsKey(arch)) {
-      return Collections.emptyList();
-    }
-    return ContainerUtil.map(archToDirectories.get(arch), file -> file.getAbsolutePath());
+    String arch = myCodeNavigator.getCpuArchSource().get();
+    Collection<File> dirs = mySymbolLocator.getDirectories(arch);
+    return ContainerUtil.map(dirs, file -> file.getAbsolutePath());
   }
 
   @Override
@@ -366,6 +373,11 @@ public class IntellijProfilerServices implements IdeProfilerServices, Disposable
     return TraceProcessorServiceImpl.getInstance();
   }
 
+  @Override
+  public @NotNull AppInspectionMigrationServices getAppInspectionMigrationServices() {
+    return myMigrationServices;
+  }
+
   /**
    * Implementation of {@link FeatureConfig} with values used in production.
    */
@@ -374,11 +386,6 @@ public class IntellijProfilerServices implements IdeProfilerServices, Disposable
     @Override
     public boolean isCpuCaptureStageEnabled() {
       return StudioFlags.PROFILER_CPU_CAPTURE_STAGE.get();
-    }
-
-    @Override
-    public boolean isNativeMemorySampleEnabled() {
-      return StudioFlags.PROFILER_ENABLE_NATIVE_SAMPLE.get();
     }
 
     @Override
@@ -392,28 +399,18 @@ public class IntellijProfilerServices implements IdeProfilerServices, Disposable
     }
 
     @Override
+    public boolean isJankDetectionUiEnabled() {
+      return StudioFlags.PROFILER_JANK_DETECTION_UI.get();
+    }
+
+    @Override
     public boolean isJniReferenceTrackingEnabled() {
       return StudioFlags.PROFILER_TRACK_JNI_REFS.get();
     }
 
     @Override
-    public boolean isLiveAllocationsEnabled() {
-      return StudioFlags.PROFILER_USE_LIVE_ALLOCATIONS.get();
-    }
-
-    @Override
-    public boolean isLiveAllocationsSamplingEnabled() {
-      return StudioFlags.PROFILER_SAMPLE_LIVE_ALLOCATIONS.get();
-    }
-
-    @Override
     public boolean isMemoryCSVExportEnabled() {
       return StudioFlags.PROFILER_MEMORY_CSV_EXPORT.get();
-    }
-
-    @Override
-    public boolean isMemorySnapshotEnabled() {
-      return StudioFlags.PROFILER_MEMORY_SNAPSHOT.get();
     }
 
     @Override

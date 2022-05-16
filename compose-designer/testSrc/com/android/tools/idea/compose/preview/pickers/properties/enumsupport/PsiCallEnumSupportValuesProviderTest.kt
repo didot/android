@@ -15,26 +15,43 @@
  */
 package com.android.tools.idea.compose.preview.pickers.properties.enumsupport
 
+import com.android.SdkConstants
 import com.android.tools.compose.ComposeLibraryNamespace
 import com.android.tools.idea.compose.preview.addFileToProjectAndInvalidate
 import com.android.tools.idea.compose.preview.namespaceVariations
+import com.android.tools.idea.compose.preview.pickers.properties.enumsupport.devices.ReferenceDesktopConfig
+import com.android.tools.idea.compose.preview.pickers.properties.enumsupport.devices.ReferenceFoldableConfig
+import com.android.tools.idea.compose.preview.pickers.properties.enumsupport.devices.ReferencePhoneConfig
+import com.android.tools.idea.compose.preview.pickers.properties.enumsupport.devices.ReferenceTabletConfig
 import com.android.tools.idea.configurations.ConfigurationManager
+import com.android.tools.idea.projectsystem.NamedIdeaSourceProviderBuilder
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.testing.Sdks
+import com.android.tools.idea.util.androidFacet
 import com.android.tools.property.panel.api.HeaderEnumValue
 import com.intellij.openapi.module.Module
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
+import org.intellij.lang.annotations.Language
 import org.jetbrains.android.compose.stubComposableAnnotation
 import org.jetbrains.android.compose.stubConfigurationAsLibrary
 import org.jetbrains.android.compose.stubDevicesAsLibrary
 import org.jetbrains.android.compose.stubPreviewAnnotation
+import org.jetbrains.android.facet.SourceProviderManager
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+@Language("XML")
+private const val STRINGS_CONTENT = """<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">my app</string>
+</resources>
+"""
 
 @RunWith(Parameterized::class)
 class PsiCallEnumSupportValuesProviderTest(previewAnnotationPackage: String) {
@@ -68,7 +85,20 @@ class PsiCallEnumSupportValuesProviderTest(previewAnnotationPackage: String) {
   fun testValuesProvider() {
     rule.fixture.stubConfigurationAsLibrary()
 
-    val valuesProvider = PsiCallEnumSupportValuesProvider.createPreviewValuesProvider(module, composeLibraryNamespace, null)
+    val manifest = rule.fixture.addFileToProjectAndInvalidate(SdkConstants.FN_ANDROID_MANIFEST_XML, "")
+    rule.fixture.addFileToProjectAndInvalidate("res/values/strings.xml", STRINGS_CONTENT) // Should not affect locale options
+    rule.fixture.addFileToProjectAndInvalidate("res/values-es-rES/strings.xml", STRINGS_CONTENT)
+    rule.fixture.addFileToProjectAndInvalidate("res/values-en-rUS/strings.xml", STRINGS_CONTENT)
+    rule.fixture.addFileToProjectAndInvalidate("res/values-en-rGB/strings.xml", STRINGS_CONTENT)
+    SourceProviderManager.replaceForTest(
+      module.androidFacet!!,
+      rule.fixture.projectDisposable,
+      NamedIdeaSourceProviderBuilder.create(
+        "main", manifest.virtualFile.url
+      ).withResDirectoryUrls(listOf(rule.fixture.findFileInTempDir("res").url)).build()
+    )
+
+    val valuesProvider = PsiCallEnumSupportValuesProvider.createPreviewValuesProvider(module, null)
     val uiModeValues = valuesProvider.getValuesProvider("uiMode")!!.invoke()
     assertEquals(10, uiModeValues.size)
     // The Normal mode should go right after the header, remaining options are sorted on their resolved value
@@ -80,16 +110,43 @@ class PsiCallEnumSupportValuesProviderTest(previewAnnotationPackage: String) {
     assertEquals("Night", (uiModeValues[5] as HeaderEnumValue).header)
     assertEquals("Normal", uiModeValues[6].display)
 
-    val deviceValues = valuesProvider.getValuesProvider("device")!!.invoke()
-    assertEquals(7, deviceValues.size)
-    // For Library devices order is: Default, Pixel family, Nexus family, everything else
-    assertEquals("Library", (deviceValues[0] as HeaderEnumValue).header)
-    assertEquals("Default", deviceValues[1].display)
-    assertEquals("Pixel ", deviceValues[2].display)
-    assertEquals("Pixel 4", deviceValues[3].display)
-    assertEquals("Nexus 10", deviceValues[4].display)
-    assertEquals("Nexus 7", deviceValues[5].display)
-    assertEquals("Automotive 1024p", deviceValues[6].display)
+    val deviceValues = valuesProvider.getValuesProvider("Device")!!.invoke()
+    assertEquals(15, deviceValues.size) // 4 headers + 11 devices (4 Reference, 3 Wear, 3 TV, 1 Auto)
+    // Generic devices are not shown since they are empty when running on test
+    assertEquals("Reference Devices", (deviceValues[0] as HeaderEnumValue).header)
+    assertEquals("Phone", deviceValues[1].display)
+    assertEquals("Foldable", deviceValues[2].display)
+    assertEquals("Tablet", deviceValues[3].display)
+    assertEquals("Desktop", deviceValues[4].display)
+    assertEquals("Wear", (deviceValues[5] as HeaderEnumValue).header)
+    assertEquals("Tv", (deviceValues[9] as HeaderEnumValue).header)
+    assertEquals("Auto", (deviceValues[13] as HeaderEnumValue).header)
+
+    // Verify reference values
+    assertEquals(ReferencePhoneConfig.deviceSpec(), deviceValues[1].value)
+    assertEquals(ReferenceFoldableConfig.deviceSpec(), deviceValues[2].value)
+    assertEquals(ReferenceTabletConfig.deviceSpec(), deviceValues[3].value)
+    assertEquals(ReferenceDesktopConfig.deviceSpec(), deviceValues[4].value)
+
+    // Verify Wear, Tv and Auto are custom devices (start with "spec:")
+    assertTrue(deviceValues[6].value!!.startsWith("spec:"))
+    assertTrue(deviceValues[7].value!!.startsWith("spec:"))
+    assertTrue(deviceValues[8].value!!.startsWith("spec:"))
+    assertTrue(deviceValues[10].value!!.startsWith("spec:"))
+    assertTrue(deviceValues[11].value!!.startsWith("spec:"))
+    assertTrue(deviceValues[12].value!!.startsWith("spec:"))
+    assertTrue(deviceValues[14].value!!.startsWith("spec:"))
+
+    val localeValues = valuesProvider.getValuesProvider("locale")!!.invoke()
+    assertEquals(4, localeValues.size)
+    assertEquals("Default (en-US)", localeValues[0].display)
+    assertEquals(null, localeValues[0].value)
+    assertEquals("en-GB", localeValues[1].display)
+    assertEquals("en-rGB", localeValues[1].value)
+    assertEquals("en-US", localeValues[2].display)
+    assertEquals("en-rUS", localeValues[2].value)
+    assertEquals("es-ES", localeValues[3].display)
+    assertEquals("es-rES", localeValues[3].value)
   }
 
   @RunsInEdt
@@ -97,7 +154,7 @@ class PsiCallEnumSupportValuesProviderTest(previewAnnotationPackage: String) {
   fun testValuesProviderWithSdk() {
     Sdks.addLatestAndroidSdk(rule.fixture.projectDisposable, module)
 
-    val valuesProvider = PsiCallEnumSupportValuesProvider.createPreviewValuesProvider(module, composeLibraryNamespace, null)
+    val valuesProvider = PsiCallEnumSupportValuesProvider.createPreviewValuesProvider(module, null)
     val uiModeValues = valuesProvider.getValuesProvider("uiMode")!!.invoke()
     assertEquals(18, uiModeValues.size)
     // We only care of the order of the first 2 options, all else are sorted on their value and their availability depends on the sdk used
@@ -111,15 +168,30 @@ class PsiCallEnumSupportValuesProviderTest(previewAnnotationPackage: String) {
     assertEquals("Normal", uiModeValues[++nightModeIndex].display)
     assertEquals("Undefined", uiModeValues[++nightModeIndex].display)
 
-    val deviceValues = valuesProvider.getValuesProvider("device")!!.invoke()
-    // With Sdk we just check that there's a Device Manager separator, the Library options are constant from the test setup
-    assertEquals("Library", (deviceValues[0] as HeaderEnumValue).header)
-    assertEquals("Device Manager", (deviceValues[7] as HeaderEnumValue).header)
-    assert(deviceValues.size > 8)
+    val deviceEnumValues = valuesProvider.getValuesProvider("Device")!!.invoke()
+    val deviceHeaders = deviceEnumValues.filterIsInstance<HeaderEnumValue>()
+    // With Sdk we just check that each Device category exists, meaning that they are populated
+    assertEquals("Reference Devices", deviceHeaders[0].header)
+    assertEquals("Phone", deviceHeaders[1].header)
+    assertEquals("Tablet", deviceHeaders[2].header)
+    assertEquals("Wear", deviceHeaders[3].header)
+    assertEquals("Tv", deviceHeaders[4].header)
+    assertEquals("Auto", deviceHeaders[5].header)
+    assertEquals("Generic Devices", deviceHeaders[6].header)
+
+    // With Sdk verify that Wear, Tv and Auto have actual devices (their value start with "id:" instead of "spec:")
+    val wearIndex = deviceEnumValues.indexOfFirst { it is HeaderEnumValue && it.header == "Wear" }
+    assertTrue(deviceEnumValues[wearIndex + 1].value!!.startsWith("id:"))
+
+    val tvIndex = deviceEnumValues.indexOfFirst { it is HeaderEnumValue && it.header == "Tv" }
+    assertTrue(deviceEnumValues[tvIndex + 1].value!!.startsWith("id:"))
+
+    val autoIndex = deviceEnumValues.indexOfFirst { it is HeaderEnumValue && it.header == "Auto" }
+    assertTrue(deviceEnumValues[autoIndex + 1].value!!.startsWith("id:"))
 
     // For api, we just check that there's at least an element available
     val apiLevelValues = valuesProvider.getValuesProvider("apiLevel")!!.invoke()
-    assert(apiLevelValues.isNotEmpty())
+    assertTrue(apiLevelValues.isNotEmpty())
   }
 
   @RunsInEdt
@@ -147,7 +219,7 @@ class PsiCallEnumSupportValuesProviderTest(previewAnnotationPackage: String) {
         fun preview3() {}
       """.trimIndent())
 
-    val valuesProvider = PsiCallEnumSupportValuesProvider.createPreviewValuesProvider(module, composeLibraryNamespace, file.virtualFile)
+    val valuesProvider = PsiCallEnumSupportValuesProvider.createPreviewValuesProvider(module, file.virtualFile)
     val groupEnumValues = valuesProvider.getValuesProvider("group")!!.invoke()
     assertEquals(2, groupEnumValues.size)
     assertEquals("group1", groupEnumValues[0].display)

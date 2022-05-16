@@ -38,7 +38,7 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.JBUI.Borders
 import com.intellij.util.ui.JBUI.scale
 import java.awt.BorderLayout
-import java.util.*
+import java.util.EnumSet
 import java.util.concurrent.CompletableFuture
 import java.util.function.BiConsumer
 import java.util.function.Supplier

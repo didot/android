@@ -15,11 +15,9 @@
  */
 package com.android.tools.idea.stats;
 
-import com.android.annotations.NonNull;
-import com.android.tools.analytics.UsageTracker;
-import com.android.tools.analytics.UsageTrackerWriter;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.wireless.android.play.playlog.proto.ClientAnalytics;
+import static com.android.tools.idea.stats.StatisticsViewerListener.register;
+
+import com.android.tools.analytics.AnalyticsSettings;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.intellij.execution.impl.ConsoleViewImpl;
 import com.intellij.execution.ui.ConsoleViewContentType;
@@ -35,10 +33,13 @@ import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.JBColor;
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
-import java.io.IOException;
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.BorderFactory;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -50,7 +51,6 @@ public class StatisticsViewer extends JPanel implements Disposable {
   private final ConsoleViewImpl myConsoleView;
 
   private DialogWrapper myDialog;
-  private UsageTrackerWriter myOriginalUsageTracker;
 
   StatisticsViewer() {
     super(new BorderLayout(0, 0));
@@ -59,44 +59,17 @@ public class StatisticsViewer extends JPanel implements Disposable {
 
     // Use the ConsoleView from IntelliJ to render log entries as it makes for easy browsing, copy/paste & searching.
     myConsoleView = new ConsoleViewImpl(project, true);
-    hookUsageTracker();
+    register(this, this::processEvent);
     layoutConsoleView();
     createDialog(project);
   }
 
-  private void hookUsageTracker() {
-    myOriginalUsageTracker = UsageTracker.getWriterForTest();
-    // Use the setInstanceForTest API to temporary wrap the UsageTracker in our own usage tracker that logs to our console.
-    myOriginalUsageTracker = UsageTracker.setWriterForTest(new UsageTrackerWriter() {
-      @Override
-      public void logDetails(@NonNull ClientAnalytics.LogEvent.Builder logEvent) {
-        myOriginalUsageTracker.logDetails(logEvent);
-        try {
-          // LogEvent contains a serialized AndroidStudioEvent, we're interested in pretty printed version of this, so we have to parse it.
-          AndroidStudioEvent androidStudioEvent = AndroidStudioEvent.parseFrom(logEvent.getSourceExtension());
-          // we still want the other fields of LogEvent pretty printed, so empty out the binary blob.
-          logEvent.clearSourceExtension();
-          // Marker to easily visually distinguish between events.
-          myConsoleView.print("===\n", ConsoleViewContentType.NORMAL_OUTPUT);
-          myConsoleView.print(logEvent.build().toString(), ConsoleViewContentType.NORMAL_OUTPUT);
-          myConsoleView.print(androidStudioEvent.toString(), ConsoleViewContentType.NORMAL_OUTPUT);
-        }
-        catch (InvalidProtocolBufferException e) {
-          // This should not be happening as the server side expects an AndroidStudioEvent, so log an error.
-          myConsoleView.print("Unable to parse AndroidStudioEvent from LogEvent: " + logEvent.build().toString(), ConsoleViewContentType.ERROR_OUTPUT);
-        }
-      }
+  private Void processEvent(AndroidStudioEvent.Builder builder) {
+    myConsoleView.print("===\n", ConsoleViewContentType.NORMAL_OUTPUT);
+    myConsoleView.print(AnalyticsSettings.getDateProvider().now().toString() + "\n", ConsoleViewContentType.NORMAL_OUTPUT);
+    myConsoleView.print(builder.build().toString(), ConsoleViewContentType.NORMAL_OUTPUT);
 
-      @Override
-      public void flush() throws IOException {
-        myOriginalUsageTracker.flush();
-      }
-
-      @Override
-      public void close() throws Exception {
-        myOriginalUsageTracker.close();
-      }
-    });
+    return null;
   }
 
   // Create a non-modal dialog with this panel so the user can interact with Android Studio while looking at metrics on another screen.
@@ -121,7 +94,7 @@ public class StatisticsViewer extends JPanel implements Disposable {
       @NotNull
       @Override
       protected Action[] createActions() {
-        return new Action[] {new AbstractAction("Close") {
+        return new Action[]{new AbstractAction("Close") {
           @Override
           public void actionPerformed(ActionEvent e) {
             doOKAction();
@@ -167,7 +140,5 @@ public class StatisticsViewer extends JPanel implements Disposable {
 
   @Override
   public void dispose() {
-    // Undo the wrapping of the UsageTracker
-    UsageTracker.setWriterForTest(myOriginalUsageTracker);
   }
 }

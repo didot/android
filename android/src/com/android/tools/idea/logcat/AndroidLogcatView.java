@@ -1,11 +1,11 @@
 // Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package com.android.tools.idea.logcat;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.android.ddmlib.Client;
 import com.android.ddmlib.ClientData;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.ddms.DeviceContext;
+import com.google.common.annotations.VisibleForTesting;
 import com.intellij.execution.ui.ConsoleView;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
@@ -26,30 +26,28 @@ import com.intellij.ui.ColoredListCellRenderer;
 import com.intellij.ui.IdeBorderFactory;
 import com.intellij.ui.SideBorder;
 import com.intellij.util.ui.UIUtil;
-import org.jetbrains.android.util.AndroidBundle;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.IntStream;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JComponent;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.ListModel;
+import org.jetbrains.android.util.AndroidBundle;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * A UI panel which wraps a console that prints output from Android's logging system.
  */
 public class AndroidLogcatView {
   public static final Key<AndroidLogcatView> ANDROID_LOGCAT_VIEW_KEY = Key.create("ANDROID_LOGCAT_VIEW_KEY");
-
-  /**
-   * This is a fake version of the selected app filter that acts as a placeholder before a real one
-   * is swapped in, which happens when the pulldown of processes is populated.
-   */
-  static final AndroidLogcatFilter FAKE_SHOW_ONLY_SELECTED_APPLICATION_FILTER = new MatchAllFilter(getSelectedAppFilter());
   static final AndroidLogcatFilter NO_FILTERS_ITEM = new MatchAllFilter(getNoFilters());
 
   // TODO Refactor all this filter combo box stuff to its own class
@@ -57,7 +55,7 @@ public class AndroidLogcatView {
 
   private final Project myProject;
   final Disposable parentDisposable;
-  private final FormattedLogcatReceiver myLogcatReceiver;
+  private final AndroidLogcatService.LogcatListener myLogcatReceiver;
   private final AndroidLogConsole myLogConsole;
   private final DeviceContext myDeviceContext;
   private final AndroidLogFilterModel myLogFilterModel;
@@ -131,7 +129,7 @@ public class AndroidLogcatView {
 
     myLogFilterModel = new AndroidLogFilterModel(formatter, preferences);
     myLogConsole = new AndroidLogConsole(project, myLogFilterModel, formatter, this);
-    myLogcatReceiver = new ViewListener(formatter, this);
+    myLogcatReceiver = new ViewListener(this);
 
     Disposer.register(parentDisposable, () -> {
       if (myDevice != null) {
@@ -168,6 +166,7 @@ public class AndroidLogcatView {
           if (selected != null && myFilterComboBoxModel.getSelectedItem() != selected) {
             selectFilterByName(selected.getName());
           }
+          applySelectedFilter();
         }
       };
     deviceContext.addListener(deviceSelectionListener, parentDisposable);
@@ -189,13 +188,16 @@ public class AndroidLogcatView {
   }
 
   @NotNull
-  public Component createEditFiltersComboBox() {
-    JComboBox<AndroidLogcatFilter> editFiltersCombo = new ComboBox<>();
+  public ComboBox<AndroidLogcatFilter> createEditFiltersComboBox() {
+    ComboBox<AndroidLogcatFilter> editFiltersCombo = new ComboBox<>();
     myFilterComboBoxModel = new DefaultComboBoxModel<>();
+    myFilterComboBoxModel.addElement(new SelectedProcessFilter(null));
+    for (LogcatFilterProvider filterProvider : LogcatFilterProvider.EP_NAME.getExtensions()) {
+      myFilterComboBoxModel.addElement(filterProvider.getFilter());
+    }
     myFilterComboBoxModel.addElement(NO_FILTERS_ITEM);
     myFilterComboBoxModel.addElement(EDIT_FILTER_CONFIGURATION_ITEM);
 
-    updateDefaultFilters(null);
     updateUserFilters();
     String selectName = AndroidLogcatPreferences.getInstance(myProject).TOOL_WINDOW_CONFIGURED_FILTER;
     if (StringUtil.isEmpty(selectName)) {
@@ -259,7 +261,7 @@ public class AndroidLogcatView {
   }
 
   boolean isActive() {
-    return ToolWindowManager.getInstance(myProject).getToolWindow("Logcat").isVisible();
+    return Objects.requireNonNull(ToolWindowManager.getInstance(myProject).getToolWindow("Logcat")).isVisible();
   }
 
   public final void activate() {
@@ -303,7 +305,7 @@ public class AndroidLogcatView {
   private void applySelectedFilter() {
     final Object filter = myFilterComboBoxModel.getSelectedItem();
     if (filter instanceof AndroidLogcatFilter) {
-      ProgressManager.getInstance().run(new Task.Backgroundable(myProject, "Applying Filter...") {
+      ProgressManager.getInstance().run(new Task.Backgroundable(myProject, "Applying filter...") {
         @Override
         public void run(@NotNull ProgressIndicator indicator) {
           myLogFilterModel.updateLogcatFilter((AndroidLogcatFilter)filter);
@@ -318,18 +320,8 @@ public class AndroidLogcatView {
    */
   @VisibleForTesting
   void updateDefaultFilters(@Nullable ClientData client) {
-    int noFilterIndex = myFilterComboBoxModel.getIndexOf(NO_FILTERS_ITEM);
-    for (int i = 0; i < noFilterIndex; i++) {
-      myFilterComboBoxModel.removeElementAt(0);
-    }
-
-    AndroidLogcatFilter filter = client == null ? FAKE_SHOW_ONLY_SELECTED_APPLICATION_FILTER : new SelectedProcessFilter(client.getPid());
-    int insertIndex = 0;
-
-    myFilterComboBoxModel.insertElementAt(filter, insertIndex++);
-
-    for (LogcatFilterProvider filterProvider : LogcatFilterProvider.EP_NAME.getExtensions()) {
-      myFilterComboBoxModel.insertElementAt(filterProvider.getFilter(client), insertIndex++);
+    for (int i = 0; i < myFilterComboBoxModel.getSize(); i++) {
+      myFilterComboBoxModel.getElementAt(i).setClient(client);
     }
   }
 
@@ -359,9 +351,9 @@ public class AndroidLogcatView {
 
   private void selectFilterByName(String name) {
     Optional<AndroidLogcatFilter> optionalFilter = IntStream.range(0, myFilterComboBoxModel.getSize())
-                                                            .mapToObj(i -> myFilterComboBoxModel.getElementAt(i))
-                                                            .filter(filter -> filter.getName().equals(name))
-                                                            .findFirst();
+      .mapToObj(i -> myFilterComboBoxModel.getElementAt(i))
+      .filter(filter -> filter.getName().equals(name))
+      .findFirst();
 
     optionalFilter.ifPresent(filter -> myFilterComboBoxModel.setSelectedItem(filter));
   }
@@ -404,9 +396,7 @@ public class AndroidLogcatView {
       ConfigureLogcatHeaderDialog dialog = new ConfigureLogcatHeaderDialog(project, preferences, ZoneId.systemDefault());
 
       if (dialog.showAndGet()) {
-        preferences.LOGCAT_FORMAT_STRING = dialog.getFormat();
-        preferences.SHOW_AS_SECONDS_SINCE_EPOCH = dialog.getShowAsSecondsSinceEpochCheckBox().isSelected();
-
+        preferences.LOGCAT_HEADER_FORMAT = dialog.getFormat();
         myView.myLogConsole.refresh();
       }
     }

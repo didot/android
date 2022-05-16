@@ -16,8 +16,8 @@
 package com.android.tools.idea.gradle.dsl.model.android;
 
 import static com.android.tools.idea.gradle.dsl.parser.android.AaptOptionsDslElement.AAPT_OPTIONS;
-import static com.android.tools.idea.gradle.dsl.parser.android.AndroidResourcesDslElement.ANDROID_RESOURCES;
 import static com.android.tools.idea.gradle.dsl.parser.android.AdbOptionsDslElement.ADB_OPTIONS;
+import static com.android.tools.idea.gradle.dsl.parser.android.AndroidResourcesDslElement.ANDROID_RESOURCES;
 import static com.android.tools.idea.gradle.dsl.parser.android.BuildFeaturesDslElement.BUILD_FEATURES;
 import static com.android.tools.idea.gradle.dsl.parser.android.BuildTypeDslElement.BUILD_TYPE;
 import static com.android.tools.idea.gradle.dsl.parser.android.BuildTypesDslElement.BUILD_TYPES;
@@ -28,7 +28,10 @@ import static com.android.tools.idea.gradle.dsl.parser.android.DefaultConfigDslE
 import static com.android.tools.idea.gradle.dsl.parser.android.DependenciesInfoDslElement.DEPENDENCIES_INFO;
 import static com.android.tools.idea.gradle.dsl.parser.android.DexOptionsDslElement.DEX_OPTIONS;
 import static com.android.tools.idea.gradle.dsl.parser.android.ExternalNativeBuildDslElement.EXTERNAL_NATIVE_BUILD;
+import static com.android.tools.idea.gradle.dsl.parser.android.InstallationDslElement.INSTALLATION;
+import static com.android.tools.idea.gradle.dsl.parser.android.JacocoDslElement.JACOCO;
 import static com.android.tools.idea.gradle.dsl.parser.android.KotlinOptionsDslElement.KOTLIN_OPTIONS;
+import static com.android.tools.idea.gradle.dsl.parser.android.LintDslElement.LINT;
 import static com.android.tools.idea.gradle.dsl.parser.android.LintOptionsDslElement.LINT_OPTIONS;
 import static com.android.tools.idea.gradle.dsl.parser.android.PackagingOptionsDslElement.PACKAGING_OPTIONS;
 import static com.android.tools.idea.gradle.dsl.parser.android.ProductFlavorDslElement.PRODUCT_FLAVOR;
@@ -38,6 +41,7 @@ import static com.android.tools.idea.gradle.dsl.parser.android.SigningConfigsDsl
 import static com.android.tools.idea.gradle.dsl.parser.android.SourceSetDslElement.SOURCE_SET;
 import static com.android.tools.idea.gradle.dsl.parser.android.SourceSetsDslElement.SOURCE_SETS;
 import static com.android.tools.idea.gradle.dsl.parser.android.SplitsDslElement.SPLITS;
+import static com.android.tools.idea.gradle.dsl.parser.android.TestCoverageDslElement.TEST_COVERAGE;
 import static com.android.tools.idea.gradle.dsl.parser.android.TestOptionsDslElement.TEST_OPTIONS;
 import static com.android.tools.idea.gradle.dsl.parser.android.ViewBindingDslElement.VIEW_BINDING;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_LIST;
@@ -45,6 +49,7 @@ import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyTy
 
 import com.android.tools.idea.gradle.dsl.api.ExternalNativeBuildModel;
 import com.android.tools.idea.gradle.dsl.api.android.AaptOptionsModel;
+import com.android.tools.idea.gradle.dsl.api.android.AdbOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.android.AndroidModel;
 import com.android.tools.idea.gradle.dsl.api.android.AndroidResourcesModel;
 import com.android.tools.idea.gradle.dsl.api.android.BuildFeaturesModel;
@@ -54,18 +59,23 @@ import com.android.tools.idea.gradle.dsl.api.android.ComposeOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.android.DataBindingModel;
 import com.android.tools.idea.gradle.dsl.api.android.DependenciesInfoModel;
 import com.android.tools.idea.gradle.dsl.api.android.DexOptionsModel;
+import com.android.tools.idea.gradle.dsl.api.android.InstallationModel;
+import com.android.tools.idea.gradle.dsl.api.android.JacocoModel;
 import com.android.tools.idea.gradle.dsl.api.android.KotlinOptionsModel;
+import com.android.tools.idea.gradle.dsl.api.android.LintModel;
 import com.android.tools.idea.gradle.dsl.api.android.LintOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.android.PackagingOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.android.ProductFlavorModel;
 import com.android.tools.idea.gradle.dsl.api.android.SigningConfigModel;
 import com.android.tools.idea.gradle.dsl.api.android.SourceSetModel;
 import com.android.tools.idea.gradle.dsl.api.android.SplitsModel;
+import com.android.tools.idea.gradle.dsl.api.android.TestCoverageModel;
 import com.android.tools.idea.gradle.dsl.api.android.TestOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.android.ViewBindingModel;
-import com.android.tools.idea.gradle.dsl.api.android.externalNativeBuild.AdbOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.model.GradleDslBlockModel;
+import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
+import com.android.tools.idea.gradle.dsl.model.ext.transforms.SdkOrPreviewTransform;
 import com.android.tools.idea.gradle.dsl.parser.android.AaptOptionsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.AdbOptionsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.AndroidDslElement;
@@ -80,7 +90,10 @@ import com.android.tools.idea.gradle.dsl.parser.android.DefaultConfigDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.DependenciesInfoDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.DexOptionsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.ExternalNativeBuildDslElement;
+import com.android.tools.idea.gradle.dsl.parser.android.InstallationDslElement;
+import com.android.tools.idea.gradle.dsl.parser.android.JacocoDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.KotlinOptionsDslElement;
+import com.android.tools.idea.gradle.dsl.parser.android.LintDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.LintOptionsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.PackagingOptionsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.ProductFlavorDslElement;
@@ -90,10 +103,12 @@ import com.android.tools.idea.gradle.dsl.parser.android.SigningConfigsDslElement
 import com.android.tools.idea.gradle.dsl.parser.android.SourceSetDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.SourceSetsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.SplitsDslElement;
+import com.android.tools.idea.gradle.dsl.parser.android.TestCoverageDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.TestOptionsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.ViewBindingDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.VersionConstraint;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.jetbrains.annotations.NonNls;
@@ -103,15 +118,17 @@ public final class AndroidModelImpl extends GradleDslBlockModel implements Andro
   @NonNls public static final ModelPropertyDescription AIDL_PACKAGED_LIST = new ModelPropertyDescription("mAidlPackagedList", MUTABLE_LIST);
   @NonNls public static final ModelPropertyDescription ASSET_PACKS = new ModelPropertyDescription("mAssetPacks", MUTABLE_SET);
   @NonNls public static final String BUILD_TOOLS_VERSION = "mBuildToolsVersion";
-  @NonNls public static final String COMPILE_SDK_VERSION = "mCompileSdkVersion";
+  @NonNls public static final ModelPropertyDescription COMPILE_SDK_VERSION = new ModelPropertyDescription("mCompileSdkVersion");
   @NonNls public static final String DEFAULT_PUBLISH_CONFIG = "mDefaultPublishConfig";
   @NonNls public static final ModelPropertyDescription DYNAMIC_FEATURES = new ModelPropertyDescription("mDynamicFeatures", MUTABLE_SET);
-  @NonNls public static final String FLAVOR_DIMENSIONS = "mFlavorDimensions";
+  @NonNls public static final ModelPropertyDescription FLAVOR_DIMENSIONS = new ModelPropertyDescription("mFlavorDimensions", MUTABLE_LIST);
   @NonNls public static final String GENERATE_PURE_SPLITS = "mGeneratePureSplits";
+  @NonNls public static final String NAMESPACE = "mNamespace";
   @NonNls public static final String NDK_VERSION = "mNdkVersion";
   @NonNls public static final String PUBLISH_NON_DEFAULT = "mPublishNonDefault";
   @NonNls public static final String RESOURCE_PREFIX = "mResourcePrefix";
   @NonNls public static final String TARGET_PROJECT_PATH = "mTargetProjectPath";
+  @NonNls public static final String TEST_NAMESPACE = "mTestNamespace";
   // TODO(xof): Add support for useLibrary
 
   public AndroidModelImpl(@NotNull AndroidDslElement dslElement) {
@@ -203,7 +220,10 @@ public final class AndroidModelImpl extends GradleDslBlockModel implements Andro
   @NotNull
   @Override
   public ResolvedPropertyModel compileSdkVersion() {
-    return getModelForProperty(COMPILE_SDK_VERSION);
+    VersionConstraint agp410plus = VersionConstraint.agpFrom("4.1.0");
+    return GradlePropertyModelBuilder.create(myDslElement, COMPILE_SDK_VERSION)
+      .addTransform(new SdkOrPreviewTransform(COMPILE_SDK_VERSION, "compileSdkVersion", "compileSdk", "compileSdkPreview", agp410plus))
+      .buildResolved();
   }
 
   @NotNull
@@ -266,6 +286,18 @@ public final class AndroidModelImpl extends GradleDslBlockModel implements Andro
   }
 
   @Override
+  public @NotNull InstallationModel installation() {
+    InstallationDslElement installationDslElement = myDslElement.ensurePropertyElement(INSTALLATION);
+    return new InstallationModelImpl(installationDslElement);
+  }
+
+  @Override
+  public @NotNull JacocoModel jacoco() {
+    JacocoDslElement jacocoDslElement = myDslElement.ensurePropertyElement(JACOCO);
+    return new JacocoModelImpl(jacocoDslElement);
+  }
+
+  @Override
   @NotNull
   public KotlinOptionsModel kotlinOptions() {
     KotlinOptionsDslElement kotlinOptionsDslElement = myDslElement.ensurePropertyElement(KOTLIN_OPTIONS);
@@ -273,10 +305,22 @@ public final class AndroidModelImpl extends GradleDslBlockModel implements Andro
   }
 
   @Override
+  public @NotNull LintModel lint() {
+    LintDslElement lintDslElement = myDslElement.ensurePropertyElement(LINT);
+    return new LintModelImpl(lintDslElement);
+  }
+
+  @Override
   @NotNull
   public LintOptionsModel lintOptions() {
     LintOptionsDslElement lintOptionsDslElement = myDslElement.ensurePropertyElement(LINT_OPTIONS);
     return new LintOptionsModelImpl(lintOptionsDslElement);
+  }
+
+  @Override
+  @NotNull
+  public ResolvedPropertyModel namespace() {
+    return getModelForProperty(NAMESPACE);
   }
 
   @Override
@@ -366,6 +410,18 @@ public final class AndroidModelImpl extends GradleDslBlockModel implements Andro
   @NotNull
   public ResolvedPropertyModel targetProjectPath() {
     return getModelForProperty(TARGET_PROJECT_PATH);
+  }
+
+  @Override
+  public @NotNull TestCoverageModel testCoverage() {
+    TestCoverageDslElement testCoverageDslElement = myDslElement.ensurePropertyElement(TEST_COVERAGE);
+    return new TestCoverageModelImpl(testCoverageDslElement);
+  }
+
+  @Override
+  @NotNull
+  public ResolvedPropertyModel testNamespace() {
+    return getModelForProperty(TEST_NAMESPACE);
   }
 
   @Override

@@ -52,8 +52,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.ide.PooledThreadExecutor;
 
-public class AndroidDataSourceConfigurable extends AbstractDataSourceConfigurable<AndroidDataSourceManager, AndroidDataSource> implements Disposable {
-  private static final Logger LOG = Logger.getInstance("#org.jetbrains.android.database.AndroidDataSourcePropertiesDialog");
+public class AndroidDataSourceConfigurable extends AbstractDataSourceConfigurable<AndroidDataSourceManager, AndroidDataSource>
+  implements Disposable {
+  private static final Logger LOG = Logger.getInstance(AndroidDataSourceConfigurable.class);
   private static final String[] DEFAULT_EXTERNAL_DB_PATTERNS = new String[]{"files/"};
 
   private DefaultComboBoxModel<AndroidSourceDevice> myDeviceComboBoxModel;

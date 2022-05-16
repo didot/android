@@ -29,33 +29,32 @@ import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.openapi.util.io.FileUtil.join;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.android.testutils.TestUtils;
-import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.gradle.model.IdeSyncIssue;
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker;
 import com.android.tools.idea.gradle.project.build.invoker.GradleInvocationResult;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.util.GradleBuildOutputUtil;
 import com.android.tools.idea.project.AndroidProjectInfo;
 import com.android.tools.idea.testing.AndroidGradleTests.SyncIssuesPresentError;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
-import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.project.ex.ProjectManagerEx;
 import com.intellij.openapi.ui.TestDialog;
 import com.intellij.openapi.ui.TestDialogManager;
 import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -71,20 +70,19 @@ import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture;
 import com.intellij.testFramework.fixtures.JavaTestFixtureFactory;
 import com.intellij.testFramework.fixtures.TestFixtureBuilder;
 import com.intellij.util.Consumer;
+import com.intellij.util.indexing.IndexingFlag;
+import com.intellij.util.indexing.UnindexedFilesUpdater;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
-import com.intellij.util.indexing.IndexingFlag;
-import com.intellij.util.indexing.UnindexedFilesUpdater;
-import com.intellij.util.ui.UIUtil;
+import junit.framework.AssertionFailedError;
 import org.jetbrains.android.AndroidTempDirTestFixture;
 import org.jetbrains.android.AndroidTestBase;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -181,7 +179,7 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
     ensureSdkManagerAvailable();
 
     Project project = fixture.getProject();
-    FileUtil.ensureExists(new File(toSystemDependentName(project.getBasePath())));
+    FileUtil.ensureExists(new File(FileUtilRt.toSystemDependentName(project.getBasePath())));
     LocalFileSystem.getInstance().refreshAndFindFileByPath(project.getBasePath());
     AndroidGradleTests.setUpSdks(fixture, TestUtils.getSdk().toFile());
     myFixture = fixture;
@@ -202,11 +200,11 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
 
   @Override
   protected void tearDown() throws Exception {
-    ProjectManagerEx projectManager = ProjectManagerEx.getInstanceEx();
     try {
       TestDialogManager.setTestDialog(TestDialog.DEFAULT);
       tearDownFixture();
 
+      ProjectManagerEx projectManager = ProjectManagerEx.getInstanceEx();
       Project[] openProjects = projectManager.getOpenProjects();
       if (openProjects.length > 0) {
         TestApplicationManagerKt.tearDownProjectAndApp(openProjects[0]);
@@ -215,7 +213,7 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
     }
     finally {
       try {
-        assertEquals(0, projectManager.getOpenProjects().length);
+        assertEquals(0, ProjectManager.getInstance().getOpenProjects().length);
       }
       catch (Throwable e) {
         addSuppressedException(e);
@@ -339,7 +337,7 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
   @NotNull
   protected File prepareProjectForImport(@NotNull @SystemIndependent String relativePath, @Nullable String gradleVersion,
                                          @Nullable String gradlePluginVersion, @Nullable String kotlinVersion) throws IOException {
-    File projectRoot = new File(toSystemDependentName(getProject().getBasePath()));
+    File projectRoot = new File(FileUtilRt.toSystemDependentName(getProject().getBasePath()));
     return prepareProjectForImport(relativePath, projectRoot, gradleVersion, gradlePluginVersion, kotlinVersion);
   }
 
@@ -353,21 +351,15 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
   @NotNull
   @Override
   public File resolveTestDataPath(@NotNull @SystemIndependent String relativePath) {
-    return new File(myFixture.getTestDataPath(), toSystemDependentName(relativePath));
+    return new File(myFixture.getTestDataPath(), FileUtilRt.toSystemDependentName(relativePath));
   }
+
 
   protected void generateSources() throws InterruptedException {
-    GradleInvocationResult result = invokeGradle(getProject(), GradleBuildInvoker::generateSources);
+    GradleInvocationResult result =
+      invokeGradle(getProject(), invoker -> invoker.generateSources(ModuleManager.getInstance(getProject()).getModules()));
     assertTrue("Generating sources failed.", result.isBuildSuccessful());
     refreshProjectFiles();
-  }
-
-  protected String getMainSourceSet(String moduleName) {
-    if (IdeInfo.getInstance().isAndroidStudio()) {
-      return moduleName;
-    } else {
-      return moduleName + ".main";
-    }
   }
 
   protected static GradleInvocationResult invokeGradleTasks(@NotNull Project project, @NotNull String... tasks)
@@ -381,8 +373,11 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
     File projectDir = getBaseDirPath(project);
     // Tests should not need to access the network
     return invokeGradle(project, gradleInvoker ->
-      gradleInvoker.executeTasks(projectDir, Arrays.asList(tasks),
-                                 shouldUseRemoteRepositories() ? Collections.emptyList() : Collections.singletonList("--offline")), timeoutMillis);
+      gradleInvoker.executeTasks(
+        GradleBuildInvoker.Request.builder(project, projectDir, tasks)
+          .setCommandLineArguments(shouldUseRemoteRepositories() ? Collections.emptyList() : Collections.singletonList("--offline"))
+          .build()
+      ), timeoutMillis);
   }
 
   @NotNull
@@ -439,8 +434,8 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
   }
 
   @NotNull
-  protected AndroidModuleModel getModel() {
-    AndroidModuleModel model = AndroidModuleModel.get(myAndroidFacet);
+  protected GradleAndroidModel getModel() {
+    GradleAndroidModel model = GradleAndroidModel.get(myAndroidFacet);
     assert model != null;
     return model;
   }
@@ -460,12 +455,12 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
   }
 
   @NotNull
-  protected Module getModule(@NotNull String qualifiedModuleName) {
-    return TestModuleUtil.findModule(getProject(), qualifiedModuleName);
+  protected Module getModule(@NotNull String moduleName) {
+    return TestModuleUtil.findModule(getProject(), moduleName);
   }
 
-  protected boolean hasModule(@NotNull String qualifiedModuleName) {
-    return TestModuleUtil.hasModule(getProject(), qualifiedModuleName);
+  protected boolean hasModule(@NotNull String moduleName) {
+    return TestModuleUtil.hasModule(getProject(), moduleName);
   }
 
   protected void requestSyncAndWait(@NotNull GradleSyncInvoker.Request request) throws Exception {
@@ -501,7 +496,7 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
       GradleSyncInvoker.Request request = GradleSyncInvoker.Request.testRequest();
       requestConfigurator.consume(request);
       requestSyncAndWait(request);
-    } catch (AssertionError error) {
+    } catch (AssertionFailedError error) {
       return error.getMessage();
     }
 

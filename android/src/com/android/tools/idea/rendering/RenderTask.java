@@ -16,7 +16,10 @@
 package com.android.tools.idea.rendering;
 
 import static com.android.tools.compose.ComposeLibraryNamespaceKt.COMPOSE_VIEW_ADAPTER_FQNS;
+import static com.android.tools.idea.configurations.AdditionalDeviceService.DEVICE_CLASS_DESKTOP_ID;
+import static com.android.tools.idea.configurations.AdditionalDeviceService.DEVICE_CLASS_TABLET_ID;
 import static com.intellij.lang.annotation.HighlightSeverity.ERROR;
+import static com.intellij.lang.annotation.HighlightSeverity.WARNING;
 
 import com.android.SdkConstants;
 import com.android.ide.common.rendering.HardwareConfigHelper;
@@ -66,6 +69,7 @@ import com.android.tools.idea.res.LocalResourceRepository;
 import com.android.tools.idea.res.ResourceIdManager;
 import com.android.tools.idea.res.ResourceRepositoryManager;
 import com.android.tools.idea.util.DependencyManagementUtil;
+import com.android.utils.HtmlBuilder;
 import com.android.utils.SdkUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Futures;
@@ -100,9 +104,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.android.uipreview.ClassLoaderPreloaderKt;
 import org.jetbrains.android.uipreview.ModuleClassLoader;
 import org.jetbrains.android.uipreview.ModuleClassLoaderManager;
-import org.jetbrains.android.uipreview.ModuleClassLoaderPreloaderKt;
 import org.jetbrains.android.uipreview.ModuleRenderContext;
 import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
@@ -145,7 +149,7 @@ public class RenderTask {
   /**
    * When quality < 1.0, the max allowed size for the rendering is DOWNSCALED_IMAGE_MAX_BYTES * downscalingFactor
    */
-  private static final int DOWNSCALED_IMAGE_MAX_BYTES = 2_500_000; // 2.5MB
+  private static final int DEFAULT_DOWNSCALED_IMAGE_MAX_BYTES = 2_500_000; // 2.5MB
 
   /**
    * Executor to run the dispose tasks. The thread will run them sequentially.
@@ -162,6 +166,7 @@ public class RenderTask {
   @NotNull private final LayoutLibrary myLayoutLib;
   @NotNull private final HardwareConfigHelper myHardwareConfigHelper;
   private final float myDefaultQuality;
+  private final long myDownScaledImageMaxBytes;
   @Nullable private IncludeReference myIncludedWithin;
   @NotNull private RenderingMode myRenderingMode = RenderingMode.NORMAL;
   private boolean mySetTransparentBackground = false;
@@ -169,7 +174,6 @@ public class RenderTask {
   private boolean myShadowEnabled = true;
   private boolean myHighQualityShadow = true;
   private boolean myEnableLayoutScanner = false;
-  private boolean myEnableLayoutScannerOptimization = false;
   private boolean myShowWithToolsVisibilityAndPosition = true;
   private AssetRepositoryImpl myAssetRepository;
   private long myTimeout;
@@ -186,6 +190,11 @@ public class RenderTask {
   @Nullable private XmlFile myXmlFile;
   @NotNull private final Function<Module, MergedManifestSnapshot> myManifestProvider;
   @NotNull private final ModuleClassLoader myModuleClassLoader;
+
+  /**
+   * If true, the {@link RenderTask#render()} will report when the user classes loaded by this class loader are out of date.
+   */
+  private final boolean reportOutOfDateUserClasses;
 
   /**
    * Don't create this task directly; obtain via {@link RenderService}
@@ -212,8 +221,10 @@ public class RenderTask {
              @NotNull ClassTransform additionalProjectTransform,
              @NotNull ClassTransform additionalNonProjectTransform,
              @NotNull Runnable onNewModuleClassLoader,
-             @NotNull Collection<String> classesToPreload) {
+             @NotNull Collection<String> classesToPreload,
+             boolean reportOutOfDateUserClasses) {
     this.isSecurityManagerEnabled = isSecurityManagerEnabled;
+    this.reportOutOfDateUserClasses = reportOutOfDateUserClasses;
 
     if (!isSecurityManagerEnabled) {
       LOG.debug("Security manager was disabled");
@@ -254,7 +265,7 @@ public class RenderTask {
                                               additionalNonProjectTransform,
                                               onNewModuleClassLoader);
     }
-    ModuleClassLoaderPreloaderKt.preload(myModuleClassLoader, classesToPreload);
+    ClassLoaderPreloaderKt.preload(myModuleClassLoader, classesToPreload);
     try {
       myLayoutlibCallback =
         new LayoutlibCallbackImpl(
@@ -269,6 +280,21 @@ public class RenderTask {
                                     moduleInfo,
                                     renderService.getPlatform(facet));
       myDefaultQuality = quality;
+      // Some devices need more memory to avoid the blur when rendering. These are special cases.
+      // The image looks acceptable after dividing both width and height to half. So we divide memory usage by 4 for these devices.
+      if (DEVICE_CLASS_DESKTOP_ID.equals(device.getId())) {
+        // Desktop device is 1920dp * 1080dp with XXHDPI density, it needs roughly 6K * 3K * 32 (ARGB) / 8 = 72 MB.
+        // We divide it by 4, which is 18 MB.
+        myDownScaledImageMaxBytes = 18_000_000L;
+      }
+      else if (DEVICE_CLASS_TABLET_ID.equals(device.getId())) {
+        // Desktop device is 1280dp * 800dp with XXHDPI density, it needs roughly (1280 * 3) * (800 * 3) * 32 (ARGB) / 8 = 36 MB.
+        // We divide it by 4, which is 9 MB.
+        myDownScaledImageMaxBytes = 9_000_000L;
+      }
+      else {
+        myDownScaledImageMaxBytes = DEFAULT_DOWNSCALED_IMAGE_MAX_BYTES;
+      }
       restoreDefaultQuality();
       myManifestProvider = manifestProvider;
 
@@ -286,7 +312,7 @@ public class RenderTask {
     }
 
     float actualSamplingFactor = MIN_DOWNSCALING_FACTOR + Math.max(Math.min(quality, 1f), 0f) * (1f - MIN_DOWNSCALING_FACTOR);
-    long maxSize = (long)((float)DOWNSCALED_IMAGE_MAX_BYTES * actualSamplingFactor);
+    long maxSize = (long)((float)myDownScaledImageMaxBytes * actualSamplingFactor);
     myCachingImageFactory = new CachingImageFactory(((width, height) -> {
       int downscaleWidth = width;
       int downscaleHeight = height;
@@ -406,16 +432,19 @@ public class RenderTask {
       myLayoutlibCallback.setLogger(IRenderLogger.NULL_LOGGER);
       if (myRenderSession != null) {
         try {
-          disposeRenderSession(myRenderSession);
+          disposeRenderSession(myRenderSession)
+            .whenComplete((result, ex) -> clearClassLoader())
+            .join(); // This is running on the dispose thread so wait for the full dispose to happen.
           myRenderSession = null;
         }
         catch (Exception ignored) {
         }
       }
+      else {
+        clearClassLoader();
+      }
       myImageFactoryDelegate = null;
       myAssetRepository = null;
-
-      clearClassLoader();
 
       return null;
     });
@@ -536,11 +565,6 @@ public class RenderTask {
     return this;
   }
 
-  public RenderTask setEnableLayoutScannerOptimization(boolean enableLayoutScannerOptimization) {
-    myEnableLayoutScannerOptimization = enableLayoutScannerOptimization;
-    return this;
-  }
-
   /**
    * Sets whether the rendering should use 'tools' namespaced 'visibility' and 'layout_editor_absoluteX/Y' attributes.
    * <p>
@@ -627,7 +651,8 @@ public class RenderTask {
     params.setFlag(RenderParamsFlags.FLAG_KEY_RENDER_HIGH_QUALITY_SHADOW, myHighQualityShadow);
     params.setFlag(RenderParamsFlags.FLAG_KEY_ENABLE_LAYOUT_SCANNER, myEnableLayoutScanner);
     params.setFlag(RenderParamsFlags.FLAG_ENABLE_LAYOUT_SCANNER_IMAGE_CHECK, myEnableLayoutScanner);
-    params.setFlag(RenderParamsFlags.FLAG_ENABLE_LAYOUT_SCANNER_OPTIMIZATION, myEnableLayoutScannerOptimization);
+    // TODO: Remove after ag/15997527
+    params.setFlag(RenderParamsFlags.FLAG_ENABLE_LAYOUT_SCANNER_OPTIMIZATION, myEnableLayoutScanner);
 
     // Request margin and baseline information.
     // TODO: Be smarter about setting this; start without it, and on the first request
@@ -979,7 +1004,7 @@ public class RenderTask {
    */
   private void reportException(@NotNull Throwable e) {
     // This in an unhandled layoutlib exception, pass it to the crash reporter
-    myCrashReporter.submit(new StudioExceptionReport.Builder().setThrowable(e, false).build());
+    myCrashReporter.submit(new StudioExceptionReport.Builder().setThrowable(e, false, true).build());
   }
 
   /**
@@ -1024,6 +1049,13 @@ public class RenderTask {
           if (renderResult.getException() != null) {
             reportException(renderResult.getException());
             myLogger.error(null, renderResult.getErrorMessage(), renderResult.getException(), null, null);
+          }
+          if (reportOutOfDateUserClasses && !myModuleClassLoader.isUserCodeUpToDate()) {
+            RenderProblem.Html problem = RenderProblem.create(WARNING);
+            HtmlBuilder builder = problem.getHtmlBuilder();
+            builder.addLink("The project has been edited more recently than the last build: ", "Build", " the project.",
+                            myLogger.getLinkManager().createBuildProjectUrl());
+            myLogger.addMessage(problem);
           }
           return result;
         }).handle((result, ex) -> {
@@ -1332,6 +1364,27 @@ public class RenderTask {
     }
   }
 
+  /**
+   * Similar to {@link #runAsyncRenderAction(Callable)} but executes it under a {@link RenderSession}. This allows the
+   * given block to access resources since they are setup before executing it.
+   * @return A {@link CompletableFuture} that completes when the block finalizes.
+   */
+  @NotNull
+  public CompletableFuture<Void> runAsyncRenderActionWithSession(@NotNull Runnable block) {
+    if (isDisposed.get()) {
+      return immediateFailedFuture(new IllegalStateException("RenderTask was already disposed"));
+    }
+    RenderSession renderSession = myRenderSession;
+    if (renderSession == null) {
+      return immediateFailedFuture(new IllegalStateException("No RenderSession available"));
+    }
+    return runAsyncRenderAction(() -> {
+      renderSession.execute(block);
+
+      return null;
+    });
+  }
+
   @VisibleForTesting
   void setCrashReporter(@NotNull CrashReporter crashReporter) {
     myCrashReporter = crashReporter;
@@ -1368,11 +1421,13 @@ public class RenderTask {
   }
 
   /**
-   * Properly disposes {@link RenderSession} as a single {@link RenderService} call.
+   * Properly disposes {@link RenderSession} as a single {@link RenderService} call. It returns a {@link CompletableFuture} that
+   * will complete once the disposal has completed.
    *
    * @param renderSession a session to be disposed of
    */
-  private void disposeRenderSession(@NotNull RenderSession renderSession) {
+  @NotNull
+  private CompletableFuture<Void> disposeRenderSession(@NotNull RenderSession renderSession) {
     Optional<Method> disposeMethod = Optional.empty();
     if (myLayoutlibCallback.hasLoadedClass(ComposeLibraryNamespace.ANDROIDX_COMPOSE.getComposableAdapterName()) ||
         myLayoutlibCallback.hasLoadedClass(ComposeLibraryNamespace.ANDROIDX_COMPOSE_WITH_API.getComposableAdapterName())) {
@@ -1394,7 +1449,7 @@ public class RenderTask {
     }
     disposeMethod.ifPresent(m -> m.setAccessible(true));
     Optional<Method> finalDisposeMethod = disposeMethod;
-    RenderService.getRenderAsyncActionExecutor().runAsyncAction(() -> {
+    return RenderService.getRenderAsyncActionExecutor().runAsyncAction(() -> {
 
       finalDisposeMethod.ifPresent(
         m -> renderSession.execute(

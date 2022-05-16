@@ -18,12 +18,12 @@ package com.android.tools.idea.adb;
 import static com.android.ddmlib.AndroidDebugBridge.DEFAULT_START_ADB_TIMEOUT_MILLIS;
 
 import com.android.annotations.concurrency.GuardedBy;
+import com.android.ddmlib.AdbInitOptions;
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.Client;
 import com.android.ddmlib.ClientData;
 import com.android.ddmlib.DdmPreferences;
 import com.android.ddmlib.IDevice;
-import com.android.ddmlib.AdbInitOptions;
 import com.android.ddmlib.Log;
 import com.android.ddmlib.TimeoutRemainder;
 import com.android.tools.idea.flags.StudioFlags;
@@ -330,7 +330,13 @@ public class AdbService implements Disposable, AdbOptionsService.AdbOptionsListe
         AdbInitOptions.Builder options = AdbInitOptions.builder();
         options.setClientSupportEnabled(true); // IDE needs client monitoring support.
         options.useJdwpProxyService(StudioFlags.ENABLE_JDWP_PROXY_SERVICE.get());
+        options.useDdmlibCommandService(StudioFlags.ENABLE_DDMLIB_COMMAND_SERVICE.get());
         options.withEnv("ADB_LIBUSB", AdbOptionsService.getInstance().shouldUseLibusb() ? "1" : "0");
+        if (StudioFlags.ADB_WIRELESS_PAIRING_ENABLED.get()) {
+          // Enables Open Screen mDNS implementation in ADB host.
+          // See https://android-review.googlesource.com/c/platform/packages/modules/adb/+/1549744
+          options.withEnv("ADB_MDNS_OPENSCREEN", AdbOptionsService.getInstance().shouldUseMdnsOpenScreen() ? "1" : "0");
+        }
         if (ApplicationManager.getApplication() == null || ApplicationManager.getApplication().isUnitTestMode()) {
           // adb accesses $HOME/.android, which isn't allowed when running in the bazel sandbox
           options.withEnv("HOME", Files.createTempDir().getAbsolutePath());

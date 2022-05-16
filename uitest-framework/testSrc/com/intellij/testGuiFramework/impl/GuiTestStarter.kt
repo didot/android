@@ -4,27 +4,27 @@ package com.intellij.testGuiFramework.impl
 import com.intellij.idea.IdeStarter
 import com.intellij.openapi.diagnostic.Logger
 
-private const val HOST_LOCALHOST = "localhost"
-
 /**
  * [GuiTestStarter] is an extension of the appStarter extension point. When the IDE launches, it finds all of the appStarter extensions and
  * checks to see if the result of invoking getCommandName() on any of them matches the first command-line argument. If so, it is used
- * instead of the default [IdeStarter].
+ * instead of the default [IdeaApplication.IdeStarter] (see [IdeaApplication.getStarter]).
  *
  * This implementation starts a [GuiTestThread], strips the "guitest" and port arguments, and then delegates to the default
- * [IdeStarter] implementation.
+ * [IdeaApplication.IdeStarter] implementation.
  */
 class GuiTestStarter : IdeStarter() {
   companion object {
-    const val COMMAND_NAME = "guitest"
+    val COMMAND_NAME = "guitest"
 
-    const val GUI_TEST_PORT = "idea.gui.test.port"
-    const val GUI_TEST_HOST = "idea.gui.test.host"
+    val GUI_TEST_PORT = "idea.gui.test.port"
+    val GUI_TEST_HOST = "idea.gui.test.host"
 
-    fun isGuiTestThread() = Thread.currentThread().name == GuiTestThread.GUI_TEST_THREAD_NAME
+    fun isGuiTestThread(): Boolean = Thread.currentThread().name == GuiTestThread.GUI_TEST_THREAD_NAME
   }
 
   private val LOG = Logger.getInstance(this.javaClass)
+  private val PORT_UNDEFINED = "undefined"
+  private val HOST_LOCALHOST = "localhost"
 
   private val guiTestThread = GuiTestThread()
 

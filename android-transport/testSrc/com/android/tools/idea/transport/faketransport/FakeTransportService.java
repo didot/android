@@ -68,6 +68,7 @@ public class FakeTransportService extends TransportServiceGrpc.TransportServiceI
     .setApiLevel(AndroidVersion.VersionCodes.O)
     .setFeatureLevel(AndroidVersion.VersionCodes.O)
     .setModel(FAKE_DEVICE_NAME)
+    .setCpuAbi("arm64-v8a")
     .setState(Common.Device.State.ONLINE)
     .build();
   //Setting PID to be 1 since there is a process with pid being 1 in test input atrace_processid_1
@@ -76,6 +77,11 @@ public class FakeTransportService extends TransportServiceGrpc.TransportServiceI
     .setDeviceId(FAKE_DEVICE_ID)
     .setState(Common.Process.State.ALIVE)
     .setName(FAKE_PROCESS_NAME)
+    .setExposureLevel(Common.Process.ExposureLevel.DEBUGGABLE)
+    .build();
+  public static final Common.Process FAKE_PROFILEABLE_PROCESS = FAKE_PROCESS.toBuilder()
+    .setPid(2)
+    .setExposureLevel(Common.Process.ExposureLevel.PROFILEABLE)
     .build();
   public static final Common.Device FAKE_OFFLINE_DEVICE = FAKE_DEVICE.toBuilder().setState(Common.Device.State.OFFLINE).build();
   public static final Common.Process FAKE_OFFLINE_PROCESS = FAKE_PROCESS.toBuilder().setState(Common.Process.State.DEAD).build();
@@ -101,6 +107,14 @@ public class FakeTransportService extends TransportServiceGrpc.TransportServiceI
    * Creates a fake profiler service. If connected is true there will be a device with a process already present.
    */
   public FakeTransportService(@NotNull FakeTimer timer, boolean connected) {
+    this(timer, connected, AndroidVersion.VersionCodes.O, Common.Process.ExposureLevel.DEBUGGABLE);
+  }
+
+  public FakeTransportService(@NotNull FakeTimer timer, boolean connected, int featureLevel) {
+    this(timer, connected, featureLevel, Common.Process.ExposureLevel.DEBUGGABLE);
+  }
+
+  public FakeTransportService(@NotNull FakeTimer timer, boolean connected, int featureLevel, Common.Process.ExposureLevel exposureLevel) {
     myDevices = new HashMap<>();
     myProcesses = MultiMap.create();
     myCache = new HashMap<>();
@@ -109,9 +123,15 @@ public class FakeTransportService extends TransportServiceGrpc.TransportServiceI
     myEventPositionMarkMap = new HashMap<>();
     myStreamServerMap = new HashMap<>();
     myTimer = timer;
+    Common.Device device = featureLevel == FAKE_DEVICE.getFeatureLevel()
+                           ? FAKE_DEVICE
+                           : FAKE_DEVICE.toBuilder().setFeatureLevel(featureLevel).build();
+    Common.Process process = exposureLevel == FAKE_PROCESS.getExposureLevel()
+                             ? FAKE_PROCESS
+                             : FAKE_PROCESS.toBuilder().setExposureLevel(exposureLevel).build();
     if (connected) {
-      addDevice(FAKE_DEVICE);
-      addProcess(FAKE_DEVICE, FAKE_PROCESS);
+      addDevice(device);
+      addProcess(device, process);
     }
     initializeCommandHandlers();
   }

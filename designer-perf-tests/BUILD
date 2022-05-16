@@ -1,4 +1,5 @@
 load("//tools/base/bazel:bazel.bzl", "iml_module")
+load("//tools/base/bazel:maven.bzl", "maven_repository")
 
 # managed by go/iml_to_build
 iml_module(
@@ -19,6 +20,7 @@ iml_module(
     ],
     test_class = "com.android.tools.idea.rendering.PerfgateRenderTestSuite",
     test_data = [
+        ":test_deps",
         "//prebuilts/studio/jdk",
         "//prebuilts/studio/layoutlib:build.prop",
         "//prebuilts/studio/layoutlib/data:framework_res.jar",
@@ -27,12 +29,12 @@ iml_module(
         "//prebuilts/studio/layoutlib/data/icu",
         "//prebuilts/studio/sdk:build-tools/latest",
         "//prebuilts/studio/sdk:platforms/latest",
-        "//tools/adt/idea/android:test_deps.zip",
         "//tools/adt/idea/android/testData",
         "//tools/adt/idea/designer-perf-tests/testData",
         "//tools/base/build-system:gradle-distrib",
-        "//tools/base/build-system:studio_repo.zip",
-        "//tools/base/third_party/kotlin:kotlin-m2repository.zip",
+        "//tools/base/build-system:studio_repo",
+        "//tools/adt/idea/compose-designer:kotlin-compiler-daemon-libs",
+        "//tools/base/third_party/kotlin:kotlin-m2repository",
     ],
     test_resources = ["testData"],
     test_srcs = ["testSrc"],
@@ -52,8 +54,43 @@ iml_module(
         "//tools/adt/idea/android-kotlin:intellij.android.kotlin.extensions[module, test]",
         "//tools/adt/idea/compose-designer:intellij.android.compose-designer[module, test]",
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
-        "//tools/adt/idea/.idea/libraries:layoutlib",
+        "//tools/adt/idea/.idea/libraries:layoutlib[test]",
         "//tools/adt/idea/intellij.android.compose-common[module]",
         "//tools/adt/idea/designer:intellij.android.designer[module, test]",
+        "//tools/adt/idea/layoutlib:intellij.android.layoutlib[module, test]",
+    ],
+)
+
+maven_repository(
+    name = "test_deps",
+    # keep sorted: for buildifier
+    artifacts = [
+        "@maven//:androidx.annotation.annotation_1.2.0-beta01",
+        "@maven//:androidx.appcompat.appcompat_1.3.0",
+        "@maven//:androidx.compose.compiler.compiler_1.1.0-beta01",
+        "@maven//:androidx.compose.ui.ui-tooling_1.1.0-beta01",
+        "@maven//:androidx.core.core-ktx_1.6.0",
+        "@maven//:androidx.core.core_1.5.0-beta01",
+        "@maven//:androidx.core.core_1.5.0-rc02",
+        "@maven//:androidx.lifecycle.lifecycle-common_2.3.0-rc01",
+        "@maven//:androidx.savedstate.savedstate_1.1.0-rc01",
+        "@maven//:com.android.support.constraint.constraint-layout_2.0.4",
+        "@maven//:com.google.auto.value.auto-value_1.6.2",
+        "@maven//:com.google.errorprone.error_prone_annotations_2.3.2",
+        "@maven//:com.google.jimfs.jimfs_1.1",
+        "@maven//:com.sun.activation.javax.activation_1.2.0",
+        "@maven//:commons-lang.commons-lang_2.4",
+        "@maven//:javax.inject.javax.inject_1",
+        "@maven//:junit.junit_4.12",
+        "@maven//:org.codehaus.mojo.animal-sniffer-annotations_1.17",
+        "@maven//:org.hamcrest.hamcrest-library_1.3",
+        "@maven//:org.jetbrains.kotlin.kotlin-android-extensions-runtime_1.5.30",
+        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.5.30",
+        "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.4.32",
+        "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.5.30",
+        "@maven//:org.jetbrains.kotlin.kotlin-script-runtime_1.5.30",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk7_1.4.32",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.5.30",
+        "@maven//:xmlpull.xmlpull_1.1.3.1",
     ],
 )

@@ -48,7 +48,11 @@ import java.nio.file.StandardOpenOption
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.function.BiConsumer
-import javax.swing.*
+import javax.swing.Action
+import javax.swing.JComponent
+import javax.swing.JLabel
+import javax.swing.JPanel
+import javax.swing.JTextArea
 import javax.swing.event.HyperlinkEvent
 
 class AnalysisRunnable(val report: UnanalyzedHeapReport,
@@ -114,7 +118,10 @@ class AnalysisRunnable(val report: UnanalyzedHeapReport,
         report.properties
       )
 
-      val notification = HeapDumpAnalysisNotificationGroup.GROUP.createNotification(AndroidBundle.message("heap.dump.analysis.notification.title"), AndroidBundle.message("heap.dump.analysis.notification.ready.content"), NotificationType.INFORMATION)
+      val notification = HeapDumpAnalysisNotificationGroup.GROUP.createNotification(
+        AndroidBundle.message("heap.dump.analysis.notification.title"),
+        AndroidBundle.message("heap.dump.analysis.notification.ready.content"),
+        NotificationType.INFORMATION)
       notification.isImportant = true
       notification.addAction(ReviewReportAction(analyzedReport))
 

@@ -38,7 +38,7 @@ class CaptureNodeDetailTableTest {
     assertThat(table.getColumnName(0)).isEqualTo("Start Time")
     assertThat(table.getColumnName(1)).isEqualTo("Name")
     assertThat(table.getColumnName(2)).isEqualTo("Wall Duration")
-    assertThat(table.getColumnName(3)).isEqualTo("Self Time")
+    assertThat(table.getColumnName(3)).isEqualTo("Wall Self Time")
     assertThat(table.getColumnName(4)).isEqualTo("CPU Duration")
     assertThat(table.getColumnName(5)).isEqualTo("CPU Self Time")
     assertThat(table.getValueAt(0, 0)).isEqualTo(0)
@@ -85,6 +85,17 @@ class CaptureNodeDetailTableTest {
     assertThat(viewRange.isSameAs(Range(0.0, 100.0))).isTrue()
     table.selectionModel.setSelectionInterval(1, 1)
     assertThat(viewRange.isSameAs(Range(14.0, 19.0))).isTrue()
+  }
+
+  @Test
+  fun rowSelectionUpdatesViewRangeWhenTableIsPaginated() {
+    val viewRange = Range(0.0, 100.0)
+    val table = CaptureNodeDetailTable(NODES_TO_SORT, Range(0.0, 100.0), viewRange, 2).table
+    assertThat(viewRange.isSameAs(Range(0.0, 100.0))).isTrue()
+    // Go to the next page and make sure the selection selects the items on that page.
+    (table.model as AbstractPaginatedTableModel).goToNextPage()
+    table.selectionModel.setSelectionInterval(0, 0)
+    assertThat(viewRange.isSameAs(Range(300.0, 302.0))).isTrue()
   }
 
   @Test

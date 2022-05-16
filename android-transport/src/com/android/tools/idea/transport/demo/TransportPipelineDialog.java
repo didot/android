@@ -39,7 +39,7 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
-import com.intellij.util.ui.JBUI;
+import com.intellij.ui.scale.JBUIScale;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.util.ArrayList;
@@ -191,7 +191,7 @@ public class TransportPipelineDialog extends DialogWrapper {
     panel.add(myEventFilter, new TabularLayout.Constraint(3, 1));
 
     JScrollPane logScrollPane = new JBScrollPane(myEventLog);
-    logScrollPane.setMinimumSize(new Dimension(JBUI.scale(300), JBUI.scale(600)));
+    logScrollPane.setMinimumSize(new Dimension(JBUIScale.scale(300), JBUIScale.scale(600)));
     panel.add(logScrollPane, new TabularLayout.Constraint(4, 1, 2));
     myRootPanel.add(panel, BorderLayout.CENTER);
 
@@ -239,9 +239,14 @@ public class TransportPipelineDialog extends DialogWrapper {
       event -> {
         // Group ID here is the process ID
         Common.Process process = event.getProcess().getProcessStarted().getProcess();
-        myProcessesMap.get(process.getDeviceId()).add(process);
-        myProcessIdMap.put(event.getGroupId(), process);
-        rebuildDevicesDropdown();
+        // TransportPipelineDialog aims to demo the full capability of the pipeline, of which the
+        // JVMTI agent is an important functionality. As JMVTI agent is supported by debuggable
+        // processes only, we show them only and ignore profileable ones here.
+        if (process.getExposureLevel() == Common.Process.ExposureLevel.DEBUGGABLE) {
+          myProcessesMap.get(process.getDeviceId()).add(process);
+          myProcessIdMap.put(event.getGroupId(), process);
+          rebuildDevicesDropdown();
+        }
         return false;
       });
     myTransportEventPoller.registerListener(processStartedListener);

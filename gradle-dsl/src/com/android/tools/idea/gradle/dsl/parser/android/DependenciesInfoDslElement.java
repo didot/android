@@ -27,10 +27,8 @@ import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,12 +36,12 @@ public class DependenciesInfoDslElement extends GradleDslBlockElement {
   public static final PropertiesElementDescription<DependenciesInfoDslElement> DEPENDENCIES_INFO =
     new PropertiesElementDescription<>("dependenciesInfo", DependenciesInfoDslElement.class, DependenciesInfoDslElement::new);
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap ktsToModelMap = Stream.of(new Object[][]{
     {"includeInApk", property, INCLUDE_IN_APK, VAR},
     {"includeInBundle", property, INCLUDE_IN_BUNDLE, VAR}
   }).collect(toModelMap());
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelMap = Stream.of(new Object[][] {
+  public static final ExternalToModelMap groovyToModelMap = Stream.of(new Object[][] {
     {"includeInApk", property, INCLUDE_IN_APK, VAR},
     {"includeInApk", exactly(1), INCLUDE_IN_APK, SET},
     {"includeInBundle", property, INCLUDE_IN_BUNDLE, VAR},
@@ -51,16 +49,8 @@ public class DependenciesInfoDslElement extends GradleDslBlockElement {
   }).collect(toModelMap());
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter.isKotlin()) {
-      return ktsToModelMap;
-    }
-    else if (converter.isGroovy()) {
-      return groovyToModelMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelMap, ktsToModelMap);
   }
 
   DependenciesInfoDslElement(@NotNull GradleDslElement parent, @NotNull GradleNameElement name) {

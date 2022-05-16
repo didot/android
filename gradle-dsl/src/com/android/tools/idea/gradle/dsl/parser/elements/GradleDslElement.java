@@ -23,17 +23,15 @@ import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.GradleReferenceInjection;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
 import com.intellij.psi.PsiElement;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Provide Gradle specific abstraction over a {@link PsiElement}s.
@@ -98,6 +96,9 @@ public interface GradleDslElement extends AnchorProvider {
 
   @Nullable
   GradleDslElement resolveExternalSyntaxReference(@NotNull String referenceText, boolean resolveWithOrder);
+
+  @Nullable
+  GradleDslElement resolveExternalSyntaxReference(@NotNull PsiElement psiElement, boolean resolveWithOrder);
 
   @Nullable
   GradleDslElement resolveInternalSyntaxReference(@NotNull String referenceText, boolean resolveWithOrder);
@@ -238,8 +239,7 @@ public interface GradleDslElement extends AnchorProvider {
    * @param converter
    * @return a map from expressed code to model semantics
    */
-  @NotNull
-  ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter);
+  @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter);
 
 
   /**

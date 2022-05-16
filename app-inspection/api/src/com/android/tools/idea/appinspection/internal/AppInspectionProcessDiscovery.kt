@@ -17,13 +17,13 @@ package com.android.tools.idea.appinspection.internal
 
 import com.android.annotations.concurrency.AnyThread
 import com.android.annotations.concurrency.GuardedBy
+import com.android.tools.idea.appinspection.api.process.ProcessDiscovery
 import com.android.tools.idea.appinspection.api.process.ProcessListener
-import com.android.tools.idea.appinspection.api.process.ProcessNotifier
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.appinspection.internal.process.TransportProcessDescriptor
+import com.android.tools.idea.appinspection.internal.process.toDeviceDescriptor
 import com.android.tools.idea.transport.manager.StreamConnected
 import com.android.tools.idea.transport.manager.StreamDisconnected
-import com.android.tools.idea.transport.manager.StreamEventQuery
 import com.android.tools.idea.transport.manager.TransportStreamChannel
 import com.android.tools.idea.transport.manager.TransportStreamManager
 import com.android.tools.idea.transport.poller.TransportEventListener
@@ -31,7 +31,6 @@ import com.android.tools.profiler.proto.Common
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import java.lang.Long.max
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 
@@ -50,17 +49,19 @@ import java.util.concurrent.Executor
 internal class AppInspectionProcessDiscovery(
   private val manager: TransportStreamManager,
   private val scope: CoroutineScope
-) : ProcessNotifier {
-
-  // Keep track of the last_active_event_timestamp per stream. This ensures that in the event the stream is disconnected and connected
-  // again, AppInspection will be able to filter out and ignore the events that happened in the past.
-  private val streamLastActiveTime = ConcurrentHashMap<Long, Long>()
+) : ProcessDiscovery {
 
   private val streamIdMap = ConcurrentHashMap<Long, TransportStreamChannel>()
+
+  override val devices
+    get() = streamIdMap.values
+      .filter { it.stream.hasDevice() && it.stream.device.state == Common.Device.State.ONLINE }
+      .map { it.stream.device.toDeviceDescriptor() }
 
   private data class StreamProcessIdPair(val streamId: Long, val pid: Int)
 
   private class ProcessData {
+    // All known debuggable processes
     @GuardedBy("processData")
     val processesMap = mutableMapOf<StreamProcessIdPair, ProcessDescriptor>()
 
@@ -107,21 +108,14 @@ internal class AppInspectionProcessDiscovery(
           val streamChannel = activity.streamChannel
           if (activity is StreamConnected) {
             streamIdMap[streamChannel.stream.streamId] = streamChannel
-            val streamLastEventTimestamp = streamLastActiveTime[streamChannel.stream.streamId]?.let { { it + 1 } } ?: { Long.MIN_VALUE }
             launch {
-              streamChannel.eventFlow(
-                StreamEventQuery(
-                  eventKind = Common.Event.Kind.PROCESS,
-                  startTime = streamLastEventTimestamp
-                )
-              ).collect { streamEvent ->
-                if (streamEvent.event.process.hasProcessStarted()) {
-                  val process = streamEvent.event.process.processStarted.process
-                  addProcess(streamChannel, process)
-                  setStreamLastActiveTime(streamChannel.stream.streamId, streamEvent.event.timestamp)
-                } else {
-                  removeProcess(streamChannel.stream.streamId, streamEvent.event.groupId.toInt())
-                  setStreamLastActiveTime(streamChannel.stream.streamId, streamEvent.event.timestamp)
+              streamChannel.processesFlow { _, process ->
+                process.exposureLevel == Common.Process.ExposureLevel.DEBUGGABLE
+              }.collect { process ->
+                when (process.state) {
+                  Common.Process.State.ALIVE -> addProcess(streamChannel, process)
+                  Common.Process.State.DEAD -> removeProcess(streamChannel.stream.streamId, process.pid)
+                  else -> Unit
                 }
               }
             }
@@ -134,20 +128,18 @@ internal class AppInspectionProcessDiscovery(
     }
   }
 
-  private fun setStreamLastActiveTime(streamId: Long, timestamp: Long) {
-    streamLastActiveTime[streamId] = max(timestamp, streamLastActiveTime[streamId] ?: Long.MIN_VALUE)
-  }
-
   /**
    * Adds a process to internal cache. This is called when transport pipeline is aware of a new process.
    */
   private fun addProcess(streamChannel: TransportStreamChannel, process: Common.Process) {
     synchronized(processData) {
-      processData.processesMap.computeIfAbsent(
-        StreamProcessIdPair(
-          streamChannel.stream.streamId, process.pid)) {
+      processData.processesMap.computeIfAbsent(StreamProcessIdPair(streamChannel.stream.streamId, process.pid)) {
         val descriptor = TransportProcessDescriptor(streamChannel.stream, process)
-        processData.processListeners.forEach { (listener, executor) -> executor.execute { listener.onProcessConnected(descriptor) } }
+        processData.processListeners.forEach { (listener, executor) ->
+          if (listener.filter(descriptor)) {
+            executor.execute { listener.onProcessConnected(descriptor) }
+          }
+        }
         descriptor
       }
     }

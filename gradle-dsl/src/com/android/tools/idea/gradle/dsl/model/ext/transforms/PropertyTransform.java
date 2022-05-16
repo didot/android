@@ -15,18 +15,22 @@
  */
 package com.android.tools.idea.gradle.dsl.model.ext.transforms;
 
+import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.removeElement;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelSemanticsDescription.CREATE_WITH_VALUE;
+
 import com.android.tools.idea.gradle.dsl.api.android.SigningConfigModel;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelImpl;
 import com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil;
-import com.android.tools.idea.gradle.dsl.parser.elements.*;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpression;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.removeElement;
-import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelSemanticsDescription.CREATE_WITH_VALUE;
 
 /**
  * <p>Defines a transform that can be used to allow a {@link GradlePropertyModel} to represent complex properties.
@@ -99,23 +103,18 @@ public abstract class PropertyTransform {
    * @param holder       the parent of the property being held by the {@link GradlePropertyModel}
    * @param oldElement   the old element being held by the {@link GradlePropertyModel}, null if it doesn't yet exist.
    * @param name         the new value that was passed to {@link GradlePropertyModel#setValue(Object)}.
-   * @param isMethodCall whether or not the {@link GradlePropertyModel} was set to be a method call or not.
    * @return a {@link GradleDslExpression} to be passed into replace if it differs from oldElement.
    */
   @NotNull
-  public GradleDslExpression bindList(@NotNull GradleDslElement holder,
-                                      @Nullable GradleDslElement oldElement,
-                                      @NotNull String name,
-                                      boolean isMethodCall) {
-    return new GradleDslExpressionList(holder, GradleNameElement.create(name), !isMethodCall);
+  public GradleDslExpression bindList(@NotNull GradleDslElement holder, @Nullable GradleDslElement oldElement, @NotNull String name) {
+    return new GradleDslExpressionList(holder, GradleNameElement.create(name), true);
   }
 
   @NotNull
   public GradleDslExpression bindList(@NotNull GradleDslElement holder,
                                       @Nullable GradleDslElement oldElement,
-                                      @NotNull ModelPropertyDescription propertyDescription,
-                                      boolean isMethodCall) {
-    GradleDslExpression result = bindList(holder, oldElement, propertyDescription.name, isMethodCall);
+                                      @NotNull ModelPropertyDescription propertyDescription) {
+    GradleDslExpression result = bindList(holder, oldElement, propertyDescription.name);
     result.setModelEffect(new ModelEffectDescription(propertyDescription, CREATE_WITH_VALUE));
     return result;
   }
@@ -126,23 +125,18 @@ public abstract class PropertyTransform {
    * @param holder       the parent of the property being held by the {@link GradlePropertyModel}
    * @param oldElement   the old element being held by the {@link GradlePropertyModel}, null if it doesn't yet exist.
    * @param name         the new value that was passed to {@link GradlePropertyModel#setValue(Object)}.
-   * @param isMethodCall whether or not the {@link GradlePropertyModel} was set to be a method call or not.
    * @return a {@link GradleDslExpression} to be passed into replace if it differs from oldElement.
    */
   @NotNull
-  public GradleDslExpression bindMap(@NotNull GradleDslElement holder,
-                                     @Nullable GradleDslElement oldElement,
-                                     @NotNull String name,
-                                     boolean isMethodCall) {
-    return new GradleDslExpressionMap(holder, GradleNameElement.create(name), !isMethodCall);
+  public GradleDslExpression bindMap(@NotNull GradleDslElement holder, @Nullable GradleDslElement oldElement, @NotNull String name) {
+    return new GradleDslExpressionMap(holder, GradleNameElement.create(name), true);
   }
 
   @NotNull
   public GradleDslExpression bindMap(@NotNull GradleDslElement holder,
                                      @Nullable GradleDslElement oldElement,
-                                     @NotNull ModelPropertyDescription propertyDescription,
-                                     boolean isMethodCall) {
-    GradleDslExpression result = bindMap(holder, oldElement, propertyDescription.name, isMethodCall);
+                                     @NotNull ModelPropertyDescription propertyDescription) {
+    GradleDslExpression result = bindMap(holder, oldElement, propertyDescription.name);
     result.setModelEffect(new ModelEffectDescription(propertyDescription, CREATE_WITH_VALUE));
     return result;
   }

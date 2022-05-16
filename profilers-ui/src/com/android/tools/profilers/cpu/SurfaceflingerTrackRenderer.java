@@ -17,25 +17,34 @@ package com.android.tools.profilers.cpu;
 
 import com.android.tools.adtui.chart.statechart.StateChart;
 import com.android.tools.adtui.chart.statechart.StateChartColorProvider;
-import com.android.tools.adtui.common.DataVisualizationColors;
 import com.android.tools.adtui.model.trackgroup.TrackModel;
 import com.android.tools.adtui.trackgroup.TrackRenderer;
-import com.android.tools.profilers.ProfilerColors;
-import com.android.tools.profilers.ProfilerTrackRendererType;
+import com.android.tools.profilers.DataVisualizationColors;
 import com.android.tools.profilers.cpu.systemtrace.SurfaceflingerEvent;
 import com.android.tools.profilers.cpu.systemtrace.SurfaceflingerTrackModel;
+import com.intellij.util.ui.UIUtil;
 import java.awt.Color;
+import java.util.function.BooleanSupplier;
 import javax.swing.JComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Track renderer for SysTrace Surfaceflinger events.
  */
-public class SurfaceflingerTrackRenderer implements TrackRenderer<SurfaceflingerTrackModel, ProfilerTrackRendererType> {
+public class SurfaceflingerTrackRenderer implements TrackRenderer<SurfaceflingerTrackModel> {
+  private final BooleanSupplier myVsyncEnabler;
+
+  public SurfaceflingerTrackRenderer(BooleanSupplier vsyncEnabler) {
+    myVsyncEnabler = vsyncEnabler;
+  }
+
   @NotNull
   @Override
-  public JComponent render(@NotNull TrackModel<SurfaceflingerTrackModel, ProfilerTrackRendererType> trackModel) {
-    return new StateChart<>(trackModel.getDataModel(), new SurfaceflingerColorProvider());
+  public JComponent render(@NotNull TrackModel<SurfaceflingerTrackModel, ?> trackModel) {
+    return VsyncPanel.of(new StateChart<>(trackModel.getDataModel(), new SurfaceflingerColorProvider()),
+                         trackModel.getDataModel().getViewRange(),
+                         trackModel.getDataModel().getSystemTraceData().getVsyncCounterValues(),
+                         myVsyncEnabler);
   }
 
   private static class SurfaceflingerColorProvider extends StateChartColorProvider<SurfaceflingerEvent> {
@@ -44,10 +53,11 @@ public class SurfaceflingerTrackRenderer implements TrackRenderer<Surfaceflinger
     public Color getColor(boolean isMouseOver, @NotNull SurfaceflingerEvent value) {
       switch (value.getType()) {
         case PROCESSING:
-          return DataVisualizationColors.INSTANCE.getColor(DataVisualizationColors.BACKGROUND_DATA_COLOR, isMouseOver);
+          return DataVisualizationColors.getPaletteManager().getBackgroundColor(
+            DataVisualizationColors.BACKGROUND_DATA_COLOR_NAME, isMouseOver);
         case IDLE: // fallthrough
         default:
-          return ProfilerColors.CPU_STATECHART_DEFAULT_STATE;
+          return UIUtil.TRANSPARENT_COLOR;
       }
     }
   }

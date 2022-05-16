@@ -16,24 +16,38 @@
 
 package com.android.tools.adtui.visualtests;
 
-import com.android.tools.adtui.*;
+import com.android.tools.adtui.AnimatedComponent;
+import com.android.tools.adtui.AnimatedTimeRange;
+import com.android.tools.adtui.AxisComponent;
 import com.android.tools.adtui.chart.statechart.StateChart;
-import com.android.tools.adtui.model.*;
+import com.android.tools.adtui.model.DefaultDataSeries;
+import com.android.tools.adtui.model.Range;
+import com.android.tools.adtui.model.RangedSeries;
+import com.android.tools.adtui.model.StateChartModel;
 import com.android.tools.adtui.model.updater.Updatable;
 import com.intellij.ui.JBColor;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.LayoutManager;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ItemEvent;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JLayeredPane;
+import javax.swing.JPanel;
+import org.jetbrains.annotations.NotNull;
 
 public class StateChartVisualTest extends VisualTest {
 
@@ -65,10 +79,10 @@ public class StateChartVisualTest extends VisualTest {
   private StateChart<MockStrengthState> mRadioStateChart;
 
   @NotNull
-  private final List<DefaultDataSeries<MockFruitState>> mNetworkDataEntries = new ArrayList<>();
+  private List<DefaultDataSeries<MockFruitState>> mNetworkDataEntries = new ArrayList<>();
 
   @NotNull
-  private final List<DefaultDataSeries<MockStrengthState>> mRadioDataEntries = new ArrayList<>();
+  private List<DefaultDataSeries<MockStrengthState>> mRadioDataEntries = new ArrayList<>();
 
   private static EnumMap<MockFruitState, Color> getFruitStateColor() {
     EnumMap<MockFruitState, Color> colors = new EnumMap<>(MockFruitState.class);
@@ -259,12 +273,6 @@ public class StateChartVisualTest extends VisualTest {
     }));
     controls.add(VisualTest.createCheckbox("Shift xRange Min",
                                            itemEvent -> mAnimatedTimeRange.setShift(itemEvent.getStateChange() == ItemEvent.SELECTED)));
-    controls.add(VisualTest.createCheckbox("Text Mode", itemEvent -> {
-      StateChart.RenderMode mode = itemEvent.getStateChange() == ItemEvent.SELECTED ?
-                                   StateChart.RenderMode.TEXT : StateChart.RenderMode.BAR;
-      mNetworkStatusChart.setRenderMode(mode);
-      mRadioStateChart.setRenderMode(mode);
-    }));
     controls.add(
       new Box.Filler(new Dimension(0, 0), new Dimension(300, Integer.MAX_VALUE),
                      new Dimension(300, Integer.MAX_VALUE)));

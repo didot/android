@@ -23,8 +23,11 @@ import com.android.annotations.concurrency.Slow;
 import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.ide.common.rendering.api.ResourceReference;
 import com.android.ide.common.resources.ResourceResolver;
+import com.android.ide.common.resources.configuration.FolderConfiguration;
 import com.android.resources.ResourceType;
 import com.android.resources.ResourceUrl;
+import com.android.sdklib.IAndroidTarget;
+import com.android.sdklib.devices.Device;
 import com.android.tools.idea.AndroidPsiUtils;
 import com.android.tools.idea.common.api.DragType;
 import com.android.tools.idea.common.api.InsertType;
@@ -35,12 +38,11 @@ import com.android.tools.idea.common.type.DesignerEditorFileType;
 import com.android.tools.idea.common.type.DesignerEditorFileTypeKt;
 import com.android.tools.idea.common.util.XmlTagUtil;
 import com.android.tools.idea.configurations.Configuration;
-import com.android.tools.idea.rendering.RenderUtils;
+import com.android.tools.idea.configurations.ResourceResolverCache;
 import com.android.tools.idea.rendering.parsers.TagSnapshot;
 import com.android.tools.idea.res.IdeResourcesUtil;
 import com.android.tools.idea.res.LocalResourceRepository;
 import com.android.tools.idea.res.ResourceNotificationManager;
-import com.android.tools.idea.res.ResourceNotificationManager.ResourceChangeListener;
 import com.android.tools.idea.res.ResourceRepositoryManager;
 import com.android.tools.idea.uibuilder.model.NlComponentHelperKt;
 import com.android.tools.idea.util.ListenerCollection;
@@ -51,6 +53,7 @@ import com.google.common.collect.Sets;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.module.Module;
@@ -64,6 +67,7 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlFile;
 import com.intellij.psi.xml.XmlTag;
+import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.ui.update.MergingUpdateQueue;
 import com.intellij.util.ui.update.Update;
 import java.util.ArrayList;
@@ -73,7 +77,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -98,7 +104,7 @@ public class NlModel implements Disposable, ModificationTracker {
   public static final int DELAY_AFTER_TYPING_MS = 250;
 
   static final boolean CHECK_MODEL_INTEGRITY = false;
-  private final Set<String> myPendingIds = new HashSet<String>();
+  private final Set<String> myPendingIds = new HashSet<>();
 
   @NotNull private final AndroidFacet myFacet;
   @NotNull private final VirtualFile myFile;
@@ -106,7 +112,9 @@ public class NlModel implements Disposable, ModificationTracker {
   @NotNull private final Configuration myConfiguration;
   private final ListenerCollection<ModelListener> myListeners = ListenerCollection.createWithDirectExecutor();
   /** Model name. This can be used when multiple models are displayed at the same time */
-  private String myModelDisplayName;
+  @Nullable private String myModelDisplayName;
+  /** Text to display when displaying a tooltip related to this model */
+  @Nullable private String myModelTooltip;
   @Nullable private NlComponent myRootComponent;
   private LintAnnotationsModel myLintAnnotationsModel;
   private final long myId;
@@ -118,6 +126,10 @@ public class NlModel implements Disposable, ModificationTracker {
 
   // Variable to track what triggered the latest render (if known)
   private ChangeType myModificationTrigger;
+  /** Executor used for asynchronous updates. */
+  private final @NotNull ExecutorService myUpdateExecutor = AppExecutorUtil.createBoundedApplicationPoolExecutor("NlModel", 1);
+  private final @NotNull AtomicReference<Disposable> myThemeUpdateComputation = new AtomicReference<>();
+  private boolean myDisposed;
 
   /**
    * {@link LayoutlibSceneManager} requires the file from model to be an {@link XmlFile} to be able to render it. This is true in case of
@@ -148,6 +160,7 @@ public class NlModel implements Disposable, ModificationTracker {
   @NotNull
   static NlModel create(@Nullable Disposable parent,
                         @Nullable String modelDisplayName,
+                        @Nullable String modelTooltip,
                         @NotNull AndroidFacet facet,
                         @NotNull VirtualFile file,
                         @NotNull Configuration configuration,
@@ -155,22 +168,24 @@ public class NlModel implements Disposable, ModificationTracker {
                         @NotNull BiFunction<Project, VirtualFile, XmlFile> xmlFileProvider,
                         @Nullable NlModelUpdaterInterface modelUpdater,
                         @NotNull DataContext dataContext) {
-    return new NlModel(parent, modelDisplayName, facet, file, configuration, componentRegistrar, xmlFileProvider, modelUpdater, dataContext);
+    return new NlModel(parent, modelDisplayName, modelTooltip, facet, file, configuration, componentRegistrar, xmlFileProvider, modelUpdater, dataContext);
   }
 
   protected NlModel(@Nullable Disposable parent,
                     @Nullable String modelDisplayName,
+                    @Nullable String modelTooltip,
                     @NotNull AndroidFacet facet,
                     @NotNull VirtualFile file,
                     @NotNull Configuration configuration,
                     @NotNull Consumer<NlComponent> componentRegistrar,
                     @NotNull DataContext dataContext) {
-    this(parent, modelDisplayName, facet, file, configuration, componentRegistrar, NlModel::getDefaultXmlFile, null, dataContext);
+    this(parent, modelDisplayName, modelTooltip, facet, file, configuration, componentRegistrar, NlModel::getDefaultXmlFile, null, dataContext);
   }
 
   @VisibleForTesting
   protected NlModel(@Nullable Disposable parent,
                     @Nullable String modelDisplayName,
+                    @Nullable String modelTooltip,
                     @NotNull AndroidFacet facet,
                     @NotNull VirtualFile file,
                     @NotNull Configuration configuration,
@@ -181,6 +196,7 @@ public class NlModel implements Disposable, ModificationTracker {
     myFacet = facet;
     myXmlFileProvider = xmlFileProvider;
     myModelDisplayName = modelDisplayName;
+    myModelTooltip = modelTooltip;
     myFile = file;
     myConfiguration = configuration;
     myComponentRegistrar = componentRegistrar;
@@ -211,7 +227,7 @@ public class NlModel implements Disposable, ModificationTracker {
    * Notify model that it's active. A model is active by default.
    *
    * @param source caller used to keep track of the references to this model. See {@link #deactivate(Object)}
-   * @returns true if the model was not active before and was activated.
+   * @return true if the model was not active before and was activated.
    */
   public boolean activate(@NotNull Object source) {
     if (getFacet().isDisposed()) {
@@ -244,11 +260,50 @@ public class NlModel implements Disposable, ModificationTracker {
   public void updateTheme() {
     ResourceUrl themeUrl = ResourceUrl.parse(myConfiguration.getTheme());
     if (themeUrl != null && themeUrl.type == ResourceType.STYLE) {
-      ResourceResolver resolver = myConfiguration.getResourceResolver();
-      if (resolver == null || resolver.getTheme(themeUrl.name, themeUrl.isFramework()) == null) {
-        myConfiguration.setTheme(myConfiguration.getConfigurationManager().computePreferredTheme(myConfiguration));
+      Disposable computationToken = Disposer.newDisposable();
+      Disposer.register(this, computationToken);
+      Disposable oldComputation = myThemeUpdateComputation.getAndSet(computationToken);
+      if (oldComputation != null) {
+        Disposer.dispose(oldComputation);
+      }
+      ReadAction.nonBlocking(() -> updateTheme(themeUrl, computationToken)).expireWith(computationToken).submit(myUpdateExecutor);
+    }
+  }
+
+  @Slow
+  private void updateTheme(@NotNull ResourceUrl themeUrl, @NotNull Disposable computationToken) {
+    if (myThemeUpdateComputation.get() != computationToken) {
+      return; // A new update has already been scheduled.
+    }
+    try {
+      ResourceResolver resolver = getResourceResolver();
+      if (resolver.getTheme(themeUrl.name, themeUrl.isFramework()) == null) {
+        String theme = myConfiguration.getConfigurationManager().computePreferredTheme(myConfiguration);
+        if (myThemeUpdateComputation.get() != computationToken) {
+          return; // A new update has already been scheduled.
+        }
+        ApplicationManager.getApplication().invokeLater(() -> myConfiguration.setTheme(theme), a -> myDisposed);
       }
     }
+    finally {
+      if (myThemeUpdateComputation.compareAndSet(computationToken, null)) {
+        Disposer.dispose(computationToken);
+      }
+    }
+  }
+
+  @Slow
+  private @NotNull ResourceResolver getResourceResolver() {
+    String theme = myConfiguration.getTheme();
+    Device device = myConfiguration.getDevice();
+    ResourceResolverCache resolverCache = myConfiguration.getConfigurationManager().getResolverCache();
+    FolderConfiguration config = myConfiguration.getFullConfig();
+    if (device != null && Configuration.CUSTOM_DEVICE_ID.equals(device.getId())) {
+      // Remove the old custom device configuration only if it's different from the new one
+      resolverCache.replaceCustomConfig(theme, config);
+    }
+    IAndroidTarget target = myConfiguration.getTarget();
+    return resolverCache.getResourceResolver(target, theme, config);
   }
 
   private void deactivate() {
@@ -260,7 +315,7 @@ public class NlModel implements Disposable, ModificationTracker {
    *
    * @param source the source is used to keep track of the references that are using this model. Only when all the sources have called
    *               deactivate(Object), the model will be really deactivated.
-   * @returns true if the model was active before and was deactivated.
+   * @return true if the model was active before and was deactivated.
    */
   public boolean deactivate(@NotNull Object source) {
     boolean shouldDeactivate;
@@ -652,6 +707,14 @@ public class NlModel implements Disposable, ModificationTracker {
   }
 
   /**
+   * TODO: Needs remove after refactor.
+   */
+  @NotNull
+  public Consumer<NlComponent> getComponentRegistrar() {
+    return myComponentRegistrar;
+  }
+
+  /**
    * Simply create a component. In most cases you probably want
    * {@link #createComponent(DesignSurface, XmlTag, NlComponent, NlComponent, InsertType)}.
    */
@@ -884,8 +947,14 @@ public class NlModel implements Disposable, ModificationTracker {
     return myModelDisplayName;
   }
 
+  @Nullable
+  public String getModelTooltip() {
+    return myModelTooltip;
+  }
+
   @Override
   public void dispose() {
+    myDisposed = true;
     boolean shouldDeactivate;
     myLintAnnotationsModel = null;
     synchronized (myActivations) {
@@ -1003,5 +1072,4 @@ public class NlModel implements Disposable, ModificationTracker {
   public final void setDataContext(@NotNull DataContext dataContext) {
     myDataContext = dataContext;
   }
-
 }

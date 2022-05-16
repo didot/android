@@ -18,9 +18,10 @@ package com.android.tools.adtui.chart.linechart;
 
 import com.android.tools.adtui.LegendConfig;
 import com.intellij.ui.JBColor;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Stroke;
 import org.jetbrains.annotations.NotNull;
-
-import java.awt.*;
 
 /**
  * This class handles the configuration of lines that compose a line chart.

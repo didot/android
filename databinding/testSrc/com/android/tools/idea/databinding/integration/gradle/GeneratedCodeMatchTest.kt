@@ -17,13 +17,12 @@ package com.android.tools.idea.databinding.integration.gradle
 
 import com.android.SdkConstants.ANDROIDX_DATA_BINDING_LIB_ARTIFACT
 import com.android.SdkConstants.DATA_BINDING_LIB_ARTIFACT
-import com.android.ide.common.blame.Message
 import com.android.tools.idea.databinding.DataBindingMode
-import com.android.tools.idea.databinding.module.LayoutBindingModuleCache
 import com.android.tools.idea.databinding.TestDataPaths
 import com.android.tools.idea.databinding.TestDataPaths.PROJECT_WITH_DATA_BINDING_ANDROID_X
 import com.android.tools.idea.databinding.TestDataPaths.PROJECT_WITH_DATA_BINDING_SUPPORT
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.databinding.module.LayoutBindingModuleCache
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.gradle.project.sync.GradleSyncState
 import com.android.tools.idea.res.ResourceRepositoryManager
 import com.android.tools.idea.testing.AndroidGradleProjectRule
@@ -50,11 +49,11 @@ import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
-import org.jetbrains.org.objectweb.asm.ClassReader
-import org.jetbrains.org.objectweb.asm.ClassVisitor
-import org.jetbrains.org.objectweb.asm.FieldVisitor
-import org.jetbrains.org.objectweb.asm.MethodVisitor
-import org.jetbrains.org.objectweb.asm.Opcodes
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.FieldVisitor
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
 import java.io.File
 import java.io.IOException
 import java.util.TreeSet
@@ -219,7 +218,7 @@ class GeneratedCodeMatchTest(private val parameters: TestParameters) {
   }
 
   private fun findViewDataBindingClass(): ClassReader {
-    val model = AndroidModuleModel.get(projectRule.androidFacet(":app"))!!
+    val model = GradleAndroidModel.get(projectRule.androidFacet(":app"))!!
     val classJar = model.mainArtifact.level2Dependencies.androidLibraries.first { lib ->
       lib.artifactAddress.startsWith(parameters.dataBindingLibArtifact)
     }.runtimeJarFiles.find {
@@ -238,8 +237,7 @@ class GeneratedCodeMatchTest(private val parameters: TestParameters) {
   fun testGeneratedCodeMatchesExpected() {
     // temporary fix until test model can detect dependencies properly
     val assembleDebug = projectRule.invokeTasks("assembleDebug")
-    assertWithMessage(assembleDebug.getCompilerMessages(Message.Kind.ERROR).joinToString("\n"))
-      .that(assembleDebug.isBuildSuccessful).isTrue()
+    assertThat(assembleDebug.isBuildSuccessful).isTrue()
 
     val syncState = GradleSyncState.getInstance(projectRule.project)
     assertThat(syncState.isSyncNeeded().toBoolean()).isFalse()

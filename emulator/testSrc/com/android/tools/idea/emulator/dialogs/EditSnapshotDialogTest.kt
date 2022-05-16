@@ -40,7 +40,7 @@ class EditSnapshotDialogTest {
   val ruleChain: RuleChain = RuleChain.outerRule(projectRule).around(EdtRule())
 
   private val testRootDisposable
-    get() = projectRule.fixture.testRootDisposable
+    get() = projectRule.testRootDisposable
 
   @Before
   fun setUp() {
@@ -51,7 +51,7 @@ class EditSnapshotDialogTest {
   fun testDialog() {
     val dialogPanel = EditSnapshotDialog("snap_2020-09-08_18-24-23", "", false)
     val dialogWrapper = dialogPanel.createWrapper()
-    createModalDialogAndInteractWithIt({ dialogWrapper.show() }) { dlg ->
+    createModalDialogAndInteractWithIt(dialogWrapper::show) { dlg ->
       val rootPane = dlg.rootPane
       val ui = FakeUi(rootPane)
       val nameField = ui.getComponent<JTextField>()

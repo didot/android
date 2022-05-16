@@ -57,7 +57,7 @@ class NavXmlIndex : SingleEntryFileBasedIndexExtension<NavXmlData>() {
   private val jaxbSerializer get() = jaxbContext.createMarshaller()
   private val jaxbDeserializer get() = jaxbContext.createUnmarshaller()
 
-  override fun getVersion() = 8
+  override fun getVersion() = 9
   override fun dependsOnFileContent() = true
   override fun getName(): ID<Int, NavXmlData> = NAME
 
@@ -109,7 +109,7 @@ class NavXmlIndex : SingleEntryFileBasedIndexExtension<NavXmlData>() {
         // failed, and we definitely don't want any exceptions to leak to our users here, to be safe
         // we just catch and log all possible problems.
         catch (e: Throwable) {
-          getLog().infoWithDebug("Skipping over \"${inputData.file.path}\"", e)
+          getLog().infoWithDebug("${NavXmlIndex::class.java.simpleName} skipping over \"${inputData.file.path}\": ${e.message}", e)
           return null
         }
       }

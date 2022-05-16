@@ -21,7 +21,7 @@ import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.ui.NamedConfigurable;
 import com.intellij.ui.navigation.History;
 import com.intellij.ui.navigation.Place;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

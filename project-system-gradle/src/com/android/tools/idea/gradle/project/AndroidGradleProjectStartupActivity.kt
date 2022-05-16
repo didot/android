@@ -22,9 +22,11 @@ import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider
 import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet
 import com.android.tools.idea.gradle.project.facet.java.JavaFacet
 import com.android.tools.idea.gradle.project.facet.ndk.NdkFacet
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.GradleSyncState
+import com.android.tools.idea.gradle.project.sync.idea.AndroidGradleProjectResolver.shouldDisableForceUpgrades
+import com.android.tools.idea.gradle.project.sync.idea.ModuleUtil.linkAndroidModuleGroup
 import com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys.ANDROID_MODEL
 import com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys.GRADLE_MODULE_MODEL
 import com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys.JAVA_MODULE_MODEL
@@ -33,7 +35,7 @@ import com.android.tools.idea.gradle.project.sync.idea.findAndSetupSelectedCache
 import com.android.tools.idea.gradle.project.sync.idea.getSelectedVariantAndAbis
 import com.android.tools.idea.gradle.project.sync.setup.post.setUpModules
 import com.android.tools.idea.gradle.project.upgrade.maybeRecommendPluginUpgrade
-import com.android.tools.idea.gradle.project.upgrade.shouldForcePluginUpgrade
+import com.android.tools.idea.gradle.project.upgrade.versionsShouldForcePluginUpgrade
 import com.android.tools.idea.gradle.util.AndroidStudioPreferences
 import com.android.tools.idea.gradle.util.GradleUtil.GRADLE_SYSTEM_ID
 import com.android.tools.idea.gradle.variant.conflict.ConflictSet
@@ -69,6 +71,7 @@ import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.plugins.gradle.execution.test.runner.AllInPackageGradleConfigurationProducer
 import org.jetbrains.plugins.gradle.execution.test.runner.TestClassGradleConfigurationProducer
 import org.jetbrains.plugins.gradle.execution.test.runner.TestMethodGradleConfigurationProducer
+import org.jetbrains.plugins.gradle.model.data.GradleSourceSetData
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 import org.jetbrains.plugins.gradle.util.GradleConstants
 
@@ -166,7 +169,16 @@ private fun attachCachedModelsOrTriggerSync(project: Project, gradleProjectInfo:
     GradleSyncInvoker.getInstance().requestProjectSync(project, GradleSyncInvoker.Request(trigger))
   }
 
-  val moduleVariants = project.getSelectedVariantAndAbis()
+  val existingGradleModules = moduleManager.modules.filter { ExternalSystemApiUtil.isExternalSystemAwareModule(GRADLE_SYSTEM_ID, it) }
+
+  val modulesById =
+    existingGradleModules
+      .asSequence()
+      .mapNotNull { module ->
+        val externalId = ExternalSystemApiUtil.getExternalProjectId(module) ?: return@mapNotNull null
+        externalId to module
+      }
+      .toMap()
 
   val projectDataNodes: List<DataNode<ProjectData>> =
     GradleSettings.getInstance(project)
@@ -179,6 +191,12 @@ private fun attachCachedModelsOrTriggerSync(project: Project, gradleProjectInfo:
           requestSync("Sync failed in last import attempt. Path: ${externalProjectInfo.externalProjectPath}")
           return
         }
+        externalProjectInfo?.externalProjectStructure?.modules()?.forEach { moduleDataNode ->
+          if (ExternalSystemApiUtil.getChildren(moduleDataNode, ANDROID_MODEL).singleOrNull() != null) {
+            moduleDataNode.linkAndroidModuleGroup { data -> modulesById[data.id] }
+          }
+        }
+        val moduleVariants = project.getSelectedVariantAndAbis()
         externalProjectInfo?.findAndSetupSelectedCachedVariantData(moduleVariants)
         ?: run { requestSync("DataNode<ProjectData> not found for $externalProjectPath. Variants: $moduleVariants"); return }
       }
@@ -188,8 +206,6 @@ private fun attachCachedModelsOrTriggerSync(project: Project, gradleProjectInfo:
     requestSync("No linked projects found")
     return
   }
-
-  val existingGradleModules = moduleManager.modules.filter { ExternalSystemApiUtil.isExternalSystemAwareModule(GRADLE_SYSTEM_ID, it) }
 
   val facets =
     existingGradleModules
@@ -210,7 +226,6 @@ private fun attachCachedModelsOrTriggerSync(project: Project, gradleProjectInfo:
       .filter { it.name?.startsWith("Gradle: ") ?: false }
       // Module level libraries and libraries not listed in any library table usually represent special kinds of artifacts like local
       // libraries in `lib` folders, generated code, etc. We are interested in libraries with JAR files in the shared Gradle cache.
-      //
       .filter { it.table?.tableLevel == LibraryTablesRegistrar.PROJECT_LEVEL }
   }
     .distinct()
@@ -228,50 +243,53 @@ private fun attachCachedModelsOrTriggerSync(project: Project, gradleProjectInfo:
       }
     }
 
-
-  val modulesById =
-    existingGradleModules
-      .asSequence()
-      .mapNotNull { module ->
-        val externalId = ExternalSystemApiUtil.getExternalProjectId(module) ?: return@mapNotNull null
-        externalId to module
-      }
-      .toMap()
-
-  val moduleToModelPairs: Collection<Pair<Module, DataNode<ModuleData>>> =
+  val holderModuleToDataNodePairs: Collection<Pair<Module, DataNode<out ModuleData>>> =
     projectDataNodes.flatMap { projectData ->
       projectData
         .modules()
-        .map { node ->
+        .flatMap inner@ { node ->
+          val sourceSets = ExternalSystemApiUtil.findAll(node, GradleSourceSetData.KEY)
+
           val externalId = node.data.id
           val module = modulesById[externalId] ?: run { requestSync("Module $externalId not found"); return }
-          module to node
+
+          if (sourceSets.isEmpty()) {
+            return@inner listOf(module to node)
+          } else {
+            val sourceSetModules : MutableList<Pair<Module, DataNode<out ModuleData>>> = sourceSets.map {
+              val moduleId = modulesById[it.data.id] ?: run { requestSync("Module $externalId not found"); return }
+              moduleId to it
+            }.toMutableList()
+            // Add the holder module
+            sourceSetModules.add(module to node)
+            return@inner sourceSetModules
+          }
         }
     }
 
-  val attachModelActions = moduleToModelPairs.flatMap { (module, moduleDataNode) ->
+  val attachModelActions = holderModuleToDataNodePairs.flatMap { (module, moduleDataNode) ->
 
-    fun AndroidModuleModel.validate() =
-    // the use of `project' here might look dubious (since we're in startup) but the operation of shouldForcePluginUpgrade does not
-      // depend on the state of the project information.
-      !shouldForcePluginUpgrade(project, modelVersion, GradleVersion.parse(LatestKnownPluginVersionProvider.INSTANCE.get()))
+    fun GradleAndroidModel.validate() =
+      shouldDisableForceUpgrades() ||
+      GradleVersion.parse(LatestKnownPluginVersionProvider.INSTANCE.get()).let { latestKnown ->
+        !versionsShouldForcePluginUpgrade(agpVersion, latestKnown)
+      }
 
     /** Returns `null` if validation fails. */
     fun <T, V : Facet<*>> prepare(
       dataKey: Key<T>,
-      getFacet: Module.() -> V?,
+      getModel: (DataNode<*>, Key<T>) -> T?,
+      getFacet: (Module) -> V?,
       attach: V.(T) -> Unit,
       configure: T.(Module) -> Unit = { _ -> },
       validate: T.() -> Boolean = { true }
     ): (() -> Unit)? {
-      val model =
-        ExternalSystemApiUtil
-          .getChildren(moduleDataNode, dataKey)
-          .singleOrNull() // None or one node is expected here.
-          ?.data
-        ?: return { /* Nothing to do if no model present. */ }
-      if (!model.validate()) requestSync("invalid model found for $dataKey in ${module.name}")
-      val facet = module.getFacet() ?: run {
+      val model = getModel(moduleDataNode, dataKey) ?: return { /* No model for datanode/datakey pair */ }
+      if (!model.validate()) {
+        requestSync("invalid model found for $dataKey in ${module.name}")
+        return null
+      }
+      val facet = getFacet(module) ?: run {
         requestSync("no facet found for $dataKey in ${module.name} module")
         return null  // Missing facet detected, triggering sync.
       }
@@ -280,12 +298,16 @@ private fun attachCachedModelsOrTriggerSync(project: Project, gradleProjectInfo:
       return { facet.attach(model) }
     }
 
+    // For models that can be broken into source sets we need to check the parent datanode for the model
+    // For now we check both the current and parent node for code simplicity, once we finalize the layout for NDK and switch to
+    // module per source set we should replace this code with were we know the model will be living.
+    fun <T> getModelForMaybeSourceSetDataNode() : (DataNode<*>, Key<T>) -> T? = { n, k -> getModelFromDataNode(n, k) ?: n.parent?.let { getModelFromDataNode(it, k) } }
     listOf(
-      prepare(ANDROID_MODEL, AndroidFacet::getInstance, AndroidModel::set, AndroidModuleModel::setModule,
-              validate = AndroidModuleModel::validate) ?: return,
-      prepare(JAVA_MODULE_MODEL, JavaFacet::getInstance, JavaFacet::setJavaModuleModel) ?: return,
-      prepare(GRADLE_MODULE_MODEL, GradleFacet::getInstance, GradleFacet::setGradleModuleModel) ?: return,
-      prepare(NDK_MODEL, { NdkFacet.getInstance(this) }, NdkFacet::setNdkModuleModel) ?: return
+      prepare(ANDROID_MODEL, getModelForMaybeSourceSetDataNode(), AndroidFacet::getInstance, AndroidModel::set, GradleAndroidModel::setModule,
+              validate = GradleAndroidModel::validate) ?: return,
+      prepare(JAVA_MODULE_MODEL, ::getModelFromDataNode, JavaFacet::getInstance, JavaFacet::setJavaModuleModel) ?: return,
+      prepare(GRADLE_MODULE_MODEL, ::getModelFromDataNode, GradleFacet::getInstance, GradleFacet::setGradleModuleModel) ?: return,
+      prepare(NDK_MODEL, ::getModelFromDataNode, NdkFacet::getInstance, NdkFacet::setNdkModuleModel) ?: return
     )
   }
 
@@ -302,6 +324,12 @@ private fun attachCachedModelsOrTriggerSync(project: Project, gradleProjectInfo:
   GradleSyncState.getInstance(project).syncSkipped(null)
 }
 
+private fun <T> getModelFromDataNode(moduleDataNode: DataNode<*>, dataKey: Key<T>) =
+  ExternalSystemApiUtil
+    .getChildren(moduleDataNode, dataKey)
+    .singleOrNull() // None or one node is expected here.
+    ?.data
+
 private fun additionalProjectSetup(project: Project) {
   AndroidPluginInfo.findFromModel(project)?.maybeRecommendPluginUpgrade(project)
   ConflictSet.findConflicts(project).showSelectionConflicts()
@@ -315,4 +343,3 @@ private fun removeGradleProducersFromIgnoredList(project: Project) {
   producerService.state.ignoredProducers.remove(TestClassGradleConfigurationProducer::class.java.name)
   producerService.state.ignoredProducers.remove(TestMethodGradleConfigurationProducer::class.java.name)
 }
-

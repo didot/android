@@ -26,7 +26,7 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class PsCheckBoxList<T> extends CheckBoxList<T> {
+public class PsCheckBoxList<T> extends CheckBoxList<T> {
   @NotNull private final List<CheckBoxListListener> myListeners = ContainerUtil.createLockFreeCopyOnWriteList();
 
   @Nullable private SelectionChangeListener<ImmutableList<T>> mySelectionChangeListener;

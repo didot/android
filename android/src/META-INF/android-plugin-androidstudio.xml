@@ -15,10 +15,7 @@
  * limitations under the License.
  *
   -->
-<idea-plugin xmlns:xi="http://www.w3.org/2001/XInclude">
-
-  <xi:include href="configurables-androidstudio.xml" xpointer="xpointer(/idea-plugin/*)"/>
-
+<idea-plugin>
   <application-components>
     <component>
       <implementation-class>com.android.tools.idea.stats.LowMemoryReporter</implementation-class>
@@ -27,7 +24,15 @@
     <component>
       <implementation-class>com.android.tools.idea.memorysettings.AndroidLowMemoryNotifier</implementation-class>
     </component>
+
+    <component>
+      <implementation-class>com.android.tools.idea.AndroidInitialConfigurator</implementation-class>
+    </component>
   </application-components>
+
+  <extensionPoints>
+    <extensionPoint qualifiedName="com.intellij.androidStudioInitializer" interface="java.lang.Runnable"/>
+  </extensionPoints>
 
   <extensions defaultExtensionNs="com.intellij">
     <!--
@@ -38,16 +43,21 @@
     <actionConfigurationCustomizer id="Startup.GradleSpecificInitializer" order="after Startup.AndroidStudioInitializer" implementation="com.android.tools.idea.startup.GradleSpecificInitializer" />
     <androidStudioInitializer id="Startup.AndroidSdkInitializer" order="last" implementation="com.android.tools.idea.startup.AndroidSdkInitializer" />
 
+    <applicationService serviceInterface="com.intellij.openapi.updateSettings.UpdateStrategyCustomization"
+                        serviceImplementation="com.android.tools.idea.AndroidStudioUpdateStrategyCustomization"
+                        overrides="true"/>
+    <applicationService serviceInterface="com.intellij.openapi.updateSettings.impl.UpdateSettings"
+                        serviceImplementation="com.android.tools.idea.AndroidStudioUpdateSettings"
+                        overrides="true"/>
+    <!-- overrides UTM-tracking implementation included from JavaIdePlugin.xml: -->
+    <applicationService serviceImplementation="com.intellij.openapi.application.IdeUrlTrackingParametersProvider"
+                        overrides="true"/>
+
     <welcomeScreen implementation="com.android.tools.idea.welcome.wizard.AndroidStudioWelcomeScreenProvider"/>
-    <iconProvider implementation="com.android.tools.idea.fileTypes.AndroidStudioIconProvider" id="androidStudioIcons" order="before javaDirectory"/>
-    <fileIconProvider implementation="com.android.tools.idea.fileTypes.AndroidStudioFileIconProvider" id="androidFileIcons"/>
-    <preloadingActivity implementation="com.android.tools.idea.diagnostics.AndroidStudioSystemHealthMonitor"/>
-    <postStartupActivity implementation="com.android.tools.idea.stats.AndroidStudioUsageTracker$JetnewsUsageTracker" />
 
     <codeStyleSettingsProvider implementation="org.jetbrains.android.formatter.AndroidStudioCodeStyleSettingsProvider" order="last"/>
 
-    <statusBarWidgetFactory id="UserSentimentPanelPositive" implementation="com.android.tools.idea.stats.PositiveUserSentimentWidgetFactory"/>
-    <statusBarWidgetFactory id="UserSentimentPanelNegative" order="after UserSentimentPanelPositive" implementation="com.android.tools.idea.stats.NegativeUserSentimentWidgetFactory"/>
+    <statusBarWidgetFactory id="SendFeedbackPanel" implementation="com.android.tools.idea.stats.SendFeedbackWidgetFactory"/>
 
     <errorHandler implementation="com.android.tools.idea.diagnostics.error.ErrorReporter"/>
   </extensions>
@@ -96,13 +106,16 @@
     <action id="RebuildGradleProject" class="com.android.tools.idea.gradle.actions.RebuildGradleProjectAction">
       <add-to-group group-id="BuildMenu" anchor="after" relative-to-action="CompileProject"/>
     </action>
-    <action id="GenerateSourcesModuleAction" class="com.android.tools.idea.gradle.actions.GenerateSourcesModuleAction">
-      <add-to-group group-id="BuildMenu" anchor="after" relative-to-action="MakeGradleModule" />
-    </action>
 
-    <action id="WelcomeScreen.RunAndroidAvdManager" class="org.jetbrains.android.actions.RunAndroidAvdManagerAction"
+    <action id="WelcomeScreen.RunAndroidAvdManager" class="com.android.tools.idea.avdmanager.actions.RunAndroidAvdManagerAction"
             icon="StudioIcons.Shell.Menu.AVD_MANAGER">
       <add-to-group group-id="WelcomeScreen.QuickStart" relative-to-action="WelcomeScreen.RunAndroidSdkManager" anchor="after"/>
+    </action>
+    <action id="WelcomeScreen.RunDeviceManager"
+            text="Virtual Device Manager"
+            class="com.android.tools.idea.devicemanager.DeviceManagerWelcomeScreenAction"
+            icon="StudioIcons.Shell.Toolbar.DEVICE_MANAGER">
+      <add-to-group group-id="WelcomeScreen.QuickStart"/>
     </action>
 
     <action id="InferNullity" text="Infer Nullity..." class="com.android.tools.idea.actions.AndroidInferNullityAnnotationAction" overrides="true"/>
@@ -123,11 +136,6 @@
       <add-to-group group-id="FileOpenGroup" relative-to-action="OpenFile" anchor="after"/>
     </action>
 
-    <group id="Android.SyncProject.ActionGroup">
-      <reference id="Android.SyncProject" />
-      <add-to-group group-id="FileMenu" anchor="after" relative-to-action="SaveAll"/>
-    </group>
-
     <action id="ImportTests"
             class="com.android.tools.idea.testartifacts.instrumented.testsuite.actions.ImportTestGroup"
             icon="AllIcons.Vcs.History"
@@ -136,6 +144,11 @@
             class="com.android.tools.idea.testartifacts.instrumented.testsuite.actions.ImportTestsFromFileAction"
             icon="AllIcons.ToolbarDecorator.Import"
             overrides="true"/>
+
+    <group id="Android.SyncProject.ActionGroup">
+      <reference id="Android.SyncProject" />
+      <add-to-group group-id="FileMenu" anchor="after" relative-to-action="SaveAll"/>
+    </group>
   </actions>
 
   <extensions defaultExtensionNs="com.intellij">
@@ -156,12 +169,6 @@
                     serviceImplementation="com.android.tools.idea.gradle.project.AndroidStudioGradleSettings"
                     overrides="true"/>
 
-    <!-- DO NOT move to project-system-gradle-plugin.xml. It should run in Android Studio only. -->
-    <projectService serviceInterface="com.intellij.openapi.externalSystem.autoimport.ExternalSystemProjectTracker"
-                    serviceImplementation="com.android.tools.idea.projectsystem.gradle.RefreshOnlyAutoImportProjectTracker"
-                    overrides="true"
-    />
-
     <welcomeFrameProvider implementation="com.android.tools.idea.welcome.wizard.FirstRunWizardFrameProvider" order="FIRST"/>
 
     <localInspection groupPath="Java" language="JAVA" suppressId="deprecation" shortName="Deprecation" displayName="Deprecated API usage"
@@ -170,9 +177,14 @@
                      implementationClass="org.jetbrains.android.inspections.AndroidDeprecationInspection"/>
 
     <applicationConfigurable parentId="preferences.general"
-                             displayName="Memory Settings"
+                             bundle="messages.AndroidBundle"
+                             key="configurable.MemorySettingsConfigurable.display.name"
                              provider="com.android.tools.idea.memorysettings.MemorySettingsConfigurableProvider"
                              id="memory.settings"/>
+
+    <!-- Note: in Idea this configurable has different groupId: build.android -->
+    <applicationConfigurable groupId="build" id="instant.run"
+                             provider="com.android.tools.idea.deploy.DeploymentConfigurableProvider"/>
 
     <statistic.eventLog.eventLoggerProvider implementation="com.android.tools.idea.stats.AndroidStudioStatisticsEventLoggerProvider"/>
     <projectService serviceInterface="com.intellij.codeInsight.NullableNotNullManager"

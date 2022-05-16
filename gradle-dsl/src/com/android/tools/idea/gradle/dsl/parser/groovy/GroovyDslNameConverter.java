@@ -19,6 +19,7 @@ import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.External
 import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.AUGMENTED_ASSIGNMENT;
 import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.METHOD;
 import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.UNKNOWN;
+import static com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter.Kind.GROOVY;
 import static com.android.tools.idea.gradle.dsl.parser.groovy.GroovyDslUtil.convertToExternalTextValue;
 import static com.android.tools.idea.gradle.dsl.parser.groovy.GroovyDslUtil.decodeStringLiteral;
 import static com.android.tools.idea.gradle.dsl.parser.groovy.GroovyDslUtil.getGradleNameForPsiElement;
@@ -26,47 +27,48 @@ import static com.android.tools.idea.gradle.dsl.parser.groovy.GroovyDslUtil.grad
 import static com.android.tools.idea.gradle.dsl.parser.groovy.GroovyDslUtil.isStringLiteral;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.ADD_AS_LIST;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.AUGMENT_LIST;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.AUGMENT_MAP;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.CLEAR_AND_AUGMENT_LIST;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.OTHER;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.SET;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_LIST;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_MAP;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_SET;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAL;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VWO;
 
-import com.android.tools.idea.gradle.dsl.api.util.GradleNameElementUtil;
+import com.android.tools.idea.gradle.dsl.model.BuildModelContext;
 import com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo;
 import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType;
 import com.android.tools.idea.gradle.dsl.parser.semantics.SemanticsDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Computable;
 import com.intellij.psi.PsiElement;
-import java.util.Map;
+import java.util.Arrays;
 import java.util.regex.Pattern;
-import kotlin.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.groovy.lang.psi.GroovyPsiElementFactory;
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.GrExpression;
 
-public abstract class GroovyDslNameConverter implements GradleDslNameConverter {
+public class GroovyDslNameConverter implements GradleDslNameConverter {
+  @NotNull private final BuildModelContext context;
 
-  @Override
-  public boolean isGroovy() {
-    return true;
+  GroovyDslNameConverter(@NotNull BuildModelContext context) {
+    this.context = context;
   }
 
+  @NotNull
   @Override
-  public boolean isKotlin() {
-    return false;
+  public Kind getKind() {
+    return GROOVY;
   }
 
   @NotNull
@@ -78,7 +80,7 @@ public abstract class GroovyDslNameConverter implements GradleDslNameConverter {
     if (isStringLiteral(element)) {
       StringBuilder sb = new StringBuilder();
       if (decodeStringLiteral(element, sb)) {
-        return GradleNameElementUtil.escape(sb.toString());
+        return GradleNameElement.escape(sb.toString());
       }
     }
     // TODO(xof): the project-massaging in getGradleNameForPsiElement should be rewritten in gradleNameFor
@@ -94,6 +96,15 @@ public abstract class GroovyDslNameConverter implements GradleDslNameConverter {
       return gradleNameFor(expression);
     });
     return result != null ? result : referenceText;
+  }
+
+  @Override
+  public @NotNull String convertReferencePsi(@NotNull GradleDslElement context, @NotNull PsiElement element) {
+    if (element instanceof GrExpression) {
+      String result = gradleNameFor((GrExpression)element);
+      if (result != null) return result;
+    }
+    return convertReferenceText(context, element.getText());
   }
 
   @NotNull
@@ -126,19 +137,22 @@ public abstract class GroovyDslNameConverter implements GradleDslNameConverter {
   @NotNull
   @Override
   public ExternalNameInfo externalNameForParent(@NotNull String modelName, @NotNull GradleDslElement context) {
-    @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> map = context.getExternalToModelMap(this);
+    @NotNull ExternalToModelMap map = context.getExternalToModelMap(this);
     ExternalNameInfo result = new ExternalNameInfo(modelName, UNKNOWN);
-    for (Map.Entry<SurfaceSyntaxDescription, ModelEffectDescription> e : map.entrySet()) {
-      if (e.getValue().property.name.equals(modelName)) {
-        SemanticsDescription semantics = e.getValue().semantics;
-        if (semantics == SET || semantics == ADD_AS_LIST || semantics == AUGMENT_LIST || semantics == OTHER) {
-          return new ExternalNameInfo(e.getKey().name, METHOD);
+    for (ExternalToModelMap.Entry e : map.getEntrySet()) {
+      if (e.modelEffectDescription.property.name.equals(modelName)) {
+        if (e.versionConstraint != null && !e.versionConstraint.isOkWith(getContext().getAgpVersion())) continue;
+        SemanticsDescription semantics = e.modelEffectDescription.semantics;
+        if (Arrays.asList(SET, ADD_AS_LIST, AUGMENT_LIST, CLEAR_AND_AUGMENT_LIST, AUGMENT_MAP, OTHER).contains(semantics)) {
+          return new ExternalNameInfo(e.surfaceSyntaxDescription.name, METHOD);
         }
-        if (semantics == VAL && (e.getValue().property.type == MUTABLE_SET || e.getValue().property.type == MUTABLE_LIST)) {
-          return new ExternalNameInfo(e.getKey().name, AUGMENTED_ASSIGNMENT);
+        if (semantics == VAL && (e.modelEffectDescription.property.type == MUTABLE_SET ||
+                                 e.modelEffectDescription.property.type == MUTABLE_LIST ||
+                                 e.modelEffectDescription.property.type == MUTABLE_MAP)) {
+          return new ExternalNameInfo(e.surfaceSyntaxDescription.name, AUGMENTED_ASSIGNMENT);
         }
         if (semantics == VAR || semantics == VWO || semantics == VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS) {
-          result = new ExternalNameInfo(e.getKey().name, ASSIGNMENT);
+          result = new ExternalNameInfo(e.surfaceSyntaxDescription.name, ASSIGNMENT);
         }
       }
     }
@@ -160,12 +174,17 @@ public abstract class GroovyDslNameConverter implements GradleDslNameConverter {
   @Nullable
   @Override
   public ModelPropertyDescription modelDescriptionForParent(@NotNull String externalName, @NotNull GradleDslElement context) {
-    @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> map = context.getExternalToModelMap(this);
-    for (Map.Entry<SurfaceSyntaxDescription, ModelEffectDescription> e : map.entrySet()) {
-      if (e.getKey().name.equals(externalName)) {
-        return e.getValue().property;
+    @NotNull ExternalToModelMap map = context.getExternalToModelMap(this);
+    for (ExternalToModelMap.Entry e : map.getEntrySet()) {
+      if (e.surfaceSyntaxDescription.name.equals(externalName)) {
+        return e.modelEffectDescription.property;
       }
     }
     return null;
+  }
+
+  @Override
+  public @NotNull BuildModelContext getContext() {
+    return context;
   }
 }

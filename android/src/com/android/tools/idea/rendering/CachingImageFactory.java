@@ -17,7 +17,6 @@ package com.android.tools.idea.rendering;
 
 import com.android.ide.common.rendering.api.IImageFactory;
 import com.intellij.reference.SoftReference;
-
 import java.awt.image.BufferedImage;
 import org.jetbrains.annotations.NotNull;
 

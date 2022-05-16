@@ -31,18 +31,6 @@ import com.intellij.ide.util.treeView.AbstractTreeStructure;
 import com.intellij.ide.util.treeView.NodeDescriptor;
 import com.intellij.testFramework.LightPlatformTestCase;
 import com.intellij.util.ArrayUtil;
-import com.intellij.util.ui.UIUtil;
-import com.intellij.util.ArrayUtilRt;
-import com.intellij.util.ui.ImageUtil;
-import org.intellij.lang.annotations.MagicConstant;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import java.awt.*;
-import java.awt.event.*;
 import com.intellij.util.ui.ImageUtil;
 import java.awt.GraphicsEnvironment;
 import java.awt.event.FocusEvent;

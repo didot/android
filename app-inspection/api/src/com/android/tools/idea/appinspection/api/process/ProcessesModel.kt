@@ -16,6 +16,7 @@
 package com.android.tools.idea.appinspection.api.process
 
 import com.android.annotations.concurrency.GuardedBy
+import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescriptor
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.google.common.util.concurrent.MoreExecutors
 import com.intellij.openapi.Disposable
@@ -40,20 +41,23 @@ import java.util.concurrent.Executor
  * @param acceptProcess A filter which affects which processes are added to the model. If not
  *   specified, all processes are accepted.
  */
-class ProcessesModel(private val executor: Executor,
-                     private val processNotifier: ProcessNotifier,
-                     private val acceptProcess: (ProcessDescriptor) -> Boolean = { true },
-                     private val getPreferredProcessNames: () -> List<String>) : Disposable {
+class ProcessesModel(
+  private val executor: Executor,
+  private val processDiscovery: ProcessDiscovery,
+  private val acceptProcess: (ProcessDescriptor) -> Boolean = { true },
+  private val isPreferred: (ProcessDescriptor) -> Boolean = { false }
+) : Disposable {
 
   @TestOnly
-  constructor(processNotifier: ProcessNotifier, getPreferredProcessNames: () -> List<String>) :
-    this(MoreExecutors.directExecutor(), processNotifier, getPreferredProcessNames = getPreferredProcessNames)
+  constructor(processDiscovery: ProcessDiscovery, isPreferred: (ProcessDescriptor) -> Boolean = { false }) :
+    this(MoreExecutors.directExecutor(), processDiscovery, isPreferred = isPreferred)
 
   @TestOnly
-  constructor(processNotifier: ProcessNotifier,
-              acceptProcess: (ProcessDescriptor) -> Boolean,
-              getPreferredProcessNames: () -> List<String>) :
-    this(MoreExecutors.directExecutor(), processNotifier, acceptProcess, getPreferredProcessNames)
+  constructor(
+    processDiscovery: ProcessDiscovery,
+    acceptProcess: (ProcessDescriptor) -> Boolean,
+    isPreferred: (ProcessDescriptor) -> Boolean = { false }
+  ) : this(MoreExecutors.directExecutor(), processDiscovery, acceptProcess, isPreferred)
 
   private val lock = Any()
 
@@ -66,8 +70,19 @@ class ProcessesModel(private val executor: Executor,
   @GuardedBy("lock")
   private var _selectedProcess: ProcessDescriptor? = null
 
+  val devices: Set<DeviceDescriptor>
+    get() = processDiscovery.devices.toSet()
+
   val processes: Set<ProcessDescriptor>
     get() = synchronized(lock) { _processes.toSet() }
+
+  /**
+   * Returns true if [selectedProcess] auto connected.
+   *
+   * Ideally this should be accessed within the callback from the selectedProcessListeners
+   */
+  var isAutoConnected = false
+    private set
 
   /**
    * Setting the currently selected process the side effect of firing listeners that the selected
@@ -76,22 +91,28 @@ class ProcessesModel(private val executor: Executor,
    * You may set the selected process to null to clear it.
    *
    * Setting this value is a no-op if have previously called [stopIfSelected] on this model.
+   * Ideally this should be accessed within the callback from the selectedProcessListeners
    */
   var selectedProcess: ProcessDescriptor?
     get() = synchronized(lock) { _selectedProcess }
     set(value) {
-      synchronized(lock) {
-        if (_selectedProcess != value) {
-          // While we leave processes in the list when they die, once we update the active
-          // selection, we silently prune them at that point. Otherwise, dead processes would
-          // continue to build up. This also has the nice effect of making it feel that when a
-          // user starts running a new process, it neatly replaces the last dead one.
-          _processes.removeAll { it != value && !it.isRunning }
-          _selectedProcess = value
-          selectedProcessListeners.forEach { (listener, executor) -> executor.execute(listener) }
-        }
+      setSelectedProcess(value)
+    }
+
+  private fun setSelectedProcess(process: ProcessDescriptor?, autoConnected: Boolean = false) {
+    synchronized(lock) {
+      if (_selectedProcess != process) {
+        // While we leave processes in the list when they die, once we update the active
+        // selection, we silently prune them at that point. Otherwise, dead processes would
+        // continue to build up. This also has the nice effect of making it feel that when a
+        // user starts running a new process, it neatly replaces the last dead one.
+        _processes.removeAll { it != process && !it.isRunning }
+        _selectedProcess = process
+        isAutoConnected = autoConnected && (process != null)
+        selectedProcessListeners.forEach { (listener, executor) -> executor.execute(listener) }
       }
     }
+  }
 
   /**
    * Add a listener which will be triggered with the selected process when it changes.
@@ -105,14 +126,14 @@ class ProcessesModel(private val executor: Executor,
   @TestOnly
   fun addSelectedProcessListeners(listener: () -> Unit) = addSelectedProcessListeners(MoreExecutors.directExecutor(), listener)
 
-  private val processListener = object : ProcessListener {
+  private val processListener = object : SimpleProcessListener() {
     override fun onProcessConnected(process: ProcessDescriptor) {
       if (!acceptProcess(process)) return
 
       synchronized(lock) {
         _processes.add(process)
         if (isProcessPreferred(process) && !isProcessPreferred(selectedProcess)) {
-          selectedProcess = process
+          setSelectedProcess(process, autoConnected = true)
         }
       }
     }
@@ -128,17 +149,17 @@ class ProcessesModel(private val executor: Executor,
   }
 
   init {
-    processNotifier.addProcessListener(executor, processListener)
+    processDiscovery.addProcessListener(executor, processListener)
   }
 
   override fun dispose() {
-    processNotifier.removeProcessListener(processListener)
+    processDiscovery.removeProcessListener(processListener)
   }
 
   fun isProcessPreferred(processDescriptor: ProcessDescriptor?, includeDead: Boolean = false): Boolean {
     return processDescriptor != null
            && (processDescriptor.isRunning || includeDead)
-           && getPreferredProcessNames().contains(processDescriptor.name)
+           && isPreferred(processDescriptor)
   }
 
   @GuardedBy("lock")

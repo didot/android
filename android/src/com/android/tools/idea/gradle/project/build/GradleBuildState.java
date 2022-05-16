@@ -18,7 +18,6 @@ package com.android.tools.idea.gradle.project.build;
 import static com.intellij.ui.AppUIUtil.invokeLaterIfProjectAlive;
 
 import com.android.annotations.concurrency.GuardedBy;
-import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
@@ -71,10 +70,6 @@ public class GradleBuildState {
     myMessageBus = messageBus;
   }
 
-  public void buildExecutorCreated(@NotNull GradleBuildInvoker.Request request) {
-    syncPublisher(listener -> listener.buildExecutorCreated(request));
-  }
-
   public void buildStarted(@NotNull BuildContext context) {
     synchronized (myLock) {
       myCurrentContext = context;
@@ -103,14 +98,15 @@ public class GradleBuildState {
   }
 
   @Nullable
-  public BuildContext getCurrentContext() {
+  @TestOnly
+  BuildContext getRunningBuildContext() {
     synchronized (myLock) {
       return myCurrentContext;
     }
   }
 
   @Nullable
-  public BuildSummary getSummary() {
+  public BuildSummary getLastFinishedBuildSummary() {
     synchronized (myLock) {
       return mySummary;
     }

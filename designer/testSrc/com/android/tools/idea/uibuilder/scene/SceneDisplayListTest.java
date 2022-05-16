@@ -15,15 +15,14 @@
  */
 package com.android.tools.idea.uibuilder.scene;
 
-import com.android.tools.idea.common.scene.SceneContext;
-import com.android.tools.idea.common.fixtures.ModelBuilder;
-import com.android.tools.idea.common.scene.draw.DisplayList;
-import org.jetbrains.annotations.NotNull;
-
-import java.awt.image.BufferedImage;
-
 import static com.android.SdkConstants.CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.TEXT_VIEW;
+
+import com.android.tools.idea.common.fixtures.ModelBuilder;
+import com.android.tools.idea.common.scene.SceneContext;
+import com.android.tools.idea.common.scene.draw.DisplayList;
+import java.awt.image.BufferedImage;
+import org.jetbrains.annotations.NotNull;
 
 public class SceneDisplayListTest extends SceneTest {
   @Override
@@ -60,7 +59,7 @@ public class SceneDisplayListTest extends SceneTest {
     String simpleList = "DrawNlComponentFrame,0,0,1000,1000,1,1000,1000\n" +
                         "Clip,0,0,1000,1000\n" +
                         "DrawComponentBackground,100,200,100,20,1\n" +
-                        "DrawTextRegion,100,200,100,20,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                        "DrawTextRegion,100,200,100,20,0,16,false,false,5,5,28,1.0,\"\"\n" +
                         "DrawNlComponentFrame,100,200,100,20,1,20,20\n" +
                         "UNClip\n";
 
@@ -84,7 +83,7 @@ public class SceneDisplayListTest extends SceneTest {
     String simpleList = "DrawNlComponentFrame,0,0,1000,1000,1,1000,1000\n" +
                         "Clip,0,0,1000,1000\n" +
                         "DrawComponentBackground,100,200,100,20,1\n" +
-                        "DrawTextRegion,100,200,100,20,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                        "DrawTextRegion,100,200,100,20,0,16,false,false,5,5,28,1.0,\"\"\n" +
                         "DrawNlComponentFrame,100,200,100,20,1,20,20\n" +
                         "UNClip\n";
 
@@ -94,7 +93,7 @@ public class SceneDisplayListTest extends SceneTest {
     String afterLockedList = "DrawNlComponentFrame,0,0,1000,1000,1,1000,1000\n" +
                              "Clip,0,0,1000,1000\n" +
                              "DrawComponentBackground,100,200,100,20,0\n" +
-                             "DrawTextRegion,100,200,100,20,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                             "DrawTextRegion,100,200,100,20,0,16,false,false,5,5,28,1.0,\"\"\n" +
                              "DrawNlComponentFrame,100,200,100,20,1,20,20\n" +
                              "UNClip\n";
     assertEquals(afterLockedList, myInteraction.getDisplayList().serialize());

@@ -53,18 +53,20 @@ import com.intellij.openapi.util.ActionCallback;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.PopupHandler;
 import com.intellij.ui.navigation.Place;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.ui.treeStructure.Tree;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.update.MergingUpdateQueue;
 import com.intellij.util.ui.update.Update;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JScrollPane;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
@@ -97,7 +99,7 @@ class DependencyGraphPanel extends AbstractDependenciesPanel {
     DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
     myTree = new Tree(treeModel) {
       {
-        setRowHeight(JBUI.scale(24));
+        setRowHeight(JBUIScale.scale(24));
       }
       @Override
       protected void processMouseEvent(MouseEvent e) {
@@ -192,7 +194,7 @@ class DependencyGraphPanel extends AbstractDependenciesPanel {
     myUpdateIssuesQueue.queue(new Update(this) {
       @Override
       public void run() {
-        Set<PsIssue> issues = new HashSet<PsIssue>();
+        Set<PsIssue> issues = new HashSet<>();
         for (AbstractDependencyNode<?, ? extends PsBaseDependency> node : selection) {
           for (PsBaseDependency dependency : node.getModels()) {
             issues.addAll(myContext.getAnalyzerDaemon().getIssues().findIssues(dependency.getPath(), null));

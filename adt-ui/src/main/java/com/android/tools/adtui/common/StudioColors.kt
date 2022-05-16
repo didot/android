@@ -88,11 +88,11 @@ val canvasTooltipBackground = JBColor.namedColor("Canvas.Tooltip.background", JB
 val primaryContentBackground = JBColor.namedColor("Content.background", JBColor(0xffffff, 0x2b2b2b))
 
 /**
- * Color for textual content that are clickable
+ * Color for textual content that is clickable.
  *
  * Example: text color of "Leak" button
  */
-val linkForeground = JBColor.namedColor("Link.foreground", JBColor(0x195FC4, 0x9CCEFE))
+val linkForeground = JBUI.CurrentTheme.Link.linkColor()
 
 /**
  * Background color for selected content.
@@ -151,3 +151,48 @@ val tabbedPaneHoverHighlight = JBUI.CurrentTheme.TabbedPane.HOVER_COLOR
  * Example: Keyboard/mouse shortcut descriptions in Summary tab of a cpu profiling capture.
  */
 val helpText = JBColor.namedColor("Editor.foreground", JBColor(Gray._80, Gray._160))
+
+/**
+ * Color of deadline-missed jank event when hovered
+ */
+val missedDeadlineJank = JBColor.namedColor("Profiler.missedDeadlineJank", JBColor(0xe8515f, 0xe8515f))
+
+/**
+ * Color of deadline-missed jank event when not hovered
+ */
+val fadedMissedDeadlineJank = JBColor.namedColor("Profiler.fadedMissedDaedlineJank", JBColor(0xf8cbcf, 0x553333))
+
+/**
+ * Color of jank events other than deadline-missed when hovered
+ */
+val otherJank = JBColor.namedColor("Profiler.otherJank", JBColor(0xe1a336, 0xe1a336))
+
+/**
+ * Color of jank events other than deadline-missed when not hovered
+ */
+val fadedOtherJank = JBColor.namedColor("Profiler.fadedOtherJank", JBColor(0xf6e3c3, 0x555533))
+
+/**
+ * Color of good-frame event when hovered
+ */
+val goodFrame = JBColor.namedColor("Profiler.otherJank", JBColor(0x36a336, 0x36a336))
+
+/**
+ * Color of good-frame event when not hovered
+ */
+val fadedGoodFrame = JBColor.namedColor("Profiler.fadedOtherJank", JBColor(0xc3e3c3, 0x335533))
+
+/**
+ * Neutral color of lifecycle event when selected
+ */
+val neutralLifecycleEvent = JBColor.namedColor("Profiler.neutralLifecycleEvent", JBColor(Color.DARK_GRAY, Color.LIGHT_GRAY))
+
+/**
+ * Neutral color of lifecycle event when not selected
+ */
+val fadedNeutralLifecycleEvent = JBColor.namedColor("Profiler.neutralLifecycleEvent", JBColor(Color.LIGHT_GRAY, Color.DARK_GRAY))
+
+/**
+ * Default track background color
+ */
+val trackBackground = JBColor.namedColor("Profiler.trackBackground", JBColor(0xffffff, 0x323232))

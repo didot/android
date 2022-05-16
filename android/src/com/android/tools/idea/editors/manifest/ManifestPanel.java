@@ -16,7 +16,8 @@
 package com.android.tools.idea.editors.manifest;
 
 import static com.android.SdkConstants.FN_BUILD_GRADLE;
-import static com.android.tools.idea.gradle.project.sync.setup.module.dependency.DependenciesExtractor.getDependencyDisplayName;
+import static com.android.tools.idea.gradle.util.GradleUtil.getDependencyDisplayName;
+import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getModuleSystem;
 import static com.intellij.openapi.command.WriteCommandAction.writeCommandAction;
 
 import com.android.SdkConstants;
@@ -24,20 +25,19 @@ import com.android.ide.common.blame.SourceFile;
 import com.android.ide.common.blame.SourceFilePosition;
 import com.android.ide.common.blame.SourcePosition;
 import com.android.ide.common.repository.GradleVersion;
+import com.android.ide.common.util.PathString;
 import com.android.manifmerger.Actions;
 import com.android.manifmerger.MergingReport;
 import com.android.manifmerger.XmlNode;
+import com.android.projectmodel.ExternalAndroidLibrary;
 import com.android.tools.adtui.workbench.WorkBenchLoadingPanel;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel;
-import com.android.tools.idea.gradle.dsl.api.android.BuildTypeModel;
-import com.android.tools.idea.gradle.dsl.api.android.ProductFlavorModel;
-import com.android.tools.idea.gradle.model.IdeLibrary;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.gradle.util.GradleUtil;
 import com.android.tools.idea.gradle.util.GradleVersions;
 import com.android.tools.idea.model.MergedManifestSnapshot;
 import com.android.tools.idea.projectsystem.FilenameConstants;
+import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.android.tools.idea.projectsystem.NamedIdeaSourceProvider;
 import com.android.tools.idea.projectsystem.ProjectSystemSyncManager;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
@@ -53,7 +53,6 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.IdeActions;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.XmlHighlighterColors;
@@ -68,15 +67,12 @@ import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.JBMenuItem;
 import com.intellij.openapi.ui.JBPopupMenu;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.PsiManager;
 import com.intellij.psi.xml.XmlFile;
-import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.ColorUtil;
 import com.intellij.ui.ColoredTreeCellRenderer;
 import com.intellij.ui.JBColor;
@@ -89,19 +85,28 @@ import com.intellij.util.ui.HTMLEditorKitBuilder;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.tree.TreeUtil;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.swing.*;
+import java.util.stream.Collectors;
+import javax.swing.JEditorPane;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JTree;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.event.TreeSelectionEvent;
@@ -111,11 +116,11 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
-import org.jetbrains.android.dom.manifest.AndroidManifestUtils;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.SourceProviderManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -161,6 +166,7 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
   private final HtmlLinkManager myHtmlLinkManager = new HtmlLinkManager();
   private VirtualFile myFile;
   private final Color myBackgroundColor;
+  private Map<PathString, ExternalAndroidLibrary> myLibrariesByManifestDir;
 
   public ManifestPanel(final @NotNull AndroidFacet facet, final @NotNull Disposable parent) {
     myFacet = facet;
@@ -329,6 +335,17 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
   private void setManifestSnapshot(@NotNull MergedManifestSnapshot manifest, @NotNull VirtualFile selectedManifest) {
     myFile = selectedManifest;
     myManifest = manifest;
+    myLibrariesByManifestDir =
+      Arrays.stream(ModuleManager.getInstance(myManifest.getModule().getProject()).getModules())
+        .flatMap(module -> getModuleSystem(module)
+          .getAndroidLibraryDependencies()
+          .stream()
+          .filter(it -> it.getManifestFile() != null)
+        )
+        .collect(Collectors.toMap(it -> it.getManifestFile().getParent(),
+                                  it -> it,
+                                  (a, b) -> a // Ignore any duplicates.
+        ));
     Document document = myManifest.getDocument();
     Element root = document != null ? document.getDocumentElement() : null;
     myTree.setModel(root == null ? null : new DefaultTreeModel(new ManifestTreeNode(root)));
@@ -339,7 +356,7 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
 
     // make sure that the selected manifest is always the first color
     myFiles.add(VfsUtilCore.virtualToIoFile(selectedManifest));
-    Set<File> referenced = new HashSet<File>();
+    Set<File> referenced = new HashSet<>();
     if (root != null) {
       recordLocationReferences(root, referenced);
     }
@@ -433,7 +450,103 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
   }
 
   public void updateDetails(@Nullable ManifestTreeNode node) {
+    Node manifestNode = node != null ? node.getUserObject() : null;
+    HtmlBuilder sb = prepareHtmlReport(manifestNode);
+    myDetails.setText(sb.getHtml());
+    myDetails.setCaretPosition(0);
+  }
+
+  @VisibleForTesting
+  public @NotNull HtmlBuilder prepareHtmlReport(@Nullable Node node) {
     HtmlBuilder sb = new HtmlBuilder();
+    prepareReportHeader(sb);
+
+    // See if there are errors; if so, show the merging report instead of node selection report
+    if (!myManifest.getLoggingRecords().isEmpty()) {
+      for (MergingReport.Record record : myManifest.getLoggingRecords()) {
+        if (record.getSeverity() == MergingReport.Record.Severity.ERROR) {
+          node = null;
+          break;
+        }
+      }
+    }
+
+    if (node != null) {
+      prepareSelectedNodeReport(node, sb);
+    }
+    else if (!myManifest.getLoggingRecords().isEmpty()) {
+      prepareMergingErrorsReport(sb);
+    }
+
+    sb.closeHtmlBody();
+    return sb;
+  }
+
+  private void prepareMergingErrorsReport(@NotNull HtmlBuilder sb) {
+    sb.add("Merging Errors:").newline();
+    for (MergingReport.Record record : myManifest.getLoggingRecords()) {
+      sb.addHtml(getHtml(record.getSeverity()));
+      sb.add(" ");
+      try {
+        sb.addHtml(getErrorHtml(myFacet, record.getMessage(), record.getSourceLocation(), myHtmlLinkManager,
+                                LocalFileSystem.getInstance().findFileByIoFile(myFiles.get(0)), myManifestEditable));
+      }
+      catch (Exception ex) {
+        Logger.getInstance(ManifestPanel.class).error("error getting error html", ex);
+        sb.add(record.getMessage());
+      }
+      sb.add(" ");
+      sb.addHtml(getHtml(myFacet, record.getSourceLocation()));
+      sb.newline();
+    }
+  }
+
+  @VisibleForTesting
+  public void prepareSelectedNodeReport(@NotNull Node manifestNode, @NotNull HtmlBuilder sb) {
+    List<? extends Actions.Record> records = ManifestUtils.getRecords(myManifest, manifestNode);
+    sb.beginUnderline().beginBold();
+    sb.add("Merging Log");
+    sb.endBold().endUnderline().newline();
+
+    if (records.isEmpty()) {
+      sb.add("No records found. (This is a bug in the manifest merger.)");
+    }
+
+    SourceFilePosition prev = null;
+    boolean prevInjected = false;
+    for (Actions.Record record : records) {
+      // There are currently some duplicated entries; filter these out
+      SourceFilePosition location = ManifestUtils.getActionLocation(myFacet.getModule(), record);
+      if (location.equals(prev)) {
+        continue;
+      }
+      prev = location;
+
+      Actions.ActionType actionType = record.getActionType();
+      boolean injected = actionType == Actions.ActionType.INJECTED;
+      if (injected && prevInjected) {
+        continue;
+      }
+      prevInjected = injected;
+      if (injected) {
+        sb.add("Value provided by Gradle"); // TODO: include module source? Are we certain it's correct?
+        sb.newline();
+        continue;
+      }
+      sb.add(StringUtil.capitalize(StringUtil.toLowerCase(String.valueOf(actionType))));
+      sb.add(" from the ");
+      sb.addHtml(getHtml(myFacet, location));
+
+      String reason = record.getReason();
+      if (reason != null) {
+        sb.add("; reason: ");
+        sb.add(reason);
+      }
+      sb.newline();
+    }
+  }
+
+  private void prepareReportHeader(@NotNull HtmlBuilder sb) {
     Font font = StartupUiUtil.getLabelFont();
     sb.addHtml("<html><body style=\"font-family: " + font.getFamily() + "; " + "font-size: " + font.getSize() + "pt;\">");
     sb.beginUnderline().beginBold();
@@ -470,82 +583,6 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
       }
       sb.newline().newline();
     }
-
-    // See if there are errors; if so, show the merging report instead of node selection report
-    if (!myManifest.getLoggingRecords().isEmpty()) {
-      for (MergingReport.Record record : myManifest.getLoggingRecords()) {
-        if (record.getSeverity() == MergingReport.Record.Severity.ERROR) {
-          node = null;
-          break;
-        }
-      }
-    }
-
-    if (node != null) {
-      List<? extends Actions.Record> records = ManifestUtils.getRecords(myManifest, node.getUserObject());
-      sb.beginUnderline().beginBold();
-      sb.add("Merging Log");
-      sb.endBold().endUnderline().newline();
-
-      if (records.isEmpty()) {
-        sb.add("No records found. (This is a bug in the manifest merger.)");
-      }
-
-      SourceFilePosition prev = null;
-      boolean prevInjected = false;
-      for (Actions.Record record : records) {
-        // There are currently some duplicated entries; filter these out
-        SourceFilePosition location = ManifestUtils.getActionLocation(myFacet.getModule(), record);
-        if (location.equals(prev)) {
-          continue;
-        }
-        prev = location;
-
-        Actions.ActionType actionType = record.getActionType();
-        boolean injected = actionType == Actions.ActionType.INJECTED;
-        if (injected && prevInjected) {
-          continue;
-        }
-        prevInjected = injected;
-        if (injected) {
-          sb.add("Value provided by Gradle"); // TODO: include module source? Are we certain it's correct?
-          sb.newline();
-          continue;
-        }
-        sb.add(StringUtil.capitalize(StringUtil.toLowerCase(String.valueOf(actionType))));
-        sb.add(" from the ");
-        sb.addHtml(getHtml(myFacet, location));
-
-        String reason = record.getReason();
-        if (reason != null) {
-          sb.add("; reason: ");
-          sb.add(reason);
-        }
-        sb.newline();
-      }
-    }
-    else if (!myManifest.getLoggingRecords().isEmpty()) {
-      sb.add("Merging Errors:").newline();
-      for (MergingReport.Record record : myManifest.getLoggingRecords()) {
-        sb.addHtml(getHtml(record.getSeverity()));
-        sb.add(" ");
-        try {
-          sb.addHtml(getErrorHtml(myFacet, record.getMessage(), record.getSourceLocation(), myHtmlLinkManager,
-                                  LocalFileSystem.getInstance().findFileByIoFile(myFiles.get(0)), myManifestEditable));
-        }
-        catch (Exception ex) {
-          Logger.getInstance(ManifestPanel.class).error("error getting error html", ex);
-          sb.add(record.getMessage());
-        }
-        sb.add(" ");
-        sb.addHtml(getHtml(myFacet, record.getSourceLocation()));
-        sb.newline();
-      }
-    }
-
-    sb.closeHtmlBody();
-    myDetails.setText(sb.getHtml());
-    myDetails.setCaretPosition(0);
   }
 
   @NotNull
@@ -647,8 +684,7 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
                                    currentlyOpenFile));
       }
       else if ("remove".equals(action)) {
-        sb.addHtml(getErrorRemoveHtml(facet, message, position, htmlLinkManager,
-                                   currentlyOpenFile));
+        sb.add(message);
       }
     }
     else {
@@ -820,131 +856,9 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
     return sb.getHtml();
   }
 
-  @NotNull
-  private static String getErrorRemoveHtml(final @NotNull AndroidFacet facet,
-                                           @NotNull String message,
-                                           @NotNull final SourceFilePosition position,
-                                           @NotNull HtmlLinkManager htmlLinkManager,
-                                           final @Nullable VirtualFile currentlyOpenFile) {
-    /*
-    Example Input:
-    ERROR Overlay manifest:package attribute declared at AndroidManifest.xml:3:5-49
-    value=(com.foo.manifestapplication.debug) has a different value=(com.foo.manifestapplication)
-    declared in main manifest at AndroidManifest.xml:5:5-43 Suggestion: remove the overlay
-    declaration at AndroidManifest.xml and place it in the build.gradle: flavorName
-    { applicationId = "com.foo.manifestapplication.debug" } AndroidManifest.xml (debug)
-     */
-    HtmlBuilder sb = new HtmlBuilder();
-    int start = message.indexOf('{');
-    int end = message.indexOf('}', start + 1);
-    final String declaration = message.substring(start + 1, end).trim();
-    if (!declaration.startsWith("applicationId")) {
-      throw new IllegalArgumentException("unexpected remove suggestion format " + message);
-    }
-    Runnable link = null;
-
-    final String applicationId = declaration.substring(declaration.indexOf('"') + 1, declaration.lastIndexOf('"'));
-    final File manifestOverlayFile = position.getFile().getSourceFile();
-    assert manifestOverlayFile != null;
-    VirtualFile manifestOverlayVirtualFile = LocalFileSystem.getInstance().findFileByIoFile(manifestOverlayFile);
-    assert manifestOverlayVirtualFile != null;
-
-    NamedIdeaSourceProvider sourceProvider = ManifestUtils.findManifestSourceProvider(facet, manifestOverlayVirtualFile);
-    assert sourceProvider != null;
-    final String name = sourceProvider.getName();
-
-    AndroidModuleModel androidModuleModel = AndroidModuleModel.get(facet.getModule());
-    assert androidModuleModel != null;
-
-    final XmlFile manifestOverlayPsiFile =
-      (XmlFile)PsiManager.getInstance(facet.getModule().getProject()).findFile(manifestOverlayVirtualFile);
-    assert manifestOverlayPsiFile != null;
-
-
-    if (androidModuleModel.getBuildTypeNames().contains(name)) {
-      final String packageName = AndroidManifestUtils.getPackageName(facet);
-      assert packageName != null;
-      if (applicationId.startsWith(packageName)) {
-        final String applicationIdSuffix = applicationId.substring(packageName.length());
-        link = createLinkAction(facet, manifestOverlayPsiFile, name, currentlyOpenFile, true, applicationIdSuffix);
-      }
-    }
-    else if (androidModuleModel.getProductFlavorNames().contains(name)) {
-      link = createLinkAction(facet, manifestOverlayPsiFile, name, currentlyOpenFile, false, applicationId);
-    }
-
-    if (link != null) {
-      sb.addLink(message.substring(0, end + 1), htmlLinkManager.createRunnableLink(link));
-      sb.add(message.substring(end + 1));
-    }
-    else {
-      sb.add(message);
-    }
-    return sb.getHtml();
-  }
-
-  /**
-   * Creates a link action to remove the package id from the manifest and write the given applicationIdOrSuffix to the Gradle build files.
-   *
-   * @param facet the facet that we are editing
-   * @param manifestOverlayPsiFile the manifest file to remove the package from
-   * @param name the name of the build type or product flavor to add the applicationId and applicationIdSuffix to
-   * @param currentlyOpenFile the currently open file that is marked as part of the command action
-   * @param isBuildType whether or not to edit the build type of a product flavour
-   * @param applicationIdOrSuffix either the applicationIdSuffix for build types or applicationId for product flavours
-   * @return the link the performs the action
-   */
-  @NotNull
-  private static Runnable createLinkAction(final @NotNull AndroidFacet facet,
-                                           final XmlFile manifestOverlayPsiFile,
-                                           String name,
-                                           final @Nullable VirtualFile currentlyOpenFile,
-                                           boolean isBuildType,
-                                           final @NotNull String applicationIdOrSuffix) {
-    return () -> writeCommandAction(facet.getModule().getProject(), manifestOverlayPsiFile).withName("Apply manifest suggestion").run(() -> {
-      ProjectBuildModel projectBuildModel = ProjectBuildModel.get(facet.getModule().getProject());
-      GradleBuildModel gradleBuildModel = projectBuildModel.getModuleBuildModel(facet.getModule());
-      if (gradleBuildModel == null) {
-        String errorMessage =
-          "Could not edit build file for '" + facet.getModule().getName() + "' please apply the suggestion manually";
-        ApplicationManager.getApplication()
-          .invokeLater(() -> Messages.showErrorDialog(facet.getModule().getProject(), errorMessage, "Apply Manifest Suggestion"));
-        return;
-      }
-
-      if (currentlyOpenFile != null) {
-        // We mark this action as affecting the currently open file and build file, so the Undo is available in this editor
-        CommandProcessor.getInstance()
-          .addAffectedFiles(facet.getModule().getProject(), currentlyOpenFile, gradleBuildModel.getVirtualFile());
-      }
-      removePackageAttribute(manifestOverlayPsiFile);
-
-      if (isBuildType) {
-        BuildTypeModel buildTypeModel = gradleBuildModel.android().buildTypes().stream().filter(type -> type.name().equals(name)).findFirst()
-          .orElse(gradleBuildModel.android().addBuildType(name));
-        buildTypeModel.applicationIdSuffix().setValue(applicationIdOrSuffix);
-      } else {
-        ProductFlavorModel flavorModel = gradleBuildModel.android().productFlavors().stream().filter(type -> type.name().equals(name)).findFirst()
-          .orElse(gradleBuildModel.android().addProductFlavor(name));
-        flavorModel.applicationId().setValue(applicationIdOrSuffix);
-      }
-
-      projectBuildModel.applyChanges();
-
-      requestSync(facet.getModule().getProject());
-    });
-  }
-
-
   private static void requestSync(Project project) {
     assert ApplicationManager.getApplication().isDispatchThread();
     ProjectSystemUtil.getProjectSystem(project).getSyncManager().syncProject(ProjectSystemSyncManager.SyncReason.PROJECT_MODIFIED);
-  }
-
-  private static void removePackageAttribute(XmlFile manifestFile) {
-    XmlTag tag = manifestFile.getRootTag();
-    assert tag != null;
-    tag.setAttribute("package", null);
   }
 
   static void addToolsAttribute(final @NotNull XmlFile file,
@@ -1042,32 +956,23 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
         Module module = ModuleUtilCore.findModuleForFile(vFile, facet.getModule().getProject());
         if (module != null) {
           if (modules.length >= 2) {
-            source = module.getName();
+            source = ModuleSystemUtil.getHolderModule(module).getName();
           }
 
           // AAR library in the project build directory?
           if (path.contains(FilenameConstants.EXPLODED_AAR)) {
-            source = findSourceForFileInExplodedAar(file, facet, module);
+            source = findSourceForFileInExplodedAar(file);
           }
         }
         // AAR library in the build cache?
         // (e.g., ".android/build-cache/0d86e51789317f7eb0747ecb9da6162c7082982e/output/AndroidManifest.xml")
         // Since the user can change the location or name of the build cache directory, we need to detect it using the following pattern.
         else if (path.contains("output") && path.matches(".*\\w{40}[\\\\/]output.*")) {
-          for (Module singleModule : modules) {
-            source = findSourceForFileInExplodedAar(file, facet, singleModule);
-            if (source != null) {
-              break;
-            }
-          }
-        } else if (path.contains("caches")) {
+          source = findSourceForFileInExplodedAar(file);
+        }
+        else if (path.contains("caches")) {
           // Look for the Gradle cache, where AAR libraries can appear when distributed via the google() Maven repository
-          for (Module singleModule : modules) {
-            source = findSourceForFileInExplodedAar(file, facet, singleModule);
-            if (source != null) {
-              break;
-            }
-          }
+          source = findSourceForFileInExplodedAar(file);
         }
 
         NamedIdeaSourceProvider provider = ManifestUtils.findManifestSourceProvider(facet, vFile);
@@ -1116,17 +1021,13 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
   }
 
   @Nullable
-  private static String findSourceForFileInExplodedAar(@NotNull File file, @NotNull AndroidFacet facet, @NotNull Module module) {
-    String source = null;
-    AndroidModuleModel androidModel = AndroidModuleModel.get(module);
-    if (androidModel != null) {
-      IdeLibrary library =
-        GradleUtil.findLibrary(file.getParentFile(), androidModel.getSelectedVariant());
-      if (library != null) {
-        source = getDependencyDisplayName(library);
-      }
-    }
-    return source;
+  private String findSourceForFileInExplodedAar(@NotNull File file) {
+    File parentFile = file.getParentFile();
+    if (parentFile == null) return null;
+    PathString parentFilePath = new PathString(parentFile);
+    ExternalAndroidLibrary androidLibrary = myLibrariesByManifestDir.get(parentFilePath);
+    if (androidLibrary == null) return null;
+    return getDependencyDisplayName(androidLibrary.getAddress());
   }
 
   /**

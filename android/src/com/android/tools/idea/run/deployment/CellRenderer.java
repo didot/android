@@ -21,7 +21,7 @@ import com.intellij.ui.popup.list.PopupListElementRenderer;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.UIUtil.FontSize;
-import javax.swing.*;
+import javax.swing.JList;
 import org.jetbrains.annotations.NotNull;
 
 final class CellRenderer extends PopupListElementRenderer<ActionItem> {

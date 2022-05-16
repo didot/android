@@ -24,13 +24,16 @@ import com.android.sdklib.internal.project.ProjectProperties;
 import com.android.tools.idea.io.BufferingFileWrapper;
 import com.android.utils.ILogger;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.containers.ContainerUtil;
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Map;
 import com.intellij.util.system.CpuArch;
 import org.jetbrains.annotations.NotNull;
@@ -61,26 +64,25 @@ public class LayoutLibraryLoader {
     final File platformFolder = new File(platformFolderPath);
     if (!platformFolder.isDirectory()) {
       throw new RenderingException(
-        LayoutlibBundle.message("android.directory.cannot.be.found.error", FileUtil.toSystemDependentName(platformFolderPath)));
+        LayoutlibBundle.message("android.directory.cannot.be.found.error", FileUtilRt.toSystemDependentName(platformFolderPath)));
     }
 
     final File buildProp = new File(platformFolder, SdkConstants.FN_BUILD_PROP);
     if (!buildProp.isFile()) {
       throw new RenderingException(
-        LayoutlibBundle.message("android.file.not.exist.error", FileUtil.toSystemDependentName(buildProp.getPath())));
+        LayoutlibBundle.message("android.file.not.exist.error", FileUtilRt.toSystemDependentName(buildProp.getPath())));
     }
 
-    LayoutLibrary library;
     final ILogger logger = new LogWrapper(LOG);
     final Map<String, String> buildPropMap = ProjectProperties.parsePropertyFile(new BufferingFileWrapper(buildProp), logger);
     final ILayoutLog layoutLog = new LayoutLogWrapper(LOG);
 
     String dataPath = FileUtil.toSystemIndependentName(target.getPath(IAndroidTarget.DATA).toString());
 
-    // We instantiate the local Bridge implementation and pass it to the LayoutLibrary instance
-    library =
-      LayoutLibrary.load(new com.android.layoutlib.bridge.Bridge(), new LayoutlibClassLoader(LayoutLibraryLoader.class.getClassLoader()));
-    if (!library.init(buildPropMap, new File(fontFolder.getPath()), getNativeLibraryPath(dataPath), dataPath + "/icu/icudt66l.dat", enumMap, layoutLog)) {
+    LayoutLibrary library = LayoutLibraryProvider.EP_NAME.computeSafeIfAny(LayoutLibraryProvider::getLibrary);
+    if (library == null ||
+        !library.init(buildPropMap != null ? buildPropMap : Collections.emptyMap(), new File(fontFolder.getPath()),
+                      getNativeLibraryPath(dataPath), dataPath + "/icu/icudt68l.dat", enumMap, layoutLog)) {
       throw new RenderingException(LayoutlibBundle.message("layoutlib.init.failed"));
     }
     return library;
@@ -88,7 +90,7 @@ public class LayoutLibraryLoader {
 
   @NotNull
   private static String getNativeLibraryPath(@NotNull String dataPath) {
-    return dataPath + "/" + getPlatformName() + (SystemInfo.is64Bit ? "/lib64/" : "/lib/");
+    return dataPath + "/" + getPlatformName() + "/lib64/";
   }
 
   @NotNull
@@ -115,5 +117,19 @@ public class LayoutLibraryLoader {
     }
 
     return library;
+  }
+
+  /**
+   * Extension point for the Android plugin to have access to layoutlib in a separate plugin.
+   */
+  public static abstract class LayoutLibraryProvider {
+    public static final ExtensionPointName<LayoutLibraryProvider> EP_NAME =
+      new ExtensionPointName<>("com.android.tools.idea.layoutlib.layoutLibraryProvider");
+
+    @NotNull
+    public abstract LayoutLibrary getLibrary();
+
+    @NotNull
+    public abstract Class<?> getFrameworkRClass();
   }
 }

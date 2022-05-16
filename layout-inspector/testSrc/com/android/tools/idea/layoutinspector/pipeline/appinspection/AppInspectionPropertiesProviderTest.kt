@@ -16,6 +16,7 @@
 package com.android.tools.idea.layoutinspector.pipeline.appinspection
 
 import com.android.SdkConstants.ANDROID_URI
+import com.android.SdkConstants.URI_PREFIX
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.tools.adtui.workbench.PropertiesComponentMock
@@ -47,6 +48,7 @@ import com.google.common.truth.Truth.assertThat
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.testFramework.DisposableRule
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -58,20 +60,22 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 
 /** Timeout used in this test. While debugging, you may want extend the timeout */
-private const val TIMEOUT = 1L
+private const val TIMEOUT = 3L
 private val TIMEOUT_UNIT = TimeUnit.SECONDS
 private val MODERN_PROCESS = MODERN_DEVICE.createProcess(streamId = DEFAULT_TEST_INSPECTION_STREAM.streamId)
 private val PARAM_NS = parameterNamespaceOf(PropertySection.PARAMETERS)
+private const val APP_NAMESPACE = "${URI_PREFIX}com.example"
 
 class AppInspectionPropertiesProviderTest {
+  private val disposableRule = DisposableRule()
   private val projectRule = AndroidProjectRule.withSdk()
-  private val inspectionRule = AppInspectionInspectorRule()
-  private val inspectorRule = LayoutInspectorRule(inspectionRule.createInspectorClientProvider(), projectRule) {
-    listOf(MODERN_PROCESS.name)
+  private val inspectionRule = AppInspectionInspectorRule(disposableRule.disposable)
+  private val inspectorRule = LayoutInspectorRule(listOf(inspectionRule.createInspectorClientProvider()), projectRule) {
+    it.name == MODERN_PROCESS.name
   }
 
   @get:Rule
-  val ruleChain = RuleChain.outerRule(inspectionRule).around(inspectorRule)!!
+  val ruleChain = RuleChain.outerRule(inspectionRule).around(inspectorRule).around(disposableRule)!!
 
   private lateinit var inspectorState: FakeInspectorState
 
@@ -83,6 +87,7 @@ class AppInspectionPropertiesProviderTest {
 
     inspectorState = FakeInspectorState(inspectionRule.viewInspector, inspectionRule.composeInspector)
     inspectorState.createAllResponses()
+    inspectorRule.attachDevice(MODERN_DEVICE)
   }
 
   @Test
@@ -136,6 +141,17 @@ class AppInspectionPropertiesProviderTest {
         assertProperty("src", PropertyType.DRAWABLE, "@drawable/?")
         assertProperty("stateListAnimator", PropertyType.ANIMATOR, "@animator/?")
       }
+    }
+
+    inspectorRule.inspectorModel[8]!!.let { targetNode ->
+      provider.requestProperties(targetNode).get()
+      val result = resultQueue.poll(TIMEOUT, TIMEOUT_UNIT)!!
+      assertThat(result.view).isSameAs(targetNode)
+      result.table.run {
+        assertProperty("backgroundTint", PropertyType.COLOR, "#4422FF00", namespace = APP_NAMESPACE)
+      }
+      // Assert that "android:backgroundTint" is omitted
+      assertThat(result.table.getByNamespace(ANDROID_URI)).isEmpty()
     }
   }
 

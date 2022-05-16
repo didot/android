@@ -64,7 +64,7 @@ public class ResolveTypedIntegerCommand extends ToStringCommand {
     }
 
     final DebuggerContextImpl debuggerContext = ((DebugProcessImpl)debugProcess).getDebuggerContext();
-    PsiAnnotation annotation = ApplicationManager.getApplication().runReadAction(new Computable<PsiAnnotation>() {
+    PsiAnnotation annotation = ApplicationManager.getApplication().runReadAction(new Computable<>() {
       @Override
       public PsiAnnotation compute() {
         try {

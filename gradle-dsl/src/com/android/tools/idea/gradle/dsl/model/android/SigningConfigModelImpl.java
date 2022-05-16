@@ -21,7 +21,6 @@ import com.android.tools.idea.gradle.dsl.api.ext.PasswordPropertyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.model.GradleDslBlockModel;
-import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
 import com.android.tools.idea.gradle.dsl.parser.GradleReferenceInjection;
 import com.android.tools.idea.gradle.dsl.parser.android.SigningConfigDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
@@ -37,7 +36,6 @@ public class SigningConfigModelImpl extends GradleDslBlockModel implements Signi
 
   public SigningConfigModelImpl(@NotNull SigningConfigDslElement dslElement) {
     super(dslElement);
-    myDslElement = dslElement;
   }
 
   @Override
@@ -67,7 +65,7 @@ public class SigningConfigModelImpl extends GradleDslBlockModel implements Signi
   }
 
   private static void renameModelDependents(GradlePropertyModel model) {
-    GradleDslElement element = (GradleDslElement)model.getRawElement();
+    GradleDslElement element = model.getRawElement();
     if (element != null) {
       for (GradleReferenceInjection dependent : element.getDependents()) {
         // NB the new ReferenceTo(...) here will bypass the SigningConfig method

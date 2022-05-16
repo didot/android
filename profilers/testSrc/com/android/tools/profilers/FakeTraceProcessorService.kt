@@ -18,6 +18,7 @@ package com.android.tools.profilers
 import com.android.tools.profiler.perfetto.proto.TraceProcessor
 import com.android.tools.profiler.proto.Cpu
 import com.android.tools.profilers.cpu.CpuProfilerTestUtils
+import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineEvent
 import com.android.tools.profilers.cpu.systemtrace.CpuCoreModel
 import com.android.tools.profilers.cpu.systemtrace.ProcessModel
 import com.android.tools.profilers.cpu.systemtrace.SystemTraceModelAdapter
@@ -115,15 +116,15 @@ class FakeTraceProcessorService: TraceProcessorService {
   }
 
   override fun loadCpuData(traceId: Long,
-                           processIds: List<Int>,
-                           selectedProcessName: String,
+                           processes: List<ProcessModel>,
+                           selectedProcess: ProcessModel,
                            ideProfilerServices: IdeProfilerServices): SystemTraceModelAdapter {
     return if (loadedTraces.containsKey(traceId)) {
       val trace = loadedTraces[traceId]!!
       val model: Map<Int, SystemTraceModelAdapter> = getModelMapFor(trace)
       // The pid of the main process is always the first one in the list.
-      val pid = processIds[0]
-      model[pid] ?: error("$pid process should be present in model")
+      val pid = processes[0].id
+      model[pid]?.let(::FakeTimelineModelAdapter) ?: error("$pid process should be present in model")
     }
     else {
       EmptyModelAdapter()
@@ -147,5 +148,14 @@ class FakeTraceProcessorService: TraceProcessorService {
     override fun getSystemTraceTechnology() = Cpu.CpuTraceType.PERFETTO
     override fun isCapturePossibleCorrupted() = false
     override fun getAndroidFrameLayers(): List<TraceProcessor.AndroidFrameEventsResult.Layer> = emptyList()
+    override fun getAndroidFrameTimelineEvents(): List<AndroidFrameTimelineEvent> = emptyList()
   }
+}
+
+/**
+ * Wrapper for old fake trace that had `null` for timeline events and resulted in `IllegalStateException` when inspected
+ */
+private class FakeTimelineModelAdapter(private val base: SystemTraceModelAdapter,
+                                       private val fakeEvents: List<AndroidFrameTimelineEvent> = listOf()): SystemTraceModelAdapter by base {
+  override fun getAndroidFrameTimelineEvents() = base.getAndroidFrameTimelineEvents() ?: fakeEvents
 }

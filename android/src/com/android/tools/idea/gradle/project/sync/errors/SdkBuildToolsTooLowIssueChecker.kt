@@ -26,8 +26,8 @@ import com.android.tools.idea.gradle.project.sync.issues.processor.FixBuildTools
 import com.android.tools.idea.gradle.project.sync.quickFixes.InstallBuildToolsQuickFix
 import com.android.tools.idea.gradle.project.sync.quickFixes.OpenFileAtLocationQuickFix
 import com.android.tools.idea.gradle.util.GradleUtil
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator
 import com.android.tools.idea.sdk.AndroidSdks
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.GradleSyncFailure
 import com.intellij.build.FilePosition
 import com.intellij.build.events.BuildEvent
@@ -59,14 +59,14 @@ class SdkBuildToolsTooLowIssueChecker: GradleIssueChecker {
   override fun check(issueData: GradleIssueData): BuildIssue? {
     val message = GradleExecutionErrorHandler.getRootCauseAndLocation(issueData.error).first.message ?: return null
     if (message.isEmpty()) return null
+    val composer = getBuildIssueDescriptionAndQuickFixes(message, issueData.projectPath) ?: return null
 
     // Log metrics.
     invokeLater {
       updateUsageTracker(issueData.projectPath, GradleSyncFailure.SDK_BUILD_TOOLS_TOO_LOW)
     }
 
-    return getBuildIssueDescriptionAndQuickFixes(message, issueData.projectPath)?.composeBuildIssue()
-
+    return composer.composeBuildIssue()
   }
 
   @Slow

@@ -1,8 +1,20 @@
-// Copyright 2000-2021 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+/*
+ * Copyright 2000-2012 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.tools.idea.logcat;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -13,6 +25,7 @@ import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.XCollection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,13 +61,7 @@ public final class PersistentAndroidLogFilters implements PersistentStateCompone
    */
   @XCollection(style = XCollection.Style.v2)
   public List<FilterData> getFilters() {
-    return Lists.newArrayList(Lists.transform(myFilters, new Function<FilterData, FilterData>() {
-      @NotNull
-      @Override
-      public FilterData apply(FilterData filter) {
-        return new FilterData(filter);
-      }
-    }));
+    return myFilters.stream().map(FilterData::new).collect(Collectors.toList());
   }
 
   public void setFilters(List<FilterData> filterEntries) {
@@ -70,6 +77,7 @@ public final class PersistentAndroidLogFilters implements PersistentStateCompone
     @Nullable private String myName;
     @Nullable private String myLogMessagePattern;
     private boolean myLogMessageIsRegex = true;
+    @Nullable private String myExpression;
     @Nullable private String myLogLevel;
     @Nullable private String myLogTagPattern;
     private boolean myLogTagIsRegex = true;
@@ -82,6 +90,7 @@ public final class PersistentAndroidLogFilters implements PersistentStateCompone
 
     public FilterData(@NotNull FilterData otherEntry) {
       myName = otherEntry.myName;
+      myExpression = otherEntry.myExpression;
       myLogMessagePattern = otherEntry.myLogMessagePattern;
       myLogMessageIsRegex = otherEntry.myLogMessageIsRegex;
       myLogLevel = otherEntry.myLogLevel;
@@ -95,6 +104,11 @@ public final class PersistentAndroidLogFilters implements PersistentStateCompone
     @Nullable
     public String getName() {
       return myName;
+    }
+
+    @Nullable
+    public String getExpression() {
+      return myExpression;
     }
 
     @Nullable
@@ -127,6 +141,10 @@ public final class PersistentAndroidLogFilters implements PersistentStateCompone
 
     public void setName(@Nullable String name) {
       myName = name;
+    }
+
+    public void setExpression(@Nullable String expression) {
+      myExpression = expression;
     }
 
     public void setLogMessagePattern(@Nullable String logMessagePattern) {

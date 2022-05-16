@@ -28,21 +28,19 @@ import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
 public class DataBindingDslElement extends GradleDslBlockElement {
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelNameMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap ktsToModelNameMap = Stream.of(new Object[][]{
     {"addDefaultAdapters", property, ADD_DEFAULT_ADAPTERS, VAR},
     {"isEnabled", property, ENABLED, VAR},
     {"version", property, VERSION, VAR},
   }).collect(toModelMap());
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelNameMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap groovyToModelNameMap = Stream.of(new Object[][]{
     {"addDefaultAdapters", property, ADD_DEFAULT_ADAPTERS, VAR},
     {"addDefaultAdapters", exactly(1), ADD_DEFAULT_ADAPTERS, SET},
     {"enabled", property, ENABLED, VAR},
@@ -54,16 +52,8 @@ public class DataBindingDslElement extends GradleDslBlockElement {
     new PropertiesElementDescription<>("dataBinding", DataBindingDslElement.class, DataBindingDslElement::new);
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter.isKotlin()) {
-      return ktsToModelNameMap;
-    }
-    else if (converter.isGroovy()) {
-      return groovyToModelNameMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelNameMap, ktsToModelNameMap);
   }
 
   public DataBindingDslElement(@NotNull GradleDslElement parent, @NotNull GradleNameElement name) {

@@ -29,7 +29,7 @@ class EmulatorSettings : PersistentStateComponent<EmulatorSettings> {
 
   private var initialized = false
 
-  var launchInToolWindow = false
+  var launchInToolWindow = true
     get() = field
     set(value) {
       if (field != value) {

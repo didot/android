@@ -16,14 +16,12 @@
 package com.android.tools.idea.gradle.dsl.api.android;
 
 import com.android.tools.idea.gradle.dsl.api.ExternalNativeBuildModel;
-import com.android.tools.idea.gradle.dsl.api.android.externalNativeBuild.AdbOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
-import com.android.tools.idea.gradle.dsl.api.util.GradleDslModel;
+import com.android.tools.idea.gradle.dsl.api.util.GradleBlockModel;
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
-
-public interface AndroidModel extends GradleDslModel {
+public interface AndroidModel extends GradleBlockModel {
   @NotNull
   AaptOptionsModel aaptOptions();
 
@@ -84,10 +82,22 @@ public interface AndroidModel extends GradleDslModel {
   ResolvedPropertyModel generatePureSplits();
 
   @NotNull
+  InstallationModel installation();
+
+  @NotNull
+  JacocoModel jacoco();
+
+  @NotNull
   KotlinOptionsModel kotlinOptions();
 
   @NotNull
+  LintModel lint();
+
+  @NotNull
   LintOptionsModel lintOptions();
+
+  @NotNull
+  ResolvedPropertyModel namespace();
 
   @NotNull
   ResolvedPropertyModel ndkVersion();
@@ -124,6 +134,12 @@ public interface AndroidModel extends GradleDslModel {
 
   @NotNull
   ResolvedPropertyModel targetProjectPath();
+
+  @NotNull
+  TestCoverageModel testCoverage();
+
+  @NotNull
+  ResolvedPropertyModel testNamespace();
 
   @NotNull
   TestOptionsModel testOptions();

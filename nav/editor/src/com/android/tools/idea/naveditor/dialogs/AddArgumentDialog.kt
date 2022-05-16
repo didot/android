@@ -19,7 +19,15 @@ import com.android.SdkConstants.CLASS_PARCELABLE
 import com.android.ide.common.rendering.api.ResourceValue
 import com.android.resources.ResourceUrl
 import com.android.tools.idea.common.model.NlComponent
-import com.android.tools.idea.naveditor.model.*
+import com.android.tools.idea.naveditor.model.argumentName
+import com.android.tools.idea.naveditor.model.defaultValue
+import com.android.tools.idea.naveditor.model.isArgument
+import com.android.tools.idea.naveditor.model.nullable
+import com.android.tools.idea.naveditor.model.setArgumentNameAndLog
+import com.android.tools.idea.naveditor.model.setDefaultValueAndLog
+import com.android.tools.idea.naveditor.model.setNullableAndLog
+import com.android.tools.idea.naveditor.model.setTypeAndLog
+import com.android.tools.idea.naveditor.model.typeAttr
 import com.android.tools.idea.res.FloatResources
 import com.android.tools.idea.res.resolve
 import com.android.tools.idea.uibuilder.model.createChild
@@ -36,18 +44,16 @@ import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.ClassUtil
-import com.intellij.ui.ListCellRendererWrapper
 import com.intellij.ui.MutableCollectionComboBoxModel
-import com.intellij.util.ui.UIUtil
+import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.ui.components.JBLabel
+import com.intellij.util.Functions
 import org.jetbrains.android.dom.navigation.NavigationSchema.TAG_ARGUMENT
 import org.jetbrains.kotlin.utils.doNothing
 import java.awt.CardLayout
-import java.util.*
 import java.awt.Dimension
-import java.lang.IllegalStateException
 import javax.swing.Action
 import javax.swing.JComponent
-import javax.swing.JList
 
 // open for testing
 open class AddArgumentDialog(private val existingComponent: NlComponent?, private val parent: NlComponent) : DialogWrapper(false) {
@@ -130,18 +136,16 @@ open class AddArgumentDialog(private val existingComponent: NlComponent?, privat
     init()
     Type.values().forEach { dialogUI.myTypeComboBox.addItem(it) }
 
-    dialogUI.myTypeComboBox.setRenderer(object : ListCellRendererWrapper<Type>() {
-      override fun customize(list: JList<*>, value: Type, index: Int, isSelected: Boolean, hasFocus: Boolean) {
+    dialogUI.myTypeComboBox.setRenderer(SimpleListCellRenderer.create(
+      SimpleListCellRenderer.Customizer { label: JBLabel, value: Type, index: Int ->
         if (index == -1 && value.isCustom && selectedType == value) {
-          setText(type)
+          label.text = type
         }
         else {
-          setText(value.display)
+          label.text = value.display
         }
-        setBackground(UIUtil.getListBackground(isSelected, true))
-        setForeground(UIUtil.getListForeground(isSelected, true))
       }
-    })
+    ))
 
     dialogUI.myTypeComboBox.isEditable = false
 
@@ -200,11 +204,7 @@ open class AddArgumentDialog(private val existingComponent: NlComponent?, privat
       }
     }
 
-    dialogUI.myDefaultValueComboBox.renderer = object : ListCellRendererWrapper<String>() {
-      override fun customize(list: JList<*>, value: String?, index: Int, selected: Boolean, hasFocus: Boolean) {
-        setText(value ?: "No default value")
-      }
-    }
+    dialogUI.myDefaultValueComboBox.renderer = SimpleListCellRenderer.create("No default value", Functions.id())
 
     dialogUI.myArrayCheckBox.addActionListener { event ->
       type = updateArgType(type)
@@ -271,13 +271,13 @@ open class AddArgumentDialog(private val existingComponent: NlComponent?, privat
     when {
       selectedType == Type.BOOLEAN && !isArray -> {
         (dialogUI.myDefaultValuePanel.layout as CardLayout).show(dialogUI.myDefaultValuePanel, "comboDefaultValue")
-        defaultValueComboModel.update(Arrays.asList<String>(null, "true", "false"))
+        defaultValueComboModel.update(listOf(null, "true", "false"))
       }
       selectedType == Type.CUSTOM_ENUM && !isArray -> {
         (dialogUI.myDefaultValuePanel.layout as CardLayout).show(dialogUI.myDefaultValuePanel, "comboDefaultValue")
         val list = ClassUtil.findPsiClass(psiManager, type.orEmpty())
                      ?.fields
-                     ?.filterIsInstance<PsiEnumConstant>()
+                     ?.filter { it is PsiEnumConstant }
                      ?.map { it.name }?.toMutableList<String?>()
                    ?: mutableListOf()
         list.add(null)

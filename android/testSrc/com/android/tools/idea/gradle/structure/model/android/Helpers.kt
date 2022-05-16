@@ -16,11 +16,16 @@
 package com.android.tools.idea.gradle.structure.model.android
 
 import com.android.tools.idea.concurrency.addCallback
-import com.android.tools.idea.gradle.structure.GradleResolver
 import com.android.tools.idea.gradle.structure.model.PsModel
 import com.android.tools.idea.gradle.structure.model.PsModelDescriptor
-import com.android.tools.idea.gradle.structure.model.PsProjectImpl
-import com.android.tools.idea.gradle.structure.model.meta.*
+import com.android.tools.idea.gradle.structure.model.meta.Annotated
+import com.android.tools.idea.gradle.structure.model.meta.DslText
+import com.android.tools.idea.gradle.structure.model.meta.ModelDescriptor
+import com.android.tools.idea.gradle.structure.model.meta.ModelProperty
+import com.android.tools.idea.gradle.structure.model.meta.ParsedValue
+import com.android.tools.idea.gradle.structure.model.meta.PropertyValue
+import com.android.tools.idea.gradle.structure.model.meta.ResolvedValue
+import com.android.tools.idea.gradle.structure.model.meta.maybeValue
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
@@ -41,13 +46,6 @@ internal fun <T : Any> Annotated<ParsedValue<T>>.asUnparsedValue(): String? =
   ((value as? ParsedValue.Set.Parsed<T>)?.dslText as? DslText.OtherUnparsedDslText)?.text
 internal val <T : Any> Annotated<PropertyValue<T>>.resolved get() = value.resolved
 internal val <T : Any> Annotated<PropertyValue<T>>.parsedValue get() = value.parsedValue
-
-fun PsProjectImpl.testResolve() {
-  // NOTE: The timeout is intentionally too high as the tests execute in `bazel test` environment running a test per CPU core.
-  val gradleModels = GradleResolver().requestProjectResolved(ideProject, ideProject)
-  waitForFuture(gradleModels, 90, TimeUnit.SECONDS)
-  refreshFrom(gradleModels.get())
-}
 
 /**
  * Waits when future will be completed

@@ -26,7 +26,6 @@ import com.intellij.refactoring.BaseRefactoringProcessor
 import com.intellij.usageView.UsageInfo
 import com.intellij.usageView.UsageViewBundle
 import com.intellij.usageView.UsageViewDescriptor
-import java.util.*
 
 /**
  * Tool to rewrite build.gradle file to add or update android.ndkVersion section.

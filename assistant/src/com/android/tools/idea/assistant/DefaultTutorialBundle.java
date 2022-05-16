@@ -36,7 +36,8 @@ import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
 import javax.swing.border.Border;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -389,10 +390,15 @@ public class DefaultTutorialBundle implements TutorialBundleData {
 
     private Icon myIcon;
 
-    private Class myResourceClass;
+    private Class<?> myResourceClass;
 
-    public void setResourceClass(@NotNull Class clazz) {
+    public void setResourceClass(@NotNull Class<?> clazz) {
       myResourceClass = clazz;
+    }
+
+    @NotNull
+    public Class<?> getResourceClass() {
+      return myResourceClass;
     }
 
     @Override

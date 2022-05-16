@@ -85,9 +85,9 @@ class StudioFirstRunWelcomeScreen(private val mode: FirstRunWizardMode) : Welcom
         addStep(LinuxHaxmInfoStep())
       }
 
-       if (mode != FirstRunWizardMode.INSTALL_HANDOFF) {
-         addStep(LicenseAgreementStep(LicenseAgreementModel(model.sdkLocation), listOf()))
-       }
+      if (mode != FirstRunWizardMode.INSTALL_HANDOFF) {
+        addStep(LicenseAgreementStep(LicenseAgreementModel(model.sdkLocation.toPath()), listOf()))
+      }
 
       // TODO: addStep(ProgressStep(model))
     }.build()
@@ -111,7 +111,7 @@ class StudioFirstRunWelcomeScreen(private val mode: FirstRunWizardMode) : Welcom
     //  Maybe it is worth to run setupWizard earlier and wait here for finish.
     if (mainPanel == null) {
       ApplicationManager.getApplication().invokeAndWait {
-        setupWizard();
+        setupWizard()
       }
     }
     return mainPanel!!
@@ -121,8 +121,10 @@ class StudioFirstRunWelcomeScreen(private val mode: FirstRunWizardMode) : Welcom
     // Intercept windowClosing event, to show the closing confirmation dialog
     val oldIdeaListeners = removeAllWindowListeners(frame)
     frame.run {
-      val keyInfix = if (IdeInfo.getInstance().isAndroidStudio) "as" else "ij"
-      title = message("android.${keyInfix}.wizard.welcome.dialog.title")
+      title = if (IdeInfo.getInstance().isAndroidStudio)
+        message("android.as.wizard.welcome.dialog.title")
+      else
+        message("android.ij.wizard.welcome.dialog.title")
       pack()
       setLocationRelativeTo(null)
       addWindowListener(DelegatingListener(oldIdeaListeners))
@@ -145,7 +147,7 @@ class StudioFirstRunWelcomeScreen(private val mode: FirstRunWizardMode) : Welcom
     WelcomeFrame.showNow()
   }
 
-  private fun shouldPreventWizardCancel(frame: Window) = when (ConfirmFirstRunWizardCloseDialog().open()) {
+  private fun shouldPreventWizardCancel(frame: Window) = when (ConfirmFirstRunWizardCloseDialog.show()) {
     ConfirmFirstRunWizardCloseDialog.Result.Skip -> {
       AndroidFirstRunPersistentData.getInstance().markSdkUpToDate(mode.installerTimestamp)
       closeDialog(frame)

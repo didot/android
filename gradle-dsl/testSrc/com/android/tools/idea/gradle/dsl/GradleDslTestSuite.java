@@ -15,12 +15,11 @@
  */
 package com.android.tools.idea.gradle.dsl;
 
-//import com.android.testutils.JarTestSuiteRunner;
-//import com.android.tools.tests.IdeaTestSuiteBase;
+import com.android.testutils.JarTestSuiteRunner;
+import com.android.tools.tests.IdeaTestSuiteBase;
 import org.junit.runner.RunWith;
 
-//@RunWith(JarTestSuiteRunner.class)
-//@JarTestSuiteRunner.ExcludeClasses(GradleDslTestSuite.class)  // a suite mustn't contain itself
-// FIXME-ank4: commented out, because these classes (JarTestSuiteRunner,JarTestSuiteRunner)  are from android plugin
-public class GradleDslTestSuite /* extends IdeaTestSuiteBase */ {
+@RunWith(JarTestSuiteRunner.class)
+@JarTestSuiteRunner.ExcludeClasses(GradleDslTestSuite.class)  // a suite mustn't contain itself
+public class GradleDslTestSuite extends IdeaTestSuiteBase {
 }

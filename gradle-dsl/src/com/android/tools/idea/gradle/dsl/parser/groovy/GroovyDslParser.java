@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.gradle.dsl.parser.groovy;
 
-import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.iStr;
 import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR;
 import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.VARIABLE;
 import static com.android.tools.idea.gradle.dsl.model.notifications.NotificationTypeReference.INCOMPLETE_PARSING;
@@ -30,7 +29,7 @@ import static com.intellij.psi.util.PsiTreeUtil.findChildOfType;
 import static com.intellij.psi.util.PsiTreeUtil.getChildOfType;
 import static com.intellij.psi.util.PsiTreeUtil.getNextSiblingOfType;
 
-import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
+import com.android.tools.idea.gradle.dsl.model.BuildModelContext;
 import com.android.tools.idea.gradle.dsl.model.GradleBuildModelImpl;
 import com.android.tools.idea.gradle.dsl.model.android.AndroidModelImpl;
 import com.android.tools.idea.gradle.dsl.parser.GradleDslParser;
@@ -38,7 +37,6 @@ import com.android.tools.idea.gradle.dsl.parser.GradleReferenceInjection;
 import com.android.tools.idea.gradle.dsl.parser.SharedParserUtilsKt;
 import com.android.tools.idea.gradle.dsl.parser.configurations.ConfigurationDslElement;
 import com.android.tools.idea.gradle.dsl.parser.configurations.ConfigurationsDslElement;
-import com.android.tools.idea.gradle.dsl.parser.dependencies.FakeArtifactElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslClosure;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
@@ -72,7 +70,6 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.groovy.lang.psi.GroovyElementVisitor;
 import org.jetbrains.plugins.groovy.lang.psi.GroovyFile;
 import org.jetbrains.plugins.groovy.lang.psi.GroovyPsiElement;
-import org.jetbrains.plugins.groovy.lang.psi.GroovyPsiElementFactory;
 import org.jetbrains.plugins.groovy.lang.psi.GroovyPsiElementVisitor;
 import org.jetbrains.plugins.groovy.lang.psi.api.auxiliary.GrListOrMap;
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.GrVariable;
@@ -108,7 +105,8 @@ public class GroovyDslParser extends GroovyDslNameConverter implements GradleDsl
   @NotNull private final GradleDslFile myDslFile;
   @NotNull private final Set<Pair<GradleDslSimpleExpression, PsiElement>> myExtractValueSet;
 
-  public GroovyDslParser(@NotNull GroovyFile file, @NotNull GradleDslFile dslFile) {
+  public GroovyDslParser(@NotNull GroovyFile file, @NotNull BuildModelContext context, @NotNull GradleDslFile dslFile) {
+    super(context);
     myPsiFile = file;
     myDslFile = dslFile;
     myExtractValueSet = new HashSet<>();
@@ -180,7 +178,7 @@ public class GroovyDslParser extends GroovyDslNameConverter implements GradleDsl
 
     if (literal instanceof GrReferenceExpression || literal instanceof GrIndexProperty) {
       if (resolve) {
-        GradleDslElement e = context.resolveExternalSyntaxReference(literal.getText(), true);
+        GradleDslElement e = context.resolveExternalSyntaxReference(literal, true);
         // Only attempt to get the value if it is a simple expression.
         if (e instanceof GradleDslSimpleExpression) {
           synchronized (myExtractValueSet) {
@@ -227,22 +225,6 @@ public class GroovyDslParser extends GroovyDslNameConverter implements GradleDsl
     // Otherwise resolve the value and then return the resolved text.
     Collection<GradleReferenceInjection> injections = context.getResolvedVariables();
     return ensureUnquotedText(GradleReferenceInjection.injectAll(literal, injections));
-  }
-
-  @Override
-  @Nullable
-  public PsiElement convertToExcludesBlock(@NotNull List<ArtifactDependencySpec> excludes) {
-    GroovyPsiElementFactory factory = GroovyPsiElementFactory.getInstance(myDslFile.getProject());
-    GrClosableBlock block = factory.createClosureFromText("{\n}");
-    for (ArtifactDependencySpec spec : excludes) {
-      String group = FakeArtifactElement.shouldInterpolate(spec.getGroup()) ? iStr(spec.getGroup()) : "'" + spec.getGroup() + "'";
-      String name = FakeArtifactElement.shouldInterpolate(spec.getName()) ? iStr(spec.getName()) : "'" + spec.getName() + "'";
-      String text = String.format("exclude group: %s, module: %s", group, name);
-      block.addBefore(factory.createStatementFromText(text), block.getLastChild());
-      PsiElement lineTerminator = factory.createLineTerminator(1);
-      block.addBefore(lineTerminator, block.getLastChild());
-    }
-    return block;
   }
 
   @Override

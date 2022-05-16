@@ -15,6 +15,15 @@
  */
 package com.android.tools.idea.diagnostics.crash;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
 import com.android.annotations.NonNull;
 import com.android.annotations.Nullable;
 import com.android.tools.analytics.NullUsageTracker;
@@ -26,19 +35,13 @@ import com.android.tools.idea.diagnostics.report.AnalyzedHeapReport;
 import com.android.tools.idea.diagnostics.report.DiagnosticReportProperties;
 import com.android.tools.idea.diagnostics.report.FreezeReport;
 import com.android.tools.idea.diagnostics.report.HeapReportProperties;
+import com.android.tools.idea.diagnostics.report.HistogramReport;
 import com.android.tools.idea.diagnostics.report.MemoryReportReason;
 import com.android.tools.idea.diagnostics.report.PerformanceThreadDumpCrashReport;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
-import java.util.TreeMap;
-import org.apache.http.HttpEntity;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.hamcrest.core.SubstringMatcher;
-import org.jetbrains.annotations.NotNull;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -46,16 +49,19 @@ import java.lang.reflect.Constructor;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.hamcrest.core.SubstringMatcher;
+import org.jetbrains.annotations.NotNull;
+import org.junit.Test;
 
 public class StudioCrashReporterTest {
   public static final String STACK_TRACE =
@@ -80,7 +86,7 @@ public class StudioCrashReporterTest {
       UsageTracker.setWriterForTest(usageTracker);
       CrashReport report =
         new StudioExceptionReport.Builder()
-          .setThrowable(new RuntimeException("Test Exception Message"), false)
+          .setThrowable(new RuntimeException("Test Exception Message"), false, false)
           .build();
 
       String content = getSerializedContent(report);
@@ -127,7 +133,7 @@ public class StudioCrashReporterTest {
   public void serializeUserReportedException() throws Exception {
     CrashReport report =
       new StudioExceptionReport.Builder()
-        .setThrowable(ourException, true)
+        .setThrowable(ourException, true, false)
         .build();
 
     String request = getSerializedContent(report);
@@ -138,7 +144,7 @@ public class StudioCrashReporterTest {
   public void serializeNonUserReportedException() throws Exception {
     CrashReport report =
       new StudioExceptionReport.Builder()
-        .setThrowable(ourException, false)
+        .setThrowable(ourException, false, false)
         .build();
 
     String request = getSerializedContent(report);
@@ -155,7 +161,7 @@ public class StudioCrashReporterTest {
       "\tat kotlin.SynchronizedLazyImpl.getValue(Lazy.kt:131)\n";
     StudioExceptionReport report = spy(
       new StudioExceptionReport.Builder()
-        .setThrowable(createExceptionFromDesc(exceptionWithKotlinString, null), false)
+        .setThrowable(createExceptionFromDesc(exceptionWithKotlinString, null), false, false)
         .build());
 
     doReturn("1.2.3.4").when(report).getKotlinPluginVersionDescription();
@@ -174,6 +180,40 @@ public class StudioCrashReporterTest {
     String request = getSerializedContent(crashReport);
 
     assertRequestContainsFile(request, "heapReport", "heapReport.txt", "heap report text");
+  }
+
+  @Test
+  public void sendHistogramReportField() throws IOException {
+    String reasonName = "foobar";
+    MemoryReportReason mockMemoryReportReason = mock(MemoryReportReason.class);
+    when(mockMemoryReportReason.name()).thenReturn(reasonName);
+    HistogramReport histogramReport =
+      new HistogramReport(null,
+                          null,
+                          mockMemoryReportReason,
+                          "description");
+    CrashReport crashReport = histogramReport.asCrashReport();
+    String request = getSerializedContent(crashReport);
+
+    assertRequestContainsField(request, "reason", reasonName);
+  }
+
+  @Test
+  public void sendFreezeReportFields() throws IOException {
+    Boolean timedOut = true;
+    Long totalDuration = 100L;
+    String description = "description";
+    FreezeReport freezeReport =
+      new FreezeReport(null,
+                          new HashMap(),
+                          timedOut,
+                          totalDuration,
+                          description);
+    CrashReport crashReport = freezeReport.asCrashReport();
+    String request = getSerializedContent(crashReport);
+
+    assertRequestContainsField(request, "totalDuration", totalDuration.toString());
+    assertRequestContainsField(request, "timedOut", timedOut.toString());
   }
 
   private static void assertRequestContainsFile(final String requestBody, final String name, final String filename, final String value) {
@@ -248,7 +288,7 @@ public class StudioCrashReporterTest {
   public static void main(String[] args) {
     GoogleCrashReporter crash = new StudioCrashReporter();
 
-    submit(crash, new StudioExceptionReport.Builder().setThrowable(ourException, false).build());
+    submit(crash, new StudioExceptionReport.Builder().setThrowable(ourException, false, false).build());
     submit(
       crash,
       new StudioCrashReport.Builder()

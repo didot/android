@@ -29,8 +29,8 @@ import com.android.repository.api.Uninstaller;
 import com.android.repository.api.UpdatablePackage;
 import com.android.repository.impl.installer.AbstractPackageOperation;
 import com.android.sdklib.repository.AndroidSdkHandler;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.sdk.StudioDownloader;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.wizard.model.ModelWizardDialog;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
@@ -327,7 +327,8 @@ class InstallTask extends Task.Backgroundable {
           else {
             message = packages.size() + " packages are ready to install or uninstall<br/><a href=\"install\">Continue</a>";
           }
-          group.createNotification("SDK Install", message, NotificationType.INFORMATION).setListener(notificationListener).notify(p);
+          group.createNotification(
+            "SDK Install", message, NotificationType.INFORMATION).setListener(notificationListener).notify(p);
         }
       },
       ModalityState.NON_MODAL,  // Don't show while we're in a modal context (e.g. sdk manager)

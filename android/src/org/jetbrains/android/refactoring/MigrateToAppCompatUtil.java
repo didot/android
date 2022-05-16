@@ -23,12 +23,12 @@ import com.android.annotations.NonNull;
 import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.ide.common.resources.ResourceRepository;
 import com.android.resources.ResourceType;
-import com.android.tools.idea.lint.AndroidLintIdeIssueRegistry;
 import com.android.tools.idea.lint.common.LintBatchResult;
 import com.android.tools.idea.lint.common.LintIdeClient;
 import com.android.tools.idea.lint.common.LintIdeRequest;
 import com.android.tools.idea.lint.common.LintIdeSupport;
 import com.android.tools.idea.lint.common.LintProblemData;
+import com.android.tools.idea.res.IdeResourcesUtil;
 import com.android.tools.idea.res.LocalResourceRepository;
 import com.android.tools.idea.res.ResourceRepositoryManager;
 import com.android.tools.lint.checks.AppCompatCustomViewDetector;
@@ -37,7 +37,6 @@ import com.android.tools.lint.detector.api.Issue;
 import com.android.tools.lint.detector.api.LintFix;
 import com.android.tools.lint.detector.api.Scope;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Maps;
 import com.intellij.analysis.AnalysisScope;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
@@ -68,6 +67,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -77,7 +77,6 @@ import java.util.stream.Collectors;
 import org.jetbrains.android.refactoring.AppCompatMigrationEntry.MethodMigrationEntry;
 import org.jetbrains.android.refactoring.MigrateToAppCompatUsageInfo.ChangeCustomViewUsageInfo;
 import org.jetbrains.android.refactoring.MigrateToAppCompatUsageInfo.ClassMigrationUsageInfo;
-import com.android.tools.idea.res.IdeResourcesUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -185,7 +184,7 @@ class MigrateToAppCompatUtil {
    */
   @NotNull
   static Map<Issue, Map<File, List<LintProblemData>>> computeCustomViewIssuesMap(@NotNull Project project, @NotNull Module[] modules) {
-    Map<Issue, Map<File, List<LintProblemData>>> map = Maps.newHashMap();
+    Map<Issue, Map<File, List<LintProblemData>>> map = new HashMap<>();
     boolean detectorWasEnabled = AppCompatCustomViewDetector.ISSUE.isEnabledByDefault();
     AppCompatCustomViewDetector.ISSUE.setEnabledByDefault(true);
     AnalysisScope scope = new AnalysisScope(project);
@@ -220,7 +219,7 @@ class MigrateToAppCompatUtil {
         }
       };
       request.setScope(Scope.JAVA_FILE_SCOPE);
-      client.createDriver(request, new AndroidLintIdeIssueRegistry()).analyze();
+      client.createDriver(request, LintIdeSupport.get().getIssueRegistry()).analyze();
     }
     finally {
       AppCompatCustomViewDetector.ISSUE.setEnabledByDefault(detectorWasEnabled);

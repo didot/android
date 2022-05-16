@@ -53,7 +53,7 @@ import com.intellij.openapi.util.Key;
 import com.intellij.xdebugger.XDebugSession;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

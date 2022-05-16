@@ -16,6 +16,7 @@
 package org.jetbrains.android.uipreview
 
 import com.android.tools.idea.flags.StudioFlags.COMPOSE_CLASSLOADERS_PRELOADING
+import com.android.tools.idea.rendering.classloading.FirewalledResourcesClassLoader
 import com.android.tools.idea.rendering.classloading.toClassTransform
 import com.android.tools.idea.testing.AndroidProjectRule
 import org.junit.After
@@ -24,6 +25,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -62,13 +64,13 @@ class ModuleClassLoaderHatcheryTest {
     assertEquals(0, requests)
     // Cannot be created, no information
     assertNull(hatchery.requestClassLoader(
-      null, donor.projectClassesTransformationProvider, donor.nonProjectClassesTransformationProvider))
+      null, donor.projectClassesTransform, donor.nonProjectClassesTransform))
     // Was requested => will be used
     assertTrue(hatchery.incubateIfNeeded(donor, cloner))
     assertEquals(2, requests)
 
     assertNotNull(hatchery.requestClassLoader(
-      null, donor.projectClassesTransformationProvider, donor.nonProjectClassesTransformationProvider))
+      null, donor.projectClassesTransform, donor.nonProjectClassesTransform))
     assertEquals(3, requests)
 
     ModuleClassLoaderManager.get().release(donor, this@ModuleClassLoaderHatcheryTest)
@@ -91,21 +93,64 @@ class ModuleClassLoaderHatcheryTest {
 
     // Nothing at the beginning, provide donor, check that request is successful
     assertNull(hatchery.requestClassLoader(
-      null, donor.projectClassesTransformationProvider, donor.nonProjectClassesTransformationProvider))
+      null, donor.projectClassesTransform, donor.nonProjectClassesTransform))
     assertTrue(hatchery.incubateIfNeeded(donor, cloner))
     assertNotNull(hatchery.requestClassLoader(
-      null, donor.projectClassesTransformationProvider, donor.nonProjectClassesTransformationProvider))
+      null, donor.projectClassesTransform, donor.nonProjectClassesTransform))
     // Request a different one, and provide a different donor, check that request is successful
     assertNull(hatchery.requestClassLoader(
-      null, donor2.projectClassesTransformationProvider, donor2.nonProjectClassesTransformationProvider))
+      null, donor2.projectClassesTransform, donor2.nonProjectClassesTransform))
     assertTrue(hatchery.incubateIfNeeded(donor2, cloner))
     assertNotNull(hatchery.requestClassLoader(
-      null, donor2.projectClassesTransformationProvider, donor2.nonProjectClassesTransformationProvider))
+      null, donor2.projectClassesTransform, donor2.nonProjectClassesTransform))
     // Check that due to capacity of 1, the first one is not longer provided
     assertNull(hatchery.requestClassLoader(
-      null, donor.projectClassesTransformationProvider, donor.nonProjectClassesTransformationProvider))
+      null, donor.projectClassesTransform, donor.nonProjectClassesTransform))
 
     ModuleClassLoaderManager.get().release(donor2, this@ModuleClassLoaderHatcheryTest)
+    ModuleClassLoaderManager.get().release(donor, this@ModuleClassLoaderHatcheryTest)
+  }
+
+  @Test
+  fun `hatchery correctly identifies different parent class loaders`() {
+    val hatchery = ModuleClassLoaderHatchery(1, 2)
+    val parent1 = FirewalledResourcesClassLoader(null)
+    val donor = ModuleClassLoaderManager.get().getPrivate(
+      parent1, ModuleRenderContext.forModule(project.module), this@ModuleClassLoaderHatcheryTest)
+    val cloner = ModuleClassLoaderManager.get()::createCopy
+    // Create a request for a new class loader and incubate it
+    assertNull(hatchery.requestClassLoader(
+      parent1, donor.projectClassesTransform, donor.nonProjectClassesTransform))
+    assertTrue(hatchery.incubateIfNeeded(donor, cloner))
+    // This request has the same Request so it should return a new classloader
+    assertNotNull(hatchery.requestClassLoader(
+      parent1, donor.projectClassesTransform, donor.nonProjectClassesTransform))
+    // This request is using a different parent, we should not have anything available and should return null
+    val parent2 = FirewalledResourcesClassLoader(null)
+    assertNull(hatchery.requestClassLoader(
+      parent2, donor.projectClassesTransform, donor.nonProjectClassesTransform))
+
+    ModuleClassLoaderManager.get().release(donor, this@ModuleClassLoaderHatcheryTest)
+  }
+
+  @Test
+  fun `out of date class loaders can not be used as donors`() {
+    val hatchery = ModuleClassLoaderHatchery(1, 2)
+    val parent = FirewalledResourcesClassLoader(null)
+    val donor = ModuleClassLoaderManager.get().getPrivate(
+      parent, ModuleRenderContext.forModule(project.module), this@ModuleClassLoaderHatcheryTest)
+    val cloner = ModuleClassLoaderManager.get()::createCopy
+
+    ModuleClassLoaderOverlays.getInstance(project.module).overlayPath = Files.createTempDirectory("overlay")
+    // Simulate a class being loaded from the overlay
+    donor.injectProjectOvelaryLoadedClass("com.overlay.Class")
+    ModuleClassLoaderOverlays.getInstance(project.module).overlayPath = Files.createTempDirectory("overlay")
+
+    // Create a request for a new class loader and incubate it
+    assertNull(hatchery.requestClassLoader(
+      parent, donor.projectClassesTransform, donor.nonProjectClassesTransform))
+    assertFalse(hatchery.incubateIfNeeded(donor, cloner))
+
     ModuleClassLoaderManager.get().release(donor, this@ModuleClassLoaderHatcheryTest)
   }
 }

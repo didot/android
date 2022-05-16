@@ -5,6 +5,8 @@ import zipfile
 
 PLATFORMS = ["linux", "win", "mac", "mac_arm"]
 
+def _is_symlink(zipinfo):
+  return (zipinfo.external_attr & 0x20000000) > 0
 
 class StudioTests(unittest.TestCase):
   """Performs basic tests on studio artifacts.
@@ -148,17 +150,31 @@ class StudioTests(unittest.TestCase):
     with zipfile.ZipFile(name) as file:
       found = False
       for f in file.infolist():
-        is_symlink = (f.external_attr & 0x20000000) > 0
+        is_symlink = _is_symlink(f)
         if f.filename.endswith("Contents/jre/Contents/MacOS/libjli.dylib"):
           found = True
           self.assertFalse(is_symlink, "Contents/jre/Contents/MacOS/libjli.dylib should not be symlink")
         elif f.filename.endswith("Contents/MacOS/studio"):
           self.assertFalse(f.external_attr == 0x1ED0000, "studio should be \"-rwxr-xr-x\"")
           self.assertFalse(is_symlink, f.filename + " should not be a symlink")
+        elif f.filename.endswith(".app/Contents/Info.plist"):
+          self.assertTrue(f.external_attr == 0x81B40000, "Info.plist should be \"-rw-r--r--\"")
         else:
           self.assertFalse(f.external_attr == 0, "Unix attributes are missing from the entry")
           self.assertFalse(is_symlink, f.filename + " should not be a symlink")
       self.assertTrue(found, "Android Studio.*.app/Contents/jre/Contents/MacOS/libjli.dylib not found")
+
+  def test_mac_arm_symlinks(self):
+    with zipfile.ZipFile("tools/adt/idea/studio/android-studio.mac_arm.zip") as zfile:
+      app_name = zfile.namelist()[0].split('/')[0]
+      jre_frameworks_home = app_name + "/Contents/jre/Contents/Home/Frameworks/JavaNativeFoundation.framework/"
+      # directory symbolic links
+      self.assertTrue(_is_symlink(zfile.getinfo(jre_frameworks_home + "Headers")))
+      self.assertTrue(_is_symlink(zfile.getinfo(jre_frameworks_home + "Modules")))
+      # file symbolic links
+      self.assertTrue(_is_symlink(zfile.getinfo(jre_frameworks_home + "JavaNativeFoundation")))
+      # regular file
+      self.assertFalse(_is_symlink(zfile.getinfo(jre_frameworks_home + "Versions/A/Resources/Info.plist")))
 
   def test_all_files_writable(self):
     for platform in PLATFORMS:

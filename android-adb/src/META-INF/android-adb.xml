@@ -19,10 +19,12 @@
     <applicationService serviceImplementation="com.android.tools.idea.adb.AdbOptionsService" />
     <xdebugger.configurableProvider implementation="com.android.tools.idea.adb.AdbConfigurableProvider" />
     <notificationGroup id="ADB Logs" displayType="NONE"/>
-
-    <projectService serviceInterface="com.android.tools.idea.device.fs.DeviceFileDownloaderService"
-                    serviceImplementation="com.android.tools.idea.explorer.DeviceFileDownloaderServiceImpl" />
   </extensions>
+
+  <extensionPoints>
+    <extensionPoint qualifiedName="com.android.run.deviceNameRenderer"
+                    interface="com.android.tools.idea.ddms.DeviceNameRendererEx"/>
+  </extensionPoints>
 
   <actions>
     <action id="Android.AdbDevicePairing"

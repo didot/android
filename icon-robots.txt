@@ -1,3 +1,6 @@
+skip: tools/base/**/*
+
 skip: android/**/*
 skip: designer/**/*
 skip: smali/**/*
+skip: artwork/compatibilityResources/**/*

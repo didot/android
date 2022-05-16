@@ -28,10 +28,7 @@ iml_module(
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle",
         "//tools/adt/idea/android-common:intellij.android.common[module]",
         "//tools/adt/idea/android:intellij.android.core[module]",
-        "//tools/adt/idea/android-kotlin:dx",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module]",
-        "//tools/adt/idea/project-system-gradle-models:intellij.android.projectSystem.gradle.models[module]",
-        "//tools/adt/idea/project-system-gradle-sync:intellij.android.projectSystem.gradle.sync[module]",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
         "//tools/base/flags:studio.android.sdktools.flags[module]",
         "//tools/adt/idea/lint:intellij.lint[module]",
@@ -39,6 +36,7 @@ iml_module(
         "//tools/adt/idea/intellij.android.compose-common[module]",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin",
         "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module]",
+        "//prebuilts/r8",
     ],
 )
 
@@ -75,7 +73,6 @@ iml_module(
         ":testData",
         "//prebuilts/studio/layoutlib/data:framework_res.jar",
         "//prebuilts/studio/sdk:platforms/latest",
-        "//prebuilts/tools/common/kotlin-plugin:kotlinc-files",
         "//tools/adt/idea/android/annotations",
     ],
     test_srcs = [
@@ -99,7 +96,8 @@ iml_module(
         "//tools/base/flags:studio.android.sdktools.flags[module, test]",
         "//tools/adt/idea/android-common:intellij.android.common[module, test]",
         "//tools/adt/idea/.idea/libraries:truth[test]",
-        "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl.tests[module, test]",
+        "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl.testutils[module, test]",
+        "//tools/adt/idea/android-lint:intellij.android.lint[module, test]",
     ],
 )
 
@@ -110,12 +108,5 @@ filegroup(
         "android-extensions-idea/testData/**",
         "android-extensions-runtime/src/**",
     ]),
-    visibility = ["//visibility:public"],
-)
-
-# managed by go/iml_to_build
-java_import(
-    name = "dx",
-    jars = ["lib/dx.jar"],
     visibility = ["//visibility:public"],
 )

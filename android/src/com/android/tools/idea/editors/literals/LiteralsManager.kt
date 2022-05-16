@@ -35,6 +35,8 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiRecursiveElementWalkingVisitor
 import com.intellij.psi.impl.PsiExpressionEvaluator
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.util.concurrency.AppExecutorUtil
+import org.jetbrains.concurrency.await
 import org.jetbrains.kotlin.asJava.findFacadeClass
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.idea.caches.resolve.analyze
@@ -49,6 +51,7 @@ import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtSimpleNameExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtUnaryExpression
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluator
 import org.jetbrains.kotlin.types.TypeUtils
@@ -84,7 +87,7 @@ object SimplePsiElementUniqueIdProvider : PsiElementUniqueIdProvider {
   private val SAVED_UNIQUE_ID = Key.create<String>("${SimplePsiElementUniqueIdProvider.javaClass.name}.uniqueId")
 
   private fun calculateNewUniqueId(element: PsiElement): String =
-    Objects.hash(element.containingFile.modificationStamp, element.textRange).toString(16)
+    Objects.hash(element.containingFile?.modificationStamp ?: -1, element.textRange).toString(16)
 
   override fun getUniqueId(element: PsiElement): String = element.getCopyableUserData(
     SAVED_UNIQUE_ID) ?: calculateNewUniqueId(
@@ -99,21 +102,26 @@ object SimplePsiElementUniqueIdProvider : PsiElementUniqueIdProvider {
  * the FQN for the class and method name where the [PsiElement] is contained.
  */
 private object DefaultPsiElementLiteralUsageReferenceProvider : PsiElementLiteralUsageReferenceProvider {
-  override fun getLiteralUsageReference(element: PsiElement, constantEvaluator: ConstantEvaluator): LiteralUsageReference =
-    when (element) {
+  override fun getLiteralUsageReference(element: PsiElement, constantEvaluator: ConstantEvaluator): LiteralUsageReference? {
+    val containingFile = element.containingFile ?: return null
+    return when (element) {
       is KtElement -> {
         val className = element.containingClass()?.fqName ?: FqName(element.containingKtFile.findFacadeClass()?.qualifiedName ?: "")
         val methodPath = getTopMostParentFunction(element)
         val methodName = if (methodPath.isRoot) "<init>" else methodPath.asString()
         val range = constantEvaluator.range(element)
-        LiteralUsageReference(FqName("$className.$methodName"), element.containingFile.virtualFile.path, range, element.getLineNumber())
+        val virtualFilePath = containingFile.virtualFile?.path ?: return null
+        LiteralUsageReference(FqName("$className.$methodName"), virtualFilePath, range,
+                              element.getLineNumber())
       }
       else -> {
         val className = PsiTreeUtil.getContextOfType(element, PsiClass::class.java)?.qualifiedName?.let { "$it." } ?: ""
         val methodName = PsiTreeUtil.getContextOfType(element, PsiMethod::class.java)?.name ?: "<init>"
-        LiteralUsageReference(FqName("$className.$methodName"), element.containingFile.name, constantEvaluator.range(element), element.getLineNumber())
+        LiteralUsageReference(FqName("$className.$methodName"), containingFile.name, constantEvaluator.range(element),
+                              element.getLineNumber())
       }
     }
+  }
 }
 
 /**
@@ -160,7 +168,7 @@ interface ConstantEvaluator {
   /**
    * Returns the current [TextRange] for the given [PsiElement].
    */
-  fun range(expression: PsiElement): TextRange = expression.textRange
+  fun range(expression: PsiElement): TextRange = expression.textRange ?: TextRange.EMPTY_RANGE
 }
 
 /**
@@ -255,18 +263,20 @@ private fun findUsages(constantElement: PsiElement,
 /**
  * [LiteralReference] implementation that keeps track of modifications.
  */
-private open class LiteralReferenceImpl(originalElement: PsiElement,
-                                        uniqueIdProvider: PsiElementUniqueIdProvider,
-                                        usageReferenceProvider: PsiElementLiteralUsageReferenceProvider,
-                                        final override val initialConstantValue: Any,
-                                        private val constantEvaluator: ConstantEvaluator,
-                                        onElementAttached: (PsiElement, LiteralReference) -> Unit) : LiteralReference, ModificationTracker {
+private class LiteralReferenceImpl(originalElement: PsiElement,
+                                   uniqueIdProvider: PsiElementUniqueIdProvider,
+                                   usageReferenceProvider: PsiElementLiteralUsageReferenceProvider,
+                                   override val initialConstantValue: Any,
+                                   private val constantEvaluator: ConstantEvaluator,
+                                   onElementAttached: (PsiElement, LiteralReference) -> Unit) : LiteralReference, ModificationTracker {
   init {
     onElementAttached(originalElement, this)
   }
 
   private val elementPointer = ReattachableSmartPsiElementPointer(originalElement) { onElementAttached(it, this) }
-  override val containingFile = originalElement.containingFile
+
+  // The originalElement.containingFile not being nullable is enforced during the visit the PsiElements
+  override val containingFile = originalElement.containingFile!!
   override val usages = findUsages(originalElement, usageReferenceProvider, constantEvaluator)
   override val initialTextRange: TextRange = constantEvaluator.range(originalElement)
   override val uniqueId = uniqueIdProvider.getUniqueId(originalElement)
@@ -366,18 +376,22 @@ private class LiteralReferenceSnapshotImpl(references: Collection<LiteralReferen
 class LiteralsManager(
   private val uniqueIdProvider: PsiElementUniqueIdProvider = SimplePsiElementUniqueIdProvider,
   private val literalUsageReferenceProvider: PsiElementLiteralUsageReferenceProvider = DefaultPsiElementLiteralUsageReferenceProvider) {
-
+  /** Types that can be considered "literals". */
+  private val literalsTypes = setOf(KtConstantExpression::class.java, KtUnaryExpression::class.java)
+  private val literalReadingExecutor = AppExecutorUtil.createBoundedApplicationPoolExecutor(
+    "LiteralsManager executor", (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+  )
   private val LOG = Logger.getInstance(LiteralsManager::class.java)
 
-  private fun findLiterals(root: PsiElement,
-                           constantType: Class<*>,
-                           constantEvaluator: ConstantEvaluator,
-                           elementFilter: (PsiElement) -> Boolean): LiteralReferenceSnapshot {
+  private suspend fun findLiterals(root: PsiElement,
+                                   constantType: Collection<Class<*>>,
+                                   constantEvaluator: ConstantEvaluator,
+                                   elementFilter: (PsiElement) -> Boolean): LiteralReferenceSnapshot {
     val savedLiterals = mutableListOf<LiteralReferenceImpl>()
     ReadAction.nonBlocking {
       root.acceptChildren(object : PsiRecursiveElementWalkingVisitor() {
         override fun visitElement(element: PsiElement) {
-          if (!elementFilter(element) || !element.isValid) return
+          if (!elementFilter(element) || !element.isValid || element.containingFile == null) return
 
           // Special case for string templates
           if (element is KtStringTemplateExpression) {
@@ -409,7 +423,7 @@ class LiteralsManager(
             return
           }
 
-          if (constantType.isInstance(element)) {
+          if (constantType.any { it.isInstance(element) }) {
             constantEvaluator.evaluate(element)?.let {
               // This is a regular constant, save it.
               savedLiterals.add(LiteralReferenceImpl(element,
@@ -425,7 +439,7 @@ class LiteralsManager(
           super.visitElement(element)
         }
       })
-    }.executeSynchronously()
+    }.submit(literalReadingExecutor).await()
 
     return LiteralReferenceSnapshotImpl(savedLiterals)
   }
@@ -433,9 +447,9 @@ class LiteralsManager(
   /**
    * Finds the literals in the given tree root [PsiElement] and returns a [LiteralReferenceSnapshot].
    */
-  fun findLiterals(root: PsiElement): LiteralReferenceSnapshot =
+  suspend fun findLiterals(root: PsiElement): LiteralReferenceSnapshot =
     if (root.language == KotlinLanguage.INSTANCE) {
-      findLiterals(root, KtConstantExpression::class.java, KotlinConstantEvaluator) {
+      findLiterals(root, literalsTypes, KotlinConstantEvaluator) {
         it !is KtAnnotationEntry // Exclude annotations since we do not process literals in them.
         && it !is KtSimpleNameExpression // Exclude variable constants.
       }

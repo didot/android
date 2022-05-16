@@ -36,6 +36,7 @@ import com.intellij.util.messages.Topic
  * that before the gradle initialization is done, it returns the folder set as it was before the IDE exited.
  */
 class ResourceFolderManager(val module: Module) : ModificationTracker {
+
   companion object {
     private val FOLDERS_KEY = Key.create<Folders>(ResourceFolderManager::class.qualifiedName!!)
 
@@ -112,27 +113,26 @@ class ResourceFolderManager(val module: Module) : ModificationTracker {
   /** Notifies the resource folder manager that the resource folder set may have changed.  */
   fun checkForChanges() {
     if (module.isDisposed) return
-    val facet = AndroidFacet.getInstance(module) ?: return
+    val facet = module.androidFacet ?: return
     val before = facet.getUserData(FOLDERS_KEY) ?: return
     facet.putUserData(FOLDERS_KEY, null)
     val after = mainAndTestFolders
-    notifyIfChanged(before, after, Folders::main) { resourceFolderListener, folders ->
-      resourceFolderListener.mainResourceFoldersChanged(facet, folders)
-    }
-    notifyIfChanged(before, after, Folders::test) { resourceFolderListener, folders ->
-      resourceFolderListener.testResourceFoldersChanged(facet, folders)
-    }
+    notifyIfChanged(before, after, Folders::main, ResourceFolderListener::mainResourceFoldersChanged)
+    notifyIfChanged(before, after, Folders::test, ResourceFolderListener::testResourceFoldersChanged)
   }
 
-  private inline fun notifyIfChanged(before: Folders,
-                                     after: Folders,
-                                     filesToCheck: (Folders) -> List<VirtualFile>,
-                                     callback: (ResourceFolderListener, List<VirtualFile>) -> Unit) {
-    val filesBefore = filesToCheck(before)
-    val filesAfter = filesToCheck(after)
+  private inline fun notifyIfChanged(
+    before: Folders,
+    after: Folders,
+    filesToCheck: Folders.() -> List<VirtualFile>,
+    callback: ResourceFolderListener.(AndroidFacet, List<VirtualFile>) -> Unit
+  ) {
+    val filesBefore = before.filesToCheck()
+    val filesAfter = after.filesToCheck()
     if (filesBefore != filesAfter) {
       generation++
-      callback(module.project.messageBus.syncPublisher(TOPIC), filesToCheck(after))
+      val facet = module.androidFacet ?: return
+      module.project.messageBus.syncPublisher(TOPIC).callback(facet, after.filesToCheck())
     }
   }
 

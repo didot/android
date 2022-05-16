@@ -37,19 +37,19 @@ import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.testFramework.ProjectRule
-import org.jetbrains.kotlin.konan.file.File
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.Mock
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.argThat
 import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import org.mockito.junit.MockitoJUnit
 import org.mockito.quality.Strictness
+import java.io.File
 
 /**
  * Unit tests for [DdmlibTestRunListenerAdapter].
@@ -412,6 +412,7 @@ class DdmlibTestRunListenerAdapterTest {
 
       override fun onTestCaseFinished(device: AndroidDevice, testSuite: AndroidTestSuite, testCase: AndroidTestCase) {}
       override fun onTestSuiteFinished(device: AndroidDevice, testSuite: AndroidTestSuite) {}
+      override fun onRerunScheduled(device: AndroidDevice) {}
     })
 
     adapter.testRunStarted("exampleTestSuite", /*testCount=*/1)

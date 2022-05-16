@@ -16,11 +16,11 @@
 
 package com.android.tools.idea.logcat;
 
+import static com.intellij.execution.ui.ConsoleViewContentType.registerNewConsoleViewType;
+
 import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.util.Key;
-
-import static com.intellij.execution.ui.ConsoleViewContentType.registerNewConsoleViewType;
 
 public final class AndroidLogcatConstants {
   public static final TextAttributesKey VERBOSE_OUTPUT_KEY =
@@ -41,12 +41,12 @@ public final class AndroidLogcatConstants {
   public static final TextAttributesKey ASSERT_OUTPUT_KEY =
     TextAttributesKey.createTextAttributesKey("LOGCAT_ASSERT_OUTPUT", ConsoleViewContentType.ERROR_OUTPUT_KEY);
 
-  public static final Key VERBOSE = new Key("verbose.level.title");
-  public static final Key DEBUG = new Key("debug.level.title");
-  public static final Key INFO = new Key("info.level.title");
-  public static final Key WARNING = new Key("warning.level.title");
-  public static final Key ERROR = new Key("error.level.title");
-  public static final Key ASSERT = new Key("assert.level.title");
+  public static final Key<?> VERBOSE = new Key<>("verbose.level.title");
+  public static final Key<?> DEBUG = new Key<>("debug.level.title");
+  public static final Key<?> INFO = new Key<>("info.level.title");
+  public static final Key<?> WARNING = new Key<>("warning.level.title");
+  public static final Key<?> ERROR = new Key<>("error.level.title");
+  public static final Key<?> ASSERT = new Key<>("assert.level.title");
 
   static {
     registerNewConsoleViewType(VERBOSE, new ConsoleViewContentType(VERBOSE.toString(), VERBOSE_OUTPUT_KEY));

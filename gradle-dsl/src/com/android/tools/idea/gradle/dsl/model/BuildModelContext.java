@@ -15,12 +15,10 @@
  */
 package com.android.tools.idea.gradle.dsl.model;
 
-import static com.android.tools.idea.gradle.dsl.GradleUtil.FN_GRADLE_PROPERTIES;
 import static com.android.tools.idea.gradle.dsl.parser.build.SubProjectsDslElement.SUBPROJECTS;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
+import static com.android.tools.idea.gradle.dsl.utils.SdkConstants.FN_GRADLE_PROPERTIES;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 
-import com.android.tools.idea.gradle.dsl.GradleDslBuildScriptUtil;
 import com.android.tools.idea.gradle.dsl.api.BuildModelNotification;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.GradleSettingsModel;
@@ -37,13 +35,16 @@ import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFileCache;
 import com.android.tools.idea.gradle.dsl.parser.files.GradlePropertiesFile;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleSettingsFile;
+import com.android.tools.idea.gradle.dsl.parser.semantics.AndroidGradlePluginVersion;
 import com.android.tools.idea.gradle.dsl.parser.semantics.DescribedGradlePropertiesDslElement;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
+import com.android.tools.idea.gradle.dsl.utils.BuildScriptUtil;
 import com.google.common.collect.ClassToInstanceMap;
 import com.google.common.collect.MutableClassToInstanceMap;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.util.ArrayList;
@@ -86,6 +87,8 @@ public final class BuildModelContext {
   private final DependencyManager myDependencyManager;
   @Nullable
   private GradleBuildFile myRootProjectFile;
+  @Nullable
+  private AndroidGradlePluginVersion agpVersion;
 
   public void setRootProjectFile(@NotNull GradleBuildFile rootProjectFile) {
     myRootProjectFile = rootProjectFile;
@@ -94,6 +97,15 @@ public final class BuildModelContext {
   @Nullable
   public GradleBuildFile getRootProjectFile() {
     return myRootProjectFile;
+  }
+
+  public void setAgpVersion(@Nullable AndroidGradlePluginVersion agpVersion) {
+    this.agpVersion = agpVersion;
+  }
+
+  @Nullable
+  public AndroidGradlePluginVersion getAgpVersion() {
+    return agpVersion;
   }
 
   @NotNull
@@ -240,9 +252,8 @@ public final class BuildModelContext {
     }
     GradlePropertiesModel propertiesModel = new GradlePropertiesModel(parsedProperties);
 
-    GradleDslFile propertiesDslFile = propertiesModel.myGradleDslFile;
-    buildDslFile.setSiblingDslFile(propertiesDslFile);
-    propertiesDslFile.setSiblingDslFile(buildDslFile);
+    GradlePropertiesFile propertiesDslFile = propertiesModel.myGradlePropertiesFile;
+    buildDslFile.setPropertiesFile(propertiesDslFile);
   }
 
   private void populateWithParentModuleSubProjectsProperties(@NotNull GradleBuildFile buildDslFile) {
@@ -265,8 +276,8 @@ public final class BuildModelContext {
 
     GradleBuildModelImpl parentModuleModelImpl = (GradleBuildModelImpl)parentModuleModel;
 
-    GradleDslFile parentModuleDslFile = parentModuleModelImpl.myGradleDslFile;
-    buildDslFile.setParentModuleDslFile(parentModuleDslFile);
+    GradleBuildFile parentModuleDslFile = parentModuleModelImpl.myGradleBuildFile;
+    buildDslFile.setParentModuleBuildFile(parentModuleDslFile);
 
     SubProjectsDslElement subProjectsDslElement = parentModuleDslFile.getPropertyElement(SUBPROJECTS);
     if (subProjectsDslElement == null) {
@@ -278,7 +289,7 @@ public final class BuildModelContext {
       GradleDslElement element = entry.getValue();
       if (element instanceof ApplyDslElement) {
         ApplyDslElement subProjectsApply = (ApplyDslElement)element;
-        ApplyDslElement myApply = new ApplyDslElement(buildDslFile);
+        ApplyDslElement myApply = new ApplyDslElement(buildDslFile, buildDslFile);
         buildDslFile.setParsedElement(myApply);
         for (GradleDslElement appliedElement : subProjectsApply.getAllElements()) {
           myApply.addParsedElement(appliedElement);
@@ -330,7 +341,7 @@ public final class BuildModelContext {
 
     @SystemIndependent String rootPath = myResolvedConfigurationFileLocationProvider.getGradleProjectRootPath(module);
     if (rootPath == null) return null;
-    File moduleRoot = new File(toSystemDependentName(rootPath));
+    File moduleRoot = new File(FileUtilRt.toSystemDependentName(rootPath));
     return getGradleBuildFile(moduleRoot);
   }
 
@@ -349,7 +360,7 @@ public final class BuildModelContext {
    */
   @Nullable
   public VirtualFile getGradleBuildFile(@NotNull File dirPath) {
-    File gradleBuildFilePath = GradleDslBuildScriptUtil.findGradleBuildFile(dirPath);
+    File gradleBuildFilePath = BuildScriptUtil.findGradleBuildFile(dirPath);
     VirtualFile result = findFileByIoFile(gradleBuildFilePath, false);
     return (result != null && result.isValid()) ? result : null;
   }
@@ -366,7 +377,7 @@ public final class BuildModelContext {
    */
   @Nullable
   public VirtualFile getGradleSettingsFile(@NotNull File dirPath) {
-    File gradleSettingsFilePath = GradleDslBuildScriptUtil.findGradleSettingsFile(dirPath);
+    File gradleSettingsFilePath = BuildScriptUtil.findGradleSettingsFile(dirPath);
     VirtualFile result = findFileByIoFile(gradleSettingsFilePath, false);
     return (result != null && result.isValid()) ? result : null;
   }
@@ -375,6 +386,6 @@ public final class BuildModelContext {
   public VirtualFile getProjectSettingsFile() {
     @SystemIndependent String rootPath = myResolvedConfigurationFileLocationProvider.getGradleProjectRootPath(getProject());
     if (rootPath == null) return null;
-    return getGradleSettingsFile(new File(toSystemDependentName(rootPath)));
+    return getGradleSettingsFile(new File(FileUtilRt.toSystemDependentName(rootPath)));
   }
 }

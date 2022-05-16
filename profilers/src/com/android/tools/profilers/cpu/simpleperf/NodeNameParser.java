@@ -15,11 +15,14 @@
  */
 package com.android.tools.profilers.cpu.simpleperf;
 
-import com.android.tools.profilers.cpu.nodemodel.*;
+import com.android.tools.profilers.cpu.nodemodel.CaptureNodeModel;
+import com.android.tools.profilers.cpu.nodemodel.CppFunctionModel;
+import com.android.tools.profilers.cpu.nodemodel.JavaMethodModel;
+import com.android.tools.profilers.cpu.nodemodel.SyscallModel;
 import com.intellij.openapi.diagnostic.Logger;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -29,6 +32,9 @@ import org.jetbrains.annotations.Nullable;
 public class NodeNameParser {
 
   private static final Pattern JAVA_SEPARATOR_PATTERN = Pattern.compile("\\.");
+
+  private static final String[] COMMON_PATH_PREFIXES = {"/apex/", "/system/", "/vendor/"};
+  private static final String[] COMMON_PATH_PREFIXES_DISPLAY = {"/apex/*", "/system/*", "/vendor/*"};
 
   private static Logger getLogger() {
     return Logger.getInstance(NodeNameParser.class);
@@ -56,7 +62,7 @@ public class NodeNameParser {
     }
     else {
       // Node represents a syscall.
-      return new SyscallModel(fullName);
+      return new SyscallModel(tagFromFileName(fileName), fullName);
     }
   }
 
@@ -108,6 +114,7 @@ public class NodeNameParser {
       .setIsUserCode(isUserWritten)
       .setParameters(removeTemplateInfo(parameters))
       .setFileName(fileName)
+      .setTag(tagFromFileName(fileName))
       .setVAddress(vAddress)
       .build();
   }
@@ -236,6 +243,14 @@ public class NodeNameParser {
       className.append(".");
       className.append(splittedMethod[i]);
     }
-    return new JavaMethodModel(methodName, className.toString());
+    return new JavaMethodModel(methodName, className.toString(), "");
+  }
+
+  private static String tagFromFileName(String fileName) {
+    return fileName == null ? null :
+           IntStream.range(0, COMMON_PATH_PREFIXES.length)
+             .filter(i -> fileName.startsWith(COMMON_PATH_PREFIXES[i]))
+             .mapToObj(i -> COMMON_PATH_PREFIXES_DISPLAY[i])
+             .findAny().orElse(fileName);
   }
 }

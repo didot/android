@@ -1,7 +1,7 @@
 // Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.android.tools.idea.gradle.dsl.model
 
-import com.android.tools.idea.gradle.dsl.TestFileNameImpl
+import com.android.tools.idea.gradle.dsl.TestFileName
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel
 import com.android.tools.idea.gradle.dsl.api.android.AndroidModel
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel
@@ -18,7 +18,9 @@ import com.google.common.collect.HashBiMap
 import com.google.common.collect.ImmutableMap
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.testFramework.UsefulTestCase
+import org.jetbrains.annotations.SystemDependent
 import org.junit.Test
+import java.io.File
 
 class GradleBlockModelTest : GradleFileModelTestCase() {
 
@@ -31,7 +33,7 @@ class GradleBlockModelTest : GradleFileModelTestCase() {
 
   @Test
   fun testPluggableBlockCanBeRead() {
-    writeToBuildFile(TestFileNameImpl.PLUGGABLE_BLOCK)
+    writeToBuildFile(TestFile.PLUGGABLE_BLOCK)
 
     val buildModel = gradleBuildModel
     val myTestModel = buildModel.getModel(MyTestDslModel::class.java)
@@ -46,13 +48,13 @@ class GradleBlockModelTest : GradleFileModelTestCase() {
     val myTestModel = buildModel.getModel(MyTestDslModel::class.java)
     myTestModel.setDigit(1)
     applyChangesAndReparse(buildModel)
-    verifyFileContents(myBuildFile, TestFileNameImpl.PLUGGABLE_BLOCK_WRITE_EXPECTED)
+    verifyFileContents(myBuildFile, TestFile.PLUGGABLE_BLOCK_WRITE_EXPECTED)
     assertEquals(1, myTestModel.getDigit())
   }
 
   @Test
   fun testPluggableBlockResolved() {
-    writeToBuildFile(TestFileNameImpl.PLUGGABLE_BLOCK_RESOLVED)
+    writeToBuildFile(TestFile.PLUGGABLE_BLOCK_RESOLVED)
 
     val buildModel = gradleBuildModel
     val myTestModel = buildModel.getModel(MyTestDslModel::class.java)
@@ -61,7 +63,7 @@ class GradleBlockModelTest : GradleFileModelTestCase() {
 
   @Test
   fun testPluggableNestedBlock() {
-    writeToBuildFile(TestFileNameImpl.PLUGGABLE_BLOCK_NESTED)
+    writeToBuildFile(TestFile.PLUGGABLE_BLOCK_NESTED)
     val buildModel = gradleBuildModel
     val myTestModel = buildModel.getModel(MyTestDslModel::class.java)
     val myNestedTestDslModel = myTestModel.getNestedModel(MyNestedDslModel::class.java)
@@ -78,7 +80,7 @@ class GradleBlockModelTest : GradleFileModelTestCase() {
     val myNestedTestDslModel = myTestModel.getNestedModel(MyNestedDslModel::class.java)
     myNestedTestDslModel.setValue("Qwerty")
     applyChangesAndReparse(buildModel)
-    verifyFileContents(myBuildFile, TestFileNameImpl.PLUGGABLE_BLOCK_NESTED)
+    verifyFileContents(myBuildFile, TestFile.PLUGGABLE_BLOCK_NESTED)
   }
 
 
@@ -100,6 +102,17 @@ class GradleBlockModelTest : GradleFileModelTestCase() {
       writeToBuildFile("")
       val buildModel = gradleBuildModel
       buildModel.getModel(MyNestedDslModel::class.java)
+    }
+  }
+
+  internal enum class TestFile(private val path: @SystemDependent String) : TestFileName {
+    PLUGGABLE_BLOCK("pluggableBlock/pluggableBlock"),
+    PLUGGABLE_BLOCK_RESOLVED("pluggableBlock/pluggableBlockResolved"),
+    PLUGGABLE_BLOCK_WRITE_EXPECTED("pluggableBlock/pluggableBlockWriteExpected"),
+    PLUGGABLE_BLOCK_NESTED("pluggableBlock/pluggableBlockNested");
+
+    override fun toFile(basePath: @SystemDependent String, extension: String): File {
+      return super.toFile("$basePath/gradleBuildModelImpl/$path", extension)
     }
   }
 }

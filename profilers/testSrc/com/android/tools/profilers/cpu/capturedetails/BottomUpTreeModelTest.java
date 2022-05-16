@@ -15,17 +15,17 @@
  */
 package com.android.tools.profilers.cpu.capturedetails;
 
-import com.android.tools.adtui.model.AspectObserver;
-import com.android.tools.adtui.model.Range;
-import org.jetbrains.annotations.NotNull;
-import org.junit.Before;
-import org.junit.Test;
-
-import javax.swing.tree.DefaultMutableTreeNode;
-
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+
+import com.android.tools.adtui.model.AspectObserver;
+import com.android.tools.adtui.model.Range;
+import com.android.tools.perflib.vmtrace.ClockType;
+import javax.swing.tree.DefaultMutableTreeNode;
+import org.jetbrains.annotations.NotNull;
+import org.junit.Before;
+import org.junit.Test;
 
 public class BottomUpTreeModelTest {
   private BottomUpTreeModel myModel;
@@ -33,7 +33,7 @@ public class BottomUpTreeModelTest {
   @Before
   public void setUp() {
     myRange = new Range(0, 40);
-    myModel = new BottomUpTreeModel(myRange, new BottomUpNode(BottomUpNodeTest.createComplexTree()));
+    myModel = new BottomUpTreeModel(ClockType.GLOBAL, myRange, new BottomUpNode(BottomUpNodeTest.createComplexTree()));
   }
 
   @Test

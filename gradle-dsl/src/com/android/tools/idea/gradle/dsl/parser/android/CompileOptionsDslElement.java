@@ -27,50 +27,30 @@ import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.elements.BaseCompileOptionsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
 public class CompileOptionsDslElement extends BaseCompileOptionsDslElement {
-
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelNameMap =
-    Stream.concat(
-      BaseCompileOptionsDslElement.ktsToModelNameMap.entrySet().stream().map(data -> new Object[]{
-        data.getKey().name, data.getKey().arity, data.getValue().property, data.getValue().semantics
-      }),
-      Stream.of(new Object[][]{
-        {"encoding", property, ENCODING, VAR},
-        {"incremental", property, INCREMENTAL, VAR}
-      })).collect(toModelMap());
-
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelNameMap =
-    Stream.concat(
-      BaseCompileOptionsDslElement.groovyToModelNameMap.entrySet().stream().map(data -> new Object[]{
-        data.getKey().name, data.getKey().arity, data.getValue().property, data.getValue().semantics
-      }),
-      Stream.of(new Object[][]{
-        {"encoding", property, ENCODING, VAR},
-        {"encoding", exactly(1), ENCODING, SET},
-        {"incremental", property, INCREMENTAL, VAR},
-        {"incremental", exactly(1), INCREMENTAL, SET},
-      })).collect(toModelMap());
   public static final PropertiesElementDescription<CompileOptionsDslElement> COMPILE_OPTIONS =
     new PropertiesElementDescription<>("compileOptions", CompileOptionsDslElement.class, CompileOptionsDslElement::new);
 
+  public static final ExternalToModelMap ktsToModelNameMap = Stream.of(new Object[][]{
+    {"encoding", property, ENCODING, VAR},
+    {"incremental", property, INCREMENTAL, VAR}
+  }).collect(toModelMap(BaseCompileOptionsDslElement.ktsToModelNameMap));
+
+  public static final ExternalToModelMap groovyToModelNameMap = Stream.of(new Object[][]{
+    {"encoding", property, ENCODING, VAR},
+    {"encoding", exactly(1), ENCODING, SET},
+    {"incremental", property, INCREMENTAL, VAR},
+    {"incremental", exactly(1), INCREMENTAL, SET},
+  }).collect(toModelMap(BaseCompileOptionsDslElement.groovyToModelNameMap));
+
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter.isKotlin()) {
-      return ktsToModelNameMap;
-    }
-    else if (converter.isGroovy()) {
-      return groovyToModelNameMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelNameMap, ktsToModelNameMap);
   }
 
   public CompileOptionsDslElement(@NotNull GradleDslElement parent, @NotNull GradleNameElement name) {

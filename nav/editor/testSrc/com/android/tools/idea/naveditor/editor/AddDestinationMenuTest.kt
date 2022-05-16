@@ -40,7 +40,6 @@ import com.google.wireless.android.sdk.stats.NavEditorEvent
 import com.google.wireless.android.sdk.stats.NavEditorEvent.NavEditorEventType.ADD_DESTINATION
 import com.google.wireless.android.sdk.stats.NavEditorEvent.NavEditorEventType.ADD_INCLUDE
 import com.google.wireless.android.sdk.stats.NavEditorEvent.NavEditorEventType.CREATE_FRAGMENT
-import com.intellij.idea.Bombed
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.project.rootManager
@@ -53,14 +52,12 @@ import com.intellij.psi.xml.XmlFile
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.fixtures.IdeaProjectTestFixture
 import com.intellij.testFramework.fixtures.TestFixtureBuilder
-import com.intellij.util.ui.UIUtil.dispatchAllInvocationEvents
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.spy
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import java.awt.event.MouseEvent
 import java.io.File
-import java.util.*
 import java.util.stream.Collectors
 
 // TODO: testing with custom navigators
@@ -107,8 +104,6 @@ class AddDestinationMenuTest : NavTestCase() {
     setupMainMenuPanel()
   }
 
-  @Bombed(year = 2020, month = Calendar.OCTOBER, day = 1, user = "Andrei.Kuznetsov",
-          description = "missing path: ../unitTest/res/layout/activity_main.xml")
   fun testContent() {
     val virtualFile = findVirtualProjectFile(project, "res/layout/activity_main.xml")
     val xmlFile = PsiManager.getInstance(project).findFile(virtualFile!!) as XmlFile
@@ -158,7 +153,7 @@ class AddDestinationMenuTest : NavTestCase() {
       parent, "activity", null, findClass("mytest.navtest.activity3"), layoutFile = activity3XmlFile)
     val mainActivity = Destination.RegularDestination(
       parent, "activity", null, findClass("mytest.navtest.MainActivity"), layoutFile = xmlFile)
-    dispatchAllInvocationEvents();
+    waitForResourceRepositoryUpdates()
 
     val expected = mutableListOf(placeHolder, blankFragment, dynamicFragment, fragment1, fragment2, fragment3, include1, include2, include3,
                                  includeNav, activity2, activity3, mainActivity)
@@ -555,7 +550,7 @@ class AddDestinationMenuDependencyTest : NavTestCase() {
 
     val blankFragment = Destination.RegularDestination(
       model.components[0], "fragment", null, psiClass, layoutFile = xmlFile)
-    dispatchAllInvocationEvents();
+    waitForResourceRepositoryUpdates();
 
     val menu = AddDestinationMenu(surface)
     assertEquals(blankFragment, menu.destinations[1])

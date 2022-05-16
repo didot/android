@@ -92,16 +92,16 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancelAndJoin
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.facet.AndroidFacetConfiguration
-import org.mockito.ArgumentMatchers.anyString
 import org.mockito.InOrder
 import org.mockito.Mockito
-import org.mockito.Mockito.`when`
+import org.mockito.Mockito.anyString
 import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.spy
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyZeroInteractions
+import org.mockito.Mockito.`when`
 import java.util.concurrent.Executor
 import javax.swing.Icon
 import javax.swing.JComponent
@@ -229,6 +229,43 @@ class DatabaseInspectorControllerTest : HeavyPlatformTestCase() {
       tempDirTestFixture.tearDown()
       super.tearDown()
     }
+  }
+
+  fun testAllTabsAreClosedOnDisposed() {
+    // Prepare
+    // open evaluator tab
+    databaseInspectorView.viewListeners.single().openSqliteEvaluatorTabActionInvoked()
+    PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+
+    // open query tab
+    `when`(mockDatabaseConnection.readSchema()).thenReturn(Futures.immediateFuture(testSqliteSchema1))
+    runDispatching {
+      databaseInspectorController.addSqliteDatabase(databaseId1)
+    }
+
+    databaseInspectorView.viewListeners.single().tableNodeActionInvoked(databaseId1, testSqliteTable)
+    PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+
+    verify(databaseInspectorView).openTab(
+      TabId.AdHocQueryTab(1),
+      "New Query [1]",
+      StudioIcons.DatabaseInspector.TABLE,
+      viewsFactory.sqliteEvaluatorView.component
+    )
+    verify(databaseInspectorView).openTab(
+      TabId.TableTab(databaseId1, testSqliteTable.name),
+      testSqliteTable.name,
+      StudioIcons.DatabaseInspector.TABLE,
+      viewsFactory.tableView.component
+    )
+
+    // Act
+    Disposer.dispose(databaseInspectorController)
+    PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+
+    // Assert
+    verify(databaseInspectorView).closeTab(TabId.AdHocQueryTab(1))
+    verify(databaseInspectorView).closeTab(TabId.TableTab(databaseId1, testSqliteTable.name))
   }
 
   fun testAddSqliteDatabase() {

@@ -18,7 +18,7 @@ package com.android.tools.adtui.workbench;
 import static com.android.tools.adtui.workbench.AttachedToolWindow.TOOL_WINDOW_PROPERTY_PREFIX;
 import static com.android.tools.adtui.workbench.PalettePanelToolContent.MIN_TOOL_WIDTH;
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -38,7 +38,9 @@ import com.intellij.openapi.ui.ThreeComponentsSplitter;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.EventDispatcher;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.KeyboardFocusManager;
+import java.awt.Point;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.InputEvent;
@@ -47,7 +49,12 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.lang.reflect.Field;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.AbstractButton;
+import javax.swing.BoxLayout;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import org.jetbrains.annotations.NotNull;
 import org.mockito.Mock;
 
@@ -82,6 +89,8 @@ public class WorkBenchTest extends WorkBenchTestCase {
     registerApplicationService(PropertiesComponent.class, new PropertiesComponentMock());
     when(myFileEditorManager.getSelectedEditors()).thenReturn(FileEditor.EMPTY_ARRAY);
     when(myFileEditorManager.getOpenFiles()).thenReturn(VirtualFile.EMPTY_ARRAY);
+    //noinspection UnstableApiUsage
+    when(myFileEditorManager.getOpenFilesWithRemotes()).thenReturn(VirtualFile.EMPTY_ARRAY);
     when(myFileEditorManager.getAllEditors()).thenReturn(FileEditor.EMPTY_ARRAY);
     registerProjectComponent(FileEditorManager.class, myFileEditorManager);
     myContent = new JPanel();
@@ -95,7 +104,7 @@ public class WorkBenchTest extends WorkBenchTestCase {
     myRightMinimizePanel.setLayout(new BoxLayout(myRightMinimizePanel, BoxLayout.Y_AXIS));
     WorkBench.InitParams<String> initParams = new WorkBench.InitParams<>(myModel, mySplitter, myLeftMinimizePanel, myRightMinimizePanel);
     mySplitter.setSize(1000, 600);
-    myWorkBench = new WorkBench<>(getProject(), "BENCH", myFileEditor, initParams, myFloatingToolWindowManager);
+    myWorkBench = new WorkBench<>(getProject(), "BENCH", myFileEditor, initParams, myFloatingToolWindowManager, 1000);
     JRootPane rootPane = new JRootPane();
     rootPane.add(myWorkBench);
     List<ToolWindowDefinition<String>> definitions = ImmutableList.of(PalettePanelToolContent.getDefinition(),

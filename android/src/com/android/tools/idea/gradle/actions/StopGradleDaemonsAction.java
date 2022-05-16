@@ -15,11 +15,11 @@
  */
 package com.android.tools.idea.gradle.actions;
 
+import static com.android.tools.idea.gradle.util.GradleUtil.stopAllGradleDaemonsAndRestart;
+
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAwareAction;
 import org.jetbrains.annotations.NotNull;
-
-import static com.android.tools.idea.gradle.util.GradleUtil.stopAllGradleDaemonsAndRestart;
 
 /**
  * Internal action that stops all running Gradle daemons.

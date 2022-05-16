@@ -15,7 +15,11 @@
  */
 package com.android.tools.idea.configurations;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.android.tools.adtui.actions.ActionTestUtils;
+import com.android.tools.idea.flags.StudioFlags;
 import com.google.common.truth.Truth;
 import com.intellij.openapi.actionSystem.ActionPlaces;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -24,10 +28,19 @@ import com.intellij.openapi.actionSystem.impl.PresentationFactory;
 import com.intellij.openapi.actionSystem.impl.Utils;
 import org.jetbrains.android.AndroidTestCase;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 public class DeviceMenuActionTest extends AndroidTestCase {
+
+  @Override
+  protected void setUp() throws Exception {
+    super.setUp();
+    StudioFlags.NELE_NEW_DEVICE_MENU.override(false);
+  }
+
+  @Override
+  protected void tearDown() throws Exception {
+    StudioFlags.NELE_NEW_DEVICE_MENU.clearOverride();
+    super.tearDown();
+  }
 
   public void testActions() {
     Configuration configuration = mock(Configuration.class);
@@ -36,7 +49,7 @@ public class DeviceMenuActionTest extends AndroidTestCase {
 
     ConfigurationHolder holder = () -> configuration;
 
-    DeviceMenuAction menuAction = new DeviceMenuAction(holder);
+    DeviceMenuAction menuAction = new DeviceMenuAction(holder, (oldDevice, newDevice) -> {});
     menuAction.updateActions(DataContext.EMPTY_CONTEXT);
     PresentationFactory presentationFactory = new PresentationFactory();
     Utils.expandActionGroup(menuAction, presentationFactory, DataContext.EMPTY_CONTEXT, ActionPlaces.TOOLBAR);
@@ -68,11 +81,13 @@ public class DeviceMenuActionTest extends AndroidTestCase {
       "    10.1, 2560 \u00d7 1600, xhdpi (Nexus 10)\n" +
       "    ------------------------------------------------------\n" +
       "    Wear\n" +
-      "    280 \u00d7 280, hdpi (Square)\n" +
-      "    320 \u00d7 320, hdpi (Round)\n" +
-      "    320 \u00d7 290, tvdpi (Round Chin)\n" +
+      "    384 \u00d7 384, xhdpi (Small Round)\n" +
+      "    402 \u00d7 476, xhdpi (Rectangular)\n" +
+      "    360 \u00d7 360, xhdpi (Square)\n" +
+      "    454 \u00d7 454, xhdpi (Large Round)\n" +
       "    ------------------------------------------------------\n" +
       "    TV\n" +
+      "    4K, 3840 \u00d7 2160, xxxhdpi (TV)\n" +
       "    1080p, 1920 \u00d7 1080, xhdpi (TV)\n" +
       "    720p, 1280 \u00d7 720, tvdpi (TV)\n" +
       "    ------------------------------------------------------\n" +
@@ -95,14 +110,15 @@ public class DeviceMenuActionTest extends AndroidTestCase {
       "         4.7\" WXGA (1280 \u00d7 720, xhdpi)\n" +
       "         5.1\" WVGA (480 \u00d7 800, mdpi)\n" +
       "         5.4\" FWVGA (480 \u00d7 854, mdpi)\n" +
+      "        Resizable (1080 \u00d7 2340, 420dpi)\n" +
       "         6.7\" Horizontal Fold-in (1080 \u00d7 2636, xxhdpi)\n" +
       "         7.0\" WSVGA (Tablet) (1024 \u00d7 600, mdpi)\n" +
       "         7.4\" Rollable (1600 \u00d7 2428, 420dpi)\n" +
-      "         7.6\" Fold-in with outer display (1768 \u00d7 2208, xxhdpi)\n" +
+      "         7.6\" Fold-in with outer display (1768 \u00d7 2208, 420dpi)\n" +
       "         8.0\" Fold-out (2200 \u00d7 2480, 420dpi)\n" +
       "        10.1\" WXGA (Tablet) (1280 \u00d7 800, mdpi)\n" +
       "        13.5\" Freeform (2560 \u00d7 1440, hdpi)\n" +
-      "    Add Device Definition…\n";
+      "    Add Device Definition\n";
     Truth.assertThat(actual).isEqualTo(expected);
   }
 

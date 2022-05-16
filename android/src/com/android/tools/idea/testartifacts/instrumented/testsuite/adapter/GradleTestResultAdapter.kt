@@ -15,8 +15,16 @@
  */
 package com.android.tools.idea.testartifacts.instrumented.testsuite.adapter
 
+import com.android.annotations.concurrency.UiThread
 import com.android.ddmlib.IDevice
 import com.android.ddmlib.testrunner.TestIdentifier
+import com.android.tools.analytics.UsageTracker
+import com.android.tools.deployer.ApkInstaller
+import com.android.tools.deployer.InstallStatus
+import com.android.tools.idea.gradle.model.IdeAndroidArtifact
+import com.android.tools.idea.stats.AndroidStudioUsageTracker
+import com.android.tools.idea.stats.findTestLibrariesVersions
+import com.android.tools.idea.stats.toProtoValue
 import com.android.tools.idea.testartifacts.instrumented.testsuite.api.AndroidTestResultListener
 import com.android.tools.idea.testartifacts.instrumented.testsuite.model.AndroidDevice
 import com.android.tools.idea.testartifacts.instrumented.testsuite.model.AndroidTestCase
@@ -28,6 +36,10 @@ import com.google.testing.platform.proto.api.core.TestCaseProto
 import com.google.testing.platform.proto.api.core.TestResultProto
 import com.google.testing.platform.proto.api.core.TestStatusProto
 import com.google.testing.platform.proto.api.core.TestSuiteResultProto
+import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.TestRun
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.psi.util.ClassUtil
 import java.io.File
 import java.util.UUID
@@ -35,18 +47,29 @@ import java.util.UUID
 /**
  * An adapter to parse instrumentation test result protobuf messages from AGP and forward them to AndroidTestResultListener
  */
-class GradleTestResultAdapter(device: IDevice,
-                              private val testSuiteDisplayName: String,
-                              private val listener: AndroidTestResultListener): TaskOutputProcessorListener {
+class GradleTestResultAdapter(
+  val iDevice: IDevice,
+  private val testSuiteDisplayName: String,
+  private val artifact: IdeAndroidArtifact?,
+  private val listener: AndroidTestResultListener,
+  private val logStudioEvent: (AndroidStudioEvent.Builder) -> Unit = UsageTracker::log
+): TaskOutputProcessorListener {
 
-  val device: AndroidDevice = convertIDeviceToAndroidDevice(device)
+  val device: AndroidDevice = convertIDeviceToAndroidDevice(iDevice)
 
   init {
     // Schedule test suite for selected devices when instrumentation tests are executed by AGP.
-    listener.onTestSuiteScheduled(this.device)
+    listener.onTestSuiteScheduled(device)
   }
 
   private lateinit var myTestSuite: AndroidTestSuite
+  private lateinit var myUtpTestSuiteResult: TestSuiteResultProto.TestSuiteResult
+
+  /**
+   * Returns true when the test suite started otherwise false.
+   */
+  val testSuiteStarted: Boolean
+    get() = this::myTestSuite.isInitialized
 
   private val myTestCases = mutableMapOf<TestIdentifier, AndroidTestCase>()
 
@@ -55,7 +78,28 @@ class GradleTestResultAdapter(device: IDevice,
   // yet to be able to group them together across multiple devices.
   private val myTestCaseRunCount: MutableMap<String, Int> = mutableMapOf()
 
+  // A studio event builder to be reported for logging testing feature usage.
+  // This event will be reported when a test suite finishes.
+  private val myStudioEventBuilder = AndroidStudioEvent.newBuilder().apply {
+    category = AndroidStudioEvent.EventCategory.TESTS
+    kind = AndroidStudioEvent.EventKind.TEST_RUN
+    deviceInfo = AndroidStudioUsageTracker.deviceToDeviceInfo(iDevice)
+    productDetails = AndroidStudioUsageTracker.productDetails
+  }
+
+  // A test run event builder to be used for reporting testing feature usages
+  // as part of a Studio event log.
+  private val myTestRunEventBuilder: TestRun.Builder = myStudioEventBuilder.testRunBuilder.apply {
+    testInvocationType = TestRun.TestInvocationType.ANDROID_STUDIO_THROUGH_GRADLE_TEST
+    testKind = TestRun.TestKind.INSTRUMENTATION_TEST
+    testExecution = artifact?.testOptions?.execution.toProtoValue()
+
+    artifact?.let(::findTestLibrariesVersions)?.let { testLibraries = it }
+  }
+
   override fun onTestSuiteStarted(testSuite: TestSuiteResultProto.TestSuiteMetaData) {
+    myTestRunEventBuilder.numberOfTestsExecuted = testSuite.scheduledTestCaseCount
+
     myTestSuite = AndroidTestSuite(
       id = UUID.randomUUID().toString(),
       testSuiteDisplayName,
@@ -93,8 +137,13 @@ class GradleTestResultAdapter(device: IDevice,
       when (it.label.label) {
         "icebox.info" -> testCase.retentionInfo = File(it.sourcePath.path)
         "icebox.snapshot" -> testCase.retentionSnapshot = File(it.sourcePath.path)
+        "logcat" -> {
+          val logcatFile = File(it.sourcePath.path)
+          testCase.logcat = if (logcatFile.exists()) logcatFile.readText() else ""
+        }
       }
     }
+    setBenchmarkContextAndPrepareFiles(testCaseResult, testCase)
 
     if (testCase.result == AndroidTestCaseResult.FAILED) {
       myTestSuite.result = AndroidTestSuiteResult.FAILED
@@ -104,13 +153,19 @@ class GradleTestResultAdapter(device: IDevice,
   }
 
   override fun onTestSuiteFinished(testSuiteResult: TestSuiteResultProto.TestSuiteResult) {
+    myUtpTestSuiteResult = testSuiteResult
+
+    // TODO: UTP currently does not report whether if a test process is crashed or not.
+    //       Once UTP supports it, check the status and set "myTestRunEventBuilder.crashed = true"
+    //       before calling logStudioEvent.
+    logStudioEvent(myStudioEventBuilder)
+
     if (!this::myTestSuite.isInitialized) {
       // Initialize test suite if it hasn't initialized yet.
       // This may happen if UTP fails in setup phase before it starts test task.
       onTestSuiteStarted(TestSuiteResultProto.TestSuiteMetaData.getDefaultInstance())
     }
     myTestSuite.result = testSuiteResult.testStatus.toAndroidTestSuiteResult()
-    listener.onTestSuiteFinished(device, myTestSuite)
   }
 
   /**
@@ -136,6 +191,70 @@ class GradleTestResultAdapter(device: IDevice,
 
     myTestSuite.result = myTestSuite.result ?: AndroidTestSuiteResult.CANCELLED
     listener.onTestSuiteFinished(device, myTestSuite)
+  }
+
+  /**
+   * Returns true if the test run failed due to APK installation failure that
+   * can be fixed by adding UNINSTALL_INCOMPATIBLE_APKS Gradle option.
+   */
+  fun needRerunWithUninstallIncompatibleApkOption(): Boolean {
+    if (!this::myUtpTestSuiteResult.isInitialized) {
+      return false
+    }
+
+    myUtpTestSuiteResult.platformError.errorDetail.cause.summary.let { summary ->
+      if (summary.namespace.namespace == "DdmlibAndroidDeviceController" && summary.errorCode == 1) {
+        val installResult = ApkInstaller.toInstallerResult(summary.errorName, summary.stackTrace)
+        // This list is copied from the com.android.tools.deployer.ApkInstaller. These errors are
+        // known error names that are caused by an incompatible APK installation attempt.
+        return when (installResult.status) {
+          InstallStatus.INSTALL_FAILED_UPDATE_INCOMPATIBLE,
+          InstallStatus.INCONSISTENT_CERTIFICATES,
+          InstallStatus.INSTALL_FAILED_PERMISSION_MODEL_DOWNGRADE,
+          InstallStatus.INSTALL_FAILED_VERSION_DOWNGRADE,
+          InstallStatus.INSTALL_FAILED_DEXOPT -> true
+          else -> false
+        }
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * Shows a dialog asking a user to uninstall incompatible APKs from devices.
+   * Returns true if a user accepts uninstalling otherwise false.
+   */
+  @UiThread
+  fun showRerunWithUninstallIncompatibleApkOptionDialog(
+    project: Project,
+    showOkCancelDialogFunc: (String) -> Boolean = { message ->
+      Messages.showOkCancelDialog(
+        project,
+        message,
+        "Application Installation Failed",
+        "OK",
+        "Cancel",
+        null
+      ) == Messages.OK
+    }
+  ): Boolean {
+    if (!needRerunWithUninstallIncompatibleApkOption()) {
+      return false
+    }
+
+    myUtpTestSuiteResult.platformError.errorDetail.cause.summary.let { summary ->
+      val installResult = ApkInstaller.toInstallerResult(summary.errorName, summary.stackTrace)
+      val displayMessage = """
+        ${ApkInstaller.message(installResult)}
+        In order to proceed, you will have to uninstall the existing application.
+        
+        WARNING: Uninstalling will remove the application data!
+        
+        Do you want to uninstall the existing application?
+      """.trimIndent()
+      return showOkCancelDialogFunc(displayMessage)
+    }
   }
 }
 

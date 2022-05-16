@@ -198,12 +198,11 @@ class AndroidGradleProjectSettingsControlBuilder(val myInitialSettings: GradlePr
       // Add JAVA_HOME
       val javaHomeJdk = IdeSdks.getJdkFromJavaHome()
       if (javaHomeJdk != null) {
-        addJdkIfNotPresent(sdksModel, ANDROID_STUDIO_JAVA_HOME_NAME, Paths.get(javaHomeJdk)
-        )
+        addJdkIfNotPresent(sdksModel, ANDROID_STUDIO_JAVA_HOME_NAME, Paths.get(javaHomeJdk))
       }
       // ADD JDK_LOCATION_ENV_VARIABLE_NAME
       if (ideSdks.isJdkEnvVariableValid) {
-        addJdkIfNotPresent(sdksModel, JDK_LOCATION_ENV_VARIABLE_NAME, ideSdks.envVariableJdkFile!!)
+        addJdkIfNotPresent(sdksModel, JDK_LOCATION_ENV_VARIABLE_NAME, ideSdks.jdkPath!!)
       }
     }
     val projectJdk = sdksModel.projectSdk
@@ -303,9 +302,8 @@ class AndroidGradleProjectSettingsControlBuilder(val myInitialSettings: GradlePr
   private fun getSelectedGradleJvmInfo(comboBox: SdkComboBox): SdkInfo {
     val sdkLookupProvider = getSdkLookupProvider(comboBox.model.project)
     val externalProjectPath = myInitialSettings.externalProjectPath
-    val projectSdk = comboBox.model.sdksModel.projectSdk
     val gradleJvm = comboBox.getSelectedGradleJvmReference(sdkLookupProvider)
-    return sdkLookupProvider.nonblockingResolveGradleJvmInfo(comboBox.model.project, projectSdk, externalProjectPath, gradleJvm)
+    return sdkLookupProvider.nonblockingResolveGradleJvmInfo(comboBox.model.project, externalProjectPath, gradleJvm)
   }
 
   private fun wrapExceptions(runnable: ThrowableRunnable<Throwable>) {

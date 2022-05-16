@@ -15,17 +15,17 @@
  */
 package com.android.tools.idea.gradle.dsl.model;
 
-import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile;
-import com.intellij.openapi.diagnostic.Logger;
+import com.android.tools.idea.gradle.dsl.parser.files.GradlePropertiesFile;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Represents a gradle.properties file.
  */
 public class GradlePropertiesModel extends GradleFileModelImpl {
-  private static final Logger LOG = Logger.getInstance(GradlePropertiesModel.class);
+  @NotNull protected GradlePropertiesFile myGradlePropertiesFile;
 
-  public GradlePropertiesModel(@NotNull GradleDslFile gradleDslFile) {
-    super(gradleDslFile);
+  public GradlePropertiesModel(@NotNull GradlePropertiesFile gradlePropertiesFile) {
+    super(gradlePropertiesFile);
+    myGradlePropertiesFile = gradlePropertiesFile;
   }
 }

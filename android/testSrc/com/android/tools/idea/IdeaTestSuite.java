@@ -16,6 +16,7 @@
 package com.android.tools.idea;
 
 import com.android.testutils.JarTestSuiteRunner;
+import com.android.testutils.TestUtils;
 import com.android.tools.tests.GradleDaemonsRule;
 import com.android.tools.tests.IdeaTestSuiteBase;
 import com.android.tools.tests.LeakCheckerRule;
@@ -30,9 +31,6 @@ import org.junit.runner.RunWith;
 
   // The following classes had failures when run in Bazel.
   com.android.tools.idea.gradle.project.sync.perf.GradleSyncPerfTest.class, // Sync performance test only runs on perf buildbot
-  // Require resources with spaces (HTML File template)
-  // https://github.com/bazelbuild/bazel/issues/374
-  com.android.tools.idea.actions.annotations.InferSupportAnnotationsTest.class,
   org.jetbrains.android.dom.CreateMissingClassFixTest.class,
   com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfigurationTest.class // b/176807290
 })
@@ -42,13 +40,18 @@ public class IdeaTestSuite extends IdeaTestSuiteBase {
 
   @ClassRule public static GradleDaemonsRule gradle = new GradleDaemonsRule();
 
+  public static final String DATA_BINDING_RUNTIME_ZIP = "tools/data-binding/data_binding_runtime.zip";
+
   static {
     try {
-      unzipIntoOfflineMavenRepo("tools/base/build-system/studio_repo.zip");
-      unzipIntoOfflineMavenRepo("tools/adt/idea/android/test_deps.zip");
-      unzipIntoOfflineMavenRepo("tools/base/third_party/kotlin/kotlin-m2repository.zip");
-      // Please consider adding tests that depend on specific versions of AGP into old-agp-tests instead of b/141628806
-      unzipIntoOfflineMavenRepo("tools/data-binding/data_binding_runtime.zip");
+      linkIntoOfflineMavenRepo("tools/base/build-system/studio_repo.manifest");
+      linkIntoOfflineMavenRepo("tools/adt/idea/android/test_deps.manifest");
+      linkIntoOfflineMavenRepo("tools/base/build-system/integration-test/kotlin_gradle_plugin_prebuilts.manifest");
+      // When using iml_module's split_test_target attribute, not all bazel targets will include this dependency.
+      // Only bazel targets which rely on data_binding_runtime.zip will include this runtime dependency.
+      if (TestUtils.workspaceFileExists(DATA_BINDING_RUNTIME_ZIP)) {
+        unzipIntoOfflineMavenRepo(DATA_BINDING_RUNTIME_ZIP);
+      }
     }
     catch (Throwable e) {
       // See b/143359533 for why we are handling errors here

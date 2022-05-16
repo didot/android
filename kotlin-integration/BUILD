@@ -1,5 +1,40 @@
 load("//tools/base/bazel:bazel.bzl", "iml_module")
-load("//tools/base/bazel:maven.bzl", "maven_repo")
+load("//tools/base/bazel:maven.bzl", "maven_repository")
+load("//tools/adt/idea/kotlin-integration:version.bzl", "KOTLIN_IDE_VERSION")
+
+# The maven artifact aliases below exist in order to simplify Kotlin plugin updates.
+# If a test requires Kotlin maven artifacts with a version matching the Kotlin
+# IDE plugin, then the test should use these aliases.
+
+alias(
+    name = "kotlin-android-extensions-runtime-for-ide-plugin",
+    actual = "@maven//:org.jetbrains.kotlin.kotlin-android-extensions-runtime_" + KOTLIN_IDE_VERSION,
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "kotlin-gradle-plugin-for-ide-plugin",
+    actual = "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_" + KOTLIN_IDE_VERSION,
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "kotlin-reflect-for-ide-plugin",
+    actual = "@maven//:org.jetbrains.kotlin.kotlin-reflect_" + KOTLIN_IDE_VERSION,
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "kotlin-script-runtime-for-ide-plugin",
+    actual = "@maven//:org.jetbrains.kotlin.kotlin-script-runtime_" + KOTLIN_IDE_VERSION,
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "kotlin-stdlib-jdk8-for-ide-plugin",
+    actual = "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_" + KOTLIN_IDE_VERSION,
+    visibility = ["//visibility:public"],
+)
 
 # managed by go/iml_to_build
 iml_module(
@@ -8,7 +43,7 @@ iml_module(
     tags = ["no_test_windows"],
     test_class = "com.android.tools.idea.KotlinIntegrationTestSuite",
     test_data = [
-        ":test_deps.zip",
+        ":test_deps",
         "//prebuilts/studio/jdk",
         "//prebuilts/studio/sdk:build-tools/latest",
         "//prebuilts/studio/sdk:platform-tools",
@@ -18,7 +53,8 @@ iml_module(
         "//tools/adt/idea/artwork:device-art-resources",
         "//tools/adt/idea/kotlin-integration/testData",
         "//tools/base/build-system:gradle-distrib",
-        "//tools/base/build-system:studio_repo.zip",
+        "//tools/base/build-system:studio_repo",
+        "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
     ],
     test_shard_count = 2,
     test_srcs = ["testSrc"],
@@ -51,44 +87,15 @@ iml_module(
     ],
 )
 
-maven_repo(
+maven_repository(
     name = "test_deps",
     # keep sorted: for buildifier
     artifacts = [
-        "//prebuilts/tools/common/m2/repository/com/github/gundy/semver4j/0.16.4:jar",
-        "//prebuilts/tools/common/m2/repository/commons-logging/commons-logging/1.1.1:jar",
-        "//prebuilts/tools/common/m2/repository/de/undercouch/gradle-download-task/4.0.2:jar",
-        "//prebuilts/tools/common/m2/repository/junit/junit/4.12:jar",
-        "//prebuilts/tools/common/m2/repository/net/bytebuddy/byte-buddy-agent/1.9.10:jar",
-        "//prebuilts/tools/common/m2/repository/net/bytebuddy/byte-buddy/1.9.10:jar",
-        "//prebuilts/tools/common/m2/repository/org/antlr/antlr4-runtime/4.5.2-1:jar",
-        "//prebuilts/tools/common/m2/repository/org/hamcrest/hamcrest-core/1.3:jar",
-        "//prebuilts/tools/common/m2/repository/org/hamcrest/hamcrest-integration/1.3:jar",
-        "//prebuilts/tools/common/m2/repository/org/hamcrest/hamcrest-library/1.3:jar",
-        "//prebuilts/tools/common/m2/repository/org/jdeferred/jdeferred-android-aar/1.2.3:aar",
-        "//prebuilts/tools/common/m2/repository/org/jdeferred/jdeferred-core/1.2.3:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/intellij/deps/trove4j/1.0.20181211:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-android-extensions-runtime/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-android-extensions/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-annotation-processing-gradle/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-build-common/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-compiler-embeddable/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-compiler-runner/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-daemon-client/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-daemon-embeddable/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-gradle-plugin-api/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-gradle-plugin-model/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-gradle-plugin/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-script-runtime/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-scripting-common/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-scripting-compiler-impl-embeddable/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-scripting-jvm/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-util-io/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlin/kotlin-util-klib/1.4.32:jar",
-        "//prebuilts/tools/common/m2/repository/org/jetbrains/kotlinx/kotlinx-coroutines-core/1.3.8:jar",
-        "//prebuilts/tools/common/m2/repository/org/mockito/mockito-core/3.0.0:jar",
-        "//prebuilts/tools/common/m2/repository/org/objenesis/objenesis/2.6:jar",
-        "//prebuilts/tools/common/m2/repository/org/slf4j/slf4j-api/1.7.2:jar",
+        "@maven//:commons-logging.commons-logging_1.1.1",
+        "@maven//:junit.junit_4.12",
+        "@maven//:org.hamcrest.hamcrest-integration_1.3",
+        "@maven//:org.jdeferred.jdeferred-android-aar_1.2.3",
+        "@maven//:org.jetbrains.intellij.deps.trove4j_1.0.20181211",
+        "@maven//:org.mockito.mockito-core_3.0.0",
     ],
 )

@@ -21,9 +21,12 @@ import com.android.tools.adtui.common.ColoredIconGenerator
 import com.android.tools.adtui.common.secondaryPanelBackground
 import com.android.tools.adtui.stdui.KeyStrokes
 import com.android.tools.adtui.stdui.registerActionKey
+import com.android.tools.idea.common.error.IssuePanelService
 import com.android.tools.idea.common.model.NlComponent
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.refactoring.rtl.RtlSupportProcessor
 import com.intellij.ide.ui.laf.darcula.DarculaUIUtil
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.ui.components.JBList
 import com.intellij.ui.paint.EffectPainter2D
 import com.intellij.util.ui.JBDimension
@@ -32,15 +35,9 @@ import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
 import java.awt.BorderLayout
 import java.awt.Color
-import java.awt.Dimension
-import java.util.Vector
-import javax.swing.DefaultListCellRenderer
-import javax.swing.JLabel
-import javax.swing.JList
-import javax.swing.JPanel
-import javax.swing.ListSelectionModel
 import java.awt.Component
 import java.awt.Container
+import java.awt.Dimension
 import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -48,7 +45,13 @@ import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.util.Vector
+import javax.swing.DefaultListCellRenderer
+import javax.swing.JLabel
+import javax.swing.JList
+import javax.swing.JPanel
 import javax.swing.LayoutFocusTraversalPolicy
+import javax.swing.ListSelectionModel
 import javax.swing.SwingConstants
 import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
@@ -343,7 +346,17 @@ class WidgetConstraintSection(private val widgetModel : WidgetConstraintModel) :
     private val mouseListener = object: MouseAdapter() {
       override fun mouseClicked(e: MouseEvent?) {
         val component = widgetModel.component ?: return
-        widgetModel.surface?.issuePanel?.showIssueForComponent(component, true)
+        val surface = widgetModel.surface ?: return
+        if (StudioFlags.NELE_SHOW_ISSUE_PANEL_IN_PROBLEMS.get()) {
+          val service = IssuePanelService.getInstance(surface.project)
+          if (service == null) {
+            Logger.getInstance(WarningPanel::class.java).warn("Cannot find issue panel service")
+            return
+          }
+          service.showCurrentFileAndQualifierTab()
+          service.attachIssueModel(surface.issueModel, surface.model!!.virtualFile)
+        }
+        surface.issuePanel.showIssueForComponent(component, true)
       }
     }
 

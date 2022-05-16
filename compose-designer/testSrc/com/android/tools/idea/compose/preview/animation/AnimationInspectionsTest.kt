@@ -22,8 +22,8 @@ import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ex.QuickFixWrapper
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.command.CommandProcessor
-import org.jetbrains.kotlin.idea.util.application.runWriteAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -54,7 +54,7 @@ class AnimationInspectionsTest {
 
       class Transition {}
 
-      fun Transition.animateFloat(transitionSpec: () -> Unit, label: String = "FloatAnimation") {}
+      fun Transition.animateFloat(label: String = "FloatAnimation", transitionSpec: () -> Unit) {}
 
       fun <T> updateTransition(targetState: T, label: String? = null) {}
       """.trimIndent()
@@ -294,6 +294,46 @@ class AnimationInspectionsTest {
       fun MyComposable() {
         val transition = Transition()
         transition.animateFloat(transitionSpec = {}, label = "")
+      }
+    """.trimIndent()
+
+    val quickFix = (fixture.getAllQuickFixes().single() as QuickFixWrapper).fix as LocalQuickFixOnPsiElement
+    assertEquals("Add label parameter", quickFix.text)
+    assertEquals("Compose preview", quickFix.familyName)
+
+    ApplicationManager.getApplication().invokeAndWait {
+      CommandProcessor.getInstance().executeCommand(fixture.project, { runWriteAction { quickFix.applyFix() } }, "Add Label Argument", null)
+    }
+
+    fixture.checkResult(fileContentAfterFix)
+  }
+
+  @Test
+  fun testQuickFixTransitionPropertyWithOnlyLambdaParamDefined() {
+    // language=kotlin
+    val originalFileContent = """
+      import androidx.compose.animation.core.animateFloat
+      import androidx.compose.animation.core.Transition
+
+      fun MyComposable() {
+        val transition = Transition()
+        transition.animateFloat {
+          // fake spec
+        }
+      }
+    """.trimIndent()
+    fixture.configureByText("Test.kt", originalFileContent)
+
+    // language=kotlin
+    val fileContentAfterFix = """
+      import androidx.compose.animation.core.animateFloat
+      import androidx.compose.animation.core.Transition
+
+      fun MyComposable() {
+        val transition = Transition()
+        transition.animateFloat(label = "") {
+          // fake spec
+        }
       }
     """.trimIndent()
 

@@ -29,12 +29,25 @@ import com.intellij.ui.components.panels.HorizontalLayout;
 import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBInsets;
 import com.intellij.util.ui.JBUI;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.AdjustmentEvent;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.BoundedRangeModel;
+import javax.swing.Box;
+import javax.swing.JEditorPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollBar;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -165,7 +178,7 @@ public class TutorialCard extends CardViewPanel {
       StringBuilder sb = new StringBuilder();
       String descriptionContent = myTutorial.getDescription();
       if (myTutorial.hasLocalHTMLPaths()) {
-        descriptionContent = UIUtils.addLocalHTMLPaths(getClass().getClassLoader(), descriptionContent);
+        descriptionContent = UIUtils.addLocalHTMLPaths(myTutorial.getResourceClass(), descriptionContent);
       }
       sb.append("<p class=\"description\">").append(descriptionContent);
       if (myTutorial.getRemoteLink() != null && myTutorial.getRemoteLinkLabel() != null) {
@@ -187,7 +200,7 @@ public class TutorialCard extends CardViewPanel {
       List<? extends StepData> steps = myTutorial.getSteps();
       if (!steps.isEmpty()) {
         contents.add(new TutorialStep(steps.get(myStepIndex), myStepIndex, myListener,
-                                      myProject, hideStepIndex, myTutorial.hasLocalHTMLPaths()), c);
+                                      myProject, hideStepIndex, myTutorial.hasLocalHTMLPaths(), myTutorial.getResourceClass()), c);
         c.gridy++;
       }
     }
@@ -196,8 +209,9 @@ public class TutorialCard extends CardViewPanel {
       int numericLabel = 0;
 
       for (StepData step : myTutorial.getSteps()) {
-        TutorialStep stepDisplay = new TutorialStep(step, numericLabel, myListener,
-                                                    myProject, hideStepIndex, myTutorial.hasLocalHTMLPaths());
+        TutorialStep stepDisplay =
+          new TutorialStep(step, numericLabel, myListener,
+                           myProject, hideStepIndex, myTutorial.hasLocalHTMLPaths(), myTutorial.getResourceClass());
         contents.add(stepDisplay, c);
         c.gridy++;
         numericLabel++;
@@ -287,9 +301,9 @@ public class TutorialCard extends CardViewPanel {
       JPanel containerPanel = new JPanel(new BorderLayout());
       containerPanel.setBorder(JBUI.Borders.empty(5));
 
-      myPrevButton = new StepButton("Previous", StepButton.Direction.PREV, e -> handleStepButtonClick(e));
+      myPrevButton = new StepButton("Previous", StepButton.Direction.PREV, this::handleStepButtonClick);
       containerPanel.add(myPrevButton, BorderLayout.LINE_START);
-      myNextButton = new StepButton("Next", StepButton.Direction.NEXT, e -> handleStepButtonClick(e));
+      myNextButton = new StepButton("Next", StepButton.Direction.NEXT, this::handleStepButtonClick);
       containerPanel.add(myNextButton, BorderLayout.LINE_END);
       add(containerPanel);
 

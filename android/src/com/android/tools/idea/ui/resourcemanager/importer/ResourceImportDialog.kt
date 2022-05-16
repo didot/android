@@ -60,7 +60,7 @@ import java.awt.event.ItemEvent
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.beans.PropertyChangeListener
-import java.util.*
+import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
 import java.util.function.Supplier
 import javax.swing.BorderFactory

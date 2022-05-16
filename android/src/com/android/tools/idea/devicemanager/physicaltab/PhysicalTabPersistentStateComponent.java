@@ -15,19 +15,19 @@
  */
 package com.android.tools.idea.devicemanager.physicaltab;
 
+import com.android.tools.idea.devicemanager.DeviceType;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalTabPersistentStateComponent.PhysicalTabState;
-import com.android.tools.idea.util.xmlb.InstantConverter;
 import com.google.common.annotations.VisibleForTesting;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.Service;
-import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.util.xmlb.annotations.OptionTag;
 import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.XCollection;
 import com.intellij.util.xmlb.annotations.XCollection.Style;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -46,12 +46,13 @@ final class PhysicalTabPersistentStateComponent implements PersistentStateCompon
   }
 
   static @NotNull PhysicalTabPersistentStateComponent getInstance() {
-    return ServiceManager.getService(PhysicalTabPersistentStateComponent.class);
+    return ApplicationManager.getApplication().getService(PhysicalTabPersistentStateComponent.class);
   }
 
   @NotNull Collection<@NotNull PhysicalDevice> get() {
     return myState.physicalDevices.stream()
       .map(PhysicalDeviceState::asPhysicalDevice)
+      .filter(Objects::nonNull)
       .collect(Collectors.toList());
   }
 
@@ -88,42 +89,75 @@ final class PhysicalTabPersistentStateComponent implements PersistentStateCompon
 
   @Tag("PhysicalDevice")
   private static final class PhysicalDeviceState {
-    @OptionTag(tag = "serialNumber", nameAttribute = "")
-    private @Nullable String serialNumber;
+    @OptionTag(tag = "key", nameAttribute = "")
+    private final @Nullable KeyState key;
 
-    @OptionTag(tag = "lastOnlineTime", nameAttribute = "", converter = InstantConverter.class)
-    private @Nullable Instant lastOnlineTime;
+    @OptionTag(tag = "type", nameAttribute = "")
+    private final @NotNull DeviceType type;
 
     @OptionTag(tag = "name", nameAttribute = "")
-    private @Nullable String name;
+    private final @Nullable String name;
+
+    @OptionTag(tag = "nameOverride", nameAttribute = "")
+    private final @NotNull String nameOverride;
+
+    @OptionTag(tag = "target", nameAttribute = "")
+    private final @Nullable String target;
+
+    @OptionTag(tag = "api", nameAttribute = "")
+    private final @Nullable String api;
 
     @SuppressWarnings("unused")
     private PhysicalDeviceState() {
+      key = null;
+      type = DeviceType.PHONE;
+      name = null;
+      nameOverride = "";
+      target = null;
+      api = null;
     }
 
     private PhysicalDeviceState(@NotNull PhysicalDevice device) {
-      serialNumber = device.getSerialNumber();
-      lastOnlineTime = device.getLastOnlineTime();
+      key = new KeyState(device.getKey());
+      type = device.getType();
       name = device.getName();
+      nameOverride = "";
+      target = device.getTarget();
+      api = device.getApi();
     }
 
-    private @NotNull PhysicalDevice asPhysicalDevice() {
-      assert serialNumber != null;
-      assert name != null;
+    private @Nullable PhysicalDevice asPhysicalDevice() {
+      if (key == null || name == null || target == null || api == null) {
+        Logger.getInstance(PhysicalTabPersistentStateComponent.class).warn("key, name, target, or api are null");
+        return null;
+      }
+
+      Key key = this.key.asKey();
+
+      if (key == null) {
+        Logger.getInstance(PhysicalTabPersistentStateComponent.class).warn("key is null");
+        return null;
+      }
 
       return new PhysicalDevice.Builder()
-        .setSerialNumber(serialNumber)
-        .setLastOnlineTime(lastOnlineTime)
+        .setKey(key)
+        .setType(type)
         .setName(name)
+        .setNameOverride(nameOverride)
+        .setTarget(target)
+        .setApi(api)
         .build();
     }
 
     @Override
     public int hashCode() {
-      int hashCode = Objects.hashCode(serialNumber);
+      int hashCode = Objects.hashCode(key);
 
-      hashCode = 31 * hashCode + Objects.hashCode(lastOnlineTime);
+      hashCode = 31 * hashCode + type.hashCode();
       hashCode = 31 * hashCode + Objects.hashCode(name);
+      hashCode = 31 * hashCode + nameOverride.hashCode();
+      hashCode = 31 * hashCode + Objects.hashCode(target);
+      hashCode = 31 * hashCode + Objects.hashCode(api);
 
       return hashCode;
     }
@@ -136,9 +170,86 @@ final class PhysicalTabPersistentStateComponent implements PersistentStateCompon
 
       PhysicalDeviceState device = (PhysicalDeviceState)object;
 
-      return Objects.equals(serialNumber, device.serialNumber) &&
-             Objects.equals(lastOnlineTime, device.lastOnlineTime) &&
-             Objects.equals(name, device.name);
+      return Objects.equals(key, device.key) &&
+             type.equals(device.type) &&
+             Objects.equals(name, device.name) &&
+             nameOverride.equals(device.nameOverride) &&
+             Objects.equals(target, device.target) &&
+             Objects.equals(api, device.api);
     }
+  }
+
+  @Tag("Key")
+  private static final class KeyState {
+    @OptionTag(tag = "type", nameAttribute = "")
+    private final @Nullable KeyType type;
+
+    @OptionTag(tag = "value", nameAttribute = "")
+    private final @Nullable String value;
+
+    @SuppressWarnings("unused")
+    private KeyState() {
+      type = null;
+      value = null;
+    }
+
+    private KeyState(@NotNull Key key) {
+      type = KeyType.get(key);
+      value = key.toString();
+    }
+
+    private @Nullable Key asKey() {
+      if (type == null || value == null) {
+        Logger.getInstance(PhysicalTabPersistentStateComponent.class).warn("type or value are null");
+        return null;
+      }
+
+      return type.newKey(value);
+    }
+
+    @Override
+    public int hashCode() {
+      return 31 * Objects.hashCode(type) + Objects.hashCode(value);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object object) {
+      if (!(object instanceof KeyState)) {
+        return false;
+      }
+
+      KeyState key = (KeyState)object;
+      return Objects.equals(type, key.type) && Objects.equals(value, key.value);
+    }
+  }
+
+  private enum KeyType {
+    SERIAL_NUMBER {
+      @Override
+      @NotNull Key newKey(@NotNull String value) {
+        return new SerialNumber(value);
+      }
+    },
+
+    DOMAIN_NAME {
+      @Override
+      @NotNull Key newKey(@NotNull String value) {
+        return new DomainName(value);
+      }
+    };
+
+    private static @NotNull KeyType get(@NotNull Key key) {
+      if (key instanceof SerialNumber) {
+        return SERIAL_NUMBER;
+      }
+
+      if (key instanceof DomainName) {
+        return DOMAIN_NAME;
+      }
+
+      throw new AssertionError(key);
+    }
+
+    abstract @NotNull Key newKey(@NotNull String value);
   }
 }

@@ -33,9 +33,6 @@ import com.intellij.openapi.externalSystem.service.notification.NotificationCate
 import com.intellij.openapi.externalSystem.service.notification.NotificationData;
 import com.intellij.openapi.module.Module;
 import com.intellij.testFramework.PlatformTestCase;
-import com.intellij.testFramework.JavaProjectTestCase;
-import org.mockito.Mock;
-
 import java.util.ArrayList;
 import java.util.List;
 import org.mockito.Mock;

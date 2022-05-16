@@ -16,6 +16,8 @@
 package com.android.tools.profilers.cpu.nodemodel;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 
 /**
  * Represents characteristics of Java methods.
@@ -49,8 +51,14 @@ public class JavaMethodModel implements CaptureNodeModel {
     mySignature = signature;
   }
 
+  @VisibleForTesting
   public JavaMethodModel(@NotNull String name, @NotNull String className) {
     this(name, className, "");
+  }
+
+  @Override
+  public @Nullable String getTag() {
+    return "Java code";
   }
 
   @Override

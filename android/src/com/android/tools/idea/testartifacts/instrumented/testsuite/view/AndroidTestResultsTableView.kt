@@ -76,6 +76,7 @@ import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeUtil
+import sun.swing.DefaultLookup
 import java.awt.Color
 import java.awt.Component
 import java.awt.KeyboardFocusManager
@@ -84,7 +85,6 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.io.File
 import java.time.Duration
-import java.util.Comparator
 import java.util.Vector
 import javax.swing.Icon
 import javax.swing.JComponent
@@ -94,7 +94,6 @@ import javax.swing.JTree
 import javax.swing.ListSelectionModel
 import javax.swing.SortOrder
 import javax.swing.SwingConstants
-import javax.swing.UIManager
 import javax.swing.event.ListSelectionEvent
 import javax.swing.event.TableModelEvent
 import javax.swing.table.DefaultTableCellRenderer
@@ -137,7 +136,7 @@ class AndroidTestResultsTableView(listener: AndroidTestResultsTableListener,
   }
 
   @UiThread
-  fun setTestSuiteResultForDevice(device: AndroidDevice, result: AndroidTestSuiteResult) {
+  fun setTestSuiteResultForDevice(device: AndroidDevice, result: AndroidTestSuiteResult?) {
     myModel.myRootAggregationRow.setTestSuiteResultForDevice(device, result)
     refreshTable()
   }
@@ -213,6 +212,13 @@ class AndroidTestResultsTableView(listener: AndroidTestResultsTableListener,
   fun clearSelection() {
     myTableView.clearSelection()
     myTableView.resetLastReportedValues()
+  }
+
+  @UiThread
+  fun selectAndroidTestCase(testCase: AndroidTestCase) {
+    myModel.getTestResultsRow(testCase)?.let { row ->
+      myTableView.addSelection(row)
+    }
   }
 
   /**
@@ -457,7 +463,7 @@ private class AndroidTestResultsTableViewComponent(private val model: AndroidTes
     }
 
     TreeUtil.installActions(tree)
-    PopupHandler.installPopupHandler(this, IdeActions.GROUP_TESTTREE_POPUP, ActionPlaces.ANDROID_TEST_SUITE_TABLE)
+    PopupHandler.installPopupMenu(this, IdeActions.GROUP_TESTTREE_POPUP, ActionPlaces.ANDROID_TEST_SUITE_TABLE)
     addMouseListener(object: MouseAdapter() {
       override fun mouseClicked(e: MouseEvent?) {
         logger.reportClickInteraction(ParallelAndroidTestReportUiEvent.UiElement.TEST_SUITE_VIEW_TABLE_ROW)
@@ -594,9 +600,9 @@ private class AndroidTestResultsTableViewComponent(private val model: AndroidTes
           }
           component.icon = if (column == model.mySortKeyColumn) {
             when(mySortOrder) {
-              SortOrder.ASCENDING -> UIManager.getIcon("Table.ascendingSortIcon")
-              SortOrder.DESCENDING -> UIManager.getIcon("Table.descendingSortIcon")
-              else -> UIManager.getIcon("Table.naturalSortIcon")
+              SortOrder.ASCENDING -> DefaultLookup.getIcon(component, ui, "Table.ascendingSortIcon")
+              SortOrder.DESCENDING -> DefaultLookup.getIcon(component, ui, "Table.descendingSortIcon")
+              else -> DefaultLookup.getIcon(component, ui, "Table.naturalSortIcon")
             }
           } else {
             null
@@ -736,6 +742,13 @@ private class AndroidTestResultsTableModel : ListTreeTableModelOnColumns(Aggrega
     }
     row.addTestCase(device, testCase)
     return row
+  }
+
+  /**
+   * Returns [AndroidTestResultsRow] for a given test case if exists, otherwise null.
+   */
+  fun getTestResultsRow(testCase: AndroidTestCase): AndroidTestResultsRow? {
+    return myTestResultsRows[testCase.id]
   }
 
   /**
@@ -1197,8 +1210,12 @@ private class AggregationRow(override val packageName: String = "",
   /**
    * Sets the test suite result of the given device.
    */
-  fun setTestSuiteResultForDevice(device: AndroidDevice, result: AndroidTestSuiteResult) {
-    myTestSuiteResult[device.id] = result
+  fun setTestSuiteResultForDevice(device: AndroidDevice, result: AndroidTestSuiteResult?) {
+    if (result != null) {
+      myTestSuiteResult[device.id] = result
+    } else {
+      myTestSuiteResult.remove(device.id)
+    }
   }
 
   override val methodName: String = ""

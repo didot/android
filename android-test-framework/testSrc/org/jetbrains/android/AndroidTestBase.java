@@ -15,18 +15,25 @@
  */
 package org.jetbrains.android;
 
-import com.android.testutils.TestUtils;
 import com.android.testutils.MockitoThreadLocalsCleaner;
+import com.android.testutils.TestUtils;
 import com.android.tools.idea.res.IdeResourcesUtil;
 import com.android.tools.idea.sdk.AndroidSdks;
 import com.android.tools.idea.testing.DisposerExplorer;
 import com.android.tools.idea.testing.Sdks;
+import com.intellij.analysis.AnalysisScope;
+import com.intellij.codeInspection.CommonProblemDescriptor;
+import com.intellij.codeInspection.GlobalInspectionTool;
+import com.intellij.codeInspection.InspectionManager;
+import com.intellij.codeInspection.ex.GlobalInspectionToolWrapper;
+import com.intellij.codeInspection.ex.InspectionManagerEx;
+import com.intellij.codeInspection.ex.InspectionToolWrapper;
+import com.intellij.codeInspection.reference.RefEntity;
+import com.intellij.codeInspection.ui.util.SynchronizedBidiMultiMap;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.application.ex.PathManagerEx;
-import com.intellij.openapi.application.impl.ApplicationImpl;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ex.ProjectEx;
@@ -40,9 +47,12 @@ import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiReferenceContributor;
+import com.intellij.testFramework.InspectionTestUtil;
+import com.intellij.testFramework.InspectionsKt;
 import com.intellij.testFramework.LightProjectDescriptor;
 import com.intellij.testFramework.UsefulTestCase;
 import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture;
+import com.intellij.testFramework.fixtures.impl.GlobalInspectionContextForTests;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.UIUtil;
 import java.nio.file.Files;
@@ -105,12 +115,9 @@ public abstract class AndroidTestBase extends UsefulTestCase {
     Ref<Disposable> firstLeak = new Ref<>();
     DisposerExplorer.visitTree(disposable -> {
       if (allLeakedDisposables.contains(disposable) ||
-          disposable.getClass().getName().startsWith("com.android.tools.analytics.HighlightingStats") ||disposable.getClass().getName().equals("com.android.tools.idea.adb.AdbService") ||
+          disposable.getClass().getName().startsWith("com.android.tools.analytics.HighlightingStats") ||
           (disposable instanceof ProjectEx && (((ProjectEx)disposable).isDefault() || ((ProjectEx)disposable).isLight())) ||
-          disposable.toString().startsWith("services of com.intellij.openapi.project.impl.ProjectImpl") ||
-          disposable.toString().startsWith("services of com.intellij.openapi.project.impl.ProjectExImpl") ||
-          disposable.toString().startsWith("services of " + ApplicationImpl.class.getName()) ||
-          disposable instanceof Application ||
+          disposable.toString().startsWith("services of ") || // See ComponentManagerImpl.serviceParentDisposable.
           (disposable instanceof Module && ((Module)disposable).getName().equals(LightProjectDescriptor.TEST_MODULE_NAME)) ||
           disposable instanceof PsiReferenceContributor) {
         // Ignore application services and light projects and modules that are not disposed by tearDown.
@@ -307,5 +314,31 @@ public abstract class AndroidTestBase extends UsefulTestCase {
       sb.append(":?");
     }
     sb.append('\n');
+  }
+
+  protected SynchronizedBidiMultiMap<RefEntity, CommonProblemDescriptor> doGlobalInspectionTest(
+    @NotNull GlobalInspectionTool inspection, @NotNull String globalTestDir, @NotNull AnalysisScope scope) {
+    return doGlobalInspectionTest(new GlobalInspectionToolWrapper(inspection), globalTestDir, scope);
+  }
+
+  /**
+   * Given an inspection and a path to a directory that contains an "expected.xml" file, run the
+   * inspection on the current test project and verify that its output matches that of the
+   * expected file.
+   */
+  protected SynchronizedBidiMultiMap<RefEntity, CommonProblemDescriptor> doGlobalInspectionTest(
+    @NotNull GlobalInspectionToolWrapper wrapper, @NotNull String globalTestDir, @NotNull AnalysisScope scope) {
+    myFixture.enableInspections(wrapper.getTool());
+
+    scope.invalidate();
+
+    InspectionManagerEx inspectionManager = (InspectionManagerEx)InspectionManager.getInstance(getProject());
+    GlobalInspectionContextForTests globalContext =
+      InspectionsKt.createGlobalContextForTool(scope, getProject(), Arrays.<InspectionToolWrapper<?, ?>>asList(wrapper));
+
+    InspectionTestUtil.runTool(wrapper, scope, globalContext);
+    InspectionTestUtil.compareToolResults(globalContext, wrapper, false, myFixture.getTestDataPath() + globalTestDir);
+
+    return globalContext.getPresentation(wrapper).getProblemElements();
   }
 }

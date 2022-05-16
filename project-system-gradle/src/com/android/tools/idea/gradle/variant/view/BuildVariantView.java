@@ -21,7 +21,7 @@ import static com.intellij.util.ui.UIUtil.getTableFocusCellHighlightBorder;
 import static com.intellij.util.ui.UIUtil.getToolTipBackground;
 
 import com.android.tools.idea.gradle.project.facet.ndk.NdkFacet;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.gradle.project.model.NdkModuleModel;
 import com.android.tools.idea.gradle.project.model.VariantAbi;
 import com.android.tools.idea.gradle.util.GradleProjects;
@@ -30,8 +30,10 @@ import com.android.tools.idea.gradle.util.ModuleTypeComparator;
 import com.android.tools.idea.gradle.variant.conflict.Conflict;
 import com.android.tools.idea.gradle.variant.conflict.ConflictSet;
 import com.android.tools.idea.model.AndroidModel;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.CommonBundle;
+import com.intellij.facet.ProjectFacetManager;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
@@ -45,7 +47,6 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.colors.EditorColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.MessageType;
@@ -59,7 +60,10 @@ import com.intellij.ui.table.JBTable;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.AbstractTableCellEditor;
 import com.intellij.util.ui.JBUI;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.event.ItemEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -73,7 +77,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.DefaultCellEditor;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTable;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -228,24 +239,20 @@ public class BuildVariantView {
    */
   @NotNull
   private List<Module> getGradleModulesWithAndroidProjects() {
-    List<Module> gradleModules = new ArrayList<>();
-    for (Module module : ModuleManager.getInstance(myProject).getModules()) {
-      AndroidFacet androidFacet = AndroidFacet.getInstance(module);
+    Set<Module> gradleModules = new HashSet<>();
+    // Work only with holder modules here to avoid duplication on UI in MPSS mode.
+    ProjectSystemUtil.getAndroidFacets(myProject).forEach(androidFacet -> {
       if (androidFacet != null && AndroidModel.isRequired(androidFacet) && AndroidModel.get(androidFacet) != null) {
-        gradleModules.add(module);
-        continue;
+        gradleModules.add(androidFacet.getModule());
       }
-      NdkFacet ndkFacet = NdkFacet.getInstance(module);
-      if (ndkFacet != null && getNdkModuleModelIfNotJustDummy(ndkFacet) != null) {
-        gradleModules.add(module);
+    });
+    ProjectFacetManager.getInstance(myProject).getFacets(NdkFacet.getFacetTypeId()).forEach(ndkFacet -> {
+      if (getNdkModuleModelIfNotJustDummy(ndkFacet) != null) {
+        gradleModules.add(ndkFacet.getModule());
       }
-    }
+    });
 
-    if (!gradleModules.isEmpty()) {
-      gradleModules.sort(ModuleTypeComparator.INSTANCE);
-      return gradleModules;
-    }
-    return Collections.emptyList();
+    return gradleModules.stream().sorted(ModuleTypeComparator.INSTANCE).collect(Collectors.toList());
   }
 
   @NotNull
@@ -277,7 +284,7 @@ public class BuildVariantView {
   private static Collection<String> getVariantNames(@NotNull Module module) {
     Set<String> buildVariantNames = new HashSet<>();
 
-    AndroidModuleModel androidModel = AndroidModuleModel.get(module);
+    GradleAndroidModel androidModel = GradleAndroidModel.get(module);
     if (androidModel != null) {
       buildVariantNames.addAll(androidModel.getVariantNames());
     }
@@ -544,7 +551,7 @@ public class BuildVariantView {
             Component editorComponent = getEditorComponent();
             if (editorComponent instanceof ComboBox) {
               editorComponent.requestFocusInWindow();
-              ((ComboBox)editorComponent).showPopup();
+              ((ComboBox<?>)editorComponent).showPopup();
             }
           }
         }
@@ -901,7 +908,7 @@ public class BuildVariantView {
           // Note: modulePath should never be null here.
           moduleName = modulePath != null ? modulePath : module.getName();
           moduleIcon = GradleUtil.getModuleIcon(module);
-          isAndriodGradleModule = AndroidModuleModel.get(module) != null;
+          isAndriodGradleModule = GradleAndroidModel.get(module) != null;
         }
       }
 

@@ -15,15 +15,13 @@
  */
 package com.android.tools.idea.gradle.project.build.invoker;
 
+import static com.android.tools.idea.testing.AndroidGradleTestUtilsKt.injectBuildOutputDumpingBuildViewManager;
+
 import com.android.tools.idea.gradle.util.BuildMode;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.util.Ref;
-
 import java.io.File;
-import java.nio.file.Path;
-import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -36,7 +34,7 @@ public class BuildActionInvokerTest extends AndroidGradleTestCase {
     Ref<String> model = new Ref<>("");
     CountDownLatch latch = new CountDownLatch(1);
 
-    GradleBuildInvoker invoker = GradleBuildInvoker.getInstance(getProject());
+    GradleBuildInvokerImpl invoker = (GradleBuildInvokerImpl)GradleBuildInvoker.getInstance(getProject());
     invoker.add(result -> {
       Object resultModel = result.getModel();
       if (resultModel instanceof String) {
@@ -44,10 +42,18 @@ public class BuildActionInvokerTest extends AndroidGradleTestCase {
       }
       latch.countDown();
     });
+    injectBuildOutputDumpingBuildViewManager(getProject(), getProject());
+    invoker.executeTasks(
+      new GradleBuildInvoker.Request.Builder(
+        getProject(),
+        new File(getProject().getBasePath()),
+        ImmutableList.of("assembleDebug")
+      )
+        .setMode(BuildMode.ASSEMBLE)
+        .build(),
+      new TestBuildAction()
+    );
 
-    ListMultimap<Path, String> tasks = ArrayListMultimap.create();
-    tasks.put(new File(getProject().getBasePath()).toPath(), "assembleDebug");
-    invoker.executeTasks(tasks, BuildMode.ASSEMBLE, Collections.emptyList(), new TestBuildAction());
     latch.await();
 
     assertEquals("test", model.get());

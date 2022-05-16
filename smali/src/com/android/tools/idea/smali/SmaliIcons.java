@@ -16,7 +16,7 @@
 package com.android.tools.idea.smali;
 
 import com.intellij.openapi.util.IconLoader;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 
 public final class SmaliIcons {

@@ -37,7 +37,6 @@ import com.google.common.collect.Multimap
 import com.google.common.collect.Multimaps
 import com.intellij.facet.ProjectFacetManager
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
-import com.intellij.openapi.components.service
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.Project
@@ -55,7 +54,6 @@ import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import org.jetbrains.android.augment.AndroidLightField.FieldModifier
 import org.jetbrains.android.facet.AndroidFacet
-import org.jetbrains.android.util.AndroidUtils
 import java.io.IOException
 
 private data class ResourceClasses(
@@ -157,7 +155,7 @@ class ProjectLightResourceClassService(private val project: Project) : LightReso
 
     result.add(getModuleRClasses(androidFacet))
 
-    for (dependency in AndroidUtils.getAllAndroidDependencies(module, false)) {
+    for (dependency in AndroidDependenciesCache.getAllAndroidDependencies(module, false)) {
       result.add(getModuleRClasses(dependency))
     }
 
@@ -270,7 +268,7 @@ class ProjectLightResourceClassService(private val project: Project) : LightReso
 
   override fun findRClassPackage(packageName: String): PsiPackage? {
     return if (aarsByPackage.value.containsKey(packageName) || findAndroidFacetsWithPackageName(packageName).isNotEmpty()) {
-      project.service<AndroidLightPackage.InstanceCache>().get(packageName)
+      AndroidLightPackage.withName(packageName, project)
     }
     else {
       null
@@ -278,7 +276,6 @@ class ProjectLightResourceClassService(private val project: Project) : LightReso
   }
 
   override fun getAllLightRClasses(): Collection<PsiClass> {
-    val projectFacetManager = ProjectFacetManager.getInstance(project)
     val libraryClasses = findAllLibrariesWithResources(project).values.asSequence().map { getAarRClasses(it) }
     val moduleClasses = ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID).asSequence().map { getModuleRClasses(it) }
 
@@ -290,12 +287,11 @@ class ProjectLightResourceClassService(private val project: Project) : LightReso
 
   private fun findAndroidFacetsWithPackageName(packageName: String): Collection<AndroidFacet> {
     val projectSystem = project.getProjectSystem()
-    val projectScope = GlobalSearchScope.projectScope(project)
-    val facetsInferredFromPackageName = projectSystem.getAndroidFacetsWithPackageName(project, packageName, projectScope)
+    val facetsInferredFromPackageName = projectSystem.getAndroidFacetsWithPackageName(project, packageName)
 
     return if (packageName.endsWith(".test")) {
       val facetsInferredFromTestPackageName = packageName.substringBeforeLast('.').let {
-        projectSystem.getAndroidFacetsWithPackageName(project, it, projectScope)
+        projectSystem.getAndroidFacetsWithPackageName(project, it)
       }
       facetsInferredFromPackageName + facetsInferredFromTestPackageName
     }

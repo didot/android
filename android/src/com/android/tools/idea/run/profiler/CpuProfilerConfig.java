@@ -16,9 +16,8 @@
 package com.android.tools.idea.run.profiler;
 
 import com.android.utils.HashCodes;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.Objects;
+import org.jetbrains.annotations.NotNull;
 
 public class CpuProfilerConfig {
   public static final int DEFAULT_BUFFER_SIZE_MB = 8;
@@ -122,28 +121,28 @@ public class CpuProfilerConfig {
       @NotNull
       @Override
       public String getName() {
-        return "Sample Java Methods";
+        return "Java/Kotlin Method Sample (legacy)";
       }
     },
     INSTRUMENTED_JAVA {
       @NotNull
       @Override
       public String getName() {
-        return "Trace Java Methods";
+        return "Java/Kotlin Method Trace";
       }
     },
     SAMPLED_NATIVE {
       @NotNull
       @Override
       public String getName() {
-        return "Sample C/C++ Functions";
+        return "Callstack Sample";
       }
     },
     SYSTEM_TRACE {
       @NotNull
       @Override
       public String getName() {
-        return "Trace System Calls";
+        return "System Trace";
       }
     };
 

@@ -15,10 +15,8 @@
  */
 package com.android.tools.idea.stats
 
-import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.stats.CompletionStats.reportCompletionStats
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
-import com.google.wireless.android.sdk.stats.EditorCompletionStats
 import com.google.wireless.android.sdk.stats.EditorFileType
 import com.intellij.application.subscribe
 import com.intellij.codeInsight.completion.CompletionPhaseListener
@@ -30,7 +28,6 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
-//import com.intellij.util.analytics.toProto // /platform/util/src/com/intellij/util/analytics/HistogramUtil.kt does not exist in IC
 import org.HdrHistogram.SingleWriterRecorder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
@@ -39,7 +36,6 @@ import java.util.concurrent.ConcurrentMap
  * Collects performance metrics on code completion, such as popup latency and completion insertion latency.
  * To log an [AndroidStudioEvent] with the collected data, call [reportCompletionStats].
  */
-// FIXME-ank3: move out of shared android-plugin.xml
 object CompletionStats {
   private const val MAX_LATENCY_MS = 60 * 1000
 

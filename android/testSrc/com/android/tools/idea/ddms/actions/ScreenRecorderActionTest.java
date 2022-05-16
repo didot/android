@@ -76,20 +76,6 @@ public final class ScreenRecorderActionTest {
   }
 
   @Test
-  public void updateDeviceIsWatch() {
-    IDevice device = Mockito.mock(IDevice.class);
-    Mockito.when(device.isOnline()).thenReturn(true);
-
-    Mockito.when(myContext.getSelectedDevice()).thenReturn(device);
-    Mockito.when(myFeatures.watch(device)).thenReturn(true);
-
-    new ScreenRecorderAction(myRule.getProject(), myContext, myFeatures).update(myEvent);
-
-    assertFalse(myPresentation.isEnabled());
-    assertEquals("Screen Record Is Unavailable for Wear OS", myPresentation.getText());
-  }
-
-  @Test
   public void updateDeviceDoesntHaveScreenRecord() {
     IDevice device = Mockito.mock(IDevice.class);
     Mockito.when(device.isOnline()).thenReturn(true);
@@ -148,8 +134,8 @@ public final class ScreenRecorderActionTest {
 
     AvdInfo virtualDevice = new AvdInfo(
       "Pixel_2_XL_API_28",
-      new File("/usr/local/google/home/juancnuno/.android/avd/Pixel_2_XL_API_28.ini"),
-      "/usr/local/google/home/juancnuno/.android/avd/Pixel_2_XL_API_28.avd",
+      Paths.get("/usr/local/google/home/juancnuno/.android/avd/Pixel_2_XL_API_28.ini"),
+      Paths.get("/usr/local/google/home/juancnuno/.android/avd/Pixel_2_XL_API_28.avd"),
       Mockito.mock(ISystemImage.class),
       null);
 

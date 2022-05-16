@@ -16,37 +16,33 @@
 
 package com.android.tools.idea.testartifacts.instrumented;
 
-import static com.android.tools.idea.testartifacts.instrumented.testsuite.view.OptInBannerViewKt.createConsoleViewWithOptInBanner;
 import static com.intellij.codeInsight.AnnotationUtil.CHECK_HIERARCHY;
 import static com.intellij.openapi.util.text.StringUtil.getPackageName;
 import static com.intellij.openapi.util.text.StringUtil.isEmptyOrSpaces;
 
 import com.android.ddmlib.IDevice;
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.gradle.model.IdeAndroidArtifact;
 import com.android.tools.idea.gradle.model.IdeTestOptions;
+import com.android.tools.idea.gradle.project.build.invoker.TestCompileType;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.model.TestExecutionOption;
-import com.android.tools.idea.run.AndroidLaunchTasksProvider;
 import com.android.tools.idea.run.AndroidRunConfigurationBase;
 import com.android.tools.idea.run.ApkProvider;
 import com.android.tools.idea.run.ApkProvisionException;
 import com.android.tools.idea.run.ApplicationIdProvider;
 import com.android.tools.idea.run.ConsolePrinter;
 import com.android.tools.idea.run.ConsoleProvider;
-import com.android.tools.idea.run.GradleAndroidLaunchTasksProvider;
 import com.android.tools.idea.run.LaunchOptions;
 import com.android.tools.idea.run.ValidationError;
 import com.android.tools.idea.run.editor.AndroidRunConfigurationEditor;
 import com.android.tools.idea.run.editor.AndroidTestExtraParam;
 import com.android.tools.idea.run.editor.AndroidTestExtraParamKt;
+import com.android.tools.idea.run.editor.DeployTargetProvider;
 import com.android.tools.idea.run.editor.TestRunParameters;
 import com.android.tools.idea.run.tasks.AppLaunchTask;
-import com.android.tools.idea.run.tasks.LaunchTasksProvider;
 import com.android.tools.idea.run.ui.BaseAction;
 import com.android.tools.idea.run.util.LaunchStatus;
-import com.android.tools.idea.testartifacts.instrumented.configuration.AndroidTestConfiguration;
 import com.android.tools.idea.testartifacts.instrumented.testsuite.view.AndroidTestSuiteView;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -61,9 +57,7 @@ import com.intellij.execution.configurations.RefactoringListenerProvider;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RuntimeConfigurationException;
 import com.intellij.execution.junit.JUnitUtil;
-import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.testframework.TestRunnerBundle;
-import com.intellij.execution.testframework.sm.SMTestRunnerConnectionUtil;
 import com.intellij.execution.ui.ConsoleView;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.options.SettingsEditor;
@@ -71,7 +65,6 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.ui.Messages;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.JavaPsiFacade;
@@ -136,10 +129,29 @@ public class AndroidTestRunConfiguration extends AndroidRunConfigurationBase imp
    */
   public boolean INCLUDE_GRADLE_EXTRA_OPTIONS = true;
 
+  /*
+   * Configurations for Emulator Snapshot for Test Failures (a.k.a Android Test Retention, Icebox).
+   *
+   * Can be set to yes, no or use gradle settings.
+   */
+  public EnableRetention RETENTION_ENABLED = EnableRetention.NO;
+  /*
+   * Maximum number of snapshots for Emulator Snapshot for Test Failures.
+   */
+  public int RETENTION_MAX_SNAPSHOTS = 2;
+  /*
+   * Compress snapshots or not for Emulator Snapshot for Test Failures.
+   */
+  public boolean RETENTION_COMPRESS_SNAPSHOTS = false;
+
   public AndroidTestRunConfiguration(final Project project, final ConfigurationFactory factory) {
     super(project, factory, true);
-
     putUserData(BaseAction.SHOW_APPLY_CHANGES_UI, true);
+  }
+
+  @Override
+  public @NotNull List<DeployTargetProvider> getApplicableDeployTargetProviders() {
+    return getDeployTargetContext().getApplicableDeployTargetProviders(true);
   }
 
   @Override
@@ -234,6 +246,12 @@ public class AndroidTestRunConfiguration extends AndroidRunConfigurationBase imp
     return true;
   }
 
+  @NotNull
+  @Override
+  public TestCompileType getTestCompileMode() {
+    return TestCompileType.ANDROID_TESTS;
+  }
+
   private static int getTestSourceRootCount(@NotNull Module module) {
     final ModuleRootManager manager = ModuleRootManager.getInstance(module);
     return manager.getSourceRoots(true).length - manager.getSourceRoots(false).length;
@@ -269,7 +287,7 @@ public class AndroidTestRunConfiguration extends AndroidRunConfigurationBase imp
 
     if (!AnnotationUtil.isAnnotated(testClass, JUnitUtil.RUN_WITH, CHECK_HIERARCHY) && !testAnnotated) {
       try {
-        final PsiClass testCaseClass = JUnitUtil.getTestCaseClass(configurationModule.getModule());
+        final PsiClass testCaseClass = JUnitUtil.getTestCaseClass(getConfigurationModule().getAndroidTestModule());
         if (!testClass.isInheritor(testCaseClass, true)) {
           errors.add(ValidationError.fatal(JUnitBundle.message("class.isnt.inheritor.of.testcase.error.message", CLASS_NAME)));
         }
@@ -279,20 +297,6 @@ public class AndroidTestRunConfiguration extends AndroidRunConfigurationBase imp
       }
     }
     return errors;
-  }
-
-  @Override
-  protected LaunchTasksProvider createLaunchTasksProvider(@NotNull ExecutionEnvironment env,
-                                                       @NotNull AndroidFacet facet,
-                                                       @NotNull ApplicationIdProvider applicationIdProvider,
-                                                       @NotNull ApkProvider apkProvider,
-                                                       @NotNull LaunchOptions launchOptions) {
-    if (AndroidTestConfiguration.getInstance().getRUN_ANDROID_TEST_USING_GRADLE()) {
-      return new GradleAndroidLaunchTasksProvider(this, env, facet, applicationIdProvider, launchOptions,
-                                                  TESTING_TYPE, PACKAGE_NAME, CLASS_NAME, METHOD_NAME);
-    } else {
-      return new AndroidLaunchTasksProvider(this, env, facet, applicationIdProvider, apkProvider, launchOptions);
-    }
   }
 
   @NotNull
@@ -310,25 +314,11 @@ public class AndroidTestRunConfiguration extends AndroidRunConfigurationBase imp
   @Override
   protected ConsoleProvider getConsoleProvider(boolean runOnMultipleDevices) {
     return (parent, handler, executor) -> {
-      final ConsoleView consoleView;
-      if ((runOnMultipleDevices || AndroidTestConfiguration.getInstance().getALWAYS_DISPLAY_RESULTS_IN_THE_TEST_MATRIX())
-          && StudioFlags.MULTIDEVICE_INSTRUMENTATION_TESTS.get()) {
-        consoleView = new AndroidTestSuiteView(parent, getProject(), getConfigurationModule().getModule(),
-                                               executor.getToolWindowId(), this);
-        consoleView.attachToProcess(handler);
-      } else {
-        AndroidTestConsoleProperties properties = new AndroidTestConsoleProperties(this, executor);
-        consoleView = createConsoleViewWithOptInBanner(
-          SMTestRunnerConnectionUtil.createAndAttachConsole("Android", handler, properties));
-        Disposer.register(parent, consoleView);
-      }
+      final ConsoleView consoleView = new AndroidTestSuiteView(parent, getProject(), getConfigurationModule().getAndroidTestModule(),
+                                                               executor.getToolWindowId(), this);
+      consoleView.attachToProcess(handler);
       return consoleView;
     };
-  }
-
-  @Override
-  protected boolean supportMultipleDevices() {
-    return false;
   }
 
   @Nullable
@@ -611,8 +601,6 @@ public class AndroidTestRunConfiguration extends AndroidRunConfigurationBase imp
   @Override
   protected LaunchOptions.Builder getLaunchOptions() {
     LaunchOptions.Builder builder = super.getLaunchOptions();
-    // `am instrument` force stops the target package anyway, so there's no need for an explicit `am force-stop` for every APK involved.
-    builder.setForceStopRunningApp(false);
     builder.setPmInstallOptions(device -> {
       // -t: Allow test APKs to be installed.
       // -g: Grant all permissions listed in the app manifest. (Introduced at Android 6.0).

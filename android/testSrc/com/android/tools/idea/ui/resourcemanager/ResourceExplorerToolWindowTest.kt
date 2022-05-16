@@ -45,6 +45,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class ResourceExplorerToolWindowTest {
+
   lateinit var fixture: CodeInsightTestFixture
   lateinit var module: Module
   var facet: AndroidFacet? = null

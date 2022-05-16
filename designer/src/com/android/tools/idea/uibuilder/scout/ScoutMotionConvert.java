@@ -15,6 +15,10 @@
  */
 package com.android.tools.idea.uibuilder.scout;
 
+import static com.android.SdkConstants.ATTR_CONSTRAINT_LAYOUT_DESCRIPTION;
+import static com.android.SdkConstants.CLASS_MOTION_LAYOUT;
+import static com.android.SdkConstants.SHERPA_URI;
+
 import com.android.tools.idea.common.model.AttributesTransaction;
 import com.android.tools.idea.common.model.NlComponent;
 import com.android.tools.idea.util.DependencyManagementUtil;
@@ -24,10 +28,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
-
 import java.util.Locale;
-
-import static com.android.SdkConstants.*;
 
 /**
  * This performs direct conversion of ConstraintLayout to MotionLayout

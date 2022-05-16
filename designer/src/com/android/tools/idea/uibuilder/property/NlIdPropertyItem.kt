@@ -113,7 +113,6 @@ open class NlIdPropertyItem(
       .build()
     ActionUtil.invokeAction(action, simpleContext, ActionPlaces.UNKNOWN, null, null)
 
-
     // The RenameProcessor will change the value of the ID here (may happen later if previewing first).
     return true
   }

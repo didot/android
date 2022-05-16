@@ -63,7 +63,6 @@ import gnu.trove.TObjectHashingStrategy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -108,7 +107,7 @@ public class ResourceTypeCompletionContributor extends CompletionContributor {
     Constraints allowedValues = getAllowedValues(pos);
     if (allowedValues == null) return;
 
-    final Set<PsiElement> allowed = new THashSet<PsiElement>(new TObjectHashingStrategy<PsiElement>() {
+    final Set<PsiElement> allowed = new THashSet<>(new TObjectHashingStrategy<>() {
       @Override
       public int computeHashCode(PsiElement object) {
         return 0;
@@ -178,7 +177,7 @@ public class ResourceTypeCompletionContributor extends CompletionContributor {
       }
     }
 
-    result.runRemainingContributors(parameters, new Consumer<CompletionResult>() {
+    result.runRemainingContributors(parameters, new Consumer<>() {
       @Override
       public void consume(CompletionResult completionResult) {
         LookupElement element = completionResult.getLookupElement();
@@ -252,9 +251,7 @@ public class ResourceTypeCompletionContributor extends CompletionContributor {
       if (constraint == null) {
         PsiClass aClass = annotation.resolveAnnotationType();
         if (aClass == null) continue;
-        if (visited == null) {
-          visited = new HashSet<>();
-        }
+        if (visited == null) visited = new THashSet<>();
         if (!visited.add(aClass)) continue;
         constraint = getAllowedValues(aClass, type, visited);
       }

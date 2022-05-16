@@ -15,20 +15,21 @@
  */
 package com.android.tools.idea.run;
 
+import static org.junit.Assert.assertEquals;
+
 import com.android.ddmlib.Log.LogLevel;
 import com.android.ddmlib.logcat.LogCatHeader;
 import com.android.ddmlib.logcat.LogCatMessage;
 import com.android.tools.idea.logcat.AndroidLogcatFormatter;
 import com.android.tools.idea.logcat.AndroidLogcatPreferences;
 import com.android.tools.idea.logcat.AndroidLogcatService.LogcatListener;
+import com.android.tools.idea.logcat.LogcatHeaderFormat;
+import com.android.tools.idea.logcat.LogcatHeaderFormat.TimestampFormat;
 import com.intellij.openapi.util.Key;
-import org.jetbrains.annotations.NotNull;
-import org.junit.Test;
-
 import java.time.Instant;
 import java.time.ZoneId;
-
-import static org.junit.Assert.assertEquals;
+import org.jetbrains.annotations.NotNull;
+import org.junit.Test;
 
 public final class ApplicationLogListenerTest {
   @Test
@@ -38,9 +39,7 @@ public final class ApplicationLogListenerTest {
     Instant timestamp = Instant.parse("2018-04-03T20:27:49.161Z");
     LogCatHeader header = new LogCatHeader(LogLevel.INFO, 24314, 24314, "com.google.myapplication", "MainActivity", timestamp);
 
-    listener.onLogLineReceived(new LogCatMessage(header, "Line 1"));
-    listener.onLogLineReceived(new LogCatMessage(header, "Line 2"));
-    listener.onLogLineReceived(new LogCatMessage(header, "Line 3"));
+    listener.onLogLineReceived(new LogCatMessage(header, "Line 1\nLine 2\nLine 3"));
 
     Object expected = "I/MainActivity: Line 1\n" +
                       "    Line 2\n" +
@@ -50,7 +49,7 @@ public final class ApplicationLogListenerTest {
   }
 
   private static final class TestApplicationLogListener extends ApplicationLogListener {
-    private static final String FORMAT = AndroidLogcatFormatter.createCustomFormat(false, false, false, true);
+    private static final LogcatHeaderFormat FORMAT = new LogcatHeaderFormat(TimestampFormat.NONE, false, false, true);
 
     private final AndroidLogcatFormatter myFormatter;
     private final StringBuilder myBuilder;

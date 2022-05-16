@@ -23,7 +23,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.ui.CardLayoutPanel;
 import com.intellij.ui.CollectionComboBoxModel;
-import com.intellij.ui.SimpleListCellRenderer;
 import com.intellij.ui.TitledSeparator;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.uiDesigner.core.GridConstraints;
@@ -81,7 +80,7 @@ final class DeploymentTargetOptions {
   @NotNull
   private JComboBox<DeployTargetProvider> newTargetComboBox() {
     JComboBox<DeployTargetProvider> comboBox = new ComboBox<>(new CollectionComboBoxModel<>(myProviders));
-    comboBox.setRenderer(SimpleListCellRenderer.create("", o -> o.getDisplayName()));
+    comboBox.setRenderer(new DeployTargetProvider.Renderer());
 
     comboBox.addActionListener(event -> {
       DeployTargetProvider provider = (DeployTargetProvider)comboBox.getSelectedItem();

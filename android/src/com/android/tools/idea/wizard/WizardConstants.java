@@ -21,10 +21,10 @@ import static com.android.tools.idea.wizard.dynamic.ScopedStateStore.createKey;
 
 import com.android.tools.idea.ui.wizard.StudioWizardLayout;
 import com.intellij.ui.JBColor;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBUI;
 import java.awt.Dimension;
 import java.awt.Insets;
-import java.util.List;
 
 /**
  * Constants for template based wizards.
@@ -44,7 +44,7 @@ public class WizardConstants {
   /**
    * @deprecated Obsoleted by {@link StudioWizardLayout}
    */
-  public static final int STUDIO_WIZARD_INSET_SIZE = JBUI.scale(12);
+  public static final int STUDIO_WIZARD_INSET_SIZE = JBUIScale.scale(12);
   /**
    * @deprecated Obsoleted by {@link StudioWizardLayout}
    */
@@ -64,8 +64,6 @@ public class WizardConstants {
 
   // State Store Keys
   // TODO After the wizard migration delete as many of these keys as possible
-  @SuppressWarnings("unchecked") public static final Key<List<String>> INSTALL_REQUESTS_KEY =
-    createKey("packagesToInstall", WIZARD, (Class<List<String>>)(Class)List.class);
   public static final Key<String> KEY_SDK_INSTALL_LOCATION = createKey("download.sdk.location", WIZARD, String.class);
   public static final Key<String> KEY_JDK_LOCATION = createKey("wizard.jdk.location", WIZARD, String.class);
   // TODO: change this an IntProperty, see com.android.tools.idea.sdk.wizard.InstallSelectedPackagesStep#checkForUpgrades

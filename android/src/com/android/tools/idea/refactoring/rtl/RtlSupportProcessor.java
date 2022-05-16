@@ -76,11 +76,10 @@ import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.resources.ResourceFolderType;
 import com.android.tools.idea.model.AndroidModuleInfo;
 import com.android.tools.idea.projectsystem.FilenameConstants;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.google.common.collect.ImmutableMap;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -210,8 +209,7 @@ public class RtlSupportProcessor extends BaseRefactoringProcessor {
 
   private void addManifestRefactoring(List<UsageInfo> list) {
     // For all non library modules in our project
-    for (Module module : ModuleManager.getInstance(myProject).getModules()) {
-      AndroidFacet facet = AndroidFacet.getInstance(module);
+    for (AndroidFacet facet : ProjectSystemUtil.getAndroidFacets(myProject)) {
       if (facet == null || facet.getConfiguration().isLibraryProject()) {
         continue;
       }
@@ -342,8 +340,7 @@ public class RtlSupportProcessor extends BaseRefactoringProcessor {
 
   private void addLayoutRefactoring(List<UsageInfo> list) {
     // For all non library modules in our project
-    for (Module module : ModuleManager.getInstance(myProject).getModules()) {
-      AndroidFacet facet = AndroidFacet.getInstance(module);
+    for (AndroidFacet facet : ProjectSystemUtil.getAndroidFacets(myProject)) {
       if (facet != null && facet.getConfiguration().isAppProject()) {
         int minSdk = AndroidModuleInfo.getInstance(facet).getMinSdkVersion().getApiLevel();
 

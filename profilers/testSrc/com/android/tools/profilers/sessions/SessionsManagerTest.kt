@@ -31,6 +31,7 @@ import com.android.tools.profilers.ProfilerClient
 import com.android.tools.profilers.ProfilersTestData
 import com.android.tools.profilers.StudioProfilers
 import com.android.tools.profilers.StudioProfilers.buildSessionName
+import com.android.tools.profilers.Utils.debuggableProcess
 import com.android.tools.profilers.cpu.CpuCaptureSessionArtifact
 import com.android.tools.profilers.cpu.FakeCpuService
 import com.android.tools.profilers.event.FakeEventService
@@ -130,10 +131,9 @@ class SessionsManagerTest {
   }
 
   @Test
-  fun testValidSessionMetadata() {
+  fun testValidSessionMetadataForDebuggableProcess() {
     val streamId = 1L
     val processId = 10
-    ideProfilerServices.enableLiveAllocationTracking(true)
     val device = Common.Device.newBuilder().apply {
       deviceId = streamId
       state = Common.Device.State.ONLINE
@@ -143,6 +143,7 @@ class SessionsManagerTest {
       pid = processId
       state = Common.Process.State.ALIVE
       abiCpuArch = "arm64"
+      exposureLevel = Common.Process.ExposureLevel.DEBUGGABLE
     }.build()
     beginSessionHelper(device, process)
 
@@ -153,7 +154,32 @@ class SessionsManagerTest {
     assertThat(sessionMetadata.type).isEqualTo(Common.SessionMetaData.SessionType.FULL)
     assertThat(sessionMetadata.processAbi).isEqualTo("arm64")
     assertThat(sessionMetadata.jvmtiEnabled).isTrue()
-    assertThat(sessionMetadata.liveAllocationEnabled).isTrue()
+  }
+
+  @Test
+  fun testValidSessionMetadataForProfileableProcess() {
+    val streamId = 1L
+    val processId = 10
+    val device = Common.Device.newBuilder().apply {
+      deviceId = streamId
+      state = Common.Device.State.ONLINE
+      featureLevel = AndroidVersion.VersionCodes.Q
+    }.build()
+    val process = Common.Process.newBuilder().apply {
+      pid = processId
+      state = Common.Process.State.ALIVE
+      abiCpuArch = "arm64"
+      exposureLevel = Common.Process.ExposureLevel.PROFILEABLE
+    }.build()
+    beginSessionHelper(device, process)
+
+    val session = myManager.selectedSession
+    val sessionMetadata = myManager.selectedSessionMetaData
+    assertThat(sessionMetadata.sessionId).isEqualTo(session.sessionId)
+    assertThat(sessionMetadata.sessionName).isEqualTo(buildSessionName(device, process))
+    assertThat(sessionMetadata.type).isEqualTo(Common.SessionMetaData.SessionType.FULL)
+    assertThat(sessionMetadata.processAbi).isEqualTo("arm64")
+    assertThat(sessionMetadata.jvmtiEnabled).isFalse()
   }
 
   @Test
@@ -344,7 +370,6 @@ class SessionsManagerTest {
    */
   @Test
   fun testNativeHeapArtifacts() {
-    ideProfilerServices.enableNativeMemorySampling(true)
     val profiler = StudioProfilers(
       ProfilerClient(myGrpcChannel.channel),
       ideProfilerServices,
@@ -596,9 +621,9 @@ class SessionsManagerTest {
   @Test
   fun testDeleteProfilingSession() {
     val device = Common.Device.newBuilder().setDeviceId(1).setState(Common.Device.State.ONLINE).build()
-    val process1 = Common.Process.newBuilder().setPid(10).setDeviceId(1).setState(Common.Process.State.ALIVE).build()
-    val process2 = Common.Process.newBuilder().setPid(20).setDeviceId(1).setState(Common.Process.State.ALIVE).build()
-    val process3 = Common.Process.newBuilder().setPid(30).setDeviceId(1).setState(Common.Process.State.ALIVE).build()
+    val process1 = debuggableProcess { pid = 10; deviceId = 1 }
+    val process2 = debuggableProcess { pid = 20; deviceId = 1 }
+    val process3 = debuggableProcess { pid = 30; deviceId = 1 }
     myTransportService.addDevice(device)
     myTransportService.addProcess(device, process1)
     myTransportService.addProcess(device, process2)
@@ -674,8 +699,8 @@ class SessionsManagerTest {
   @Test
   fun testDeleteUnselectedSession() {
     val device = Common.Device.newBuilder().setDeviceId(1).setState(Common.Device.State.ONLINE).build()
-    val process1 = Common.Process.newBuilder().setPid(10).setDeviceId(1).setState(Common.Process.State.ALIVE).build()
-    val process2 = Common.Process.newBuilder().setPid(20).setDeviceId(1).setState(Common.Process.State.ALIVE).build()
+    val process1 = debuggableProcess { pid = 10; deviceId = 1 }
+    val process2 = debuggableProcess { pid = 20; deviceId = 1 }
     myTransportService.addDevice(device)
     myTransportService.addProcess(device, process1)
     myTransportService.addProcess(device, process2)

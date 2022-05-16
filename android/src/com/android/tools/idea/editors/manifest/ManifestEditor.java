@@ -39,10 +39,11 @@ import com.intellij.psi.PsiTreeChangeEvent;
 import com.intellij.psi.PsiTreeChangeListener;
 import com.intellij.ui.EditorNotifications;
 import com.intellij.util.concurrency.EdtExecutorService;
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.beans.PropertyChangeListener;
 import java.util.concurrent.ExecutionException;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -130,7 +131,7 @@ public class ManifestEditor extends UserDataHolderBase implements FileEditor {
       // Otherwise, the best we can do is to throw up a loading spinner.
       myManifestPanel.startLoading();
     }
-    Futures.addCallback(mergedManifest, new FutureCallback<MergedManifestSnapshot>() {
+    Futures.addCallback(mergedManifest, new FutureCallback<>() {
       @Override
       public void onSuccess(MergedManifestSnapshot result) {
         showFreshManifest(result);

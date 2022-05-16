@@ -15,12 +15,13 @@
  */
 package com.android.tools.idea.compose.gradle.preview
 
+import com.android.flags.junit.SetFlagRule
 import com.android.tools.idea.compose.gradle.ComposeGradleProjectRule
-
 import com.android.tools.idea.compose.preview.ProjectBuildStatusManager
 import com.android.tools.idea.compose.preview.ProjectStatus
 import com.android.tools.idea.compose.preview.PsiFileSnapshotFilter
 import com.android.tools.idea.compose.preview.SIMPLE_COMPOSE_PROJECT_PATH
+import com.android.tools.idea.flags.StudioFlags
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -31,17 +32,24 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
-import org.jetbrains.kotlin.psi.KtConstantExpression
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.util.concurrent.Executor
 
 class ProjectBuildStatusManagerTest {
   @get:Rule
   val edtRule = EdtRule()
+
+  @get:Rule
+  val liveEditFlagRule = SetFlagRule(StudioFlags.COMPOSE_LIVE_EDIT_PREVIEW, false)
+  @get:Rule
+  val liveLiteralsFlagRule = SetFlagRule(StudioFlags.COMPOSE_LIVE_LITERALS, true)
 
   @get:Rule
   val projectRule = ComposeGradleProjectRule(SIMPLE_COMPOSE_PROJECT_PATH)
@@ -57,7 +65,10 @@ class ProjectBuildStatusManagerTest {
       projectRule.fixture.openFileInEditor(mainFile)
     }
 
-    val statusManager = ProjectBuildStatusManager(projectRule.fixture.testRootDisposable, projectRule.fixture.file)
+    val statusManager = ProjectBuildStatusManager.create(
+      projectRule.fixture.testRootDisposable,
+      projectRule.fixture.file,
+      scope = CoroutineScope(Executor { command -> command.run() }.asCoroutineDispatcher()))
     assertTrue("Project must compile correctly", projectRule.build().isBuildSuccessful)
     assertTrue("Builds status is not Ready after successful build", statusManager.status is ProjectStatus.Ready)
 
@@ -91,7 +102,10 @@ class ProjectBuildStatusManagerTest {
     }
     FileDocumentManager.getInstance().saveAllDocuments()
 
-    val statusManager = ProjectBuildStatusManager(projectRule.fixture.testRootDisposable, projectRule.fixture.file)
+    val statusManager = ProjectBuildStatusManager.create(
+      projectRule.fixture.testRootDisposable,
+      projectRule.fixture.file,
+      scope = CoroutineScope(Executor { command -> command.run() }.asCoroutineDispatcher()))
     assertEquals(ProjectStatus.NeedsBuild, statusManager.status)
     assertFalse(projectRule.build().isBuildSuccessful)
     assertEquals(ProjectStatus.NeedsBuild, statusManager.status)
@@ -128,7 +142,11 @@ class ProjectBuildStatusManagerTest {
     }
 
     val fileFilter = TestFilter()
-    val statusManager = ProjectBuildStatusManager(projectRule.fixture.testRootDisposable, projectRule.fixture.file, fileFilter)
+    val statusManager = ProjectBuildStatusManager.create(
+      projectRule.fixture.testRootDisposable,
+      projectRule.fixture.file,
+      fileFilter,
+      scope = CoroutineScope(Executor { command -> command.run() }.asCoroutineDispatcher()))
     assertTrue(projectRule.build().isBuildSuccessful)
     assertEquals("Builds status is not Ready after successful build", ProjectStatus.Ready, statusManager.status)
 

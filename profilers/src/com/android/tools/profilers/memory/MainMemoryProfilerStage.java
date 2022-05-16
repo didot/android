@@ -21,6 +21,7 @@ import com.android.sdklib.AndroidVersion;
 import com.android.tools.adtui.model.DurationDataModel;
 import com.android.tools.adtui.model.Range;
 import com.android.tools.adtui.model.SeriesData;
+import com.android.tools.idea.transport.TransportFileManager;
 import com.android.tools.idea.transport.poller.TransportEventListener;
 import com.android.tools.profiler.proto.Commands;
 import com.android.tools.profiler.proto.Common;
@@ -35,6 +36,7 @@ import com.android.tools.profilers.IdeProfilerServices;
 import com.android.tools.profilers.RecordingOption;
 import com.android.tools.profilers.RecordingOptionsModel;
 import com.android.tools.profilers.StudioProfilers;
+import com.android.tools.profilers.SupportLevel;
 import com.android.tools.profilers.memory.adapters.CaptureObject;
 import com.android.tools.profilers.memory.adapters.HeapDumpCaptureObject;
 import com.android.tools.profilers.memory.adapters.NativeAllocationSampleCaptureObject;
@@ -46,13 +48,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
 import javax.swing.SwingUtilities;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class MainMemoryProfilerStage extends BaseStreamingMemoryProfilerStage {
   private static final String HEAP_DUMP_TOOLTIP = "View objects in your app that are using memory at a specific point in time";
-  private static final String LIVE_ALLOCATION_TRACKING_NOT_READY_TOOLTIP = "Allocation tracking isn't ready. Please wait.";
   private static final String CAPTURE_HEAP_DUMP_TEXT = "Capture heap dump";
   private static final String RECORD_JAVA_TEXT = "Record Java / Kotlin allocations";
   private static final String RECORD_JAVA_TOOLTIP = "View how each Java / Kotlin object was allocated over a period of time";
@@ -132,23 +134,18 @@ public class MainMemoryProfilerStage extends BaseStreamingMemoryProfilerStage {
   public void enter() {
     super.enter();
 
-    myRecordingOptionsModel.addBuiltInOptions(makeHeapDumpOption());
+    BiConsumer<SupportLevel.Feature, RecordingOption> adder = (feature, option) -> {
+      myRecordingOptionsModel.addBuiltInOptions(option);
+      if (!getStudioProfilers().getSelectedSessionSupportLevel().isFeatureSupported(feature)) {
+        myRecordingOptionsModel.setOptionNotReady(option, feature.getTitle() + " is not supported for profileable processes");
+      }
+    };
+    adder.accept(SupportLevel.Feature.MEMORY_HEAP_DUMP, makeHeapDumpOption());
     if (isNativeAllocationSamplingEnabled()) {
-      myRecordingOptionsModel.addBuiltInOptions(makeNativeRecordingOption());
+      adder.accept(SupportLevel.Feature.MEMORY_NATIVE_RECORDING, makeNativeRecordingOption());
     }
     RecordingOption javaRecordingOption = makeJavaRecodingOption();
-    myRecordingOptionsModel.addBuiltInOptions(javaRecordingOption);
-    if (isLiveAllocationTrackingSupported() && !isLiveAllocationTrackingReady()) {
-      Runnable update = () -> {
-        if (isLiveAllocationTrackingReady()) {
-          myRecordingOptionsModel.setOptionReady(javaRecordingOption);
-        } else {
-          myRecordingOptionsModel.setOptionNotReady(javaRecordingOption, LIVE_ALLOCATION_TRACKING_NOT_READY_TOOLTIP);
-        }
-      };
-      update.run();
-      getAspect().addDependency(this).onChange(MemoryProfilerAspect.LIVE_ALLOCATION_STATUS, update);
-    }
+    adder.accept(SupportLevel.Feature.MEMORY_JVM_RECORDING, javaRecordingOption);
 
     // Update statuses after recording options model has been initialized
     updateAllocationTrackingStatus();
@@ -215,7 +212,7 @@ public class MainMemoryProfilerStage extends BaseStreamingMemoryProfilerStage {
                               // the app.
                               .setSamplingIntervalBytes(ide.getNativeMemorySamplingRateForCurrentConfig())
                               .setSharedMemoryBufferBytes(64 * 1024 * 1024)
-                              .setAbiCpuArch(process.getAbiCpuArch())
+                              .setAbiCpuArch(TransportFileManager.getShortAbiName(getStudioProfilers().getDevice().getCpuAbi()))
                               .setTempPath(traceFilePath)
                               .setAppName(process.getName()))
       .build();
@@ -400,9 +397,7 @@ public class MainMemoryProfilerStage extends BaseStreamingMemoryProfilerStage {
 
   public boolean isNativeAllocationSamplingEnabled() {
     Common.Device device = getDeviceForSelectedSession();
-    return getStudioProfilers().getIdeServices().getFeatureConfig().isNativeMemorySampleEnabled() &&
-           device != null &&
-           device.getFeatureLevel() >= AndroidVersion.VersionCodes.Q;
+    return device != null && device.getFeatureLevel() >= AndroidVersion.VersionCodes.Q;
   }
 
   @NotNull

@@ -20,16 +20,17 @@ import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.Client
 import com.android.ddmlib.CollectingOutputReceiver
 import com.android.ddmlib.IDevice
+import com.android.tools.idea.adb.AdbFileProvider
 import com.android.tools.idea.adb.AdbService
 import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescriptor
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.intellij.openapi.project.Project
-import org.jetbrains.android.sdk.AndroidSdkUtils
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+private const val ADB_NEVER_TIMEOUT = 0L
 private const val ADB_TIMEOUT_SECONDS = 2L
 
 fun AndroidDebugBridge.findDevice(device: DeviceDescriptor): IDevice? {
@@ -51,20 +52,33 @@ fun AndroidDebugBridge.findClient(process: ProcessDescriptor): Client? {
 @Slow
 fun AndroidDebugBridge.executeShellCommand(device: DeviceDescriptor,
                                            command: String,
-                                           timeoutSecs: Long = ADB_TIMEOUT_SECONDS): String {
+                                           timeoutSecs: Long = ADB_TIMEOUT_SECONDS,
+): String {
+  val latch = CountDownLatch(1)
+  val receiver = startShellCommand(device, command, timeoutSecs, latch)
+  latch.await(timeoutSecs, TimeUnit.SECONDS)
+  return receiver.output.trim()
+}
+
+/**
+ * Attempts to start running a target [command], returning a [CollectingOutputReceiver] so the
+ * caller can have more control over when to cancel it or fetch the results.
+ */
+fun AndroidDebugBridge.startShellCommand(device: DeviceDescriptor,
+                                         command: String,
+                                         timeoutSecs: Long = ADB_NEVER_TIMEOUT,
+                                         latch: CountDownLatch = CountDownLatch(1)
+): CollectingOutputReceiver {
   return findDevice(device)?.let { adbDevice ->
-    val latch = CountDownLatch(1)
     val receiver = CollectingOutputReceiver(latch)
-    adbDevice.executeShellCommand(command, receiver, ADB_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-    latch.await(timeoutSecs, TimeUnit.SECONDS)
-    receiver.output.trim()
+    adbDevice.executeShellCommand(command, receiver, timeoutSecs, TimeUnit.SECONDS)
+    receiver
   } ?: throw IllegalArgumentException("Could not execute ADB command [$command]. Device (${device.model}) is disconnected.")
 }
 
-
 object AdbUtils {
-  fun getAdbFuture(project: Project): ListenableFuture<AndroidDebugBridge> {
-    return AndroidSdkUtils.getAdb(project)?.let { AdbService.getInstance()?.getDebugBridge(it) }
-           ?: Futures.immediateFuture(AndroidDebugBridge.createBridge())
+  fun getAdbFuture(project: Project): ListenableFuture<AndroidDebugBridge?> {
+    return AdbFileProvider.fromProject(project)?.adbFile?.let { AdbService.getInstance()?.getDebugBridge(it) }
+           ?: Futures.immediateFuture(null)
   }
 }

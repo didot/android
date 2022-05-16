@@ -20,12 +20,12 @@ import static org.junit.Assert.assertTrue;
 
 import com.android.tools.adtui.stdui.ContentType;
 import com.android.tools.adtui.stdui.ContextMenuItem;
-import com.android.tools.inspectors.common.api.stacktrace.CodeLocation;
-import com.android.tools.inspectors.common.api.stacktrace.CodeNavigator;
+import com.android.tools.idea.codenavigation.CodeLocation;
+import com.android.tools.idea.codenavigation.CodeNavigator;
 import com.android.tools.inspectors.common.api.stacktrace.StackTraceModel;
+import com.android.tools.inspectors.common.ui.ContextMenuInstaller;
 import com.android.tools.inspectors.common.ui.dataviewer.DataViewer;
 import com.android.tools.inspectors.common.ui.dataviewer.ImageDataViewer;
-import com.android.tools.inspectors.common.ui.ContextMenuInstaller;
 import com.android.tools.inspectors.common.ui.stacktrace.StackTraceGroup;
 import com.android.tools.inspectors.common.ui.stacktrace.StackTraceView;
 import com.android.tools.profilers.cpu.config.CpuProfilerConfigModel;

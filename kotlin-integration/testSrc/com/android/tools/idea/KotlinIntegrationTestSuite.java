@@ -27,7 +27,8 @@ import org.junit.runner.RunWith;
 public class KotlinIntegrationTestSuite extends IdeaTestSuiteBase {
 
   static {
-    unzipIntoOfflineMavenRepo("tools/base/build-system/studio_repo.zip");
-    unzipIntoOfflineMavenRepo("tools/adt/idea/kotlin-integration/test_deps.zip");
+    linkIntoOfflineMavenRepo("tools/base/build-system/studio_repo.manifest");
+    linkIntoOfflineMavenRepo("tools/base/build-system/integration-test/kotlin_gradle_plugin_prebuilts.manifest");
+    linkIntoOfflineMavenRepo("tools/adt/idea/kotlin-integration/test_deps.manifest");
   }
 }

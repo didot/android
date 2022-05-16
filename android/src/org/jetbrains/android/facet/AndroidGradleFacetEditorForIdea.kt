@@ -5,7 +5,7 @@ import com.android.tools.idea.structure.dialog.AndroidProjectStructureConfigurab
 import com.intellij.facet.ui.FacetEditorTab
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
-import com.intellij.ui.layout.*
+import com.intellij.ui.layout.panel
 import org.jetbrains.android.util.AndroidBundle
 import org.jetbrains.annotations.Nls
 import javax.swing.JComponent

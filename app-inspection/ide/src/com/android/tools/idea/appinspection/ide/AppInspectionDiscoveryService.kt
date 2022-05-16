@@ -25,7 +25,11 @@ import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescript
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.AndroidExecutors
-import com.android.tools.idea.transport.*
+import com.android.tools.idea.transport.DeployableFile
+import com.android.tools.idea.transport.TransportClient
+import com.android.tools.idea.transport.TransportFileManager
+import com.android.tools.idea.transport.TransportService
+import com.android.tools.idea.transport.TransportServiceProxy
 import com.android.tools.idea.transport.manager.TransportStreamManager
 import com.google.common.util.concurrent.MoreExecutors
 import com.intellij.openapi.Disposable

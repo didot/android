@@ -30,10 +30,16 @@ import com.intellij.openapi.util.SystemInfo;
 import com.intellij.ui.HyperlinkLabel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.StartupUiUtil;
-import java.awt.*;
+import java.awt.Font;
 import java.util.Hashtable;
 import java.util.Locale;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JSlider;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

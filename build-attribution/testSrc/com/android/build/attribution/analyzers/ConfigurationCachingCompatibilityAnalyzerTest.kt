@@ -21,14 +21,14 @@ import com.android.build.attribution.KnownGradlePluginsService
 import com.android.build.attribution.data.GradlePluginsData
 import com.android.build.attribution.data.PluginData
 import com.android.ide.common.repository.GradleVersion
-import com.android.testutils.TestUtils.getKotlinVersionForTests
+import com.android.testutils.TestUtils.KOTLIN_VERSION_FOR_TESTS
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.build.attribution.BuildAttributionManager
 import com.android.tools.idea.testing.AndroidGradleProjectRule
 import com.android.tools.idea.testing.TestProjectPaths
 import com.android.utils.FileUtils
 import com.google.common.truth.Truth.assertThat
-import com.intellij.openapi.components.ServiceManager
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.io.FileUtil
 import org.junit.After
 import org.junit.Before
@@ -115,9 +115,8 @@ class ConfigurationCachingCompatibilityAnalyzerTest {
 
   @Test
   fun testNewKotlinNotDetected() {
-    val kotlinVersion = getKotlinVersionForTests()
     projectSetup(
-      dependencies = "classpath \"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion\"",
+      dependencies = "classpath \"org.jetbrains.kotlin:kotlin-gradle-plugin:$KOTLIN_VERSION_FOR_TESTS\"",
       pluginsApply = "apply plugin: 'kotlin-android'"
     )
 
@@ -237,13 +236,12 @@ class ConfigurationCachingCompatibilityAnalyzerTest {
     val invocationResult = myProjectRule.invokeTasks("assembleDebug")
     assertThat(invocationResult.isBuildSuccessful).isTrue()
 
-    return (ServiceManager.getService(
-      myProjectRule.project,
+    return (myProjectRule.project.getService(
       BuildAttributionManager::class.java
     ) as BuildAttributionManagerImpl).analyzersProxy.getConfigurationCachingCompatibility()
   }
 
-  private fun kotlinPluginInfo(): GradlePluginsData.PluginInfo = ServiceManager
+  private fun kotlinPluginInfo(): GradlePluginsData.PluginInfo = ApplicationManager.getApplication()
     .getService(KnownGradlePluginsService::class.java)
     .gradlePluginsData
     .pluginsInfo

@@ -1,6 +1,7 @@
 // Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.android.formatter;
 
+import com.intellij.application.options.XmlLanguageCodeStyleSettingsProvider;
 import com.intellij.ide.actions.ShowSettingsUtilImpl;
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.notification.NotificationDisplayType;
@@ -29,10 +30,10 @@ public class AndroidCodeStyleNotificationProvider extends EditorNotifications.Pr
 
   @NonNls private static final String ANDROID_XML_CODE_STYLE_NOTIFICATION_GROUP = "Android XML code style notification";
 
-  private final Project project;
+  private final Project myProject;
 
   public AndroidCodeStyleNotificationProvider(Project project) {
-    this.project = project;
+    myProject = project;
   }
 
   @NotNull
@@ -64,7 +65,7 @@ public class AndroidCodeStyleNotificationProvider extends EditorNotifications.Pr
     if (resDir == null || !ModuleResourceManagers.getInstance(facet).getLocalResourceManager().isResourceDir(resDir)) {
       return null;
     }
-    final CodeStyleSettings settings = CodeStyleSettingsManager.getSettings(project);
+    final CodeStyleSettings settings = CodeStyleSettingsManager.getSettings(myProject);
     final AndroidXmlCodeStyleSettings androidSettings = AndroidXmlCodeStyleSettings.getInstance(settings);
 
     if (androidSettings.USE_CUSTOM_SETTINGS) {
@@ -91,8 +92,8 @@ public class AndroidCodeStyleNotificationProvider extends EditorNotifications.Pr
         @Override
         public void run() {
           ShowSettingsUtilImpl.showSettingsDialog(
-            project, "preferences.sourceCode.XML", "");
-          EditorNotifications.getInstance(project).updateAllNotifications();
+            myProject, "preferences.sourceCode." + XmlLanguageCodeStyleSettingsProvider.getConfigurableDisplayNameText(), "");
+          EditorNotifications.getInstance(myProject).updateAllNotifications();
         }
       });
 
@@ -101,7 +102,7 @@ public class AndroidCodeStyleNotificationProvider extends EditorNotifications.Pr
         public void run() {
           NotificationsConfiguration.getNotificationsConfiguration()
             .changeSettings(ANDROID_XML_CODE_STYLE_NOTIFICATION_GROUP, NotificationDisplayType.NONE, false, false);
-          EditorNotifications.getInstance(project).updateAllNotifications();
+          EditorNotifications.getInstance(myProject).updateAllNotifications();
         }
       });
     }

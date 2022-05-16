@@ -28,7 +28,7 @@ import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.ide.highlighter.XmlFileType
 import com.intellij.lang.properties.PropertiesFileType
-import com.intellij.openapi.extensions.ExtensionPointName
+import com.intellij.openapi.application.ApplicationManager.getApplication
 import com.intellij.openapi.fileTypes.FileTypes
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
@@ -40,7 +40,7 @@ import com.intellij.psi.xml.XmlFile
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.plugins.gradle.config.isGradleFile
 import java.io.File
-import java.util.*
+import java.util.EnumSet
 
 /**
  * Extension point for the general lint support to look up services it does not
@@ -51,10 +51,9 @@ abstract class LintIdeSupport {
     LintClient.clientName = CLIENT_STUDIO
   }
   companion object {
-    private val EP_NAME = ExtensionPointName.create<LintIdeSupport>("com.android.tools.idea.lint.common.lintIdeSupport")
-
     @JvmStatic
-    fun get(): LintIdeSupport = EP_NAME.extensionList.single()
+    fun get(): LintIdeSupport = getApplication().getService(LintIdeSupport::class.java)
+                                ?: object : LintIdeSupport() {}
   }
 
   open fun getIssueRegistry(): IssueRegistry = LintIdeIssueRegistry()

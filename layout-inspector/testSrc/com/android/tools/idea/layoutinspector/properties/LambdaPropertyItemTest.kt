@@ -22,6 +22,7 @@ import com.android.tools.idea.layoutinspector.LAYOUT_INSPECTOR_DATA_KEY
 import com.android.tools.idea.layoutinspector.LayoutInspector
 import com.android.tools.idea.layoutinspector.model
 import com.android.tools.idea.layoutinspector.model.ComposeViewNode
+import com.android.tools.idea.layoutinspector.pipeline.DisconnectedClient
 import com.android.tools.idea.layoutinspector.resource.ResourceLookup
 import com.android.tools.idea.layoutinspector.resource.SourceLocation
 import com.android.tools.idea.testing.AndroidProjectRule
@@ -39,11 +40,12 @@ import com.intellij.util.ui.UIUtil
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
-import org.mockito.ArgumentMatchers.isNull
-import org.mockito.Mockito.`when`
+import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.anyString
+import org.mockito.Mockito.isNull
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.`when`
 
 @RunsInEdt
 class LambdaPropertyItemTest {
@@ -61,7 +63,7 @@ class LambdaPropertyItemTest {
     val link = property.link
     val selection = property.lookup.selection
     val balloon = mockBalloonBuilder()
-    val inspector = LayoutInspector(mock(), model {}, mock(), mock())
+    val inspector = LayoutInspector(DisconnectedClient, model {}, mock(), mock())
 
     assertThat(link.templateText).isEqualTo("Text.kt:34")
 
@@ -81,13 +83,14 @@ class LambdaPropertyItemTest {
     val property = createProperty(location)
     val link = property.link
     val balloon = mockBalloonBuilder()
-    val inspector = LayoutInspector(mock(), model {}, mock(), mock())
+    val inspector = LayoutInspector(DisconnectedClient, model {}, mock(), mock())
     link.actionPerformed(event(inspector))
     UIUtil.dispatchAllInvocationEvents() // wait for invokeLater
 
-    assertThat(link.templateText).isEqualTo("Text.kt:unknown")
+    assertThat(link.templateText).isEqualTo("Text.kt:34")
     verifyNoInteractions(inspector.stats)
     verify(balloon).show(any(RelativePoint::class.java), any())
+    assertThat(getBalloonText()).isEqualTo("Could not determine source location")
   }
 
   @Test
@@ -102,14 +105,15 @@ class LambdaPropertyItemTest {
     assertThat(link.templateText).isEqualTo("Text.kt:34")
 
     val balloon = mockBalloonBuilder()
-    val inspector = LayoutInspector(mock(), model {}, mock(), mock())
+    val inspector = LayoutInspector(DisconnectedClient, model {}, mock(), mock())
     link.actionPerformed(event(inspector))
     UIUtil.dispatchAllInvocationEvents() // wait for invokeLater
 
     verify(navigatable).navigate(true)
     verify(inspector.stats).gotoSourceFromPropertyValue(eq(selection))
-    assertThat(link.templateText).isEqualTo("Text.kt:unknown")
+    assertThat(link.templateText).isEqualTo("Text.kt:34")
     verify(balloon).show(any(RelativePoint::class.java), any())
+    assertThat(getBalloonText()).isEqualTo("Could not determine exact source location")
   }
 
   private fun mockBalloonBuilder(): Balloon {
@@ -124,6 +128,13 @@ class LambdaPropertyItemTest {
     `when`(builder.setFadeoutTime(any())).thenReturn(builder)
     `when`(builder.createBalloon()).thenReturn(balloon)
     return balloon
+  }
+
+  private fun getBalloonText(): String {
+    val factory = JBPopupFactory.getInstance()
+    val captor = ArgumentCaptor.forClass(String::class.java)
+    verify(factory).createHtmlTextBalloonBuilder(captor.capture(), any(), any(), isNull())
+    return captor.value
   }
 
   private fun createProperty(location: SourceLocation): LambdaPropertyItem {

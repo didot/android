@@ -33,8 +33,9 @@ import com.intellij.openapi.util.Key;
 import com.intellij.ui.BalloonLayoutData;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.util.ui.PositionTracker;
-import java.awt.*;
-import javax.swing.*;
+import java.awt.Dimension;
+import java.awt.Point;
+import javax.swing.JFrame;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -191,7 +192,7 @@ public class AndroidNotification {
         .createBalloon(jFrame.getRootPane(), notification, false, true, BalloonLayoutData.fullContent(), project);
 
     // bottom-right corner
-    balloon.show(new PositionTracker<Balloon>(jFrame.getRootPane()) {
+    balloon.show(new PositionTracker<>(jFrame.getRootPane()) {
       @Override
       public RelativePoint recalculateLocation(@NotNull Balloon balloon) {
         Dimension jFrameSize = jFrame.getSize();

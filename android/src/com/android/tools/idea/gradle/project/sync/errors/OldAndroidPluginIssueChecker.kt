@@ -22,8 +22,7 @@ import com.android.tools.idea.gradle.project.sync.idea.issues.BuildIssueComposer
 import com.android.tools.idea.gradle.project.sync.idea.issues.updateUsageTracker
 import com.android.tools.idea.gradle.project.sync.quickFixes.OpenPluginBuildFileQuickFix
 import com.android.tools.idea.gradle.project.sync.quickFixes.UpgradeGradleVersionsQuickFix
-import com.android.tools.idea.gradle.project.upgrade.AgpGradleVersionRefactoringProcessor
-import com.android.tools.idea.gradle.project.upgrade.AgpGradleVersionRefactoringProcessor.Companion.getCompatibleGradleVersion
+import com.android.tools.idea.gradle.project.upgrade.CompatibleGradleVersion.Companion.getCompatibleGradleVersion
 import com.android.tools.idea.sdk.IdeSdks
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.GradleSyncFailure
 import com.intellij.build.FilePosition
@@ -41,9 +40,6 @@ import java.util.regex.Pattern
 
 class OldAndroidPluginIssueChecker: GradleIssueChecker {
   companion object {
-    private val PATTERN = Pattern.compile(
-      "The android gradle plugin version .+ is too old, please update to the latest version.")
-    private const val PLUGIN_TOO_OLD = "Plugin is too old, please update to a more recent version"
     private val UNSUPPORTED_GRADLE_VERSION_PATTERN = Pattern.compile(
       "Support for builds using Gradle versions older than (.*?) .* You are currently using Gradle version (.*?). .*", Pattern.DOTALL)
     val MINIMUM_AGP_VERSION_JDK_8 = GradleVersion(3, 1, 0)
@@ -55,20 +51,18 @@ class OldAndroidPluginIssueChecker: GradleIssueChecker {
   override fun check(issueData: GradleIssueData): BuildIssue? {
     val rootCause = GradleExecutionErrorHandler.getRootCauseAndLocation(issueData.error).first
     val message = rootCause.message ?: return null
-    if (message.isBlank())
-      return null
-    var parsedMessage = tryToGetPluginTooOldMessage(message)
+    if (message.isBlank()) return null
+    var parsedMessage: String? = null
     var withMinimumVersion = false
-    if (parsedMessage == null && rootCause is UnsupportedVersionException) {
+    if (rootCause is UnsupportedVersionException) {
       parsedMessage = tryToGetUnsupportedGradleMessage(message)
       withMinimumVersion = true
     }
-    if (parsedMessage == null)
-      return null
+    if (parsedMessage == null) return null
 
     // Log metrics.
     invokeLater {
-      updateUsageTracker(issueData.projectPath, GradleSyncFailure.OLD_ANDROID_PLUGIN)
+      updateUsageTracker(issueData.projectPath, GradleSyncFailure.UNSUPPORTED_GRADLE_VERSION)
     }
     val composer = BuildIssueComposer(parsedMessage)
     if (withMinimumVersion) {
@@ -81,12 +75,6 @@ class OldAndroidPluginIssueChecker: GradleIssueChecker {
     composer.addQuickFix(UpgradeGradleVersionsQuickFix(GradleVersion.parse(SdkConstants.GRADLE_LATEST_VERSION), GradleVersion.parse(LatestKnownPluginVersionProvider.INSTANCE.get()), "latest"))
     composer.addQuickFix("Open build file", OpenPluginBuildFileQuickFix())
     return composer.composeBuildIssue()
-  }
-
-  private fun tryToGetPluginTooOldMessage(message: String): String? {
-    if (message.startsWith(PLUGIN_TOO_OLD) || PATTERN.matcher(message.lines()[0]).matches())
-      return message
-    return null
   }
 
   private fun tryToGetUnsupportedGradleMessage(message: String): String? {
@@ -108,6 +96,6 @@ class OldAndroidPluginIssueChecker: GradleIssueChecker {
                                                 location: FilePosition?,
                                                 parentEventId: Any,
                                                 messageConsumer: Consumer<in BuildEvent>): Boolean {
-    return tryToGetPluginTooOldMessage(failureCause) != null || tryToGetUnsupportedGradleMessage(failureCause) != null
+    return tryToGetUnsupportedGradleMessage(failureCause) != null
   }
 }

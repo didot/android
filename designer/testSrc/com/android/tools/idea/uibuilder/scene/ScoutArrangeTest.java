@@ -15,15 +15,14 @@
  */
 package com.android.tools.idea.uibuilder.scene;
 
+import static com.android.SdkConstants.CONSTRAINT_LAYOUT;
+import static com.android.SdkConstants.TEXT_VIEW;
+
 import com.android.tools.idea.common.fixtures.ModelBuilder;
 import com.android.tools.idea.common.model.NlComponent;
 import com.android.tools.idea.uibuilder.scout.Scout;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.List;
-
-import static com.android.SdkConstants.CONSTRAINT_LAYOUT;
-import static com.android.SdkConstants.TEXT_VIEW;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Check that connections to parent if referenced by an id still works, also check the display list sorted result.
@@ -76,14 +75,14 @@ public class ScoutArrangeTest extends SceneTest {
     String simpleList = "DrawNlComponentFrame,0,0,1000,1000,1,1000,1000\n" +
                         "Clip,0,0,1000,1000\n" +
                         "DrawComponentBackground,450,490,100,20,1\n" +
-                        "DrawTextRegion,450,490,100,20,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                        "DrawTextRegion,450,490,100,20,0,16,false,false,5,5,28,1.0,\"\"\n" +
                         "DrawNlComponentFrame,450,490,100,20,1,20,20\n" +
                         "DrawConnection,2,450x490x100x20,0,0x0x1000x1000,0,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,2,450x490x100x20,1,0x0x1000x1000,1,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,2,450x490x100x20,2,0x0x1000x1000,2,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,3,450x490x100x20,3,450x640x150x15,2,0,true,0,0,false,0.5,2,0,0\n" +
                         "DrawComponentBackground,450,640,150,15,1\n" +
-                        "DrawTextRegion,450,640,150,15,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                        "DrawTextRegion,450,640,150,15,0,12,false,false,5,5,28,1.0,\"\"\n" +
                         "DrawNlComponentFrame,450,640,150,15,1,40,40\n" +
                         "DrawConnection,2,450x640x150x15,0,0x0x1000x1000,0,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,2,450x640x150x15,1,0x0x1000x1000,1,1,false,0,0,false,0.5,2,0,0\n" +
@@ -118,14 +117,14 @@ public class ScoutArrangeTest extends SceneTest {
     String simpleList = "DrawNlComponentFrame,0,0,1000,1000,1,1000,1000\n" +
                         "Clip,0,0,1000,1000\n" +
                         "DrawComponentBackground,450,490,100,20,1\n" +
-                        "DrawTextRegion,450,490,100,20,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                        "DrawTextRegion,450,490,100,20,0,16,false,false,5,5,28,1.0,\"\"\n" +
                         "DrawNlComponentFrame,450,490,100,20,1,20,20\n" +
                         "DrawConnection,2,450x490x100x20,0,0x0x1000x1000,0,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,2,450x490x100x20,1,0x0x1000x1000,1,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,2,450x490x100x20,2,0x0x1000x1000,2,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,2,450x490x100x20,3,0x0x1000x1000,3,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawComponentBackground,450,640,150,15,1\n" +
-                        "DrawTextRegion,450,640,150,15,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                        "DrawTextRegion,450,640,150,15,0,12,false,false,5,5,28,1.0,\"\"\n" +
                         "DrawNlComponentFrame,450,640,150,15,1,40,40\n" +
                         "DrawConnection,2,450x640x150x15,0,0x0x1000x1000,0,1,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,2,450x640x150x15,1,0x0x1000x1000,1,1,false,0,0,false,0.5,2,0,0\n" +
@@ -157,12 +156,12 @@ public class ScoutArrangeTest extends SceneTest {
     String simpleList = "DrawNlComponentFrame,0,0,1000,1000,1,1000,1000\n" +
                         "Clip,0,0,1000,1000\n" +
                         "DrawComponentBackground,450,490,100,20,1\n" +
-                        "DrawTextRegion,450,490,100,20,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                        "DrawTextRegion,450,490,100,20,0,16,false,false,5,5,28,1.0,\"\"\n" +
                         "DrawNlComponentFrame,450,490,100,20,1,20,20\n" +
                         "DrawConnection,6,450x490x100x20,0,450x640x150x15,0,0,false,0,0,false,0.5,2,0,0\n" +
                         "DrawConnection,6,450x490x100x20,1,450x640x150x15,1,0,false,0,0,false,0.5,2,0,0\n" +
                         "DrawComponentBackground,450,640,150,15,1\n" +
-                        "DrawTextRegion,450,640,150,15,0,0,false,false,5,5,28,1.0,\"\"\n" +
+                        "DrawTextRegion,450,640,150,15,0,12,false,false,5,5,28,1.0,\"\"\n" +
                         "DrawNlComponentFrame,450,640,150,15,1,40,40\n" +
                         "UNClip\n";
 

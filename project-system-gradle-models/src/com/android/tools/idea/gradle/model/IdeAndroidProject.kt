@@ -24,7 +24,7 @@ interface IdeAndroidProject : Serializable {
    *
    * @return a string containing the model version.
    */
-  val modelVersion: String
+  val agpVersion: String
 
   /**
    * Returns the name of the module.
@@ -128,13 +128,6 @@ interface IdeAndroidProject : Serializable {
   val buildToolsVersion: String?
 
   /**
-   * Returns the NDK version used by this module.
-   *
-   * @return the NDK version.
-   */
-  val ndkVersion: String?
-
-  /**
    * Returns true if this is the base feature split.
    *
    * @return true if this is the base feature split
@@ -186,7 +179,7 @@ interface IdeAndroidProject : Serializable {
    * If null, the model does not contain the information because AGP was an older version, and
    * alternative ways to get the information should be used.
    */
-  val lintRuleJars: List<File>?
+  val lintChecksJars: List<File>?
 
   /**
    * Returns the testNamespace of the main artifact.

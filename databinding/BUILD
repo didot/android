@@ -1,4 +1,5 @@
 load("//tools/base/bazel:bazel.bzl", "iml_module")
+load("//tools/base/bazel:maven.bzl", "maven_repository")
 
 # managed by go/iml_to_build
 iml_module(
@@ -38,16 +39,15 @@ iml_module(
     ],
     test_class = "com.android.tools.idea.databinding.AndroidDataBindingTestSuite",
     test_data = [
-        ":testapp_deps.zip",
+        ":testapp_deps",
         "//prebuilts/studio/jdk",
         "//prebuilts/studio/layoutlib/data:framework_res.jar",
         "//prebuilts/studio/sdk:build-tools/latest",
         "//prebuilts/studio/sdk:platforms/latest",
-        "//tools/adt/idea/android:test_deps.zip",
         "//tools/adt/idea/android/annotations",
         "//tools/adt/idea/databinding/testData",
         "//tools/base/build-system:gradle-distrib",
-        "//tools/base/build-system:studio_repo.zip",
+        "//tools/base/build-system:studio_repo",
         "//tools/data-binding:data_binding_runtime.zip",
         "//tools/data-binding:integration-test-projects",
     ],
@@ -63,7 +63,6 @@ iml_module(
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
         "//tools/adt/idea/android:intellij.android.core[module, test]",
         "//tools/adt/idea/android-kotlin:intellij.android.kotlin.extensions[module, test]",
-        "//tools/adt/idea/resources-base:intellij.android.resources-base[module, test]",
         "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
         "//tools/adt/idea/.idea/libraries:truth[test]",
         "//tools/adt/idea/databinding:intellij.android.databinding[module, test]",
@@ -73,28 +72,34 @@ iml_module(
         "//tools/base/flags:studio.android.sdktools.flags[module, test]",
         "//tools/adt/idea/android-common:intellij.android.common[module, test]",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module, test]",
-        "//tools/adt/idea/project-system-gradle-models:intellij.android.projectSystem.gradle.models[module]",
+        "//tools/adt/idea/project-system-gradle:intellij.android.projectSystem.gradle[module, test]",
+        "//tools/adt/idea/project-system-gradle-models:intellij.android.projectSystem.gradle.models[module, test]",
     ],
 )
 
-load("//tools/base/bazel:maven.bzl", "maven_repo")
-
-maven_repo(
+maven_repository(
     # Dependencies needed for
     # tools/data-binding/integration-tests/TestApp
     name = "testapp_deps",
     # keep sorted
     artifacts = [
-        "//prebuilts/tools/common/m2/repository/com/android/support/test/espresso/espresso-core/3.0.1:aar",
-        "//prebuilts/tools/common/m2/repository/com/android/support/test/espresso/espresso-idling-resource/3.0.1:aar",
-        "//prebuilts/tools/common/m2/repository/com/android/support/test/rules/1.0.1:aar",
-        "//prebuilts/tools/common/m2/repository/com/android/support/test/runner/1.0.1:aar",
-        "//prebuilts/tools/common/m2/repository/com/linkedin/dexmaker/dexmaker-mockito/2.19.0:jar",
-        "//prebuilts/tools/common/m2/repository/com/linkedin/dexmaker/dexmaker/2.19.0:jar",
-        "//prebuilts/tools/common/m2/repository/javax/annotation/jsr250-api/1.0:jar",
-        "//prebuilts/tools/common/m2/repository/net/bytebuddy/byte-buddy-agent/1.9.10:jar",
-        "//prebuilts/tools/common/m2/repository/net/bytebuddy/byte-buddy/1.9.10:jar",
-        "//prebuilts/tools/common/m2/repository/org/mockito/mockito-core/3.0.0:jar",
-        "//prebuilts/tools/common/m2/repository/org/objenesis/objenesis/2.6:jar",
+        "@maven//:androidx.constraintlayout.constraintlayout_1.1.3",
+        "@maven//:androidx.fragment.fragment_1.0.0",
+        "@maven//:androidx.lifecycle.lifecycle-livedata_2.2.0",
+        "@maven//:androidx.lifecycle.lifecycle-runtime_2.2.0",
+        "@maven//:com.android.support.support-v4_28.0.0",
+        "@maven//:com.android.support.test.espresso.espresso-core_3.0.1",
+        "@maven//:com.google.auto.value.auto-value_1.6.2",
+        "@maven//:com.google.errorprone.error_prone_annotations_2.3.2",
+        "@maven//:com.google.jimfs.jimfs_1.1",
+        "@maven//:com.linkedin.dexmaker.dexmaker-mockito_2.19.0",
+        "@maven//:com.sun.activation.javax.activation_1.2.0",
+        "@maven//:commons-lang.commons-lang_2.4",
+        "@maven//:javax.annotation.jsr250-api_1.0",
+        "@maven//:org.codehaus.mojo.animal-sniffer-annotations_1.17",
+        "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.4.32",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk7_1.4.32",
+        "@maven//:org.mockito.mockito-core_3.0.0",
+        "@maven//:xmlpull.xmlpull_1.1.3.1",
     ],
 )

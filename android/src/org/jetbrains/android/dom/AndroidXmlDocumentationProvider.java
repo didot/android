@@ -434,7 +434,7 @@ public class AndroidXmlDocumentationProvider implements DocumentationProvider {
       return null;
     }
 
-    return AndroidJavaDocRenderer.render(module, url);
+    return AndroidJavaDocRenderer.render(module, null, url);
   }
 
   @Override

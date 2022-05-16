@@ -15,11 +15,17 @@
  */
 package com.android.tools.idea.gradle.dsl.model.ext.transforms;
 
-import com.android.tools.idea.gradle.dsl.parser.elements.*;
+import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.createBasicExpression;
+
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpression;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslMethodCall;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.createBasicExpression;
 
 /**
  * This transform is used to convert from the single argument form, to one with uses a map.
@@ -70,20 +76,14 @@ public class SingleArgToMapTransform extends PropertyTransform {
 
   @Override
   @NotNull
-  public GradleDslExpression bindList(@NotNull GradleDslElement holder,
-                                      @Nullable GradleDslElement oldElement,
-                                      @NotNull String name,
-                                      boolean isMethodCall) {
-    return new GradleDslExpressionList(holder, GradleNameElement.create(myFieldName), isMethodCall);
+  public GradleDslExpression bindList(@NotNull GradleDslElement holder, @Nullable GradleDslElement oldElement, @NotNull String name) {
+    return new GradleDslExpressionList(holder, GradleNameElement.create(myFieldName), false);
   }
 
   @Override
   @NotNull
-  public GradleDslExpression bindMap(@NotNull GradleDslElement holder,
-                                     @Nullable GradleDslElement oldElement,
-                                     @NotNull String name,
-                                     boolean isMethodCall) {
-    return new GradleDslExpressionMap(holder, GradleNameElement.create(myFieldName), isMethodCall);
+  public GradleDslExpression bindMap(@NotNull GradleDslElement holder, @Nullable GradleDslElement oldElement, @NotNull String name) {
+    return new GradleDslExpressionMap(holder, GradleNameElement.create(myFieldName));
   }
 
   @Override

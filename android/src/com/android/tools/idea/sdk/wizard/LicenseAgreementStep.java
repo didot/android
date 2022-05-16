@@ -23,7 +23,6 @@ import com.android.tools.idea.observable.core.ObservableBool;
 import com.android.tools.idea.observable.ui.SelectedProperty;
 import com.android.tools.idea.wizard.model.ModelWizard;
 import com.android.tools.idea.wizard.model.ModelWizardStep;
-import com.google.common.collect.Maps;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.ui.Splitter;
 import com.intellij.ui.ColoredTreeCellRenderer;
@@ -32,13 +31,19 @@ import com.intellij.ui.components.JBRadioButton;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.treeStructure.Tree;
 import com.intellij.util.ui.StartupUiUtil;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.ButtonGroup;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTextPane;
+import javax.swing.JTree;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
@@ -66,10 +71,10 @@ public class LicenseAgreementStep extends ModelWizardStep<LicenseAgreementModel>
   @Nullable private String myCurrentLicense;
 
   // Licenses accepted by the user.
-  private final Map<String, Boolean> myAcceptances = Maps.newHashMap();
+  private final Map<String, Boolean> myAcceptances = new HashMap<>();
 
   // Only licenses that have not been accepted in the past by the user are displayed.
-  private final Set<String> myVisibleLicenses = new HashSet<String>();
+  private final Set<String> myVisibleLicenses = new HashSet<>();
 
   // All package paths that will get installed.
   private final List<RemotePackage> myInstallRequests;
@@ -201,7 +206,7 @@ public class LicenseAgreementStep extends ModelWizardStep<LicenseAgreementModel>
    * and updating related UI components.
    */
   private void setChanges(List<Change> changes) {
-    Map<String, DefaultMutableTreeNode> licenseNodeMap = Maps.newHashMap();
+    Map<String, DefaultMutableTreeNode> licenseNodeMap = new HashMap<>();
     myVisibleLicenses.clear();
 
     DefaultMutableTreeNode root = new DefaultMutableTreeNode();
@@ -270,7 +275,7 @@ public class LicenseAgreementStep extends ModelWizardStep<LicenseAgreementModel>
         License license = p.getLicense();
         if (license != null) {
           getModel().getLicenses().add(license);
-          if (!license.checkAccepted(getModel().getSdkRoot().getValue().toPath())) {
+          if (!license.checkAccepted(getModel().getSdkRoot().getValue())) {
             toReturn.add(new Change(p, license));
           }
         }

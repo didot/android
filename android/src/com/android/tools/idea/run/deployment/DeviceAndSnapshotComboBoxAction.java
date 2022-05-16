@@ -32,7 +32,7 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.serviceContainer.NonInjectable;
 import com.intellij.util.ui.JBUI;
-import java.awt.*;
+import java.awt.Component;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -41,13 +41,14 @@ import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.IntUnaryOperator;
-import javax.swing.*;
+import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Group;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@SuppressWarnings("ComponentNotRegistered")
 public final class DeviceAndSnapshotComboBoxAction extends ComboBoxAction {
   /**
    * Run configurations that aren't {@link AndroidRunConfiguration} or {@link AndroidTestRunConfiguration} can use this key
@@ -231,10 +232,6 @@ public final class DeviceAndSnapshotComboBoxAction extends ComboBoxAction {
     return service.getTargetSelectedWithComboBox(devices).map(Collections::singleton).orElseGet(Collections::emptySet);
   }
 
-  @NotNull Set<@NotNull Target> getTargetsSelectedWithDialog(@NotNull Project project, @NotNull List<@NotNull Device> devices) {
-    return myDevicesSelectedServiceGetInstance.apply(project).getTargetsSelectedWithDialog(devices);
-  }
-
   void selectMultipleDevices(@NotNull Project project) {
     List<Device> devices = myDevicesGetterGetter.apply(project).get().orElseThrow(AssertionError::new);
 
@@ -279,8 +276,9 @@ public final class DeviceAndSnapshotComboBoxAction extends ComboBoxAction {
   @Override
   protected ComboBoxButton createComboBoxButton(@NotNull Presentation presentation) {
     ComboBoxButton button = new ComboBoxButton(presentation) {
+      @NotNull
       @Override
-      protected @NotNull JBPopup createPopup(@NotNull Runnable runnable) {
+      protected JBPopup createPopup(@NotNull Runnable runnable) {
         DataContext context = getDataContext();
         return new Popup(createPopupActionGroup(this, context), context, runnable);
       }

@@ -86,22 +86,35 @@ public class DependenciesModelImpl extends GradleDslBlockModel implements Depend
         return;
       }
 
-      // We can't create ArtifactDependencyModels from "compile something('group:artifact:version')" for now.
+      String methodName = null;
+
       if (element instanceof GradleDslMethodCall) {
-        return;
+        List<GradleDslExpression> arguments = ((GradleDslMethodCall)element).getArguments();
+        methodName = ((GradleDslMethodCall)element).getMethodName();
+        // We can handle single-argument method calls to specific functions, for example
+        // `implementation platform('org.springframework.boot:spring-boot-dependencies:1.5.8.RELEASE')
+        // or
+        // `implementation enforcedPlatform([group: 'org.springframework.boot', name: 'spring-boot-dependencies', version: '1.5.8.RELEASE'])
+        if (arguments.size() == 1 && Arrays.asList("platform", "enforcedPlatform").contains(methodName)) {
+          element = arguments.get(0);
+          resolved = resolveElement(element);
+        }
+        // Can't do anything else with method calls.
+        else {
+          return;
+        }
       }
 
       if (resolved instanceof GradleDslExpressionMap) {
-        ArtifactDependencyModelImpl.MapNotation mapNotation =
-          ArtifactDependencyModelImpl.MapNotation.create(configurationName, (GradleDslExpressionMap)resolved, configurationElement,
-                                                         maintainer);
+        ArtifactDependencyModel mapNotation = ArtifactDependencyModelImpl.MapNotation.create(
+          configurationName, (GradleDslExpressionMap)resolved, configurationElement, maintainer, methodName);
         if (mapNotation != null) {
           dest.add(mapNotation);
         }
       }
       else if (element instanceof GradleDslSimpleExpression) {
-        ArtifactDependencyModelImpl.CompactNotation compactNotation = ArtifactDependencyModelImpl.CompactNotation
-          .create(configurationName, (GradleDslSimpleExpression)element, configurationElement, maintainer);
+        ArtifactDependencyModel compactNotation = ArtifactDependencyModelImpl.CompactNotation.create(
+          configurationName, (GradleDslSimpleExpression)element, configurationElement, maintainer, methodName);
         if (compactNotation != null) {
           dest.add(compactNotation);
         }
@@ -118,9 +131,16 @@ public class DependenciesModelImpl extends GradleDslBlockModel implements Depend
                       @NotNull DependencyModelImpl.Maintainer maintainer,
                       @NotNull List<? super ModuleDependencyModel> dest) {
       if (resolved instanceof GradleDslMethodCall) {
+        String platformMethodName = null;
         GradleDslMethodCall methodCall = (GradleDslMethodCall)resolved;
+        if (Arrays.asList("platform", "enforcedPlatform").contains(methodCall.getMethodName()) &&
+            methodCall.getArguments().size() == 1 &&
+            methodCall.getArguments().get(0) instanceof GradleDslMethodCall) {
+          platformMethodName = methodCall.getMethodName();
+          methodCall = (GradleDslMethodCall)methodCall.getArguments().get(0);
+        }
         if (methodCall.getMethodName().equals(ModuleDependencyModelImpl.PROJECT)) {
-          ModuleDependencyModel model = ModuleDependencyModelImpl.create(configurationName, methodCall, maintainer);
+          ModuleDependencyModel model = ModuleDependencyModelImpl.create(configurationName, methodCall, maintainer, platformMethodName);
           if (model != null && model.path().getValueType() != NONE) {
             dest.add(model);
           }
@@ -627,11 +647,9 @@ public class DependenciesModelImpl extends GradleDslBlockModel implements Depend
   @NotNull
   private static GradleDslElement resolveElement(@NotNull GradleDslElement element) {
     GradleDslElement resolved = element;
-    if (element instanceof GradleDslLiteral) {
-      GradleDslElement foundElement = followElement((GradleDslLiteral)element);
-      if (foundElement instanceof GradleDslExpression) {
-        resolved = foundElement;
-      }
+    GradleDslElement foundElement = followElement(element);
+    if (foundElement instanceof GradleDslExpression) {
+      resolved = foundElement;
     }
     return resolved;
   }

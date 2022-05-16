@@ -15,15 +15,20 @@
  */
 package com.android.tools.idea.appinspection.inspectors.network.ide
 
+import com.android.tools.adtui.model.FpsTimer
 import com.android.tools.idea.appinspection.inspector.api.AppInspectionIdeServices
 import com.android.tools.idea.appinspection.inspector.api.AppInspectorJar
 import com.android.tools.idea.appinspection.inspector.api.AppInspectorMessenger
+import com.android.tools.idea.appinspection.inspector.api.awaitForDisposal
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.appinspection.inspector.ide.AppInspectorTab
-import com.android.tools.idea.appinspection.inspector.ide.AppInspectorTabProvider
 import com.android.tools.idea.appinspection.inspector.ide.FrameworkInspectorLaunchParams
-import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorClient
+import com.android.tools.idea.appinspection.inspector.ide.SingleAppInspectorTab
+import com.android.tools.idea.appinspection.inspector.ide.SingleAppInspectorTabProvider
+import com.android.tools.idea.appinspection.inspectors.network.ide.analytics.IdeNetworkInspectorTracker
+import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorClientImpl
 import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorDataSourceImpl
+import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorServicesImpl
 import com.android.tools.idea.appinspection.inspectors.network.view.NetworkInspectorTab
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers
@@ -31,9 +36,15 @@ import com.android.tools.idea.flags.StudioFlags.ENABLE_NETWORK_MANAGER_INSPECTOR
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import icons.StudioIcons
+import kotlinx.coroutines.launch
 import javax.swing.Icon
 
-class NetworkInspectorTabProvider : AppInspectorTabProvider {
+/**
+ * The number of updates per second our simulated object models receive.
+ */
+private const val UPDATES_PER_SECOND = 60
+
+class NetworkInspectorTabProvider : SingleAppInspectorTabProvider() {
   override val inspectorId = "studio.network.inspection"
   override val displayName = "Network Inspector"
   override val icon: Icon = StudioIcons.Shell.Menu.NETWORK_INSPECTOR
@@ -47,6 +58,8 @@ class NetworkInspectorTabProvider : AppInspectorTabProvider {
     return ENABLE_NETWORK_MANAGER_INSPECTOR_TAB.get()
   }
 
+  override fun supportsOffline() = true
+
   override fun createTab(
     project: Project,
     ideServices: AppInspectionIdeServices,
@@ -59,11 +72,25 @@ class NetworkInspectorTabProvider : AppInspectorTabProvider {
     val scope = AndroidCoroutineScope(parentDisposable)
     val dataSource = NetworkInspectorDataSourceImpl(messenger, scope)
 
-    return object : AppInspectorTab {
-      override val messenger = messenger
-      private val client = NetworkInspectorClient(messenger)
-      override val component = NetworkInspectorTab(client, scope, componentsProvider, codeNavigationProvider, dataSource,
-                                                   AndroidDispatchers.uiThread, parentDisposable).component
+    return object : SingleAppInspectorTab(messenger) {
+      private val client = NetworkInspectorClientImpl(messenger)
+      private val services = NetworkInspectorServicesImpl(
+        codeNavigationProvider,
+        client,
+        FpsTimer(UPDATES_PER_SECOND),
+        AndroidDispatchers.workerThread,
+        AndroidDispatchers.uiThread,
+        IdeNetworkInspectorTracker(project)
+      )
+      private val networkInspectorTab = NetworkInspectorTab(componentsProvider, dataSource, services, scope, parentDisposable)
+      override val component = networkInspectorTab.component
+
+      init {
+        scope.launch {
+          messenger.awaitForDisposal()
+          networkInspectorTab.stopInspection()
+        }
+      }
     }
   }
 }

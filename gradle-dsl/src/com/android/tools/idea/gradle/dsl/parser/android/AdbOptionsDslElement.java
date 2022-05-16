@@ -23,31 +23,28 @@ import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.pro
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.ADD_AS_LIST;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.SET;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelMapCollector.toModelMap;
-import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAL;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR;
 
 import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
 public class AdbOptionsDslElement extends GradleDslBlockElement {
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelNameMap = Stream.of(new Object[][]{
-    {"installOptions", property, INSTALL_OPTIONS, VAL},
+  public static final ExternalToModelMap ktsToModelNameMap = Stream.of(new Object[][]{
+    {"installOptions", property, INSTALL_OPTIONS, VAR},
     {"installOptions", atLeast(0), INSTALL_OPTIONS, ADD_AS_LIST},
     {"setInstallOptions", exactly(1), INSTALL_OPTIONS, SET},
     {"timeOutInMs", property, TIME_OUT_IN_MS, VAR},
     {"timeOutInMs", exactly(1), TIME_OUT_IN_MS, SET}
   }).collect(toModelMap());
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelNameMap = Stream.of(new Object[][]{
-    {"installOptions", property, INSTALL_OPTIONS, VAL},
+  public static final ExternalToModelMap groovyToModelNameMap = Stream.of(new Object[][]{
+    {"installOptions", property, INSTALL_OPTIONS, VAR},
     {"installOptions", atLeast(0), INSTALL_OPTIONS, ADD_AS_LIST},
     {"timeOutInMs", property, TIME_OUT_IN_MS, VAR},
     {"timeOutInMs", exactly(1), TIME_OUT_IN_MS, SET}
@@ -56,17 +53,10 @@ public class AdbOptionsDslElement extends GradleDslBlockElement {
     new PropertiesElementDescription<>("adbOptions", AdbOptionsDslElement.class, AdbOptionsDslElement::new);
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter.isKotlin()) {
-      return ktsToModelNameMap;
-    }
-    else if (converter.isGroovy()) {
-      return groovyToModelNameMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelNameMap, ktsToModelNameMap);
   }
+
   public AdbOptionsDslElement(@NotNull GradleDslElement parent, @NotNull GradleNameElement name) {
     super(parent, name);
   }

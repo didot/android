@@ -30,11 +30,20 @@ import com.android.tools.adtui.model.formatter.TimeAxisFormatter;
 import com.intellij.ui.table.JBTable;
 import com.intellij.util.ui.JBInsets;
 import com.intellij.util.ui.JBUI;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Graphics;
+import java.awt.Insets;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
 import java.util.Locale;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
@@ -77,7 +86,12 @@ public final class TimelineTable {
       public void hierarchyChanged(HierarchyEvent e) {
         if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
           if (table.isShowing()) {
-            timeline.getSelectionRange().addDependency(timelineObserver).onChange(Range.Aspect.RANGE, () -> table.repaint());
+            timeline.getSelectionRange().addDependency(timelineObserver).onChange(
+              Range.Aspect.RANGE, () -> {
+                table.repaint();
+                table.getTableHeader().revalidate();
+              }
+            );
           }
           else {
             timeline.getSelectionRange().removeDependencies(timelineObserver);

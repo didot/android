@@ -18,13 +18,13 @@ package com.android.tools.idea.gradle.project.sync.perf
 import com.android.tools.idea.gradle.project.sync.perf.TestProjectPaths.DOLPHIN_PROJECT_ANDROID_ROOT
 import com.android.tools.idea.gradle.project.sync.perf.TestProjectPaths.DOLPHIN_PROJECT_ROOT
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.io.FileUtilRt
 import org.junit.Before
 import java.io.File
 
-class DolphinPerfTest(useSingleVariantSyncInfrastructure: Boolean, gradleVersion: String?, agpVersion: String?):
-  AbstractGradleSyncPerfTestCase(useSingleVariantSyncInfrastructure, gradleVersion, agpVersion) {
+class DolphinPerfTestV1: AbstractGradleSyncPerfTestCase() {
   override val relativePath: String = DOLPHIN_PROJECT_ANDROID_ROOT
-  override val projectName: String = "Dolphin"
+  override val projectName: String = "Dolphin_V1"
 
   @Before
   override fun setUp() {
@@ -34,7 +34,21 @@ class DolphinPerfTest(useSingleVariantSyncInfrastructure: Boolean, gradleVersion
     // because the diff patch (setupForSyncTest) we applied already changed build.gradle to refer to the CMakeLists.txt under this "native"
     // directory.
     val dolphinSource: File = projectRule.resolveTestDataPath(DOLPHIN_PROJECT_ROOT)
-    val ideaProjectDolphinSource = File(FileUtil.toSystemDependentName(projectRule.project.basePath!!), "native")
+    val ideaProjectDolphinSource = File(FileUtilRt.toSystemDependentName(projectRule.project.basePath!!), "native")
+    FileUtil.copyDir(dolphinSource, ideaProjectDolphinSource)
+  }
+}
+
+class DolphinPerfTestV2: AbstractGradleSyncPerfTestCase() {
+  override val relativePath: String = DOLPHIN_PROJECT_ANDROID_ROOT
+  override val projectName: String = "Dolphin_V2"
+  override val useModelV2: Boolean = true
+
+  @Before
+  override fun setUp() {
+    super.setUp()
+    val dolphinSource: File = projectRule.resolveTestDataPath(DOLPHIN_PROJECT_ROOT)
+    val ideaProjectDolphinSource = File(FileUtilRt.toSystemDependentName(projectRule.project.basePath!!), "native")
     FileUtil.copyDir(dolphinSource, ideaProjectDolphinSource)
   }
 }

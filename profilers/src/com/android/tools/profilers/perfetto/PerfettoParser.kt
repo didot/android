@@ -96,12 +96,11 @@ class PerfettoParser(private val mainProcessSelector: MainProcessSelector,
       val processListSorter = ProcessListSorter(processHint)
       val userSelectedProcess = mainProcessSelector.apply(processListSorter.sort(processList))
       checkNotNull(userSelectedProcess) { "It was not possible to select a process for this trace." }
-      val pidsToQuery = mutableListOf(userSelectedProcess)
-      processList.find {
+      val selectedProcess = processList.first { processModel -> processModel.id == userSelectedProcess }
+      val processesToQuery = (listOf(selectedProcess) + listOfNotNull(processList.find {
         it.getSafeProcessName().endsWith(SystemTraceSurfaceflingerManager.SURFACEFLINGER_PROCESS_NAME)
-      }?.let { pidsToQuery.add(it.id) }
-      val selectedProcessName = processList.first { processModel -> processModel.id == userSelectedProcess }.name
-      val model = traceProcessor.loadCpuData(traceId, pidsToQuery, selectedProcessName, ideProfilerServices)
+      })).distinct()
+      val model = traceProcessor.loadCpuData(traceId, processesToQuery, selectedProcess, ideProfilerServices)
 
       val builder = SystemTraceCpuCaptureBuilder(model)
 

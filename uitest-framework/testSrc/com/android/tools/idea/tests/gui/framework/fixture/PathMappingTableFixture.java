@@ -16,6 +16,12 @@
 package com.android.tools.idea.tests.gui.framework.fixture;
 
 import com.intellij.ui.dualView.TreeTableView;
+import java.awt.Component;
+import java.awt.Container;
+import java.io.File;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.table.TableCellEditor;
 import org.fest.swing.core.Robot;
 import org.fest.swing.data.TableCell;
 import org.fest.swing.edt.GuiActionRunner;
@@ -25,13 +31,6 @@ import org.fest.swing.fixture.JTableCellFixture;
 import org.fest.swing.fixture.JTableFixture;
 import org.fest.swing.timing.Wait;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.JTable;
-import javax.swing.JTextField;
-import javax.swing.table.TableCellEditor;
-import java.awt.Component;
-import java.awt.Container;
-import java.io.File;
 
 public class PathMappingTableFixture extends JTableFixture {
   @NotNull

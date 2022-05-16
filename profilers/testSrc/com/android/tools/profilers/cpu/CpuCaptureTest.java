@@ -16,7 +16,6 @@
 package com.android.tools.profilers.cpu;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import com.android.tools.adtui.model.Range;
@@ -155,18 +154,12 @@ public class CpuCaptureTest {
   }
 
   @Test
-  public void missingCaptureDataThrowsException() {
-    CpuCapture capture = null;
-    try {
-      Range range = new Range(0, 30);
-      Map<CpuThreadInfo, CaptureNode> captureTrees = new HashMap<>();
-      capture = new BaseCpuCapture(20, Cpu.CpuTraceType.UNSPECIFIED_TYPE, range, captureTrees);
-      fail();
-    }
-    catch (IllegalStateException e) {
-      assertEquals("Trace file contained no CPU data.", e.getMessage());
-    }
-    assertThat(capture).isNull();
+  public void emptyTraceIsAccepted() {
+    Range range = new Range();
+    Map<CpuThreadInfo, CaptureNode> captureTrees = new HashMap<>();
+    CpuCapture capture = new BaseCpuCapture(20, Cpu.CpuTraceType.UNSPECIFIED_TYPE, range, captureTrees);
+    assertThat(capture.getCaptureNodes()).isEmpty();
+    assertThat(capture.getMainThreadId()).isEqualTo(BaseCpuCapture.NO_THREAD_ID);
   }
 
   @Test
@@ -216,15 +209,20 @@ public class CpuCaptureTest {
     assertThat(capture.getType()).isEqualTo(Cpu.CpuTraceType.ART);
     assertThat(capture.isDualClock()).isTrue();
 
-    capture = new BaseCpuCapture(traceId, Cpu.CpuTraceType.SIMPLEPERF, range, captureTrees);
+    capture = new BaseCpuCapture(traceId, Cpu.CpuTraceType.SIMPLEPERF, true, null, range, captureTrees);
+    assertThat(capture.getType()).isEqualTo(Cpu.CpuTraceType.SIMPLEPERF);
+    assertThat(capture.isDualClock()).isTrue();
+
+    capture = new BaseCpuCapture(traceId, Cpu.CpuTraceType.SIMPLEPERF, false, "fake message", range, captureTrees);
     assertThat(capture.getType()).isEqualTo(Cpu.CpuTraceType.SIMPLEPERF);
     assertThat(capture.isDualClock()).isFalse();
+    assertThat(capture.getDualClockDisabledMessage()).isEqualTo("fake message");
 
-    capture = new BaseCpuCapture(traceId, Cpu.CpuTraceType.ATRACE, range, captureTrees);
-    assertThat(capture.getType()).isEqualTo(Cpu.CpuTraceType.ATRACE);
+    capture = new BaseCpuCapture(traceId, Cpu.CpuTraceType.PERFETTO, false, null, range, captureTrees);
+    assertThat(capture.getType()).isEqualTo(Cpu.CpuTraceType.PERFETTO);
     assertThat(capture.isDualClock()).isFalse();
 
-    capture = new BaseCpuCapture(traceId, Cpu.CpuTraceType.UNSPECIFIED_TYPE, range, captureTrees);
+    capture = new BaseCpuCapture(traceId, Cpu.CpuTraceType.UNSPECIFIED_TYPE, false, null, range, captureTrees);
     assertThat(capture.getType()).isEqualTo(Cpu.CpuTraceType.UNSPECIFIED_TYPE);
     assertThat(capture.isDualClock()).isFalse();
   }

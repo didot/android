@@ -30,7 +30,7 @@ import com.intellij.ui.ColoredListCellRenderer;
 import com.intellij.ui.ComboboxWithBrowseButton;
 import com.intellij.util.concurrency.EdtExecutorService;
 import com.intellij.util.containers.ContainerUtil;
-import java.awt.*;
+import java.awt.ItemSelectable;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.File;
@@ -46,7 +46,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.swing.*;
+import javax.swing.JComboBox;
+import javax.swing.JList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -89,7 +90,7 @@ public class SkinChooser extends ComboboxWithBrowseButton implements ItemListene
     myDeviceSkinUpdaterServiceExecutor = deviceSkinUpdaterServiceExecutor;
     myEdtExecutor = edtExecutor;
 
-    getComboBox().setRenderer(new ColoredListCellRenderer<File>() {
+    getComboBox().setRenderer(new ColoredListCellRenderer<>() {
       @Override
       protected void customizeCellRenderer(@NotNull JList<@NotNull ? extends File> list,
                                            @Nullable File skin,
@@ -127,7 +128,7 @@ public class SkinChooser extends ComboboxWithBrowseButton implements ItemListene
     });
     FileChooserDescriptor skinChooserDescriptor = new FileChooserDescriptor(false, true, false, false, false, false);
     addBrowseFolderListener("Select Custom Skin", "Select the directory containing your custom skin definition", project,
-                            skinChooserDescriptor, new TextComponentAccessor<JComboBox>() {
+                            skinChooserDescriptor, new TextComponentAccessor<>() {
         @Override
         public String getText(JComboBox component) {
           return ((File)component.getSelectedItem()).getPath();
@@ -159,7 +160,7 @@ public class SkinChooser extends ComboboxWithBrowseButton implements ItemListene
                                                                   SkinChooser::transform,
                                                                   myDeviceSkinUpdaterServiceExecutor);
 
-    FutureUtils.addCallback(future, myEdtExecutor, new FutureCallback<Collection<Path>>() {
+    FutureUtils.addCallback(future, myEdtExecutor, new FutureCallback<>() {
       @Override
       public void onSuccess(@Nullable Collection<@NotNull Path> skins) {
         assert skins != null;

@@ -16,7 +16,8 @@
 package com.android.build.attribution.ui
 
 import com.android.build.attribution.analyzers.ConfigurationCachingCompatibilityProjectResult
-import com.android.build.attribution.analyzers.ConfigurationCachingTurnedOn
+import com.android.build.attribution.analyzers.JetifierUsageAnalyzerResult
+import com.android.build.attribution.analyzers.JetifierUsedCheckRequired
 import com.android.build.attribution.analyzers.NoIncompatiblePlugins
 import com.android.build.attribution.ui.data.AnnotationProcessorUiData
 import com.android.build.attribution.ui.data.AnnotationProcessorsReport
@@ -33,6 +34,7 @@ import com.android.build.attribution.ui.data.TaskIssueUiData
 import com.android.build.attribution.ui.data.TaskIssuesGroup
 import com.android.build.attribution.ui.data.TaskUiData
 import com.android.build.attribution.ui.data.TimeWithPercentage
+import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
 import org.jetbrains.kotlin.utils.addToStdlib.sumByLong
 import org.mockito.Mockito
 import java.util.Calendar
@@ -58,6 +60,8 @@ class MockUiData(
   val tasksList: List<TestTaskUiData> = emptyList()
 ) : BuildAttributionReportUiData {
   override val successfulBuild = true
+  override val buildRequest: GradleBuildInvoker.Request
+    get() = throw UnsupportedOperationException("Should be overridden for tests requiring to access the request.")
   override var buildSummary = mockBuildOverviewData()
   override var criticalPathTasks = mockCriticalPathTasksUiData()
   override var criticalPathPlugins = mockCriticalPathPluginsUiData()
@@ -65,7 +69,7 @@ class MockUiData(
   override var configurationTime = Mockito.mock(ConfigurationUiData::class.java)
   override var annotationProcessors = mockAnnotationProcessorsData()
   override var confCachingData: ConfigurationCachingCompatibilityProjectResult = NoIncompatiblePlugins(emptyList())
-
+  override var jetifierData: JetifierUsageAnalyzerResult = JetifierUsageAnalyzerResult(JetifierUsedCheckRequired)
   fun mockBuildOverviewData(
     javaVersionUsed: Int? = null,
     isGarbageCollectorSettingSet: Boolean? = null
@@ -154,7 +158,7 @@ class TestTaskUiData(
   override val executedIncrementally: Boolean = true
   override val executionMode: String = "FULL"
   override var onLogicalCriticalPath: Boolean = true
-  override val onExtendedCriticalPath: Boolean = true
+  override var onExtendedCriticalPath: Boolean = true
   override var sourceType: PluginSourceType = PluginSourceType.ANDROID_PLUGIN
   override val reasonsToRun: List<String> = emptyList()
   override var issues: List<TaskIssueUiData> = emptyList()

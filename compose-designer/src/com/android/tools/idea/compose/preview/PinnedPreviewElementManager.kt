@@ -20,6 +20,10 @@ import com.intellij.openapi.util.SimpleModificationTracker
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
+import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.idea.stubindex.KotlinAnnotationsIndex
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
@@ -75,11 +79,13 @@ class PinnedPreviewElementManagerImpl internal constructor(val project: Project)
   internal val previewElements: Sequence<PreviewElementInstance>
     get() {
       val filesWithPinnedElements = pinnedElements.map { it.containingFilePath }.toSet()
-      val kotlinAnnotations: Sequence<PsiElement> = DumbService.getInstance(project).runReadActionInSmartMode(
-        Computable<Sequence<PsiElement>> {
-          KotlinAnnotationsIndex.get(COMPOSE_PREVIEW_ANNOTATION_NAME, project,
-                                                   GlobalSearchScope.projectScope(project)).asSequence()
-        })
+      val kotlinAnnotations: Sequence<PsiElement> = CachedValuesManager.getManager(project).getCachedValue(project) {
+        CachedValueProvider.Result.createSingleDependency(
+          DumbService.getInstance(project).runReadActionInSmartMode(
+            Computable<Collection<PsiElement>> {
+              KotlinAnnotationsIndex.get(COMPOSE_PREVIEW_ANNOTATION_NAME, project, GlobalSearchScope.projectScope(project))
+            }), PsiModificationTracker.SERVICE.getInstance(project).forLanguage(KotlinLanguage.INSTANCE))
+      }.asSequence()
 
       val foundPreviewElementPaths: Set<String> by lazy {
         kotlinAnnotations
@@ -217,9 +223,9 @@ interface PinnedPreviewElementManager: ModificationTracker {
     @JvmStatic
     fun getPreviewElementProvider(project: Project): PreviewElementProvider<PreviewElementInstance> = if (StudioFlags.COMPOSE_PIN_PREVIEW.get()) {
       object : PreviewElementProvider<PreviewElementInstance> {
-        @get:Slow
-        override val previewElements: Sequence<PreviewElementInstance>
-          get() = project.getService(PinnedPreviewElementManagerImpl::class.java).previewElements
+        @Slow
+        override suspend fun previewElements(): Sequence<PreviewElementInstance> =
+          project.getService(PinnedPreviewElementManagerImpl::class.java).previewElements
       }
     }
     else {

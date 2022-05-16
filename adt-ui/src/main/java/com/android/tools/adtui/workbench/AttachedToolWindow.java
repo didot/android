@@ -34,11 +34,18 @@ import com.intellij.ui.SearchTextField;
 import com.intellij.ui.SideBorder;
 import com.intellij.ui.UIBundle;
 import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.ImageUtil;
 import com.intellij.util.ui.JBImageIcon;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Point;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.InputEvent;
@@ -47,7 +54,13 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.LayoutFocusTraversalPolicy;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.MouseInputAdapter;
 import org.jetbrains.annotations.NotNull;
@@ -409,6 +422,7 @@ final class AttachedToolWindow<T> implements ToolWindowCallback, Disposable {
     Dimension buttonSize = myDefinition.getButtonSize();
     int border = buttonSize.equals(NAVBAR_MINIMUM_BUTTON_SIZE) ? 4 : 2;
     actionToolbar.getComponent().setBorder(JBUI.Borders.empty(border, 0));
+    actionToolbar.updateActionsImmediately();
     return actionToolbar;
   }
 
@@ -444,23 +458,23 @@ final class AttachedToolWindow<T> implements ToolWindowCallback, Disposable {
       }
     }
     DefaultActionGroup attachedSide = DefaultActionGroup.createPopupGroup(() -> "Attached Side");
-    attachedSide.add(new TogglePropertyTypeDumbAction(PropertyType.LEFT, "Left"));
-    attachedSide.add(new ToggleOppositePropertyTypeDumbAction(PropertyType.LEFT, "Right"));
+    attachedSide.add(new TogglePropertyTypeAction(PropertyType.LEFT, "Left"));
+    attachedSide.add(new ToggleOppositePropertyTypeAction(PropertyType.LEFT, "Right"));
     attachedSide.add(new SwapAction());
     if (myDefinition.isFloatingAllowed()) {
-      attachedSide.add(new TogglePropertyTypeDumbAction(PropertyType.DETACHED, "None"));
+      attachedSide.add(new TogglePropertyTypeAction(PropertyType.DETACHED, "None"));
     }
     group.add(attachedSide);
     ActionManager manager = ActionManager.getInstance();
     if (myDefinition.isAutoHideAllowed()) {
       group.add(
-        new ToggleOppositePropertyTypeDumbAction(PropertyType.AUTO_HIDE, manager.getAction(InternalDecorator.TOGGLE_DOCK_MODE_ACTION_ID)));
+        new ToggleOppositePropertyTypeAction(PropertyType.AUTO_HIDE, manager.getAction(InternalDecorator.TOGGLE_DOCK_MODE_ACTION_ID)));
     }
     if (myDefinition.isFloatingAllowed()) {
-      group.add(new TogglePropertyTypeDumbAction(PropertyType.FLOATING, manager.getAction(InternalDecorator.TOGGLE_FLOATING_MODE_ACTION_ID)));
+      group.add(new TogglePropertyTypeAction(PropertyType.FLOATING, manager.getAction(InternalDecorator.TOGGLE_FLOATING_MODE_ACTION_ID)));
     }
     if (myDefinition.isSplitModeChangesAllowed()) {
-      group.add(new TogglePropertyTypeDumbAction(PropertyType.SPLIT, manager.getAction(InternalDecorator.TOGGLE_SIDE_MODE_ACTION_ID)));
+      group.add(new TogglePropertyTypeAction(PropertyType.SPLIT, manager.getAction(InternalDecorator.TOGGLE_SIDE_MODE_ACTION_ID)));
     }
   }
 
@@ -571,7 +585,7 @@ final class AttachedToolWindow<T> implements ToolWindowCallback, Disposable {
       }
       Graphics graphics2 = graphics.create();
       try {
-        graphics2.translate(JBUI.scale(1), 0);
+        graphics2.translate(JBUIScale.scale(1), 0);
         super.paint(graphics2);
       }
       finally {
@@ -629,6 +643,7 @@ final class AttachedToolWindow<T> implements ToolWindowCallback, Disposable {
     public void update(@NotNull AnActionEvent event) {
       Presentation presentation = event.getPresentation();
       presentation.setVisible(!myShowSearchField);
+      presentation.setEnabled(myContent != null && myContent.isFilteringActive());
     }
 
     @Override
@@ -657,7 +672,7 @@ final class AttachedToolWindow<T> implements ToolWindowCallback, Disposable {
   }
 
   private class HideAction extends DumbAwareAction {
-   private HideAction() {
+    private HideAction() {
       super(UIBundle.messagePointer("tool.window.hide.action.name"), AllIcons.General.HideToolWindow);
     }
 
@@ -667,15 +682,15 @@ final class AttachedToolWindow<T> implements ToolWindowCallback, Disposable {
     }
   }
 
-  private class TogglePropertyTypeDumbAction extends DumbAwareToggleAction {
+  private class TogglePropertyTypeAction extends DumbAwareToggleAction {
     private final PropertyType myProperty;
 
-    private TogglePropertyTypeDumbAction(@NotNull PropertyType property, @NotNull String text) {
+    private TogglePropertyTypeAction(@NotNull PropertyType property, @NotNull String text) {
       super(text);
       myProperty = property;
     }
 
-    private TogglePropertyTypeDumbAction(@NotNull PropertyType property, @NotNull AnAction action) {
+    private TogglePropertyTypeAction(@NotNull PropertyType property, @NotNull AnAction action) {
       myProperty = property;
       copyFrom(action);
     }
@@ -691,12 +706,12 @@ final class AttachedToolWindow<T> implements ToolWindowCallback, Disposable {
     }
   }
 
-  private class ToggleOppositePropertyTypeDumbAction extends TogglePropertyTypeDumbAction {
-    private ToggleOppositePropertyTypeDumbAction(@NotNull PropertyType property, @NotNull String text) {
+  private class ToggleOppositePropertyTypeAction extends TogglePropertyTypeAction {
+    private ToggleOppositePropertyTypeAction(@NotNull PropertyType property, @NotNull String text) {
       super(property, text);
     }
 
-    private ToggleOppositePropertyTypeDumbAction(@NotNull PropertyType property, @NotNull AnAction action) {
+    private ToggleOppositePropertyTypeAction(@NotNull PropertyType property, @NotNull AnAction action) {
       super(property, action);
     }
 

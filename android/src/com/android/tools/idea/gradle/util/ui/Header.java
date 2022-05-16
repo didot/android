@@ -15,6 +15,12 @@
  */
 package com.android.tools.idea.gradle.util.ui;
 
+import static com.intellij.ide.ui.UISettings.setupAntialiasing;
+import static com.intellij.openapi.actionSystem.ActionPlaces.UNKNOWN;
+import static com.intellij.openapi.keymap.KeymapUtil.createTooltipText;
+import static com.intellij.ui.tabs.TabsUtil.getTabsHeight;
+import static com.intellij.util.ui.UIUtil.drawHeader;
+
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.DataManager;
 import com.intellij.openapi.Disposable;
@@ -33,20 +39,28 @@ import com.intellij.util.EventDispatcher;
 import com.intellij.util.ui.ImageUtil;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.StartupUiUtil;
-import org.jetbrains.annotations.NotNull;
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.EventListener;
 import java.util.List;
-
-import static com.intellij.ide.ui.UISettings.setupAntialiasing;
-import static com.intellij.openapi.actionSystem.ActionPlaces.UNKNOWN;
-import static com.intellij.openapi.keymap.KeymapUtil.createTooltipText;
-import static com.intellij.ui.tabs.TabsUtil.getTabsHeight;
-import static com.intellij.util.ui.UIUtil.drawHeader;
-import static com.intellij.util.ui.UIUtil.drawImage;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Adapted from {@link ToolWindowHeader}.
@@ -114,7 +128,7 @@ public class Header extends JPanel {
 
     Rectangle clipBounds = g2d.getClip().getBounds();
     for (int x = clipBounds.x; x < clipBounds.x + clipBounds.width; x += 150) {
-      drawImage(g, image, x, 0, null);
+      StartupUiUtil.drawImage(g, image, x, 0, null);
     }
   }
 

@@ -18,6 +18,7 @@
 package org.jetbrains.android.refactoring
 
 import com.android.support.AndroidxName
+import com.intellij.lang.properties.IProperty
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.project.Project
 
@@ -29,6 +30,13 @@ fun Project.setAndroidxProperties(value: String = "true") {
   getProjectProperties(true)?.let {
     it.findPropertyByKey(USE_ANDROIDX_PROPERTY)?.setValue(value) ?: it.addProperty(USE_ANDROIDX_PROPERTY, value)
     it.findPropertyByKey(ENABLE_JETIFIER_PROPERTY)?.setValue(value) ?: it.addProperty(ENABLE_JETIFIER_PROPERTY, value)
+  }
+}
+
+fun Project.disableJetifier(runAfterDisabling: (IProperty?) -> Unit) {
+  getProjectProperties(true)?.findPropertyByKey(ENABLE_JETIFIER_PROPERTY).let {
+    it?.setValue("false")
+    runAfterDisabling(it)
   }
 }
 
@@ -44,6 +52,13 @@ fun Project.hasAndroidxProperty(): Boolean = runReadAction {
  */
 fun Project.isAndroidx(): Boolean = runReadAction {
   getProjectProperties()?.findPropertyByKey(USE_ANDROIDX_PROPERTY)?.value?.toBoolean() ?: false
+}
+
+/**
+ * Checks that the "enableJetifier" property is set to true
+ */
+fun Project.isEnableJetifier(): Boolean = runReadAction {
+  getProjectProperties()?.findPropertyByKey(ENABLE_JETIFIER_PROPERTY)?.value?.toBoolean() ?: false
 }
 
 /**

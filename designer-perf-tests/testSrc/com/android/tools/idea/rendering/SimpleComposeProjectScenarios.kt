@@ -16,6 +16,7 @@
 package com.android.tools.idea.rendering
 
 import com.android.ide.common.rendering.api.RenderSession
+import com.android.tools.idea.compose.preview.navigation.parseViewInfo
 import com.android.tools.idea.compose.preview.renderer.createRenderTaskFuture
 import com.android.tools.idea.compose.preview.renderer.renderPreviewElementForResult
 import com.android.tools.idea.compose.preview.util.SinglePreviewElementInstance
@@ -23,6 +24,7 @@ import com.android.tools.idea.testing.AndroidGradleProjectRule
 import com.android.tools.idea.uibuilder.scene.LayoutlibSceneManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.PsiDocumentManager
 import org.junit.Assert
 import java.util.concurrent.TimeUnit
@@ -68,6 +70,11 @@ class SimpleComposeProjectScenarios {
       return renderResult
     }
 
+    fun complexRenderScenarioWithBoundsCalculation(projectRule: AndroidGradleProjectRule): RenderResult =
+      complexRenderScenario(projectRule).also {
+        it.rootViews.forEach { viewInfo ->  parseViewInfo(viewInfo, logger = Logger.getInstance(SimpleComposeProjectScenarios::class.java)) }
+      }
+
     fun interactiveRenderScenario(projectRule: AndroidGradleProjectRule): ExtendedRenderResult {
       val renderTaskFuture = createRenderTaskFuture(projectRule.androidFacet(":app"),
                                                     SinglePreviewElementInstance.forTesting(
@@ -104,7 +111,8 @@ class SimpleComposeProjectScenarios {
         val finalRenderResult = renderTask.render().get(5, TimeUnit.SECONDS)
         val clickPixel = finalRenderResult.renderedImage.getPixel(clickX, clickY)
         // Not the same as in the initial render (there is a ripple)
-        Assert.assertNotEquals(clickPixel, firstRenderPixel)
+        // TODO(b/189093606): re-enable the assertion once ripples are fixed in layoutlib
+        //Assert.assertNotEquals(clickPixel, firstRenderPixel)
         // Not black and not white
         Assert.assertNotEquals(clickPixel or 0xFFFFFF, 0)
         Assert.assertNotEquals(clickPixel, 0xFFFFFFFF)

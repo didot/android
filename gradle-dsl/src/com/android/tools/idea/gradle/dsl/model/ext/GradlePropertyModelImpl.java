@@ -13,35 +13,66 @@
 // limitations under the License.
 package com.android.tools.idea.gradle.dsl.model.ext;
 
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.BIG_DECIMAL;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.BOOLEAN;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.INTEGER;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.INTERPOLATED;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.LIST;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.MAP;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.NONE;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.REFERENCE;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.STRING;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.UNKNOWN;
+import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.FAKE;
+import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.DEFAULT_TRANSFORM;
+import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.findOriginalElement;
+import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.isElementModified;
+import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.isFakeElementModified;
+import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.ASSIGNMENT;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelSemanticsDescription.CREATE_WITH_VALUE;
+
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.InterpolatedText;
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType;
 import com.android.tools.idea.gradle.dsl.api.ext.RawText;
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo;
-import com.android.tools.idea.gradle.dsl.api.util.GradleNameElementUtil;
 import com.android.tools.idea.gradle.dsl.api.util.TypeReference;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.PropertyTransform;
 import com.android.tools.idea.gradle.dsl.parser.GradleReferenceInjection;
-import com.android.tools.idea.gradle.dsl.parser.elements.*;
+import com.android.tools.idea.gradle.dsl.parser.elements.FakeElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElementImpl;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpression;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslLiteral;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslMethodCall;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSettableExpression;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslUnknownElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.util.containers.ContainerUtil;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.*;
-import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.FAKE;
-import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.*;
-import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.ASSIGNMENT;
 
 public class GradlePropertyModelImpl implements GradlePropertyModel {
   @Nullable protected GradleDslElement myElement;
@@ -290,6 +321,9 @@ public class GradlePropertyModelImpl implements GradlePropertyModel {
     if (value instanceof List) {
       setListValue((List<GradlePropertyModel>) value);
     }
+    else if (value instanceof Map) {
+      setMapValue((Map<String,GradlePropertyModel>)value);
+    }
     else {
       GradleDslExpression newElement;
       if (myPropertyDescription == null) {
@@ -302,9 +336,15 @@ public class GradlePropertyModelImpl implements GradlePropertyModel {
     }
   }
 
-  private void setMapValue(Map<String,Object> value) {
+  private void setMapValue(Map<String,GradlePropertyModel> value) {
     convertToEmptyMap();
-    // TODO
+    for (Map.Entry<String,GradlePropertyModel> e : value.entrySet()) {
+      GradlePropertyModel newValueModel = getMapValue(e.getKey());
+      Object newValue = e.getValue().getValue(OBJECT_TYPE);
+      if (newValue != null) {
+        newValueModel.setValue(newValue);
+      }
+    }
   }
 
   @Override
@@ -420,6 +460,33 @@ public class GradlePropertyModelImpl implements GradlePropertyModel {
   }
 
   @Override
+  public void rewrite() {
+    GradleDslElement element = getElement();
+    if (element == null || myElement == null) return;
+    GradleDslExpression newElement;
+    if (!(myElement instanceof GradleDslExpression)) throw new IllegalStateException("Called rewrite on a non-Expression");
+    ValueType valueType = getValueType();
+    if (valueType == ValueType.LIST) {
+      setListValue(getValue(LIST_TYPE));
+    }
+    else if (valueType == ValueType.MAP) {
+      setMapValue(getValue(MAP_TYPE));
+    }
+    else {
+      if (myPropertyDescription == null) {
+        newElement = getTransform().bind(myPropertyHolder, myElement, getValue(OBJECT_TYPE), getName());
+      }
+      else {
+        newElement = getTransform().bind(myPropertyHolder, myElement, getValue(OBJECT_TYPE), myPropertyDescription);
+      }
+      if (newElement == myElement) {
+        newElement = newElement.copy();
+      }
+      bindToNewElement(newElement);
+    }
+  }
+
+  @Override
   public void delete() {
     GradleDslElement element = getElement();
     if (element == null || myElement == null) {
@@ -484,7 +551,7 @@ public class GradlePropertyModelImpl implements GradlePropertyModel {
   public void rename(@NotNull List<String> name) {
     // If we have no backing element then just alter the name that we will change.
     if (myElement == null) {
-      myName = GradleNameElementUtil.join(name);
+      myName = GradleNameElement.join(name);
       return;
     }
 
@@ -713,19 +780,19 @@ public class GradlePropertyModelImpl implements GradlePropertyModel {
 
   private void makeEmptyMap() {
     if (myPropertyDescription == null) {
-      bindToNewElement(getTransform().bindMap(myPropertyHolder, myElement, getName(), false));
+      bindToNewElement(getTransform().bindMap(myPropertyHolder, myElement, getName()));
     }
     else {
-      bindToNewElement(getTransform().bindMap(myPropertyHolder, myElement, myPropertyDescription, false));
+      bindToNewElement(getTransform().bindMap(myPropertyHolder, myElement, myPropertyDescription));
     }
   }
 
   private void makeEmptyList() {
     if (myPropertyDescription == null) {
-      bindToNewElement(getTransform().bindList(myPropertyHolder, myElement, getName(), false));
+      bindToNewElement(getTransform().bindList(myPropertyHolder, myElement, getName()));
     }
     else {
-      bindToNewElement(getTransform().bindList(myPropertyHolder, myElement, myPropertyDescription, false));
+      bindToNewElement(getTransform().bindList(myPropertyHolder, myElement, myPropertyDescription));
     }
   }
 
@@ -741,13 +808,16 @@ public class GradlePropertyModelImpl implements GradlePropertyModel {
 
     GradleDslElement element = getTransform().replace(myPropertyHolder, myElement, newElement, getName());
     element.setElementType(myPropertyType);
-    if (myElement != null) {
-      element.setExternalSyntax(myElement.getExternalSyntax());
-    }
-    // TODO(b/...): this is necessary until models store the properties they're associated with: for now, the models have only names
-    //  while the Dsl elements are annotated with model effect / properties.
-    if (myElement != null) {
-      element.setModelEffect(myElement.getModelEffect());
+    ModelEffectDescription effect = element.getModelEffect();
+    if (effect == null || effect.semantics != CREATE_WITH_VALUE) {
+      if (myElement != null) {
+        element.setExternalSyntax(myElement.getExternalSyntax());
+      }
+      // TODO(b/148657110): This is necessary until models store the properties they're associated with: for now, the models
+      //  have only names while the Dsl elements are annotated with model effect / properties.
+      if (myElement != null) {
+        element.setModelEffect(myElement.getModelEffect());
+      }
     }
     // We need to ensure the parent will be modified so this change takes effect.
     element.setModified();

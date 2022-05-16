@@ -16,14 +16,15 @@
 
 package com.android.tools.idea.ddms.screenrecord;
 
-import com.android.ddmlib.ScreenRecorderOptions;
 import com.android.tools.idea.help.AndroidWebHelpProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.ValidationInfo;
 import javax.swing.Action;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -36,31 +37,29 @@ import org.jetbrains.annotations.Nullable;
 
 public class ScreenRecorderOptionsDialog extends DialogWrapper {
   @NonNls private static final String SCREENRECORDER_DIMENSIONS_KEY = "ScreenshotRecorder.Options.Dimensions";
+  private final DefaultComboBoxModel<Integer> myComboBoxModel = new DefaultComboBoxModel<>(new Integer[]{100, 50, 30});
 
   private JPanel myPanel;
   @VisibleForTesting JTextField myBitRateTextField;
-  @VisibleForTesting JTextField myWidthTextField;
-  @VisibleForTesting JTextField myHeightTextField;
   @VisibleForTesting JCheckBox myShowTouchCheckBox;
+  private JCheckBox myEmulatorRecordingCheckBox;
+  private JComboBox<Integer> myResolutionPercentComboBox;
 
-  public ScreenRecorderOptionsDialog(@NotNull Project project) {
+  public ScreenRecorderOptionsDialog(@NotNull Project project, boolean isEmulator) {
     super(project, true);
 
+    myResolutionPercentComboBox.setModel(myComboBoxModel);
+
     ScreenRecorderPersistentOptions options = ScreenRecorderPersistentOptions.getInstance();
-
-    if (options.getResolutionWidth() > 0) {
-      myWidthTextField.setText(Integer.toString(options.getResolutionWidth()));
-    }
-
-    if (options.getResolutionHeight() > 0) {
-      myHeightTextField.setText(Integer.toString(options.getResolutionHeight()));
-    }
+    myComboBoxModel.setSelectedItem(options.getResolutionPercent());
 
     if (options.getBitRateMbps() > 0) {
       myBitRateTextField.setText(Integer.toString(options.getBitRateMbps()));
     }
 
     myShowTouchCheckBox.setSelected(options.getShowTaps());
+    myEmulatorRecordingCheckBox.setSelected(options.getUseEmulatorRecording());
+    myEmulatorRecordingCheckBox.setVisible(isEmulator);
 
     setTitle("Screen Recorder Options");
     init();
@@ -93,18 +92,8 @@ public class ScreenRecorderOptionsDialog extends DialogWrapper {
   @Nullable
   @Override
   protected ValidationInfo doValidate() {
-    ValidationInfo info = validateIntegerMultipleOf(myBitRateTextField, 1, "Bit Rate must be an integer.");
-    if (info != null) {
-      return info;
-    }
-
-    // MediaEncoder prefers sizes that are multiples of 16 (https://code.google.com/p/android/issues/detail?id=37769).
-    info = validateIntegerMultipleOf(myWidthTextField, 16, "Width must be an integer.");
-    if (info != null) {
-      return info;
-    }
-
-    info = validateIntegerMultipleOf(myHeightTextField, 16, "Height must be an integer.");
+    ValidationInfo info =
+      validateInteger(myBitRateTextField, AndroidBundle.message("android.ddms.screenrecorder.options.bit.rate.invalid"));
     if (info != null) {
       return info;
     }
@@ -113,30 +102,29 @@ public class ScreenRecorderOptionsDialog extends DialogWrapper {
   }
 
   @Nullable
-  private static ValidationInfo validateIntegerMultipleOf(JTextField textField, int multiple, String errorMessage) {
+  private static ValidationInfo validateInteger(JTextField textField, String errorMessage) {
     String s = getText(textField);
     if (s.isEmpty()) {
       return null;
     }
 
-    int x;
     try {
-      x = Integer.parseInt(s);
+      Integer.parseInt(s);
     }
     catch (NumberFormatException e) {
       return new ValidationInfo(errorMessage, textField);
     }
 
-    return (x % multiple > 0) ? new ValidationInfo("Must be a multiple of " + multiple, textField) : null;
+    return null;
   }
 
   @Override
   protected void doOKAction() {
     ScreenRecorderPersistentOptions options = ScreenRecorderPersistentOptions.getInstance();
     options.setBitRateMbps(getIntegerValue(myBitRateTextField));
-    options.setResolutionHeight(getIntegerValue(myHeightTextField));
-    options.setResolutionWidth(getIntegerValue(myWidthTextField));
+    options.setResolutionPercent((Integer)myComboBoxModel.getSelectedItem());
     options.setShowTaps(myShowTouchCheckBox.isSelected());
+    options.setUseEmulatorRecording(myEmulatorRecordingCheckBox.isSelected());
     super.doOKAction();
   }
 
@@ -155,11 +143,7 @@ public class ScreenRecorderOptionsDialog extends DialogWrapper {
     }
   }
 
-  public ScreenRecorderOptions getOptions() {
-    ScreenRecorderPersistentOptions options = ScreenRecorderPersistentOptions.getInstance();
-    return new ScreenRecorderOptions.Builder()
-      .setBitRate(options.getBitRateMbps())
-      .setSize(options.getResolutionWidth(), options.getResolutionHeight())
-      .setShowTouches(options.getShowTaps()).build();
+  public boolean getUseEmulatorRecording() {
+    return ScreenRecorderPersistentOptions.getInstance().getUseEmulatorRecording();
   }
 }

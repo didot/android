@@ -42,6 +42,7 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
@@ -90,7 +91,7 @@ public class GutterIconFactory {
     com.intellij.openapi.editor.Document document = FileDocumentManager.getInstance().getCachedDocument(file);
 
     if  (document == null) {
-      return new String(file.contentsToByteArray());
+      return new String(file.contentsToByteArray(), StandardCharsets.UTF_8);
     }
 
     return document.getText();
@@ -283,7 +284,7 @@ public class GutterIconFactory {
 
     @Override
     public synchronized void paintIcon(Component c, Graphics g, int x, int y) {
-      UIUtil.drawImage(g, getImage(), x, y, null);
+      StartupUiUtil.drawImage(g, getImage(), x, y, null);
     }
   }
 }

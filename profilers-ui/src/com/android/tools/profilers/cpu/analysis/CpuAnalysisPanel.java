@@ -18,6 +18,7 @@ package com.android.tools.profilers.cpu.analysis;
 import com.android.tools.adtui.TabbedToolbar;
 import com.android.tools.adtui.common.StudioColorsKt;
 import com.android.tools.adtui.model.AspectObserver;
+import com.android.tools.adtui.model.MultiSelectionModel;
 import com.android.tools.adtui.model.ViewBinder;
 import com.android.tools.profilers.StudioProfilersView;
 import com.android.tools.profilers.cpu.CpuCaptureStage;
@@ -26,11 +27,13 @@ import com.intellij.ui.components.JBTabbedPane;
 import com.intellij.util.ui.JBUI;
 import java.awt.BorderLayout;
 import java.util.List;
+import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -56,6 +59,10 @@ public class CpuAnalysisPanel extends AspectObserver {
     myTabs = new TabbedToolbar(tabsTitle);
     setupBindings();
     stage.getAspect().addDependency(this).onChange(CpuCaptureStage.Aspect.ANALYSIS_MODEL_UPDATED, this::updateComponents);
+    stage.getMultiSelectionModel().addDependency(this).onChange(MultiSelectionModel.Aspect.SELECTIONS_CHANGED,
+                                                                this::updateComponents);
+    stage.getMultiSelectionModel().addDependency(this).onChange(MultiSelectionModel.Aspect.ACTIVE_SELECTION_CHANGED,
+                                                                this::onSelectedTabChanged);
     // TODO (b/139295622): Add action items and actions to analysis panel.
     // Need proper icons for configure and minimize.
     // myTabs.addAction(StudioIcons.Logcat.SETTINGS, (e) -> { });
@@ -75,6 +82,9 @@ public class CpuAnalysisPanel extends AspectObserver {
     myTabViewsBinder.bind(CaptureNodeAnalysisSummaryTabModel.class, CpuAnalysisSummaryTab::new);
     myTabViewsBinder.bind(CpuThreadAnalysisEventsTabModel.class, CpuAnalysisEventsTab::new);
     myTabViewsBinder.bind(CaptureNodeAnalysisEventsTabModel.class, CpuAnalysisEventsTab::new);
+    myTabViewsBinder.bind(CpuAnalysisFramesTabModel.class, CpuAnalysisFramesTab::new);
+    myTabViewsBinder.bind(AndroidFrameTimelineAnalysisModel.Tab.class, AndroidFrameTimelineTab::new);
+    myTabViewsBinder.bind(JankAnalysisModel.Summary.class, CpuAnalysisSummaryTab::new);
   }
 
   @NotNull
@@ -100,16 +110,49 @@ public class CpuAnalysisPanel extends AspectObserver {
    */
   private void updateComponents() {
     myTabs.clearTabs();
-    List<CpuAnalysisModel> models = myStage.getAnalysisModels();
-    if (models.isEmpty()) {
-      return;
+    List<CpuAnalysisModel<?>> pinnedModels = myStage.getPinnedAnalysisModels();
+    List<MultiSelectionModel.Entry<CpuAnalyzable<?>>> selections = myStage.getMultiSelectionModel().getSelections();
+
+    for (CpuAnalysisModel<?> model : pinnedModels) {
+      myTabs.addTab(model.getName(), () -> {
+        onSelectAnalysis(model);
+        myStage.getMultiSelectionModel().setActiveSelection(null);
+      });
     }
 
-    for (CpuAnalysisModel model : models) {
-      myTabs.addTab(model.getName(), () -> onSelectAnalysis(model));
+    for (MultiSelectionModel.Entry<CpuAnalyzable<?>> selection : selections) {
+      CpuAnalysisModel<?> model = merge(selection.getValue().stream().map(CpuAnalyzable::getAnalysisModel));
+      Object selectionKey = selection.getKey();
+      myTabs.addTab(model.getName(),
+                    () -> {
+                      onSelectAnalysis(model);
+                      myStage.getMultiSelectionModel().setActiveSelection(selectionKey);
+                    },
+                    () -> myStage.getMultiSelectionModel().removeSelection(selectionKey));
     }
-    // When tabs are updated auto select the latest tab.
-    onSelectAnalysis(models.get(models.size() - 1));
+
+    // Select the previously selected one, or the first persistent one
+    Object activeSelectionKey = myStage.getMultiSelectionModel().getActiveSelectionKey();
+    if (activeSelectionKey != null) {
+      int selectedIndex = CollectionsKt.indexOfFirst(selections, entry -> entry.getKey().equals(activeSelectionKey));
+      myTabs.selectTab(pinnedModels.size() + selectedIndex);
+    } else if (myTabs.countTabs() > 0) {
+      myTabs.selectTab(0);
+    }
+  }
+
+  private static<T> CpuAnalysisModel<T> merge(Stream<CpuAnalysisModel<T>> models) {
+    return models.reduce(CpuAnalysisModel::mergeWith).get(); // safe to reduce because the set is non-empty
+  }
+
+  private void onSelectedTabChanged() {
+    int selectedIndex = myStage.getMultiSelectionModel().getActiveSelectionIndex();
+    List<?> pinnedModels = myStage.getPinnedAnalysisModels();
+    if (selectedIndex >= 0) {
+      myTabs.selectTab(pinnedModels.size() + selectedIndex);
+    } else if (myTabs.countTabs() > 0) {
+      myTabs.selectTab(0);
+    }
   }
 
   /**

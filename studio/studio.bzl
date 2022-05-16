@@ -1,6 +1,6 @@
 load("//tools/base/bazel:merge_archives.bzl", "run_singlejar")
 load("//tools/base/bazel:functions.bzl", "create_option_file")
-load("//tools/base/bazel:utils.bzl", "dir_archive")
+load("//tools/base/bazel:utils.bzl", "dir_archive", "is_release")
 load("@bazel_tools//tools/jdk:toolchain_utils.bzl", "find_java_toolchain")
 
 def _zipper(ctx, desc, map, out, deps = []):
@@ -16,6 +16,36 @@ def _zipper(ctx, desc, map, out, deps = []):
         arguments = zipper_args,
         progress_message = "Creating %s zip..." % desc,
         mnemonic = "zipper",
+    )
+
+def _lnzipper(ctx, desc, filemap, out, deps = []):
+    """Creates a ZIP out while preserving symlinks.
+
+    Note: This action needs to run outside the sandbox to capture an accurate
+    representation of the workspace filesystem. Otherwise, files inside the
+    sandbox are created as symbolic links, and the output ZIP would only
+    contain entries which are sandbox symlinks."""
+    files = []
+    fileargs = []
+    for zip_path, f in filemap:
+        files.append(f)
+        fileargs.append("%s=%s\n" % (zip_path, f.path if f else ""))
+
+    lnzipper_options = "-cs"
+    if ctx.attr.compress:
+        lnzipper_options += "C"
+
+    args = [lnzipper_options, out.path]
+    argfile = create_option_file(ctx, out.basename + ".res.lst", "".join(fileargs))
+    args.append("@" + argfile.path)
+    ctx.actions.run(
+        inputs = files + [argfile] + deps,
+        outputs = [out],
+        executable = ctx.executable._lnzipper,
+        execution_requirements = {"no-sandbox": "true", "no-remote": "true"},
+        arguments = args,
+        progress_message = "lnzipping %s" % desc,
+        mnemonic = "lnzipper",
     )
 
 # Bazel does not support attributes of type 'dict of string -> list of labels',
@@ -166,7 +196,7 @@ def _studio_plugin_impl(ctx):
                       [m.module.plugin_deps for m in ctx.attr.modules] +
                       [m.module.external_deps for m in ctx.attr.modules])
     have = depset(
-        direct = ctx.attr.modules + ctx.attr.libs + ctx.attr.provided,
+        direct = ctx.attr.modules + ctx.attr.libs,
         transitive = [d.module_deps for d in ctx.attr.deps if hasattr(d, "module_deps")] +
                      [d.lib_deps for d in ctx.attr.deps if hasattr(d, "lib_deps")] +
                      [depset([p for p in ctx.attr.deps if hasattr(p, "plugin_info")])],
@@ -188,19 +218,20 @@ def _studio_plugin_impl(ctx):
         plugin_info = plugin_info,
         module_deps = depset(ctx.attr.modules),
         lib_deps = depset(ctx.attr.libs),
+        licenses = depset(ctx.files.licenses),
     )
 
 _studio_plugin = rule(
     attrs = {
         "modules": attr.label_list(allow_empty = False),
         "libs": attr.label_list(allow_files = True),
+        "licenses": attr.label_list(allow_files = True),
         "jars": attr.string_list(),
         "resources": attr.label_list(allow_files = True),
         "resources_dirs": attr.string_list(),
         "directory": attr.string(),
         "compress": attr.bool(),
         "deps": attr.label_list(),
-        "provided": attr.label_list(),
         "external_xmls": attr.string_list(),
         "_singlejar": attr.label(
             default = Label("@bazel_tools//tools/jdk:singlejar"),
@@ -226,12 +257,6 @@ _studio_plugin = rule(
     },
     implementation = _studio_plugin_impl,
 )
-
-def _is_release():
-    return select({
-        "//tools/base/bazel:release": True,
-        "//conditions:default": False,
-    })
 
 def _searchable_options_impl(ctx):
     searchable_options = {}
@@ -279,7 +304,7 @@ _searchable_options = rule(
 def searchable_options(name, files, **kwargs):
     _searchable_options(
         name = name,
-        compress = _is_release(),
+        compress = is_release(),
         searchable_options = files,
         **kwargs
     )
@@ -313,7 +338,7 @@ def studio_plugin(
         jars = jars,
         resources = resources_list,
         resources_dirs = resources_dirs,
-        compress = _is_release(),
+        compress = is_release(),
         **kwargs
     )
 
@@ -481,7 +506,12 @@ def _android_studio_os(ctx, platform, out):
     if ctx.attr.jre:
         jre_zip = ctx.actions.declare_file(ctx.attr.name + ".jre.%s.zip" % platform.name)
         jre_files = [(ctx.attr.jre.mappings[f], f) for f in platform.get(ctx.attr.jre)]
-        _zipper(ctx, "%s jre" % platform.name, jre_files, jre_zip)
+
+        # We want to preserve symlinks for the MAC_ARM JRE, b/185519599
+        if platform == MAC_ARM:
+            _lnzipper(ctx, "%s jre" % platform.name, jre_files, jre_zip)
+        else:
+            _zipper(ctx, "%s jre" % platform.name, jre_files, jre_zip)
         zips += [(platform_prefix + platform.base_path + platform.jre, jre_zip)]
 
     # Stamp the platform and its plugins
@@ -493,31 +523,29 @@ def _android_studio_os(ctx, platform, out):
         _stamp_platform_plugin(ctx, platform, platform_zip, plugin, stamp)
         overrides += [(platform_prefix, stamp)]
 
-    res = _resource_deps(ctx.attr.resources_dirs, ctx.attr.resources, platform)
-    files += [(platform.base_path + d, f) for (d, f) in res]
-
     dev01 = ctx.actions.declare_file(ctx.attr.name + ".dev01." + platform.name)
     ctx.actions.write(dev01, "")
     files += [(platform.base_path + "license/dev01_license.txt", dev01)]
-
-    module_deps, _, _ = _module_deps(ctx, ctx.attr.jars, ctx.attr.modules)
-    files += [(platform.base_path + "lib/" + d, f) for (d, f) in module_deps]
 
     so_jars = [("%s%s" % (platform.base_path, jar), f) for (jar, f) in ctx.attr.searchable_options.searchable_options]
     so_extras = ctx.actions.declare_file(ctx.attr.name + ".so.%s.zip" % platform.name)
     _zipper(ctx, "%s searchable options" % platform.name, so_jars, so_extras)
     overrides += [(platform_prefix, so_extras)]
 
-    extras_zip = ctx.actions.declare_file(ctx.attr.name + ".extras.%s.zip" % platform.name)
-    _zipper(ctx, "%s extras" % platform.name, files, extras_zip)
-    zips += [(platform_prefix, extras_zip)]
-
+    licenses = []
     for p in ctx.attr.plugins:
         plugin_zip = platform.get(p)[0]
         stamp = ctx.actions.declare_file(ctx.attr.name + ".stamp.%s" % plugin_zip.basename)
         _stamp_plugin(ctx, platform, platform_zip, plugin_zip, stamp)
         overrides += [(platform_prefix + platform.base_path, stamp)]
         zips += [(platform_prefix + platform.base_path, plugin_zip)]
+        licenses += [p.licenses]
+
+    files += [(platform.base_path + "license/" + f.basename, f) for f in depset([], transitive = licenses).to_list()]
+
+    extras_zip = ctx.actions.declare_file(ctx.attr.name + ".extras.%s.zip" % platform.name)
+    _zipper(ctx, "%s extras" % platform.name, files, extras_zip)
+    zips += [(platform_prefix, extras_zip)]
 
     if platform == MAC or platform == MAC_ARM:
         codesign = ctx.actions.declare_file(ctx.attr.name + ".codesign.zip")
@@ -570,10 +598,6 @@ _android_studio = rule(
     attrs = {
         "platform": attr.label(),
         "jre": attr.label(),
-        "modules": attr.label_list(),
-        "jars": attr.string_list(),
-        "resources": attr.label_list(),
-        "resources_dirs": attr.string_list(),
         "plugins": attr.label_list(),
         "searchable_options": attr.label(),
         "version_micro": attr.int(),
@@ -595,7 +619,7 @@ _android_studio = rule(
         ),
         "_stamper": attr.label(
             default = Label("//tools/adt/idea/studio:stamper"),
-            cfg = "host",
+            cfg = "exec",
             executable = True,
         ),
         "_zipper": attr.label(
@@ -606,6 +630,11 @@ _android_studio = rule(
         "_unzipper": attr.label(
             default = Label("//tools/base/bazel:unzipper"),
             cfg = "host",
+            executable = True,
+        ),
+        "_lnzipper": attr.label(
+            default = Label("//tools/base/bazel/lnzipper:lnzipper"),
+            cfg = "exec",
             executable = True,
         ),
     },
@@ -629,19 +658,10 @@ _android_studio = rule(
 #       resources: A dictionary (see studio_plugin) with resources bundled at top level
 def android_studio(
         name,
-        modules = {},
-        resources = {},
         **kwargs):
-    jars, modules_list = _dict_to_lists(modules)
-    resources_dirs, resources_list = _dict_to_lists(resources)
-
     _android_studio(
         name = name,
-        modules = modules_list,
-        jars = jars,
-        resources = resources_list,
-        resources_dirs = resources_dirs,
-        compress = _is_release(),
+        compress = is_release(),
         **kwargs
     )
 
@@ -779,7 +799,7 @@ def intellij_platform(
             "//tools/base/bazel:darwin": [src + "/darwin/android-studio/Contents" + jar for jar in spec.jars + spec.jars_darwin],
             "//conditions:default": [src + "/linux/android-studio" + jar for jar in spec.jars + spec.jars_linux],
         }),
-        compress = _is_release(),
+        compress = is_release(),
         mac_bundle_name = spec.mac_bundle_name,
         studio_data = name + ".data",
         visibility = ["//visibility:public"],

@@ -15,6 +15,14 @@
  */
 package com.android.tools.profilers;
 
+import static com.android.tools.adtui.common.AdtUiUtils.DEFAULT_BOTTOM_BORDER;
+import static com.android.tools.profilers.ProfilerFonts.H4_FONT;
+import static com.android.tools.profilers.ProfilerLayout.TOOLBAR_HEIGHT;
+import static com.android.tools.profilers.sessions.SessionsView.SESSION_EXPANDED_WIDTH;
+import static com.android.tools.profilers.sessions.SessionsView.SESSION_IS_COLLAPSED;
+import static java.awt.event.InputEvent.CTRL_DOWN_MASK;
+import static java.awt.event.InputEvent.META_DOWN_MASK;
+
 import com.android.tools.adtui.flat.FlatComboBox;
 import com.android.tools.adtui.flat.FlatSeparator;
 import com.android.tools.adtui.model.AspectObserver;
@@ -59,8 +67,8 @@ import com.intellij.openapi.wm.IdeGlassPane;
 import com.intellij.openapi.wm.IdeGlassPaneUtil;
 import com.intellij.ui.ColoredListCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBEmptyBorder;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.update.Activatable;
 import com.intellij.util.ui.update.UiNotifyConnector;
 import icons.StudioIcons;
@@ -69,14 +77,13 @@ import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.KeyboardFocusManager;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
@@ -88,14 +95,6 @@ import javax.swing.LayoutFocusTraversalPolicy;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import org.jetbrains.annotations.NotNull;
-
-import static com.android.tools.adtui.common.AdtUiUtils.DEFAULT_BOTTOM_BORDER;
-import static com.android.tools.profilers.ProfilerFonts.H4_FONT;
-import static com.android.tools.profilers.ProfilerLayout.TOOLBAR_HEIGHT;
-import static com.android.tools.profilers.sessions.SessionsView.SESSION_EXPANDED_WIDTH;
-import static com.android.tools.profilers.sessions.SessionsView.SESSION_IS_COLLAPSED;
-import static java.awt.event.InputEvent.CTRL_DOWN_MASK;
-import static java.awt.event.InputEvent.META_DOWN_MASK;
 
 public class StudioProfilersView extends AspectObserver implements Disposable {
   private final static String LOADING_VIEW_CARD = "LoadingViewCard";
@@ -314,8 +313,11 @@ public class StudioProfilersView extends AspectObserver implements Disposable {
     myCommonToolbar.add(new FlatSeparator());
 
     JComboBox<Class<? extends Stage>> stageCombo = new FlatComboBox<>();
+    Supplier<List<Class<? extends Stage>>> getSupportedStages = () -> getStudioProfilers().getDirectStages().stream()
+      .filter(st -> getStudioProfilers().getSelectedSessionSupportLevel().isStageSupported((Class<? extends Stage<?>>)st))
+      .collect(Collectors.toList());
     JComboBoxView stages = new JComboBoxView<>(stageCombo, myProfiler, ProfilerAspect.STAGE,
-                                               myProfiler::getDirectStages,
+                                               getSupportedStages,
                                                myProfiler::getStageClass,
                                                stage -> confirmExit("Exit?", () -> {
                                                  // Track first, so current stage is sent with the event
@@ -502,7 +504,7 @@ public class StudioProfilersView extends AspectObserver implements Disposable {
       mySplitter.setFirstSize(0);
     }
     else {
-      mySplitter.setDividerMouseZoneSize(JBUI.scale(10));
+      mySplitter.setDividerMouseZoneSize(JBUIScale.scale(10));
       mySessionsView.getComponent().setMinimumSize(SessionsView.getComponentMinimizeSize(true));
       mySplitter
         .setFirstSize(myProfiler.getIdeServices().getPersistentProfilerPreferences().getInt(SESSION_EXPANDED_WIDTH, 0));
@@ -624,5 +626,10 @@ public class StudioProfilersView extends AspectObserver implements Disposable {
   @NotNull
   public IdeProfilerComponents getIdeProfilerComponents() {
     return myIdeProfilerComponents;
+  }
+
+  @VisibleForTesting
+  public JPanel getCommonToolbar() {
+    return myCommonToolbar;
   }
 }

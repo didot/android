@@ -25,7 +25,7 @@ import java.util.Deque;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class ComponentStack {
+public class ComponentStack {
   private final ComponentManagerImpl myComponentManager;
   private final Deque<ComponentItem> myComponents;
   private final Deque<ComponentItem> myServices;

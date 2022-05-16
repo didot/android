@@ -21,6 +21,6 @@ import org.junit.Test;
 public class UserAuthenticationTokenTest {
   @Test
   public void tokenCreated() throws IOException {
-    // BuiltinWebServerAccess.getUserAuthenticationToken(); // BuiltinWebServerAccess does not exist in IJ code base
+    // BuiltinWebServerAccess.getUserAuthenticationToken();
   }
 }

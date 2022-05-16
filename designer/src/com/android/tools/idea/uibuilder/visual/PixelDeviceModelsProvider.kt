@@ -15,21 +15,18 @@
  */
 package com.android.tools.idea.uibuilder.visual
 
-import com.android.resources.ScreenOrientation
 import com.android.sdklib.devices.Device
-import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.type.typeOf
 import com.android.tools.idea.configurations.ConfigurationManager
-import com.android.tools.idea.uibuilder.model.NlComponentHelper
+import com.android.tools.idea.configurations.ConfigurationMatcher
+import com.android.tools.idea.uibuilder.model.NlComponentRegistrar
 import com.android.tools.idea.uibuilder.type.LayoutFileType
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.intellij.psi.PsiFile
 import org.jetbrains.android.facet.AndroidFacet
-import java.util.ArrayList
-import java.util.function.Consumer
 
 /**
  * We predefined some pixel devices for now.
@@ -71,15 +68,12 @@ object PixelDeviceModelsProvider: VisualizationModelsProvider {
     for (device in pixelDevices) {
       val config = defaultConfig.clone()
       config.setDevice(device, false)
-      var label = device.displayName
-      val size = device.getScreenSize(ScreenOrientation.PORTRAIT)
-      if (size != null) {
-        label = label + " (" + size.width + " x " + size.height + ")"
-      }
-      models.add(NlModel.builder(facet, virtualFile, config)
+      val betterFile = ConfigurationMatcher.getBetterMatch(config, null, null, null, null) ?: virtualFile
+      models.add(NlModel.builder(facet, betterFile, config)
                    .withParentDisposable(parentDisposable)
-                   .withModelDisplayName(label)
-                   .withComponentRegistrar(Consumer<NlComponent> { NlComponentHelper.registerComponent(it) })
+                   .withModelDisplayName(device.displayName)
+                   .withModelTooltip(config.toHtmlTooltip())
+                   .withComponentRegistrar(NlComponentRegistrar)
                    .build())
     }
     return models

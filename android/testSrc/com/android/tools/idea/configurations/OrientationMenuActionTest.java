@@ -16,14 +16,12 @@
 package com.android.tools.idea.configurations;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.intellij.util.ui.UIUtil.dispatchAllInvocationEvents;
 import static org.mockito.Mockito.mock;
 
 import com.android.tools.idea.ui.designer.EditorDesignSurface;
 import com.intellij.openapi.actionSystem.ActionGroup;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.DataContext;
-import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.actionSystem.Separator;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -63,18 +61,13 @@ public class OrientationMenuActionTest extends AndroidTestCase {
     checkAction(actions[index++], OrientationMenuAction.SetDeviceStateAction.class, "Landscape");
     checkAction(actions[index++], Separator.class, null);
     checkAction(actions[index++], ActionGroup.class, "UI Mode");
-    checkAction(actions[index++], Separator.class, null);
-    checkAction(actions[index++], OrientationMenuAction.CreateVariationAction.class, "Create Landscape Variation");
-    checkAction(actions[index++], OrientationMenuAction.CreateVariationAction.class, "Create Tablet Variation");
-    checkAction(actions[index++], OrientationMenuAction.CreateVariationAction.class, "Create Other...");
     assertThat(actions).hasLength(index);
   }
 
-  public void testActionWithExistingLandscapeVariation() {
+  public void testActionWithExistingLandscapeVariation() throws Exception {
     myFixture.copyFileToProject("configurations/layout1.xml", "res/layout-land/layout1.xml");
-    dispatchAllInvocationEvents();
+    waitForResourceRepositoryUpdates();
     OrientationMenuAction action = new OrientationMenuAction(myConfigurationHolder, mySurface);
-    Presentation presentation = action.getTemplatePresentation().clone();
     action.updateActions(DataContext.EMPTY_CONTEXT);
     AnAction[] actions = action.getChildren(null);
     int index = 0;
@@ -83,19 +76,13 @@ public class OrientationMenuActionTest extends AndroidTestCase {
                 "Landscape" + FILE_ARROW + FileUtil.join("land", "layout1.xml"));
     checkAction(actions[index++], Separator.class, null);
     checkAction(actions[index++], ActionGroup.class, "UI Mode");
-    checkAction(actions[index++], Separator.class, null);
-    checkAction(actions[index++], OrientationMenuAction.SwitchToVariationAction.class, "Switch to layout");
-    checkAction(actions[index++], OrientationMenuAction.SwitchToVariationAction.class, "Switch to layout-land");
-    checkAction(actions[index++], Separator.class, null);
-    checkAction(actions[index++], OrientationMenuAction.CreateVariationAction.class, "Create Tablet Variation");
-    checkAction(actions[index++], OrientationMenuAction.CreateVariationAction.class, "Create Other...");
     assertThat(actions).hasLength(index);
   }
 
-  public void testActionWithExistingLandscapeAndTabletVariation() {
+  public void testActionWithExistingLandscapeAndTabletVariation() throws Exception {
     myFixture.copyFileToProject("configurations/layout1.xml", "res/layout-land/layout1.xml");
     myFixture.copyFileToProject("configurations/layout1.xml", "res/layout-sw600dp/layout1.xml");
-    dispatchAllInvocationEvents();
+    waitForResourceRepositoryUpdates();
     OrientationMenuAction action = new OrientationMenuAction(myConfigurationHolder, mySurface);
     action.updateActions(DataContext.EMPTY_CONTEXT);
     AnAction[] actions = action.getChildren(null);
@@ -105,12 +92,6 @@ public class OrientationMenuActionTest extends AndroidTestCase {
                 "Landscape" + FILE_ARROW + FileUtil.join("land", "layout1.xml"));
     checkAction(actions[index++], Separator.class, null);
     checkAction(actions[index++], ActionGroup.class, "UI Mode");
-    checkAction(actions[index++], Separator.class, null);
-    checkAction(actions[index++], OrientationMenuAction.SwitchToVariationAction.class, "Switch to layout");
-    checkAction(actions[index++], OrientationMenuAction.SwitchToVariationAction.class, "Switch to layout-land");
-    checkAction(actions[index++], OrientationMenuAction.SwitchToVariationAction.class, "Switch to layout-sw600dp");
-    checkAction(actions[index++], Separator.class, null);
-    checkAction(actions[index++], OrientationMenuAction.CreateVariationAction.class, "Create Other...");
     assertThat(actions).hasLength(index);
   }
 
@@ -119,16 +100,10 @@ public class OrientationMenuActionTest extends AndroidTestCase {
     assertThat(action).isInstanceOf(actionClass);
   }
 
-  private ConfigurationHolder createConfigurationAndHolder() {
+  private @NotNull ConfigurationHolder createConfigurationAndHolder() {
     VirtualFile file = myFixture.copyFileToProject("configurations/layout1.xml", "res/layout/layout1.xml");
     ConfigurationManager manager = ConfigurationManager.getOrCreateInstance(myModule);
     Configuration configuration = manager.getConfiguration(file);
-    return new ConfigurationHolder() {
-      @NotNull
-      @Override
-      public Configuration getConfiguration() {
-        return configuration;
-      }
-    };
+    return () -> configuration;
   }
 }

@@ -21,10 +21,11 @@ import com.android.repository.api.RepoManager
 import com.android.tools.idea.gradle.project.sync.SdkSync
 import com.android.tools.idea.gradle.project.sync.idea.issues.SdkPlatformNotFoundException
 import com.android.tools.idea.gradle.util.LocalProperties
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator
 import com.android.tools.idea.sdk.AndroidSdks
 import com.android.tools.idea.sdk.IdeSdks
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
+import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
@@ -34,7 +35,6 @@ import com.intellij.openapi.roots.OrderRootType.CLASSES
 import com.intellij.openapi.util.io.FileUtil.filesEqual
 import com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile
 import org.jetbrains.annotations.SystemDependent
-import org.jetbrains.kotlin.idea.util.application.runWriteAction
 import java.io.File
 
 private val LOG = Logger.getInstance(SdkSync::class.java)
@@ -81,7 +81,12 @@ fun AndroidSdks.computeSdkReloadingAsNeeded(
   // present in the Jdk table but will not have any valid file entries.
   if (sdk != null && sdk.rootProvider.getFiles(CLASSES).isEmpty()) {
     // Delete the invalid JDK to ensure we re-create it with the correct order entries.
-    ProjectJdkTable.getInstance().removeJdk(sdk)
+    val sdkToRemove = sdk
+    invokeAndWaitIfNeeded {
+      runWriteAction {
+        ProjectJdkTable.getInstance().removeJdk(sdkToRemove)
+      }
+    }
     sdk = null
   }
 

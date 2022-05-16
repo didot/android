@@ -15,10 +15,10 @@
  */
 package com.android.tools.idea.sdk;
 
+import static com.android.testutils.TestUtils.getEmbeddedJdk8Path;
 import static com.android.tools.idea.sdk.IdeSdks.getJdkFromJavaHome;
-import static com.android.tools.idea.testing.AndroidGradleTests.getEmbeddedJdk8Path;
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -26,6 +26,7 @@ import com.android.tools.idea.gradle.util.EmbeddedDistributionPaths;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
 import com.android.utils.FileUtils;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.projectRoots.JavaSdk;
 import com.intellij.openapi.projectRoots.JavaSdkVersion;
 import com.intellij.openapi.projectRoots.JavaSdkVersionUtil;
@@ -200,6 +201,46 @@ public class IdeSdksAndroidTest extends AndroidGradleTestCase {
     Sdk recreatedJdk = myIdeSdks.getJdk();
     assertThat(recreatedJdk).isNotNull();
     assertThat(recreatedJdk).isSameAs(originalJdk);
+    VirtualFile[] recreatedClassRoots = ((ProjectJdkImpl)recreatedJdk).getRoots(OrderRootType.CLASSES);
+    assertThat(recreatedClassRoots).isEqualTo(originalClassRoots);
+  }
+
+  /**
+   * Recreating JDK should revert changes done in the root classes
+   */
+  public void testRecreateOrAddJdkInTableRevertsClassRootsChanges() {
+    Sdk originalJdk = myIdeSdks.getJdk();
+    assertThat(originalJdk).isNotNull();
+
+    assertThat(originalJdk).isInstanceOf(ProjectJdkImpl.class);
+    VirtualFile[] originalClassRoots = ((ProjectJdkImpl)originalJdk).getRoots(OrderRootType.CLASSES);
+    assertThat(originalClassRoots).isNotEmpty();
+
+    SdkTypeId sdkType = originalJdk.getSdkType();
+    assertThat(sdkType).isInstanceOf(JavaSdk.class);
+
+    ProjectJdkTable jdkTable = ProjectJdkTable.getInstance();
+    ServiceContainerUtil.replaceService(ApplicationManager.getApplication(), ProjectJdkTable.class, jdkTable, getProject());
+
+    // Created a modified JDK by removing a root class and update the jdkTable with it.
+    ProjectJdkImpl finalModifiedJdk = ((ProjectJdkImpl)originalJdk).clone();
+    finalModifiedJdk.removeRoot(originalClassRoots[0], OrderRootType.CLASSES);
+    WriteAction.runAndWait(() -> jdkTable.updateJdk(originalJdk, finalModifiedJdk));
+
+    // Verify a root was removed
+    ProjectJdkImpl modifiedJdk = (ProjectJdkImpl)myIdeSdks.getJdk();
+    assertThat(modifiedJdk).isNotNull();
+    assertThat(modifiedJdk).isInstanceOf(ProjectJdkImpl.class);
+    VirtualFile[] modifiedClassRoots = modifiedJdk.getRoots(OrderRootType.CLASSES);
+    assertThat(modifiedClassRoots).hasLength(originalClassRoots.length - 1);
+
+    // Recreate Jdk
+    myIdeSdks.recreateOrAddJdkInTable(modifiedJdk);
+
+    // Jdk roots should be the same as original after recreating
+    Sdk recreatedJdk = myIdeSdks.getJdk();
+    assertThat(recreatedJdk).isNotNull();
+    assertThat(recreatedJdk).isInstanceOf(ProjectJdkImpl.class);
     VirtualFile[] recreatedClassRoots = ((ProjectJdkImpl)recreatedJdk).getRoots(OrderRootType.CLASSES);
     assertThat(recreatedClassRoots).isEqualTo(originalClassRoots);
   }

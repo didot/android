@@ -13,15 +13,17 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.TextBrowseFolderListener;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.projectImport.ProjectImportWizardStep;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.StartupUiUtil;
-import java.awt.*;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.io.File;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import org.jetbrains.annotations.NotNull;
 
 class AdtImportLocationStep extends ProjectImportWizardStep {
@@ -38,7 +40,7 @@ class AdtImportLocationStep extends ProjectImportWizardStep {
 
 
     String prev = context.getProjectFileDirectory();
-    mySourceProject = new File(FileUtil.toSystemDependentName(prev));
+    mySourceProject = new File(FileUtilRt.toSystemDependentName(prev));
 
     String name = new File(prev).getName();
     //noinspection ConstantConditions

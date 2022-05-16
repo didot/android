@@ -60,7 +60,13 @@ import com.intellij.ui.speedSearch.ListWithFilter;
 import com.intellij.util.ui.AbstractLayoutManager;
 import com.intellij.util.ui.JBUI;
 import icons.StudioIcons;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -68,7 +74,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.swing.*;
+import javax.swing.AbstractListModel;
+import javax.swing.ComboBoxModel;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.ListModel;
+import javax.swing.ListSelectionModel;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
@@ -204,7 +219,7 @@ public abstract class DeviceConfiguratorPanel extends JPanel {
     myAddQualifierButton.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
-        ResourceQualifier selectedQualifier = myAvailableQualifiersList.getSelectedValue();
+        final ResourceQualifier selectedQualifier = myAvailableQualifiersList.getSelectedValue();
         if (selectedQualifier != null) {
           final int index = myAvailableQualifiersList.getSelectedIndex();
 
@@ -225,7 +240,7 @@ public abstract class DeviceConfiguratorPanel extends JPanel {
     myRemoveQualifierButton.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
-        ResourceQualifier selectedQualifier = myChosenQualifiersList.getSelectedValue();
+        final ResourceQualifier selectedQualifier = myChosenQualifiersList.getSelectedValue();
         if (selectedQualifier != null) {
           final int index = myChosenQualifiersList.getSelectedIndex();
 
@@ -337,7 +352,7 @@ public abstract class DeviceConfiguratorPanel extends JPanel {
   }
 
   private void updateQualifierEditor() {
-    ResourceQualifier selectedQualifier = myChosenQualifiersList.getSelectedValue();
+    final ResourceQualifier selectedQualifier = myChosenQualifiersList.getSelectedValue();
     if (selectedQualifier != null && myEditors.containsKey(selectedQualifier.getShortName())) {
       final CardLayout layout = (CardLayout)myQualifierOptionsPanel.getLayout();
       layout.show(myQualifierOptionsPanel, selectedQualifier.getShortName());

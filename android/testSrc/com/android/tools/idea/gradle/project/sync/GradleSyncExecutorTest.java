@@ -24,7 +24,7 @@ import static com.intellij.openapi.vfs.VfsUtil.loadText;
 import static com.intellij.openapi.vfs.VfsUtil.saveText;
 
 import com.android.tools.idea.gradle.model.IdeSyncIssue;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.gradle.project.model.GradleModuleModel;
 import com.android.tools.idea.gradle.project.model.JavaModuleModel;
 import com.android.tools.idea.gradle.project.sync.idea.GradleSyncExecutor;
@@ -33,9 +33,9 @@ import com.android.tools.idea.gradle.project.sync.messages.GradleSyncMessages;
 import com.android.tools.idea.gradle.project.sync.messages.GradleSyncMessagesStub;
 import com.android.tools.idea.gradle.util.GradleUtil;
 import com.android.tools.idea.gradle.util.LocalProperties;
+import com.android.tools.idea.testing.IdeComponents;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.ServiceContainerUtil;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -109,7 +109,7 @@ public class GradleSyncExecutorTest extends GradleSyncIntegrationTestCase {
         return getFakeErrorCount();
       }
     };
-    ServiceContainerUtil.replaceService(getProject(), GradleSyncMessages.class, messagesStub, getTestRootDisposable());
+    new IdeComponents(getProject()).replaceProjectService(GradleSyncMessages.class, messagesStub);
 
 
     // Add a variant filter that will remove every variant.
@@ -140,7 +140,7 @@ public class GradleSyncExecutorTest extends GradleSyncIntegrationTestCase {
   }
 
   private static void assertContainsAndroidModels(@NotNull GradleModuleModels models) {
-    assertModelsPresent(models, AndroidModuleModel.class, GradleModuleModel.class);
+    assertModelsPresent(models, GradleAndroidModel.class, GradleModuleModel.class);
   }
 
   private static void assertContainsJavaModels(@NotNull GradleModuleModels models) {

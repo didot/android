@@ -21,7 +21,8 @@ import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.PasswordPropertyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.api.java.LanguageLevelPropertyModel;
-import com.android.tools.idea.gradle.dsl.api.util.GradleDslModel;
+import com.android.tools.idea.gradle.dsl.api.util.GradleBlockModel;
+import com.android.tools.idea.gradle.dsl.api.util.GradleDslElementModel;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelImpl;
 import com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil;
@@ -32,20 +33,19 @@ import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescripti
 import com.intellij.psi.PsiElement;
 import com.intellij.util.containers.HashSetQueue;
 import java.util.HashSet;
-import java.util.Queue;
-import java.util.Set;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.stream.Collectors;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Base class for the models representing block elements.
  */
-public abstract class GradleDslBlockModel implements GradleDslModel {
-  protected GradlePropertiesDslElement myDslElement;
+public abstract class GradleDslBlockModel implements GradleBlockModel, GradleDslElementModel {
+  protected final @NotNull GradlePropertiesDslElement myDslElement;
 
   protected GradleDslBlockModel(@NotNull GradlePropertiesDslElement dslElement) {
     myDslElement = dslElement;
@@ -55,6 +55,26 @@ public abstract class GradleDslBlockModel implements GradleDslModel {
   @Nullable
   public PsiElement getPsiElement() {
     return myDslElement.getPsiElement();
+  }
+
+  @Override
+  public @Nullable GradleDslElement getRawElement() {
+    return myDslElement;
+  }
+
+  @Override
+  public @NotNull GradleDslElement getRawPropertyHolder() {
+    GradleDslElement parent = myDslElement.getParent();
+    if (parent != null) return parent;
+    // GradleDslFile elements (which are GradlePropertiesDslElements) have null parents, though we should never
+    // construct a GradleDslBlockModel with a GradleDslFile element.  Return myDslElement to satisfy the type
+    // requirements.
+    return myDslElement;
+  }
+
+  @Override
+  public @NotNull String getFullyQualifiedName() {
+    return myDslElement.getQualifiedName();
   }
 
   public boolean hasValidPsiElement() {

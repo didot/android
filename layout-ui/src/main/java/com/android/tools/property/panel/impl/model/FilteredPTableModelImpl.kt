@@ -39,14 +39,17 @@ import com.android.tools.property.ptable2.PTableModelUpdateListener
  * this table.
  */
 class FilteredPTableModelImpl<P : PropertyItem>(
+  private val valueType: Class<P>,
   private val model: PropertiesModel<P>,
   private val itemFilter: (P) -> Boolean,
-  private val deleteOperation: (P) -> Unit,
+  private val insertOperation: ((String, String) -> P?)?,
+  private val deleteOperation: ((P) -> Unit)?,
   private val itemComparator: Comparator<PTableItem>,
   private val groups: List<GroupSpec<P>>,
   private val keepNewAfterFlyAway: Boolean,
   private val allowEditing: Boolean,
-  private val valueEditable: (P) -> Boolean
+  private val valueEditable: (P) -> Boolean,
+  private val hasCustomCursor: (P) -> Boolean
 ) : FilteredPTableModel<P>, PTableModel {
 
   private val listeners = mutableListOf<PTableModelUpdateListener>()
@@ -63,6 +66,10 @@ class FilteredPTableModelImpl<P : PropertyItem>(
   init {
     groupAndSort(findParticipatingItems(), items)
   }
+
+  override fun supportsInsertableItems() = insertOperation != null
+
+  override fun supportsRemovableItems() = deleteOperation != null
 
   override fun addNewItem(item: P): P {
     if (items.contains(item)) {
@@ -85,18 +92,25 @@ class FilteredPTableModelImpl<P : PropertyItem>(
     return item
   }
 
+  override fun addItem(name: String, value: String): PTableItem? {
+    val insert = insertOperation ?: return null
+    val item = insert(name, value) ?: return null
+    return addItem(item)
+  }
+
   override fun addItem(item: PTableItem): PTableItem {
     @Suppress("UNCHECKED_CAST")
     return addNewItem(item as P)
   }
 
   override fun removeItem(item: PTableItem) {
+    val delete = deleteOperation ?: return
     val newItems = ArrayList(items)
     if (!newItems.remove(item)) {
       return
     }
     @Suppress("UNCHECKED_CAST")
-    deleteOperation(item as P)
+    delete(item as P)
     updateItems(newItems, null)
   }
 
@@ -107,6 +121,10 @@ class FilteredPTableModelImpl<P : PropertyItem>(
       is PTableGroupItem -> true
       else -> column == PTableColumn.VALUE && valueEditable(item as P)
     }
+
+  @Suppress("UNCHECKED_CAST")
+  override fun hasCustomCursor(item: PTableItem, column: PTableColumn): Boolean =
+    (column == PTableColumn.VALUE) && valueType.isInstance(item) && hasCustomCursor(item as P)
 
   override fun acceptMoveToNextEditor(item: PTableItem, column: PTableColumn): Boolean {
     // Accept any move to the next editor unless we know that that the current row

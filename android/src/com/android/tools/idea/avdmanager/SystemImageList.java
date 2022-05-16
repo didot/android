@@ -35,7 +35,8 @@ import com.intellij.ui.ScrollPaneFactory;
 import com.intellij.ui.table.TableView;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.ListTableModel;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -45,7 +46,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.DefaultListSelectionModel;
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.TableCellEditor;
@@ -57,8 +64,8 @@ import org.jetbrains.annotations.Nullable;
  * Displays a list of system images currently installed and allows selection of one
  */
 public class SystemImageList extends JPanel implements ListSelectionListener {
-  private final TableView<SystemImageDescription> myTable = new TableView<SystemImageDescription>();
-  private final Set<SystemImageSelectionListener> myListeners = new HashSet<SystemImageSelectionListener>();
+  private final TableView<SystemImageDescription> myTable = new TableView<>();
+  private final Set<SystemImageSelectionListener> myListeners = new HashSet<>();
   private SystemImageListModel myModel;
   private SystemImageDescription myLastSelectedImage;
 

@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import org.jetbrains.annotations.NotNull;
 
-
 public class BufferingFileWrapper implements IAbstractFile {
   private final File myFile;
 
@@ -49,10 +48,15 @@ public class BufferingFileWrapper implements IAbstractFile {
   }
 
   private byte[] readFile() throws IOException {
-    try (DataInputStream is = new DataInputStream(new FileInputStream(myFile))) {
+    DataInputStream is = new DataInputStream(new FileInputStream(myFile));
+    try {
       byte[] data = new byte[(int)myFile.length()];
+      //noinspection ResultOfMethodCallIgnored
       is.readFully(data);
       return data;
+    }
+    finally {
+      is.close();
     }
   }
 
@@ -62,12 +66,12 @@ public class BufferingFileWrapper implements IAbstractFile {
   }
 
   @Override
-  public void setContents(InputStream source) {
+  public void setContents(InputStream source) throws StreamException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public OutputStream getOutputStream() {
+  public OutputStream getOutputStream() throws StreamException {
     throw new UnsupportedOperationException();
   }
 

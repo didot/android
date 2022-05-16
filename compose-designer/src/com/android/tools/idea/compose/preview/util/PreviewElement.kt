@@ -27,6 +27,7 @@ import com.android.sdklib.devices.Device
 import com.android.tools.compose.ComposeLibraryNamespace
 import com.android.tools.compose.PREVIEW_ANNOTATION_FQNS
 import com.android.tools.idea.compose.preview.PreviewElementProvider
+import com.android.tools.idea.compose.preview.pickers.properties.utils.findOrParseFromDefinition
 import com.android.tools.idea.configurations.Configuration
 import com.android.tools.idea.kotlin.fqNameMatches
 import com.android.tools.idea.rendering.Locale
@@ -79,10 +80,11 @@ internal val FAKE_LAYOUT_RES_DIR = LightVirtualFile("layout")
  * to be able to preview composable functions.
  * The contents of the file only reside in memory and contain some XML that will be passed to Layoutlib.
  */
-internal class ComposeAdapterLightVirtualFile(name: String,
-                                              content: String,
-                                              private val originFileProvider: () -> VirtualFile?) : LightVirtualFile(name,
-                                                                                                                     content), BackedVirtualFile {
+internal class ComposeAdapterLightVirtualFile(
+  name: String,
+  content: String,
+  private val originFileProvider: () -> VirtualFile?
+) : LightVirtualFile(name, content), BackedVirtualFile {
   override fun getParent() = FAKE_LAYOUT_RES_DIR
 
   override fun getOriginFile(): VirtualFile = originFileProvider() ?: this
@@ -153,34 +155,6 @@ private fun Int?.truncate(min: Int, max: Int): Int? {
 
 /** Empty device spec when the user has not specified any. */
 private const val NO_DEVICE_SPEC = ""
-/** Prefix used by device specs to find devices by id. */
-private const val DEVICE_BY_ID_PREFIX = "id:"
-/** Prefix used by device specs to find devices by name. */
-private const val DEVICE_BY_NAME_PREFIX = "name:"
-
-private fun Collection<Device>.findDeviceViaSpec(deviceSpec: String): Device? = when {
-  deviceSpec == NO_DEVICE_SPEC -> null
-  deviceSpec.startsWith(DEVICE_BY_ID_PREFIX) -> {
-    val id = deviceSpec.removePrefix(DEVICE_BY_ID_PREFIX)
-    find { it.id == id }.also {
-      if (it == null) {
-        Logger.getInstance(PreviewConfiguration::class.java).warn("Unable to find device with id '$id'")
-      }
-    }
-  }
-  deviceSpec.startsWith(DEVICE_BY_NAME_PREFIX) -> {
-    val name = deviceSpec.removePrefix(DEVICE_BY_NAME_PREFIX)
-    find { it.displayName == name }.also {
-      if (it == null) {
-        Logger.getInstance(PreviewConfiguration::class.java).warn("Unable to find device with name '$name'")
-      }
-    }
-  }
-  else -> {
-    Logger.getInstance(PreviewConfiguration::class.java).warn("Invalid device spec '$deviceSpec'")
-    null
-  }
-}
 
 private fun PreviewConfiguration.applyTo(renderConfiguration: Configuration,
                                          highestApiTarget: (Configuration) -> IAndroidTarget?,
@@ -214,9 +188,7 @@ private fun PreviewConfiguration.applyTo(renderConfiguration: Configuration,
   renderConfiguration.fontScale = max(0f, fontScale)
 
   val allDevices = devicesProvider(renderConfiguration)
-  val device = allDevices.findDeviceViaSpec(deviceSpec)
-               ?: defaultDeviceProvider(renderConfiguration)
-
+  val device = allDevices.findOrParseFromDefinition(deviceSpec) ?: defaultDeviceProvider(renderConfiguration)
   if (device != null) {
     renderConfiguration.setDevice(device, false)
   }
@@ -251,7 +223,7 @@ data class PreviewConfiguration internal constructor(val apiLevel: Int,
             { it.configurationManager.devices },
             {
               it.configurationManager.devices.find { device -> device.id == DEFAULT_DEVICE_ID }
-              ?:it.configurationManager.defaultDevice
+              ?: it.configurationManager.defaultDevice
             })
 
   companion object {
@@ -539,8 +511,8 @@ class ParametrizedPreviewElementTemplate(private val basePreviewElement: Preview
  */
 class PreviewElementTemplateInstanceProvider(private val delegate: PreviewElementProvider<PreviewElement>)
   : PreviewElementProvider<PreviewElementInstance> {
-  override val previewElements: Sequence<PreviewElementInstance>
-    get() = delegate.previewElements.flatMap {
+  override suspend fun previewElements(): Sequence<PreviewElementInstance> =
+    delegate.previewElements().flatMap {
       when (it) {
         is PreviewElementTemplate -> it.instances()
         is PreviewElementInstance -> sequenceOf(it)
@@ -593,6 +565,6 @@ private val displayPriorityComparator = compareBy<PreviewElement> { it.displaySe
 /**
  * Sorts the [PreviewElement]s by [DisplayPositioning] (top first) and then by source code line number, smaller first.
  */
-fun <T: PreviewElement> Collection<T>.sortByDisplayAndSourcePosition(): List<T> = ReadAction.compute<List<T>, Throwable> {
+fun <T : PreviewElement> Collection<T>.sortByDisplayAndSourcePosition(): List<T> = ReadAction.compute<List<T>, Throwable> {
   sortedWith(displayPriorityComparator.thenComparing(sourceOffsetComparator))
 }

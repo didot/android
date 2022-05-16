@@ -15,8 +15,7 @@
  */
 package com.android.tools.idea.run.deployment;
 
-import com.android.tools.idea.flags.StudioFlags;
-import com.android.tools.idea.util.xmlb.InstantConverter;
+import com.android.tools.idea.run.util.InstantConverter;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.components.Storage;
@@ -40,7 +39,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -88,23 +86,16 @@ final class DevicesSelectedService {
   @NotNull
   private final Clock myClock;
 
-  private final @NotNull BooleanSupplier myRunOnMultipleDevicesActionEnabledGet;
-
   @SuppressWarnings("unused")
   private DevicesSelectedService(@NotNull Project project) {
-    this(project.getService(PersistentStateComponent.class),
-         Clock.systemDefaultZone(),
-         StudioFlags.RUN_ON_MULTIPLE_DEVICES_ACTION_ENABLED::get);
+    this(project.getService(PersistentStateComponent.class), Clock.systemDefaultZone());
   }
 
   @VisibleForTesting
   @NonInjectable
-  DevicesSelectedService(@NotNull PersistentStateComponent persistentStateComponent,
-                         @NotNull Clock clock,
-                         @NotNull BooleanSupplier runOnMultipleDevicesActionEnabledGet) {
+  DevicesSelectedService(@NotNull PersistentStateComponent persistentStateComponent, @NotNull Clock clock) {
     myPersistentStateComponent = persistentStateComponent;
     myClock = clock;
-    myRunOnMultipleDevicesActionEnabledGet = runOnMultipleDevicesActionEnabledGet;
   }
 
   @NotNull
@@ -188,8 +179,7 @@ final class DevicesSelectedService {
   }
 
   boolean isMultipleDevicesSelectedInComboBox() {
-    return !myRunOnMultipleDevicesActionEnabledGet.getAsBoolean() &&
-           myPersistentStateComponent.getState().multipleDevicesSelectedInDropDown;
+    return myPersistentStateComponent.getState().multipleDevicesSelectedInDropDown;
   }
 
   void setMultipleDevicesSelectedInComboBox(boolean multipleDevicesSelectedInComboBox) {

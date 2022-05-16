@@ -30,9 +30,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Test;
 
-/**
- * Tests for the {@link DisposerExplorer} class.
- */
+/** Tests for the {@link DisposerExplorer} class. */
 public class DisposerExplorerTest {
   private final Set<Disposable> liveDisposables = new LinkedHashSet<>();
 

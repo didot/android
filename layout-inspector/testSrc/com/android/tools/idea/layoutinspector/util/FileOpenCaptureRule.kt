@@ -55,6 +55,10 @@ class FileOpenCaptureRule(private val projectRule: AndroidProjectRule) : Externa
     Truth.assertThat(line.first.line + 1).isEqualTo(lineNumber)
   }
 
+  fun checkNoNavigation() {
+    Mockito.verifyNoInteractions(fileManager!!)
+  }
+
   private fun findLineAtOffset(file: VirtualFile, offset: Int): Pair<LineColumn, String> {
     val text = String(file.contentsToByteArray(), Charsets.UTF_8)
     val line = StringUtil.offsetToLineColumn(text, offset)
@@ -68,6 +72,8 @@ class FileOpenCaptureRule(private val projectRule: AndroidProjectRule) : Externa
       .thenReturn(listOf(Mockito.mock(FileEditor::class.java)))
     Mockito.`when`(fileManager!!.selectedEditors).thenReturn(FileEditor.EMPTY_ARRAY)
     Mockito.`when`(fileManager!!.openFiles).thenReturn(VirtualFile.EMPTY_ARRAY)
+    @Suppress("UnstableApiUsage")
+    Mockito.`when`(fileManager!!.openFilesWithRemotes).thenReturn(VirtualFile.EMPTY_ARRAY)
     Mockito.`when`(fileManager!!.allEditors).thenReturn(FileEditor.EMPTY_ARRAY)
     componentStack!!.registerComponentInstance(FileEditorManager::class.java, fileManager!!)
   }

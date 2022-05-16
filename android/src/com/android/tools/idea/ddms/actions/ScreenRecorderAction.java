@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.ddms.actions;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import com.android.ddmlib.AdbCommandRejectedException;
 import com.android.ddmlib.CollectingOutputReceiver;
 import com.android.ddmlib.IDevice;
@@ -27,6 +29,7 @@ import com.android.sdklib.internal.avd.AvdInfo;
 import com.android.sdklib.internal.avd.AvdManager;
 import com.android.tools.idea.ddms.DeviceContext;
 import com.android.tools.idea.ddms.screenrecord.ScreenRecorderOptionsDialog;
+import com.android.tools.idea.ddms.screenrecord.ScreenRecorderPersistentOptions;
 import com.android.tools.idea.log.LogWrapper;
 import com.android.tools.idea.sdk.AndroidSdks;
 import com.google.common.annotations.VisibleForTesting;
@@ -40,22 +43,28 @@ import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import icons.StudioIcons;
+import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class ScreenRecorderAction extends AbstractDeviceAction {
-  static final String REMOTE_PATH = "/sdcard/ddmsrec.mp4";
+  private static final String REMOTE_PATH = "/sdcard/screen-recording-%d.mp4";
   static final String TITLE = "Screen Recorder";
+  private static final Pattern WM_SIZE_OUTPUT_REGEX = Pattern.compile("(?<width>\\d+)x(?<height>\\d+)");
 
   private static final String EMU_TMP_FILENAME = "tmp.webm";
-  /** Devices that are currently recording. */
+  /**
+   * Devices that are currently recording.
+   */
   private static final Set<IDevice> myRecordingInProgress = new HashSet<>();
 
   private final Features myFeatures;
@@ -86,12 +95,6 @@ public final class ScreenRecorderAction extends AbstractDeviceAction {
 
     IDevice device = myDeviceContext.getSelectedDevice();
 
-    if (myFeatures.watch(device)) {
-      presentation.setEnabled(false);
-      presentation.setText("Screen Record Is Unavailable for Wear OS");
-      return;
-    }
-
     presentation.setEnabled(myFeatures.screenRecord(device));
     presentation.setText(AndroidBundle.messagePointer("android.ddms.actions.screenrecord"));
   }
@@ -101,8 +104,8 @@ public final class ScreenRecorderAction extends AbstractDeviceAction {
   }
 
   @Override
-  protected void performAction(@NotNull IDevice device) {
-    final ScreenRecorderOptionsDialog dialog = new ScreenRecorderOptionsDialog(myProject);
+  protected void performAction(@NotNull AnActionEvent e, @NotNull IDevice device) {
+    final ScreenRecorderOptionsDialog dialog = new ScreenRecorderOptionsDialog(myProject, device.isEmulator());
     if (!dialog.showAndGet()) {
       return;
     }
@@ -119,22 +122,27 @@ public final class ScreenRecorderAction extends AbstractDeviceAction {
 
       @Override
       public void onSuccess() {
-        startRecordingAsync(dialog.getOptions(), device, myShowTouchEnabled);
+        startRecordingAsync(dialog.getUseEmulatorRecording(), device, myShowTouchEnabled);
       }
     });
   }
 
-  private void startRecordingAsync(@NotNull ScreenRecorderOptions options, @NotNull IDevice device, boolean showTouchEnabled) {
+  private void startRecordingAsync(boolean useEmulatorRecording, @NotNull IDevice device, boolean showTouchEnabled) {
     AvdManager manager = getVirtualDeviceManager();
-    Path hostRecordingFile = manager == null ? null : getTemporaryVideoPathForVirtualDevice(device, manager);
+    Path emulatorRecordingFile =
+      (manager != null && useEmulatorRecording) ? getTemporaryVideoPathForVirtualDevice(device, manager) : null;
     myRecordingInProgress.add(device);
 
     ApplicationManager.getApplication().executeOnPooledThread(() -> {
+      Dimension size = getDeviceScreenSize(device);
+      ScreenRecorderOptions options = ScreenRecorderPersistentOptions.getInstance().toScreenRecorderOptions(size);
       if (options.showTouches != showTouchEnabled) {
         setShowTouch(device, options.showTouches);
       }
       try {
-        ScreenRecorderTask task = new ScreenRecorderTask(myProject, device, hostRecordingFile, options);
+        ScreenRecorderTask task =
+          new ScreenRecorderTask(
+            myProject, device, String.format(Locale.US, REMOTE_PATH, System.currentTimeMillis()), emulatorRecordingFile, options);
         task.run();
       }
       finally {
@@ -172,7 +180,7 @@ public final class ScreenRecorderAction extends AbstractDeviceAction {
       return null;
     }
 
-    return Paths.get(virtualDevice.getDataFolderPath(), EMU_TMP_FILENAME);
+    return virtualDevice.getDataFolderPath().resolve(EMU_TMP_FILENAME);
   }
 
   private static void setShowTouch(@NotNull IDevice device, boolean isEnabled) {
@@ -207,5 +215,27 @@ public final class ScreenRecorderAction extends AbstractDeviceAction {
 
       Messages.showErrorDialog(project, msg, TITLE);
     });
+  }
+
+  private @Nullable Dimension getDeviceScreenSize(@NotNull IDevice device) {
+    CollectingOutputReceiver receiver = new CollectingOutputReceiver();
+    try {
+      device.executeShellCommand("wm size", receiver);
+      receiver.awaitCompletion(5, SECONDS);
+      String output = receiver.getOutput();
+      Matcher matcher = WM_SIZE_OUTPUT_REGEX.matcher(output);
+      if (!matcher.find()) {
+        Logger.getInstance(getClass()).warn("Unexpected output from 'wm size': " + output);
+        return null;
+      }
+      return new Dimension(Integer.parseInt(matcher.group("width")), Integer.parseInt(matcher.group("height")));
+    }
+    catch (TimeoutException | AdbCommandRejectedException | ShellCommandUnresponsiveException | IOException | NumberFormatException e) {
+      Logger.getInstance(getClass()).warn("Failed to get device screen size.", e);
+      return null;
+    }
+    catch (InterruptedException e) {
+      return null;
+    }
   }
 }

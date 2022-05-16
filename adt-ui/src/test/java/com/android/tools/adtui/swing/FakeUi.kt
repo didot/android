@@ -14,49 +14,79 @@
  * limitations under the License.
  */
 @file:JvmName("FakeUiUtil")
+
 package com.android.tools.adtui.swing
 
-import com.android.tools.adtui.ImageUtils.createDipImage
 import com.android.tools.adtui.TreeWalker
-import com.android.tools.adtui.imagediff.ImageDiffTestUtil
+import com.android.tools.adtui.swing.FakeMouse.Button.LEFT
+import com.android.tools.adtui.swing.FakeMouse.Button.RIGHT
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.impl.ActionButton
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.wm.WindowManager
+import com.intellij.openapi.wm.impl.IdeGlassPaneImpl
+import com.intellij.openapi.wm.impl.TestWindowManager
 import com.intellij.testFramework.PlatformTestUtil
+import com.intellij.testFramework.registerServiceInstance
+import com.intellij.util.ui.UIUtil
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import java.awt.Component
 import java.awt.Container
 import java.awt.GraphicsConfiguration
 import java.awt.GraphicsDevice
 import java.awt.Point
 import java.awt.Rectangle
+import java.awt.Window
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
 import java.awt.image.ColorModel
 import java.util.ArrayDeque
-import java.util.Enumeration
 import java.util.function.Predicate
-import javax.swing.UIManager
-import javax.swing.plaf.FontUIResource
+import javax.swing.JRootPane
+import javax.swing.SwingUtilities
 
 /**
  * A utility class to interact with Swing components in unit tests.
  *
- * @param root the top-level component component
+ * @param root the top-level component
  * @param screenScale size of a virtual pixel in physical pixels; used for emulating a HiDPI screen
  */
-class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Double = 1.0) {
+class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Double = 1.0, createFakeWindow: Boolean = false) {
 
   @JvmField
   val keyboard: FakeKeyboard = FakeKeyboard()
+
   @JvmField
   val mouse: FakeMouse = FakeMouse(this, keyboard)
 
   init {
-    if (screenScale != 1.0 && root.parent == null) {
-      // Applying graphics configuration involves re-parenting, so don't do it for a component that already has a parent.
-      applyGraphicsConfiguration(FakeGraphicsConfiguration(screenScale), root)
+    if (root.parent == null && createFakeWindow) {
+      val rootPane = root as? JRootPane ?: JRootPane().apply {
+        glassPane = IdeGlassPaneImpl(this, false)
+        isFocusCycleRoot = true
+        bounds = root.bounds
+        add(root)
+      }
+      val application = ApplicationManager.getApplication()
+      // Use an exact class comparison so that the check fails if the TestWindowManager class stops
+      // being final in future and a subclass is introduced.
+      if (application != null && WindowManager.getInstance()?.javaClass == TestWindowManager::class.java) {
+        // Replace TestWindowManager with a more lenient version.
+        application.registerServiceInstance(WindowManager::class.java, FakeUiWindowManager())
+      }
+      wrapInFakeWindow(rootPane)
+    }
+
+    if (screenScale != 1.0) {
+      ComponentAccessor.setGraphicsConfiguration(getTopLevelComponent(root), FakeGraphicsConfiguration(screenScale))
     }
     root.preferredSize = root.size
     layout()
+    if (SwingUtilities.isEventDispatchThread()) {
+      // Allow resizing events to propagate.
+      PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+    }
   }
 
   /**
@@ -67,7 +97,8 @@ class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Dou
    * method if you update the UI after constructing the FakeUi.
    */
   fun layout() {
-    TreeWalker(root).descendantStream().forEach { obj: Component -> obj.doLayout() }
+    val layoutRoot = UIUtil.getParentOfType(JRootPane::class.java, root) ?: root
+    TreeWalker(layoutRoot).descendantStream().forEach(Component::doLayout)
   }
 
   /**
@@ -84,16 +115,15 @@ class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Dou
   /**
    * Renders the root component and returns the image reflecting its appearance.
    */
-  fun render(): BufferedImage {
-    return render(root)
-  }
+  fun render(): BufferedImage = render(root)
 
   /**
    * Renders the given component and returns the image reflecting its appearance.
    */
   fun render(component: Component): BufferedImage {
+    @Suppress("UndesirableClassUsage")
     val image =
-        createDipImage((component.width * screenScale).toInt(), (component.height * screenScale).toInt(), BufferedImage.TYPE_INT_ARGB)
+        BufferedImage((component.width * screenScale).toInt(), (component.height * screenScale).toInt(), BufferedImage.TYPE_INT_ARGB)
     val graphics = image.createGraphics()
     graphics.transform = AffineTransform.getScaleInstance(screenScale, screenScale)
     component.printAll(graphics)
@@ -137,11 +167,25 @@ class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Dou
   }
 
   /**
-   * Simulates pressing and releasing the left mouse button over the given component.
+   * Simulates pressing and releasing a mouse button over the given component.
    */
-  fun clickOn(component: Component) {
+  fun clickOn(component: Component, button: FakeMouse.Button = LEFT) {
+    clickRelativeTo(component, component.width / 2, component.height / 2, button)
+  }
+
+  /**
+   * Simulates pressing and releasing the right mouse button over the given component.
+   */
+  fun rightClickOn(component: Component) {
+    clickRelativeTo(component, component.width / 2, component.height / 2, RIGHT)
+  }
+
+  /**
+   * Simulates pressing and releasing a mouse button over the given component.
+   */
+  fun clickRelativeTo(component: Component, x: Int, y: Int, button: FakeMouse.Button = LEFT) {
     val location = getPosition(component)
-    mouse.click(location.x + component.width / 2, location.y + component.height / 2)
+    mouse.click(location.x + x, location.y + y, button)
   }
 
   /**
@@ -171,21 +215,15 @@ class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Dou
     return null
   }
 
-  inline fun <reified T: Component> findComponent(crossinline predicate: (T) -> Boolean = { true }) : T? {
-    return findComponent(T::class.java) { predicate(it) }
-  }
+  inline fun <reified T> findComponent(crossinline predicate: (T) -> Boolean = { true }): T? =
+    findComponent(T::class.java) { predicate(it) }
 
-  fun <T> findComponent(type: Class<T>, predicate: Predicate<T>): T? {
-    return findComponent(type) { predicate.test(it) }
-  }
+  fun <T> findComponent(type: Class<T>, predicate: Predicate<T>): T? = findComponent(type, predicate::test)
 
-  inline fun <reified T: Component> getComponent(crossinline predicate: (T) -> Boolean = { true }) : T {
-    return findComponent(T::class.java) { predicate(it) } ?: throw AssertionError()
-  }
+  inline fun <reified T> getComponent(crossinline predicate: (T) -> Boolean = { true }): T =
+    findComponent(T::class.java) { predicate(it) } ?: throw AssertionError()
 
-  fun <T> getComponent(type: Class<T>, predicate: Predicate<T>): T {
-    return findComponent(type) { predicate.test(it) } ?: throw AssertionError()
-  }
+  fun <T> getComponent(type: Class<T>, predicate: Predicate<T>): T = findComponent(type, predicate::test) ?: throw AssertionError()
 
   /**
    * Returns all components of the given type satisfying the given predicate in the breadth-first
@@ -215,13 +253,10 @@ class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Dou
     return result
   }
 
-  inline fun <reified T: Component> findAllComponents(crossinline predicate: (T) -> Boolean = { true }) : List<T> {
-    return findAllComponents(T::class.java) { predicate(it) }
-  }
+  inline fun <reified T> findAllComponents(crossinline predicate: (T) -> Boolean = { true }): List<T> =
+    findAllComponents(T::class.java) { predicate(it) }
 
-  fun targetMouseEvent(x: Int, y: Int): RelativePoint? {
-    return findTarget(root, x, y)
-  }
+  fun targetMouseEvent(x: Int, y: Int): RelativePoint? = findTarget(root, x, y)
 
   private fun findTarget(component: Component, x: Int, y: Int): RelativePoint? {
     if (component.contains(x, y)) {
@@ -253,16 +288,6 @@ class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Dou
     updateToolbars(root)
   }
 
-  private fun applyGraphicsConfiguration(config: GraphicsConfiguration, component: Component) {
-    // Work around package-private visibility of the Component.setGraphicsConfiguration method.
-    val container: Container = object : Container() {
-      override fun getGraphicsConfiguration(): GraphicsConfiguration {
-        return config
-      }
-    }
-    container.add(component)
-  }
-
   private fun updateToolbars(component: Component) {
     if (component is ActionButton) {
       component.updateUI()
@@ -286,66 +311,58 @@ class FakeUi @JvmOverloads constructor(val root: Component, val screenScale: Dou
     private val transform: AffineTransform = AffineTransform.getScaleInstance(scale, scale)
     private val device: GraphicsDevice = FakeGraphicsDevice(this)
 
-    override fun getDevice(): GraphicsDevice {
-      return device
-    }
+    override fun getDevice(): GraphicsDevice = device
 
-    override fun getColorModel(): ColorModel {
-      return ColorModel.getRGBdefault()
-    }
+    override fun getColorModel(): ColorModel = ColorModel.getRGBdefault()
 
-    override fun getColorModel(transparency: Int): ColorModel {
-      return ColorModel.getRGBdefault()
-    }
+    override fun getColorModel(transparency: Int): ColorModel = ColorModel.getRGBdefault()
 
-    override fun getDefaultTransform(): AffineTransform {
-      return transform
-    }
+    override fun getDefaultTransform(): AffineTransform = transform
 
-    override fun getNormalizingTransform(): AffineTransform {
-      return transform
-    }
+    override fun getNormalizingTransform(): AffineTransform = transform
 
-    override fun getBounds(): Rectangle {
-      return Rectangle()
-    }
+    override fun getBounds(): Rectangle = Rectangle()
   }
 
   private class FakeGraphicsDevice constructor(private val defaultConfiguration: GraphicsConfiguration) : GraphicsDevice() {
 
-    override fun getType(): Int {
-      return TYPE_RASTER_SCREEN
-    }
+    override fun getType(): Int = TYPE_RASTER_SCREEN
 
-    override fun getIDstring(): String {
-      return "FakeDevice"
-    }
+    override fun getIDstring(): String = "FakeDevice"
 
-    override fun getConfigurations(): Array<GraphicsConfiguration> {
-      return emptyArray()
-    }
+    override fun getConfigurations(): Array<GraphicsConfiguration> = emptyArray()
 
-    override fun getDefaultConfiguration(): GraphicsConfiguration {
-      return defaultConfiguration
-    }
+    override fun getDefaultConfiguration(): GraphicsConfiguration = defaultConfiguration
   }
 }
 
-/**
- * Sets all default fonts to Droid Sans that is included in the bundled JDK. This makes fonts the same across all platforms.
- *
- * To improve error detection it may be helpful to scale the font used up (to improve matches across platforms and detect text changes)
- * or down (to decrease the importance of text in generated images).
- */
-fun setPortableUiFont(scale: Float = 1.0f) {
-  val keys: Enumeration<*> = UIManager.getLookAndFeelDefaults().keys()
-  val default = ImageDiffTestUtil.getDefaultFont()
-  while (keys.hasMoreElements()) {
-    val key = keys.nextElement()
-    val value = UIManager.get(key)
-    if (value is FontUIResource) {
-      val font = default.deriveFont(value.style).deriveFont(value.size.toFloat() * scale)
-      UIManager.put(key, FontUIResource(font))
-    }
-  }
+private fun wrapInFakeWindow(rootPane: JRootPane) {
+  // A mock is used here because in a headless environment it is not possible to instantiate
+  // Window or any of its subclasses due to checks in the Window constructor.
+  val mockWindow = mock(Window::class.java)
+  `when`(mockWindow.treeLock).thenCallRealMethod()
+  `when`(mockWindow.toolkit).thenReturn(fakeToolkit)
+  `when`(mockWindow.isShowing).thenReturn(true)
+  `when`(mockWindow.isVisible).thenReturn(true)
+  `when`(mockWindow.isEnabled).thenReturn(true)
+  `when`(mockWindow.isLightweight).thenReturn(true)
+  `when`(mockWindow.isFocusableWindow).thenReturn(true)
+  `when`(mockWindow.locationOnScreen).thenReturn(Point(0, 0))
+  `when`(mockWindow.size).thenReturn(rootPane.size)
+  `when`(mockWindow.bounds).thenReturn(Rectangle(0, 0, rootPane.width, rootPane.height))
+  `when`(mockWindow.ownedWindows).thenReturn(emptyArray())
+  `when`(mockWindow.isFocused).thenReturn(true)
+  ComponentAccessor.setPeer(mockWindow, FakeWindowPeer())
+  ComponentAccessor.setParent(rootPane, mockWindow)
+  rootPane.addNotify()
 }
+
+private fun getTopLevelComponent(component: Component): Component {
+  var c = component
+  while (c.parent != null && c.parent !is Window) {
+    c = c.parent
+  }
+  return c
+}
+
+private val fakeToolkit = FakeUiToolkit()

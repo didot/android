@@ -18,14 +18,13 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
-import org.mockito.ArgumentMatcher;
 import org.picocontainer.PicoContainer;
 
 public class AndroidGradleTaskManagerTest {
+
   @Test
   public void executeTasks() {
     String projectPath = "projectPath";
@@ -57,13 +56,10 @@ b/144931276 */
     when(picoContainer.getComponentInstance(GradleProjectInfo.class.getName())).thenReturn(gradleProjectInfo);
     AndroidGradleBuildConfiguration androidGradleBuildConfiguration = new AndroidGradleBuildConfiguration();
     when(picoContainer.getComponentInstance(AndroidGradleBuildConfiguration.class.getName())).thenReturn(androidGradleBuildConfiguration);
+    when(picoContainer.getComponentInstance(GradleBuildInvoker.class.getName())).thenReturn(gradleBuildInvoker);
     when(gradleBuildInvoker.getProject()).thenReturn(project);
     ModuleManager moduleManager = mock(ModuleManager.class);
-
     when(project.getComponent(ModuleManager.class)).thenReturn(moduleManager);
-    when(project.getService(GradleProjectInfo.class)).thenReturn(gradleProjectInfo);
-    when(project.getService(GradleBuildInvoker.class)).thenReturn(gradleBuildInvoker);
-
     Module module = mock(Module.class);
     when(moduleManager.getModules()).thenReturn(new Module[]{module});
     when(module.getPicoContainer()).thenReturn(picoContainer);
@@ -77,20 +73,5 @@ b/144931276 */
                                                                                          "", "", "", projectPath), null);
     when(module.getOptionValue("external.linked.project.path")).thenReturn(projectPath);
     return gradleBuildInvoker;
-  }
-
-  private static class RequestMatcher implements ArgumentMatcher<GradleBuildInvoker.Request> {
-    private final GradleBuildInvoker.Request myRequest;
-
-    public RequestMatcher(GradleBuildInvoker.Request request) {
-      myRequest = request;
-    }
-
-    @Override
-    public boolean matches(GradleBuildInvoker.Request argument) {
-      // skip generated init scripts args asserting
-      argument.setCommandLineArguments(Collections.emptyList());
-      return myRequest.toString().equals(argument.toString()) && myRequest.getTaskListener() == argument.getTaskListener();
-    }
   }
 }

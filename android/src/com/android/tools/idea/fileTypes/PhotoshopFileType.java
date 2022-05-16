@@ -18,7 +18,7 @@ package com.android.tools.idea.fileTypes;
 
 import com.android.SdkConstants;
 import com.intellij.openapi.fileTypes.FileType;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.intellij.images.ImagesIcons;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;

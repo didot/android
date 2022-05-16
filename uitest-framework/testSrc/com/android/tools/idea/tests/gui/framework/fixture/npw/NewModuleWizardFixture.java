@@ -101,12 +101,12 @@ public class NewModuleWizardFixture extends AbstractWizardFixture<NewModuleWizar
   }
 
   @NotNull
-  public ConfigureAndroidModuleStepFixture<NewModuleWizardFixture> clickNextToBenchmarkModule() {
+  public ConfigureBenchmarkModuleStepFixture<NewModuleWizardFixture> clickNextToBenchmarkModule() {
     clickNextToStep(
       message("android.wizard.module.new.benchmark.module.app"),
       message("android.wizard.module.new.benchmark.module.app")
     );
-    return new ConfigureAndroidModuleStepFixture<>(this, target().getRootPane());
+    return new ConfigureBenchmarkModuleStepFixture<>(this, target().getRootPane());
   }
 
   @NotNull

@@ -21,7 +21,6 @@ import com.android.testutils.MockitoKt.eq
 import com.android.testutils.MockitoKt.mock
 import com.android.tools.idea.projectsystem.TestArtifactSearchScopes
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration
-import com.android.tools.idea.testartifacts.instrumented.testsuite.model.benchmark.BenchmarkOutput
 import com.android.tools.idea.testartifacts.instrumented.testsuite.api.AndroidTestResultStats
 import com.android.tools.idea.testartifacts.instrumented.testsuite.api.AndroidTestResults
 import com.android.tools.idea.testartifacts.instrumented.testsuite.api.getFullTestCaseName
@@ -31,6 +30,7 @@ import com.android.tools.idea.testartifacts.instrumented.testsuite.model.Android
 import com.android.tools.idea.testartifacts.instrumented.testsuite.model.AndroidTestCase
 import com.android.tools.idea.testartifacts.instrumented.testsuite.model.AndroidTestCaseResult
 import com.android.tools.idea.testartifacts.instrumented.testsuite.model.AndroidTestSuiteResult
+import com.android.tools.idea.testartifacts.instrumented.testsuite.model.benchmark.BenchmarkOutput
 import com.google.common.truth.Truth.assertThat
 import com.google.wireless.android.sdk.stats.ParallelAndroidTestReportUiEvent
 import com.intellij.execution.Location
@@ -56,12 +56,12 @@ import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 import org.mockito.ArgumentMatchers
-import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.Mock
-import org.mockito.Mockito.`when`
+import org.mockito.Mockito.anyBoolean
 import org.mockito.Mockito.isNull
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import org.mockito.junit.MockitoJUnit
 import org.mockito.quality.Strictness
 import java.awt.event.MouseEvent
@@ -498,12 +498,12 @@ class AndroidTestResultsTableViewTest {
       it.mouseClicked(MouseEvent(view.tableHeader, 0, 0, 0, deviceStatusColumnPositionX, 0, /*clickCount=*/1, false))
     }
 
-    // Apply column filter to filter by device2, which removes the current sort column.
+    // Apply column filter to filter by device 2, which removes the current sort column.
     table.setColumnFilter { device ->
       device.id == "deviceId2"
     }
 
-    // Assert only device2 is displayed.
+    // Device2 is displayed.
     assertThat(view.columnCount).isEqualTo(3)
     assertThat(model.columns[0].name).isEqualTo("Tests")
     assertThat(model.columns[1].name).isEqualTo("Duration")
@@ -880,6 +880,12 @@ class AndroidTestResultsTableViewTest {
 
     assertThat(table.getTableViewForTesting().getItem(0).getTestResultSummary()).isEqualTo(AndroidTestCaseResult.CANCELLED)
     assertThat(table.getTableViewForTesting().getItem(0).getTestCaseResult(device1)).isEqualTo(AndroidTestCaseResult.CANCELLED)
+
+    // Clear the test suite result. This is used when a re-run is scheduled after an APK installation failure.
+    table.setTestSuiteResultForDevice(device1, null)
+
+    assertThat(table.getTableViewForTesting().getItem(0).getTestResultSummary()).isEqualTo(AndroidTestCaseResult.SCHEDULED)
+    assertThat(table.getTableViewForTesting().getItem(0).getTestCaseResult(device1)).isEqualTo(AndroidTestCaseResult.SCHEDULED)
   }
 
   @Test
@@ -906,5 +912,36 @@ class AndroidTestResultsTableViewTest {
     assertThat(table.getTableViewForTesting().getItem(0).getResultStats(listOf(device1)).passed).isEqualTo(1)
     assertThat(table.getTableViewForTesting().getItem(0).getResultStats(listOf(device2)).passed).isEqualTo(1)
     assertThat(table.getTableViewForTesting().getItem(0).getResultStats(listOf(device1, device2)).passed).isEqualTo(2)
+  }
+
+  @Test
+  fun selectAndroidTestCase() {
+    val table = AndroidTestResultsTableView(mockListener, mockJavaPsiFacade, mockTestArtifactSearchScopes, mockLogger)
+    val device1 = device("deviceId1", "deviceName1")
+    table.addDevice(device1)
+
+    val testCases = arrayOf(
+      AndroidTestCase("testid1", "method1", "class1", "package1", AndroidTestCaseResult.FAILED),
+      AndroidTestCase("testid2", "method2", "class1", "package1", AndroidTestCaseResult.PASSED),
+      AndroidTestCase("testid3", "method1", "class2", "package1", AndroidTestCaseResult.FAILED)
+    )
+
+    testCases.forEach {
+      table.addTestCase(device1, it)
+    }
+
+    val tableView = table.getTableViewForTesting()
+
+    assertThat(tableView.selectedObject).isNull()
+    table.selectAndroidTestCase(testCases[0])
+    assertThat(tableView.selectedObject?.getFullTestCaseName()).isEqualTo("package1.class1.method1")
+    table.selectAndroidTestCase(testCases[1])
+    assertThat(tableView.selectedObject?.getFullTestCaseName()).isEqualTo("package1.class1.method2")
+    table.selectAndroidTestCase(testCases[2])
+    assertThat(tableView.selectedObject?.getFullTestCaseName()).isEqualTo("package1.class2.method1")
+
+    // Nothing happens if you select a test case that doesn't exist.
+    table.selectAndroidTestCase(AndroidTestCase("does not exist", "", "", ""))
+    assertThat(tableView.selectedObject?.getFullTestCaseName()).isEqualTo("package1.class2.method1")
   }
 }

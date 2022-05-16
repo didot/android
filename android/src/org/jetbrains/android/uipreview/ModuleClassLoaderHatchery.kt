@@ -54,27 +54,39 @@ private class Clutch(private val cloner: (ModuleClassLoader) -> ModuleClassLoade
     parent: ClassLoader?,
     projectTransformations: ClassTransform,
     nonProjectTransformations: ClassTransform) =
-    eggs.peek().isForCompatible(parent, projectTransformations, nonProjectTransformations)
+    eggs.peek()?.isForCompatible(parent, projectTransformations, nonProjectTransformations) ?: false
 
   /**
    * If possible, returns a [ModuleClassLoader] from the clutch and transfers full ownership to the caller, otherwise returns null.
    */
   fun retrieve(): ModuleClassLoader? {
-    eggs.poll().getClassLoader()?.let { egg ->
-      cloner(egg)?.let { newClassLoader ->
-        eggs.add(Preloader(newClassLoader, classesToPreload))
+    return generateSequence { eggs.poll()?.getClassLoader() }
+      .firstOrNull {
+        if (!it.isUserCodeUpToDate) {
+          // This class loader can not be used, it's not up-to-date
+          Disposer.dispose(it)
+          false
+        }
+        else true
       }
-      return egg
-    }
-    return null
+      ?.let { compatibleClassLoader ->
+        // Incubate the next one
+        cloner(compatibleClassLoader)?.let { newClassLoader ->
+          eggs.add(Preloader(newClassLoader, classesToPreload))
+        }
+        compatibleClassLoader
+      }
   }
 
   /**
    * Should be called when the clutch is no longer needed to free all the resources.
    */
   fun destroy() {
-    eggs.forEach { Disposer.dispose(it) }
-    eggs.clear()
+    generateSequence { eggs.poll() }.forEach { Disposer.dispose(it) }
+  }
+
+  fun getStats(): Stats {
+    return Stats("Clutch ${this.hashCode()}", eggs.map { ReadyState(it.getLoadedCount(), classesToPreload.size) })
   }
 }
 
@@ -130,11 +142,14 @@ class ModuleClassLoaderHatchery(private val capacity: Int = CAPACITY, private va
    */
   @Synchronized
   fun incubateIfNeeded(donor: ModuleClassLoader, cloner: (ModuleClassLoader) -> ModuleClassLoader?): Boolean {
+    // Out of date class loaders can not be used as donors
+    if (!donor.isUserCodeUpToDate) return false
+
     if (storage.find { it.isCompatible(
-        donor.parent, donor.projectClassesTransformationProvider, donor.nonProjectClassesTransformationProvider) } != null) {
+        donor.parent, donor.projectClassesTransform, donor.nonProjectClassesTransform) } != null) {
       return false
     }
-    val request = Request(donor.parent, donor.projectClassesTransformationProvider, donor.nonProjectClassesTransformationProvider)
+    val request = Request(donor.parentAtConstruction, donor.projectClassesTransform, donor.nonProjectClassesTransform)
     if (requests.contains(request)) {
       requests.remove(request)
       if (storage.size == capacity) {
@@ -147,8 +162,23 @@ class ModuleClassLoaderHatchery(private val capacity: Int = CAPACITY, private va
   }
 
   @Synchronized
+  fun getStats(): List<Stats> {
+    return storage.map { it.getStats() }
+  }
+
+  @Synchronized
   fun destroy() {
     storage.forEach { it.destroy() }
     storage.clear()
   }
 }
+
+/**
+ * Represents the current preloading [progress] (number of classes) out of full [toDo] number.
+ */
+data class ReadyState(val progress: Int, val toDo: Int)
+
+/**
+ * Represents [ReadyState] stats for all eggs in a Clutch identified by [label]
+ */
+data class Stats(val label: String, val states: List<ReadyState>)

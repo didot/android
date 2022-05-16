@@ -31,7 +31,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ex.WindowManagerEx;
 import com.intellij.util.system.CpuArch;
 import com.sun.management.OperatingSystemMXBean;
-import java.awt.*;
+import java.awt.Window;
 import java.io.IOException;
 import java.util.Locale;
 import org.jetbrains.annotations.Nullable;

@@ -29,10 +29,6 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
@@ -72,7 +68,7 @@ public abstract class ClassifierSet implements MemoryObject {
   protected int myFilterMatchCount = 0;
 
   private final CachedFunction<CaptureObjectInstanceFilter, Integer> myInstanceFilterMatchCounter =
-    new CachedFunction<>(this::countInstanceFilterMatch, new IdentityHashMap<>());
+    new CachedFunction<>(new IdentityHashMap<>(), this::countInstanceFilterMatch);
 
   protected boolean myIsFiltered;
   // FIXME: `myIsMatched` should be `true` initially, as "no filter" means "trivially matched".

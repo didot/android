@@ -19,10 +19,8 @@ import com.android.tools.idea.apk.viewer.dex.DexFileViewer;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorPolicy;
 import com.intellij.openapi.fileEditor.FileEditorProvider;
-import com.intellij.openapi.fileTypes.FileTypeRegistry;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.nio.file.Path;
@@ -33,7 +31,6 @@ public class DexEditorProvider implements FileEditorProvider, DumbAware {
 
   @Override
   public boolean accept(@NotNull Project project, @NotNull VirtualFile file) {
-    // return FileTypeRegistry.getInstance().isFileOfType(file, DexFileType.INSTANCE); // FIXME-ank3
     return "dex".equalsIgnoreCase(file.getExtension());
   }
 

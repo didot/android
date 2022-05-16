@@ -29,9 +29,8 @@ import java.io.File;
 import java.util.List;
 import org.jetbrains.android.facet.AndroidFacet;
 
-public class SingleVariantSyncIntegrationTest extends GradleSyncIntegrationTest {
+public class SingleVariantSyncIntegrationTest extends GradleSyncIntegrationTestCase {
 
-  @Override
   public void testSyncIssueWithNonMatchingVariantAttributes() throws Exception {
     Project project = getProject();
     GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, getTestRootDisposable());
@@ -59,8 +58,9 @@ public class SingleVariantSyncIntegrationTest extends GradleSyncIntegrationTest 
     List<NotificationData> messages = syncMessages.getNotifications();
     List<NotificationData> relevantMessages = messages.stream()
       .filter(m -> m.getTitle().equals("Unresolved dependencies") &&
-                   m.getMessage().contains(
-                     "Unable to resolve dependency for ':app@paidQa/compileClasspath': Could not resolve project :lib.\nAffected Modules:"))
+                   (m.getMessage().contains(
+                     "Unable to resolve dependency for ':app@paidQa/compileClasspath': Could not resolve project :lib.\nAffected Modules:") ||
+                    m.getMessage().contains("Failed to resolve: project :lib\nAffected Modules:")))
       .collect(toList());
     assertThat(relevantMessages).isNotEmpty();
   }

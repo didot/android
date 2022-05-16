@@ -26,17 +26,20 @@ import com.android.tools.idea.IdeInfo;
 import com.intellij.ui.HyperlinkAdapter;
 import com.intellij.ui.HyperlinkLabel;
 import com.intellij.ui.components.JBPanel;
-import com.intellij.util.ui.JBUI;
-import java.awt.*;
+import com.intellij.ui.scale.JBUIScale;
+import java.awt.Dimension;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 import javax.swing.event.HyperlinkEvent;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class ProfilerMonitorView<T extends ProfilerMonitor> extends AspectObserver {
 
-  private static final int MINIMUM_MONITOR_HEIGHT = JBUI.scale(50);
+  private static final int MINIMUM_MONITOR_HEIGHT = JBUIScale.scale(50);
 
   @NotNull private final T myMonitor;
 

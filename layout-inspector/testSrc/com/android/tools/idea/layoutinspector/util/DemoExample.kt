@@ -24,8 +24,6 @@ import com.android.resources.ResourceType
 import com.android.testutils.TestUtils.resolveWorkspacePath
 import com.android.tools.idea.layoutinspector.InspectorModelDescriptor
 import com.android.tools.idea.layoutinspector.InspectorViewDescriptor
-import com.android.tools.idea.layoutinspector.model
-import com.android.tools.idea.layoutinspector.model.ViewNode
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
 
 const val DECOR_VIEW = "com.android.internal.policy.DecorView"
@@ -53,15 +51,6 @@ object DemoExample {
     fixture.copyFileToProject("res/values-land/styles.xml")
 
     return createDemoViewNodes(body)
-  }
-
-  /**
-   * Helper function that sets up the demo and extracts the root [ViewNode] from it.
-   *
-   * This probably should not be called if [setUpDemo] was also called.
-   */
-  fun extractViewRoot(fixture: CodeInsightTestFixture): ViewNode {
-    return model(fixture.project, FakeTreeSettings(), setUpDemo(fixture)).root.children.single()
   }
 
   private fun createDemoViewNodes(body: InspectorViewDescriptor.() -> Unit): InspectorModelDescriptor.() -> Unit = {

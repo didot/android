@@ -30,8 +30,12 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.ToggleAction;
 import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
-import java.awt.*;
-import javax.swing.*;
+import java.awt.FlowLayout;
+import java.awt.Rectangle;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

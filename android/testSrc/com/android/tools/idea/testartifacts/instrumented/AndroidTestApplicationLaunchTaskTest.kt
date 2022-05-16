@@ -24,6 +24,7 @@ import com.android.tools.idea.run.AndroidProcessHandler
 import com.android.tools.idea.run.ConsolePrinter
 import com.android.tools.idea.run.tasks.LaunchContext
 import com.android.tools.idea.run.util.LaunchStatus
+import com.android.tools.idea.testartifacts.instrumented.configuration.AndroidTestConfiguration
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import org.junit.Rule
@@ -31,9 +32,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 import org.mockito.Mock
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import org.mockito.junit.MockitoJUnit
 import org.mockito.quality.Strictness
 import java.util.concurrent.ExecutorService
@@ -69,7 +70,9 @@ class AndroidTestApplicationLaunchTaskTest {
       /*waitForDebugger=*/ false,
       "instrumentationOptions",
       listOf(mockITestRunListener),
-      myBackgroundTaskExecutor = directExecutor::submit) {}
+      myBackgroundTaskExecutor = directExecutor::submit,
+      myAndroidTestConfigurationProvider = { AndroidTestConfiguration() },
+    ) {}
   }
 
   @Test
@@ -101,16 +104,8 @@ class AndroidTestApplicationLaunchTaskTest {
     `when`(mockLaunchContext.consolePrinter).thenReturn(mockPrinter)
     `when`(mockLaunchContext.launchStatus).thenReturn(mockLaunchStatus)
     `when`(mockLaunchStatus.processHandler).thenReturn(mockProcessHandler)
-    `when`(mockProcessHandler.isEmpty()).thenReturn(true)
 
-    val launchTask = AndroidTestApplicationLaunchTask(
-      "instrumentationTestRunner",
-      "testApplicationId",
-      mockAndroidArtifact,
-      /*waitForDebugger=*/ false,
-      "instrumentationOptions",
-      listOf(mockITestRunListener),
-      myBackgroundTaskExecutor = directExecutor::submit) {}
+    val launchTask = createLaunchTask()
 
     val result = launchTask.run(mockLaunchContext)
 
@@ -119,6 +114,5 @@ class AndroidTestApplicationLaunchTaskTest {
 
     verify(mockPrinter).stdout(eq("Running tests\n"))
     verify(mockProcessHandler).detachDevice(eq(mockDevice))
-    verify(mockProcessHandler).detachProcess()
   }
 }

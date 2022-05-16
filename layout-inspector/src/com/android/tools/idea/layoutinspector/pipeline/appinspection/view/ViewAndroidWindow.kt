@@ -16,9 +16,9 @@
 package com.android.tools.idea.layoutinspector.pipeline.appinspection.view
 
 import com.android.annotations.concurrency.Slow
+import com.android.ide.common.resources.configuration.FolderConfiguration
+import com.android.resources.ScreenRound
 import com.android.tools.idea.layoutinspector.LayoutInspector
-import com.android.tools.idea.layoutinspector.skia.SkiaParser
-import com.android.tools.idea.layoutinspector.skia.UnsupportedPictureVersionException
 import com.android.tools.idea.layoutinspector.model.AndroidWindow
 import com.android.tools.idea.layoutinspector.model.ComponentImageLoader
 import com.android.tools.idea.layoutinspector.model.DrawViewChild
@@ -26,7 +26,11 @@ import com.android.tools.idea.layoutinspector.model.DrawViewImage
 import com.android.tools.idea.layoutinspector.model.ViewNode
 import com.android.tools.idea.layoutinspector.proto.SkiaParser.RequestedNodeInfo
 import com.android.tools.idea.layoutinspector.skia.ParsingFailedException
+import com.android.tools.idea.layoutinspector.skia.SkiaParser
+import com.android.tools.idea.layoutinspector.skia.UnsupportedPictureVersionException
 import com.android.tools.idea.layoutinspector.ui.InspectorBannerService
+import com.android.tools.layoutinspector.BITMAP_HEADER_SIZE
+import com.android.tools.layoutinspector.BitmapType
 import com.android.tools.layoutinspector.InvalidPictureException
 import com.android.tools.layoutinspector.LayoutInspectorUtils
 import com.android.tools.layoutinspector.SkiaViewNode
@@ -36,6 +40,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import layoutinspector.view.inspection.LayoutInspectorViewProtocol
 import java.awt.Rectangle
+import java.awt.geom.Ellipse2D
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.zip.Inflater
@@ -51,23 +56,24 @@ class ViewAndroidWindow(
   private val skiaParser: SkiaParser,
   root: ViewNode,
   private val event: LayoutInspectorViewProtocol.LayoutEvent,
+  folderConfiguration: FolderConfiguration,
   private val isInterrupted: () -> Boolean,
   private val logEvent: (DynamicLayoutInspectorEventType) -> Unit)
   : AndroidWindow(root, root.drawId, event.screenshot.type.toImageType()) {
 
   private var bytes = event.screenshot.bytes.toByteArray()
 
-  private var loggedInitialRender = false
-
-  private fun logInitialRender(imageType: ImageType) {
-    if (loggedInitialRender) return
-    when (imageType) {
-      ImageType.SKP -> logEvent(DynamicLayoutInspectorEventType.INITIAL_RENDER)
-      ImageType.BITMAP_AS_REQUESTED -> logEvent(DynamicLayoutInspectorEventType.INITIAL_RENDER_BITMAPS)
-      ImageType.UNKNOWN -> logEvent(DynamicLayoutInspectorEventType.INITIAL_RENDER_NO_PICTURE)
+  override val deviceClip =
+    if (folderConfiguration.screenRoundQualifier?.value == ScreenRound.ROUND) {
+      val width = folderConfiguration.screenWidthQualifier?.value
+      val height = folderConfiguration.screenHeightQualifier?.value
+      val dpi = folderConfiguration.densityQualifier?.value?.dpiValue
+      if (width != null && height != null && dpi != null) {
+        Ellipse2D.Float(0f, 0f, width * dpi / 160f, height * dpi / 160f)
+      }
+      else null
     }
-    loggedInitialRender = true
-  }
+    else null
 
   override fun copyFrom(other: AndroidWindow) {
     super.copyFrom(other)
@@ -81,9 +87,9 @@ class ViewAndroidWindow(
     if (bytes.isNotEmpty()) {
       try {
         when (imageType) {
-          ImageType.BITMAP_AS_REQUESTED -> processBitmap(bytes, root)
-          ImageType.SKP -> processSkp(bytes, skiaParser, project, root, scale)
-          else -> logInitialRender(ImageType.UNKNOWN) // Shouldn't happen
+          ImageType.BITMAP_AS_REQUESTED -> processBitmap(bytes)
+          ImageType.SKP, ImageType.SKP_PENDING -> processSkp(bytes, skiaParser, project, scale)
+          else -> logEvent(DynamicLayoutInspectorEventType.INITIAL_RENDER_NO_PICTURE) // Shouldn't happen
         }
       }
       catch (ex: Exception) {
@@ -97,18 +103,21 @@ class ViewAndroidWindow(
     bytes: ByteArray,
     skiaParser: SkiaParser,
     project: Project,
-    rootView: ViewNode,
     scale: Double
   ) {
-    val allNodes = rootView.flatten().filter { it.drawId != 0L }
-    val surfaceOriginX = rootView.x - event.rootOffset.x
-    val surfaceOriginY = rootView.y - event.rootOffset.y
-    val requestedNodeInfo = allNodes.mapNotNull {
-      val bounds = it.transformedBounds.bounds.intersection(Rectangle(0, 0, Int.MAX_VALUE, Int.MAX_VALUE))
-      if (bounds.isEmpty) null
-      else LayoutInspectorUtils.makeRequestedNodeInfo(it.drawId, bounds.x - surfaceOriginX, bounds.y - surfaceOriginY, bounds.width,
-                                                      bounds.height)
-    }.toList()
+    val (nodeMap, requestedNodeInfo) = ViewNode.readAccess {
+      val allNodes = root.flatten().filter { it.drawId != 0L }
+      val nodeMap = allNodes.associateBy { it.drawId }
+      val surfaceOriginX = root.x - event.rootOffset.x
+      val surfaceOriginY = root.y - event.rootOffset.y
+      val requests = allNodes.mapNotNull {
+        val bounds = it.transformedBounds.bounds.intersection(Rectangle(0, 0, Int.MAX_VALUE, Int.MAX_VALUE))
+        if (bounds.isEmpty) null
+        else LayoutInspectorUtils.makeRequestedNodeInfo(it.drawId, bounds.x - surfaceOriginX, bounds.y - surfaceOriginY, bounds.width,
+                                                        bounds.height)
+      }.toList()
+      Pair(nodeMap, requests)
+    }
     if (requestedNodeInfo.isEmpty()) {
       return
     }
@@ -118,14 +127,12 @@ class ViewAndroidWindow(
       InspectorBannerService.getInstance(project).setNotification(errorMessage)
     }
     if (rootViewFromSkiaImage != null && rootViewFromSkiaImage.id != 0L) {
-      logInitialRender(ImageType.SKP)
-      ViewNode.writeDrawChildren { drawChildren ->
-        ComponentImageLoader(allNodes.associateBy { it.drawId }, rootViewFromSkiaImage, drawChildren).loadImages(rootView)
-      }
+      logEvent(DynamicLayoutInspectorEventType.INITIAL_RENDER)
+      ComponentImageLoader(nodeMap, rootViewFromSkiaImage).loadImages(this)
     }
   }
 
-  private fun processBitmap(bytes: ByteArray, rootView: ViewNode) {
+  private fun processBitmap(bytes: ByteArray) {
     val inf = Inflater().also { it.setInput(bytes) }
     val baos = ByteArrayOutputStream()
     val buffer = ByteArray(4096)
@@ -137,18 +144,19 @@ class ViewAndroidWindow(
       baos.write(buffer, 0, count)
     }
 
-
     val inflatedBytes = baos.toByteArray()
     val width = inflatedBytes.toInt()
     val height = inflatedBytes.sliceArray(4..7).toInt()
-    val image = LayoutInspectorUtils.createImage565(ByteBuffer.wrap(inflatedBytes, 8, inflatedBytes.size - 8), width, height)
+    val bitmapType = BitmapType.fromByteVal(inflatedBytes[8])
+    val image = bitmapType.createImage(ByteBuffer.wrap(inflatedBytes, BITMAP_HEADER_SIZE, inflatedBytes.size - BITMAP_HEADER_SIZE), width,
+                                       height)
 
-    ViewNode.writeDrawChildren { drawChildren ->
-      rootView.flatten().forEach { it.drawChildren().clear() }
-      rootView.drawChildren().add(DrawViewImage(image, rootView))
-      rootView.flatten().forEach { it.children.mapTo(it.drawChildren()) { child -> DrawViewChild(child) } }
+    ViewNode.writeAccess {
+      root.flatten().forEach { it.drawChildren.clear() }
+      root.drawChildren.add(DrawViewImage(image, root, deviceClip))
+      root.flatten().forEach { it.children.mapTo(it.drawChildren) { child -> DrawViewChild(child) } }
     }
-    logInitialRender(ImageType.BITMAP_AS_REQUESTED)
+    logEvent(DynamicLayoutInspectorEventType.INITIAL_RENDER_BITMAPS)
   }
 
   private fun getViewTree(

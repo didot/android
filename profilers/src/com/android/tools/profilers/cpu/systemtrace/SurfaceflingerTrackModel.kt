@@ -25,12 +25,12 @@ import java.util.function.Supplier
 /**
  * Track model for the Surfaceflinger track in CPU capture stage.
  */
-class SurfaceflingerTrackModel(systemTraceData: CpuSystemTraceData,
-                               viewRange: Range) : StateChartModel<SurfaceflingerEvent?>() {
+class SurfaceflingerTrackModel(val systemTraceData: CpuSystemTraceData,
+                               val viewRange: Range) : StateChartModel<SurfaceflingerEvent?>() {
   val surfaceflingerEvents: DataSeries<SurfaceflingerEvent>
 
   init {
-    surfaceflingerEvents = LazyDataSeries(Supplier { systemTraceData.getSurfaceflingerEvents() })
+    surfaceflingerEvents = LazyDataSeries(Supplier { systemTraceData.surfaceflingerEvents })
     addSeries(RangedSeries(viewRange, surfaceflingerEvents))
   }
 }

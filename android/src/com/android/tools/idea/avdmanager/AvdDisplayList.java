@@ -16,13 +16,10 @@
 package com.android.tools.idea.avdmanager;
 
 import com.android.resources.Density;
-import com.android.sdklib.AndroidVersion;
-import com.android.sdklib.SdkVersionInfo;
 import com.android.sdklib.devices.Device;
 import com.android.sdklib.internal.avd.AvdInfo;
-import com.android.sdklib.repository.IdDisplay;
-import com.android.sdklib.repository.targets.SystemImage;
 import com.android.tools.adtui.common.ColoredIconGenerator;
+import com.android.tools.idea.util.Targets;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
@@ -46,7 +43,13 @@ import com.intellij.util.ui.ListTableModel;
 import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.accessibility.AccessibleContextUtil;
 import icons.StudioIcons;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.KeyboardFocusManager;
+import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -66,7 +69,18 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import javax.swing.KeyStroke;
+import javax.swing.ListSelectionModel;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 import javax.swing.border.Border;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
@@ -193,7 +207,7 @@ public class AvdDisplayList extends JPanel implements ListSelectionListener, Avd
     ActionMap am = myTable.getActionMap();
     am.put("selectPreviousColumnCell", new CycleAction(true));
     am.put("selectNextColumnCell", new CycleAction(false));
-    am.put("deleteAvd", new DeleteAvdAction(this));
+    am.put("deleteAvd", new DeleteAvdAction(this, false));
     myTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "enter");
     myTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "enter");
     myTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "deleteAvd");
@@ -477,7 +491,7 @@ public class AvdDisplayList extends JPanel implements ListSelectionListener, Avd
       new AvdColumnInfo("Target") {
         @Override
         public @NotNull String valueOf(@NotNull AvdInfo info) {
-          return targetString(info.getAndroidVersion(), info.getTag());
+          return Targets.toString(info.getAndroidVersion(), info.getTag());
         }
       },
       new AvdColumnInfo("CPU/ABI") {
@@ -490,22 +504,11 @@ public class AvdDisplayList extends JPanel implements ListSelectionListener, Avd
       myActionsColumnRenderer);
   }
 
-  @VisibleForTesting
-  static @NotNull String targetString(@NotNull AndroidVersion version, @NotNull IdDisplay tag) {
-    StringBuilder resultBuilder = new StringBuilder(32);
-    resultBuilder.append("Android ");
-    resultBuilder.append(SdkVersionInfo.getVersionStringSanitized(version.getFeatureLevel()));
-    if (!tag.equals(SystemImage.DEFAULT_TAG)) {
-      resultBuilder.append(" (").append(tag.getDisplay()).append(")");
-    }
-    return resultBuilder.toString();
-  }
-
   private void refreshErrorCheck() {
     AtomicBoolean refreshUI = new AtomicBoolean(myNotificationPanel.getComponentCount() > 0);
     myNotificationPanel.removeAll();
     ListenableFuture<AccelerationErrorCode> error = AvdManagerConnection.getDefaultAvdManagerConnection().checkAccelerationAsync();
-    Futures.addCallback(error, new FutureCallback<AccelerationErrorCode>() {
+    Futures.addCallback(error, new FutureCallback<>() {
       @Override
       public void onSuccess(AccelerationErrorCode result) {
         if (result != AccelerationErrorCode.ALREADY_INSTALLED) {
@@ -595,7 +598,7 @@ public class AvdDisplayList extends JPanel implements ListSelectionListener, Avd
     private final AvdActionPanel myComponent;
 
     ActionRenderer(int numVisibleActions, AvdInfo info) {
-      myComponent = new AvdActionPanel(info, numVisibleActions, AvdDisplayList.this);
+      myComponent = new AvdActionPanel(AvdDisplayList.this, info, false, myProject != null, numVisibleActions);
     }
 
     private @NotNull Component getComponent(@NotNull JTable table, int row, int column) {
@@ -706,9 +709,9 @@ public class AvdDisplayList extends JPanel implements ListSelectionListener, Avd
     AvdInfo info = getAvdInfo();
     if (info != null) {
       if (info.getStatus() == AvdInfo.AvdStatus.OK) {
-        new RunAvdAction(this).actionPerformed(null);
+        new RunAvdAction(this, false).actionPerformed(null);
       } else {
-        new EditAvdAction(this).actionPerformed(null);
+        new EditAvdAction(this, false).actionPerformed(null);
       }
     }
   }

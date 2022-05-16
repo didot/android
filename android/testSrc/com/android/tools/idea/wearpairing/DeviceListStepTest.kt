@@ -15,21 +15,26 @@
  */
 package com.android.tools.idea.wearpairing
 
-import com.android.flags.junit.RestoreFlagRule
+import com.android.ddmlib.IDevice
+import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.adtui.swing.FakeUi
-import com.android.tools.idea.flags.StudioFlags.WEAR_DEVICE_PAIRING_ENABLED
+import com.android.tools.analytics.LoggedUsage
+import com.android.tools.analytics.TestUsageTracker
+import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.observable.BatchInvoker
 import com.android.tools.idea.observable.TestInvokeStrategy
 import com.android.tools.idea.wearpairing.ConnectionState.DISCONNECTED
 import com.android.tools.idea.wearpairing.ConnectionState.ONLINE
 import com.android.tools.idea.wizard.model.ModelWizard
 import com.google.common.truth.Truth.assertThat
+import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.WearPairingEvent
+import com.intellij.openapi.ui.Splitter
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.util.IconLoader
 import com.intellij.testFramework.LightPlatform4TestCase
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
-import org.junit.Rule
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.mockito.Mockito
 import java.awt.Component
@@ -37,39 +42,40 @@ import java.awt.Container
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.event.MouseEvent
+import java.util.function.BooleanSupplier
 import javax.swing.JEditorPane
 import javax.swing.JMenuItem
 import javax.swing.Popup
 import javax.swing.PopupFactory
 
-
 class DeviceListStepTest : LightPlatform4TestCase() {
-  @get:Rule
-  val restoreFlagRule = RestoreFlagRule(WEAR_DEVICE_PAIRING_ENABLED) // reset flag after test
-
   private var defaultPopupFactory: PopupFactory = PopupFactory.getSharedInstance()
   private val invokeStrategy = TestInvokeStrategy()
+  /** A UsageTracker implementation that allows introspection of logged metrics in tests. */
+  private val usageTracker = TestUsageTracker(VirtualTimeScheduler())
   private val model = WearDevicePairingModel()
   private val phoneDevice = PairingDevice(
     deviceID = "id1", displayName = "My Phone", apiLevel = 30, isWearDevice = false, isEmulator = true, hasPlayStore = true,
-    state = ONLINE, isPaired = false
+    state = ONLINE
   )
   private val wearDevice = PairingDevice(
     deviceID = "id2", displayName = "Round Watch", apiLevel = 30, isEmulator = true, isWearDevice = true, hasPlayStore = true,
-    state = ONLINE, isPaired = false
+    state = ONLINE
   )
 
   override fun setUp() {
     super.setUp()
-
-    WEAR_DEVICE_PAIRING_ENABLED.override(true)
     BatchInvoker.setOverrideStrategy(invokeStrategy)
+    UsageTracker.setWriterForTest(usageTracker)
+    WearPairingManager.loadSettings(emptyList(), emptyList()) // Clean up any pairing data leftovers
   }
 
   override fun tearDown() {
     try {
       PopupFactory.setSharedInstance(defaultPopupFactory)
       BatchInvoker.clearOverrideStrategy()
+      usageTracker.close()
+      UsageTracker.cleanAfterTesting()
     }
     finally {
       super.tearDown()
@@ -108,6 +114,8 @@ class DeviceListStepTest : LightPlatform4TestCase() {
 
     assertThat(fakeUi.getPhoneEmptyComponent().isVisible).isTrue()
     assertThat(fakeUi.getWearList().isEmpty).isFalse()
+    assertThat(getWearPairingTrackingEvents().last().studioEvent.kind).isEqualTo(AndroidStudioEvent.EventKind.WEAR_PAIRING)
+    assertThat(getWearPairingTrackingEvents().last().studioEvent.wearPairingEvent.kind).isEqualTo(WearPairingEvent.EventKind.SHOW_ASSISTANT_FULL_SELECTION)
   }
 
   @Test
@@ -138,6 +146,34 @@ class DeviceListStepTest : LightPlatform4TestCase() {
       assertThat(model.size).isEqualTo(1)
       assertThat(model.getElementAt(0).deviceID).isEqualTo("id2")
     }
+
+    fakeUi.getSplitter().apply {
+      assertThat(firstComponent).isNotNull()
+      assertThat(secondComponent).isNotNull()
+    }
+  }
+
+  @Test
+  fun stepShouldShowOnlyPhoneList() {
+    model.phoneList.set(listOf(phoneDevice))
+    model.wearList.set(listOf(wearDevice))
+    model.selectedWearDevice.setNullableValue(wearDevice)
+
+    createDeviceListStepUi().getSplitter().apply {
+      assertThat(firstComponent).isNotNull()
+      assertThat(secondComponent).isNull()
+    }
+    assertThat(getWearPairingTrackingEvents().last().studioEvent.wearPairingEvent.kind).isEqualTo(WearPairingEvent.EventKind.SHOW_ASSISTANT_PRE_SELECTION)
+  }
+
+  @Test
+  fun stepShouldShowOnlyWearList() {
+    model.selectedPhoneDevice.setNullableValue(phoneDevice)
+
+    createDeviceListStepUi().getSplitter().apply {
+      assertThat(firstComponent).isNull()
+      assertThat(secondComponent).isNotNull()
+    }
   }
 
   @Suppress("UnstableApiUsage")
@@ -151,8 +187,6 @@ class DeviceListStepTest : LightPlatform4TestCase() {
     val cellListFakeUi = FakeUi(cellList)
 
     val topLabel = cellListFakeUi.getLabelWithText("My Phone")
-    assertThat(topLabel).isNotNull()
-
     val topLabelIcon = topLabel!!.icon.toString()
     assertThat(topLabelIcon).contains("device-play-store.svg")
   }
@@ -167,15 +201,12 @@ class DeviceListStepTest : LightPlatform4TestCase() {
       phoneDevice.copy(deviceID = "id3", displayName = "My Phone3"),
       phoneDevice.copy(deviceID = "id4", displayName = "My Phone4", apiLevel = 29),
       phoneDevice.copy(deviceID = "id5", displayName = "My Phone5", isEmulator = true, hasPlayStore = false),
-      phoneDevice.copy(deviceID = "id6", displayName = "My Phone6", isPaired = true, state = DISCONNECTED),
+      phoneDevice.copy(deviceID = "id6", displayName = "My Phone6", state = DISCONNECTED),
       phoneDevice.copy(deviceID = "id7", displayName = "My Phone7"),
     ))
 
     fakeUi.getPhoneList().apply {
-      assertThat(selectedIndex).isEqualTo(-1) // Nothing should be selected at the start
-
-      selectedIndex = 0
-      assertThat(selectedIndex).isEqualTo(0) // Selecting 0 is OK
+      assertThat(selectedIndex).isEqualTo(0) // The first selectable device is 0
 
       selectedIndex = 1
       assertThat(selectedIndex).isEqualTo(0) // Selecting 1 should be rejected (Disconnected)
@@ -200,14 +231,10 @@ class DeviceListStepTest : LightPlatform4TestCase() {
   @Test
   fun rightClickOnPairedDeviceShouldOfferPopupToDisconnect() {
     val fakeUi = createDeviceListStepUi()
+    val iDevice = Mockito.mock(IDevice::class.java)
+    runBlocking { WearPairingManager.createPairedDeviceBridge(phoneDevice, iDevice, wearDevice, iDevice, connect = false) }
 
-    phoneDevice.launch = { throw RuntimeException("Can't launch on tests") } // launch fields needs some value, so it can be copied
-    wearDevice.launch = phoneDevice.launch
-    WearPairingManager.setPairedDevices(phoneDevice, wearDevice)
-
-    model.phoneList.set(listOf(
-      phoneDevice.copy(isPaired = true),
-    ))
+    model.phoneList.set(listOf(phoneDevice))
     fakeUi.layoutAndDispatchEvents()
 
     val phoneList = Mockito.spy(fakeUi.getPhoneList())
@@ -224,47 +251,68 @@ class DeviceListStepTest : LightPlatform4TestCase() {
   @Test
   fun showTooltipIfDeviceNotAllowed() {
     val fakeUi = createDeviceListStepUi()
+    val iDevice = Mockito.mock(IDevice::class.java)
+    runBlocking { WearPairingManager.createPairedDeviceBridge(phoneDevice, iDevice, wearDevice, iDevice, connect = false) }
 
     model.phoneList.set(listOf(
-      phoneDevice.copy(deviceID = "id2", displayName = "My Phone2", apiLevel = 29),
-      phoneDevice.copy(deviceID = "id3", displayName = "My Phone3", hasPlayStore = false),
-      phoneDevice.copy(deviceID = "id4", displayName = "My Phone3", apiLevel = 29, isEmulator = false),
+      phoneDevice.copy(deviceID = "id3", displayName = "My Phone2", apiLevel = 29),
+      phoneDevice.copy(deviceID = "id4", displayName = "My Phone3", hasPlayStore = false),
+      phoneDevice.copy(deviceID = "id5", displayName = "My Phone3", apiLevel = 29, isEmulator = false),
+      phoneDevice
     ))
     fakeUi.layoutAndDispatchEvents()
 
     val phoneList = fakeUi.getPhoneList()
 
     fun getListItemTooltip(index: Int): String? {
-      val cellRect = phoneList.getCellBounds(index, index)
-      val p = Point(cellRect.width / 2, cellRect.y + cellRect.height / 2)
-      val mouseEvent = MouseEvent(phoneList, MouseEvent.MOUSE_ENTERED, 0, 0, p.x, p.y, 0, false, 0)
-      return phoneList.getToolTipText(mouseEvent)
+      val rect = phoneList.getCellBounds(index, index)
+      val mouseEvent = MouseEvent(phoneList, MouseEvent.MOUSE_ENTERED, 0, 0, rect.width / 2, rect.y + rect.height / 2, 0, false, 0)
+      phoneList.mouseListeners.forEach { it.mouseEntered(mouseEvent) } // Simulate mouse enter
+      phoneList.mouseListeners.forEach { it.mousePressed(mouseEvent) } // Fix javax.swing.ToolTipManager memory/focus leak
+      val installed = phoneList.getClientProperty("JComponent.helpTooltip") // HelpTooltip.TOOLTIP_PROPERTY is private
+      installed.javaClass.superclass.getDeclaredField("masterPopupOpenCondition").apply { // "description" is private, use reflection
+        isAccessible = true
+        if (!(get(installed) as BooleanSupplier).asBoolean) {
+          return null
+        }
+      }
+      installed.javaClass.superclass.getDeclaredField("description").apply { // "description" is private, use reflection
+        isAccessible = true
+        return get(installed)?.toString()
+      }
     }
 
     assertThat(getListItemTooltip(0)).contains("Wear pairing requires API level >= 30")
     assertThat(getListItemTooltip(1)).contains("Wear pairing requires Google Play")
     assertThat(getListItemTooltip(2)).isNull() // Non emulators are always OK
+    assertThat(getListItemTooltip(3)).contains("Paired with Round Watch")
   }
 
   private fun createDeviceListStepUi(wizardAction: WizardAction = WizardActionTest()): FakeUi {
     val deviceListStep = DeviceListStep(model, project, wizardAction)
     val modelWizard = ModelWizard.Builder().addStep(deviceListStep).build()
     Disposer.register(testRootDisposable, modelWizard)
+    Disposer.register(testRootDisposable, deviceListStep)
     invokeStrategy.updateAllSteps()
 
     modelWizard.contentPanel.size = Dimension(600, 400)
     return FakeUi(modelWizard.contentPanel).apply { layoutAndDispatchEvents() }
   }
 
-  private fun FakeUi.getPhoneList(): JBList<PairingDevice> = findComponent { it.name == "phoneList" }!!
+  private fun FakeUi.getPhoneList() = getComponent<JBList<PairingDevice>> { it.name == "phoneList" }
 
-  private fun FakeUi.getWearList(): JBList<PairingDevice> = findComponent { it.name == "wearList" }!!
+  private fun FakeUi.getWearList() = getComponent<JBList<PairingDevice>> { it.name == "wearList" }
 
-  private fun FakeUi.getPhoneEmptyComponent(): JEditorPane = findComponent { it.name == "phoneListEmptyText" }!!
+  private fun FakeUi.getPhoneEmptyComponent() = getComponent<JEditorPane> { it.name == "phoneListEmptyText" }
 
-  private fun FakeUi.getWearEmptyComponent(): JEditorPane = findComponent { it.name == "wearListEmptyText" }!!
+  private fun FakeUi.getWearEmptyComponent() = getComponent<JEditorPane> { it.name == "wearListEmptyText" }
 
-  private fun FakeUi.getLabelWithText(text: String): JBLabel? = findComponent { it.text == text }
+  private fun FakeUi.getLabelWithText(text: String) = getComponent<JBLabel> { it.text == text }
+
+  private fun FakeUi.getSplitter() = getComponent<Splitter> { true }
+
+  private fun getWearPairingTrackingEvents(): List<LoggedUsage> =
+    usageTracker.usages.filter { it.studioEvent.kind == AndroidStudioEvent.EventKind.WEAR_PAIRING }
 
   private class TestPopupFactory : PopupFactory() {
     var popupContents: Component? = null

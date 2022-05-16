@@ -73,7 +73,7 @@ public class JavaModuleContentRootTest {
     originalContentRoot.getResourceDirectories();
     expectLastCall().andStubReturn(DomainObjectHashSet.newSet(resourceDir));
 
-    mock = createSourceDirectoryMock("resource-test", false);
+    mock = createSourceDirectoryMock("test-resource", false);
     File testResourceDirPath = mock.getFirst();
     IdeaSourceDirectory testResourceDir = mock.getSecond();
     originalContentRoot.getTestResourceDirectories();
@@ -95,7 +95,7 @@ public class JavaModuleContentRootTest {
     assertThat(contentRoot.getResourceDirPaths()).containsExactly(resourceDirPath);
     assertThat(contentRoot.getTestResourceDirPaths()).containsExactly(testResourceDirPath);
 
-    verify(originalContentRoot, sourceDir, genSourceDir, testDir, genTestDir);
+    verify(originalContentRoot, sourceDir, genSourceDir, testDir, genTestDir, resourceDir, testResourceDir);
   }
 
   @NotNull

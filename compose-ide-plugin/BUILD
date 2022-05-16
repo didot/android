@@ -19,6 +19,7 @@ iml_module(
         "//tools/adt/idea/artwork:intellij.android.artwork[module]",
         "//tools/adt/idea/adt-ui:intellij.android.adt.ui[module]",
         "//tools/base/layoutlib-api:studio.android.sdktools.layoutlib-api[module]",
+        "//tools/adt/idea/compose-ide-plugin:compiler-hosted-1.1.0-SNAPSHOT",
     ],
 )
 
@@ -27,14 +28,15 @@ iml_module(
     name = "intellij.android.compose-ide-plugin.tests",
     iml_files = ["intellij.android.compose-ide-plugin.tests.iml"],
     project = "unb",
+    tags = ["no_test_windows"],  # b/208245297
     test_class = "com.android.tools.tests.ComposeTestSuite",
     test_data = [
         "//prebuilts/studio/jdk",
         "//prebuilts/studio/sdk:build-tools/latest",
         "//prebuilts/studio/sdk:platforms/latest",
         "//prebuilts/studio/sdk:platform-tools",
-        "//tools/base/build-system:studio_repo.zip",
-        "//tools/base/third_party/kotlin:kotlin-m2repository.zip",
+        "//tools/base/build-system:studio_repo",
+        "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
         "//tools/base/build-system:gradle-distrib",
         "//prebuilts/studio/sdk:licenses",
         "//tools/adt/idea/compose-ide-plugin/testData",
@@ -60,5 +62,13 @@ iml_module(
         "//tools/adt/idea/android-plugin:intellij.android.plugin[module, test]",
         "//tools/adt/idea/gradle-tooling/studio-gradle-tooling-api:intellij.android.gradle-tooling.api[module, test]",
         "//tools/adt/idea/intellij.android.compose-common[module, test]",
+        "//tools/adt/idea/.idea/libraries:mockito[test]",
     ],
+)
+
+# managed by go/iml_to_build
+java_import(
+    name = "compiler-hosted-1.1.0-SNAPSHOT",
+    jars = ["lib/compiler-hosted-1.1.0-SNAPSHOT.jar"],
+    visibility = ["//visibility:public"],
 )

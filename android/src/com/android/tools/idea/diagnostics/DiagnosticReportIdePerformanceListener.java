@@ -30,6 +30,7 @@ import com.intellij.util.messages.MessageBusConnection;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,7 +44,7 @@ import java.util.function.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-final class DiagnosticReportIdePerformanceListener implements IdePerformanceListener {
+class DiagnosticReportIdePerformanceListener implements IdePerformanceListener {
   private static final Logger LOG = Logger.getInstance(DiagnosticReportIdePerformanceListener.class);
 
   private final Consumer<DiagnosticReport> myReportCallback;
@@ -125,7 +126,7 @@ final class DiagnosticReportIdePerformanceListener implements IdePerformanceList
         if (localReportPath != null) {
           if (Files.exists(localReportPath)) {
             try {
-              Files.write(localReportPath, ("UI freeze lasted " + lengthInSeconds + " seconds.\n").getBytes(), StandardOpenOption.APPEND);
+              Files.write(localReportPath, ("UI freeze lasted " + lengthInSeconds + " seconds.\n").getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
             }
             catch (IOException e) {
               // Non fatal exception

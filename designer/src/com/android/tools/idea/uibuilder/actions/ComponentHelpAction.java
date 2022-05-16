@@ -29,14 +29,13 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CustomShortcutSet;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.search.GlobalSearchScope;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.function.Supplier;
-import javax.swing.*;
+import javax.swing.KeyStroke;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

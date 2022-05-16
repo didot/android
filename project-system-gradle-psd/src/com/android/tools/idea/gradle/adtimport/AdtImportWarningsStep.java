@@ -20,7 +20,9 @@ import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.projectImport.ProjectImportWizardStep;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTextArea;
 
 class AdtImportWarningsStep extends ProjectImportWizardStep {
   private JTextArea myWarnings;

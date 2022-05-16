@@ -29,12 +29,11 @@ import com.intellij.ide.util.TreeClassChooserFactory
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.ClassUtil
-import com.intellij.testFramework.replaceService
 import org.mockito.ArgumentMatchers
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.isNull
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 
 class AddArgumentDialogTest : NavTestCase() {
   fun testValidation() {
@@ -311,7 +310,7 @@ class AddArgumentDialogTest : NavTestCase() {
     `when`(innerClass.containingClass).thenReturn(containingClass)
     `when`(innerClass.name).thenReturn("Align")
     `when`(classChooser.selected).thenReturn(innerClass)
-    project.replaceService(TreeClassChooserFactory::class.java, classChooserFactory, testRootDisposable)
+    IdeComponents(project).replaceProjectService(TreeClassChooserFactory::class.java, classChooserFactory)
 
     val fragment1 = model.find("fragment1")!!
 
@@ -333,7 +332,7 @@ class AddArgumentDialogTest : NavTestCase() {
     val classChooser = mock(TreeClassChooser::class.java)
     `when`(classChooserFactory.createInheritanceClassChooser(any(), any(), eq(parcelable), isNull(), any())).thenReturn(classChooser)
     `when`(classChooser.selected).thenReturn(null)
-    project.replaceService(TreeClassChooserFactory::class.java, classChooserFactory, testRootDisposable)
+    IdeComponents(project).replaceProjectService(TreeClassChooserFactory::class.java, classChooserFactory)
 
     val fragment1 = model.find("fragment1")!!
 

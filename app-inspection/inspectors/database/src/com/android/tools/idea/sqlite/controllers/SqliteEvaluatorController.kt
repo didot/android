@@ -38,7 +38,7 @@ import com.google.wireless.android.sdk.stats.AppInspectionEvent
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
-import java.util.*
+import java.util.LinkedList
 import java.util.concurrent.Executor
 
 /**
@@ -139,10 +139,6 @@ class SqliteEvaluatorController(
 
   fun removeListener(listener: Listener) {
     listeners.remove(listener)
-  }
-
-  fun removeListeners() {
-    listeners.clear()
   }
 
   fun showAndExecuteSqlStatement(databaseId: SqliteDatabaseId, sqliteStatement: SqliteStatement): ListenableFuture<Unit> {

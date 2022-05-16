@@ -120,10 +120,10 @@ public final class AdtModuleImporter extends ModuleImporter {
     final GradleImport gradleImport = getGradleImport();
     gradleImport.importProjects(Collections.singletonList(virtualToIoFile(importSource)));
     Map<String, File> adtProjects = gradleImport.getDetectedModuleLocations();
-    Set<ModuleToImport> modules = new HashSet<ModuleToImport>();
+    Set<ModuleToImport> modules = new HashSet<>();
     for (final Map.Entry<String, File> entry : adtProjects.entrySet()) {
       VirtualFile location = findFileByIoFile(entry.getValue(), false);
-      modules.add(new ModuleToImport(entry.getKey(), location, new Supplier<Iterable<String>>() {
+      modules.add(new ModuleToImport(entry.getKey(), location, new Supplier<>() {
         @Override
         public Iterable<String> get() {
           return gradleImport.getProjectDependencies(entry.getKey());

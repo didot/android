@@ -22,7 +22,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.ui.ColoredListCellRenderer;
 import java.util.Arrays;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.JList;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

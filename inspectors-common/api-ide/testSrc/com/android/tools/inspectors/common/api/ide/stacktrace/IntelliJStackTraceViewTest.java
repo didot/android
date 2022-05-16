@@ -22,9 +22,10 @@ import com.android.tools.adtui.swing.FakeKeyboard;
 import com.android.tools.adtui.swing.FakeMouse;
 import com.android.tools.adtui.swing.FakeUi;
 import com.android.tools.adtui.swing.laf.HeadlessListUI;
+import com.android.tools.idea.codenavigation.CodeLocation;
+import com.android.tools.idea.codenavigation.CodeNavigator;
+import com.android.tools.idea.codenavigation.FakeNavSource;
 import com.android.tools.inspectors.common.api.stacktrace.CodeElement;
-import com.android.tools.inspectors.common.api.stacktrace.CodeLocation;
-import com.android.tools.inspectors.common.api.stacktrace.CodeNavigator;
 import com.android.tools.inspectors.common.api.stacktrace.StackFrameParser;
 import com.android.tools.inspectors.common.api.stacktrace.StackTraceModel;
 import com.android.tools.inspectors.common.api.stacktrace.ThreadElement;
@@ -71,16 +72,8 @@ public class IntelliJStackTraceViewTest {
   private IntelliJStackTraceView myStackView;
 
   public static StackTraceModel createStackTraceModel() {
-    return new StackTraceModel(new CodeNavigator() {
-      @Override
-      public boolean isNavigatable(@NotNull CodeLocation location) {
-        return true;
-      }
-
-      @Override
-      protected void handleNavigate(@NotNull CodeLocation location) {
-      }
-    });
+    return new StackTraceModel(
+        new CodeNavigator(new FakeNavSource(), CodeNavigator.Companion.getTestExecutor()));
   }
 
   public static IntelliJStackTraceView createStackTraceView(Project project, StackTraceModel model) {

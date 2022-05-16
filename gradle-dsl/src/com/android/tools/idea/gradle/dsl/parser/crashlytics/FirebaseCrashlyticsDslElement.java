@@ -26,36 +26,24 @@ import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
-import com.android.tools.idea.gradle.dsl.parser.groovy.GroovyDslNameConverter;
-import com.android.tools.idea.gradle.dsl.parser.kotlin.KotlinDslNameConverter;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
 public class FirebaseCrashlyticsDslElement extends GradleDslBlockElement {
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelMap = Stream.of(new Object[][] {
+  public static final ExternalToModelMap ktsToModelMap = Stream.of(new Object[][] {
     {"nativeSymbolUploadEnabled", property, NATIVE_SYMBOL_UPLOAD_ENABLED, VAR}
   }).collect(toModelMap());
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelMap = Stream.of(new Object[][] {
+  public static final ExternalToModelMap groovyToModelMap = Stream.of(new Object[][] {
     {"nativeSymbolUploadEnabled", property, NATIVE_SYMBOL_UPLOAD_ENABLED, VAR},
     {"nativeSymbolUploadEnabled", exactly(1), NATIVE_SYMBOL_UPLOAD_ENABLED, SET}
   }).collect(toModelMap());
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter instanceof KotlinDslNameConverter) {
-      return ktsToModelMap;
-    }
-    else if (converter instanceof GroovyDslNameConverter) {
-      return groovyToModelMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelMap, ktsToModelMap);
   }
 
   public static final PropertiesElementDescription<FirebaseCrashlyticsDslElement> FIREBASE_CRASHLYTICS =

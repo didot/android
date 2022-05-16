@@ -17,15 +17,12 @@ package com.android.tools.idea.devicemanager.physicaltab;
 
 import com.android.ddmlib.AndroidDebugBridge.IDeviceChangeListener;
 import com.android.ddmlib.IDevice;
+import com.android.tools.idea.devicemanager.CountDownLatchAssert;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDeviceChangeListener.AddOrSet;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,7 +32,7 @@ import org.mockito.Mockito;
 @RunWith(JUnit4.class)
 public final class PhysicalDeviceChangeListenerTest {
   private final @NotNull PhysicalDeviceTableModel myModel = Mockito.mock(PhysicalDeviceTableModel.class);
-  private final @NotNull AndroidDebugBridge myBridge = Mockito.mock(AndroidDebugBridge.class);
+  private final @NotNull DeviceManagerAndroidDebugBridge myBridge = Mockito.mock(DeviceManagerAndroidDebugBridge.class);
   private final @NotNull IDevice myDevice = Mockito.mock(IDevice.class);
   private final @NotNull BuilderService myService = Mockito.mock(BuilderService.class);
 
@@ -54,43 +51,18 @@ public final class PhysicalDeviceChangeListenerTest {
   @Test
   public void deviceChanged() throws InterruptedException {
     // Arrange
-    PhysicalDevice physicalDevice = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
-
-    Mockito.when(myService.build(myDevice)).thenReturn(Futures.immediateFuture(physicalDevice));
+    Mockito.when(myService.build(myDevice)).thenReturn(Futures.immediateFuture(TestPhysicalDevices.GOOGLE_PIXEL_3));
 
     CountDownLatch latch = new CountDownLatch(1);
 
-    FutureCallback<PhysicalDevice> callback = new CountDownLatchAddOrSet(myModel, latch);
+    FutureCallback<PhysicalDevice> callback = new CountDownLatchFutureCallback<>(new AddOrSet(myModel), latch);
     IDeviceChangeListener listener = new PhysicalDeviceChangeListener(myBridge, () -> myService, callback);
 
     // Act
     listener.deviceChanged(myDevice, IDevice.CHANGE_STATE);
 
     // Assert
-    waitFor(latch, Duration.ofMillis(512));
-    Mockito.verify(myModel).addOrSet(physicalDevice);
-  }
-
-  private static final class CountDownLatchAddOrSet extends AddOrSet {
-    private final @NotNull CountDownLatch myLatch;
-
-    private CountDownLatchAddOrSet(@NotNull PhysicalDeviceTableModel model, @NotNull CountDownLatch latch) {
-      super(model);
-      myLatch = latch;
-    }
-
-    @Override
-    public void onSuccess(@Nullable PhysicalDevice device) {
-      super.onSuccess(device);
-      myLatch.countDown();
-    }
-  }
-
-  private static void waitFor(@NotNull CountDownLatch latch, @NotNull Duration duration) throws InterruptedException {
-    if (!latch.await(duration.toMillis(), TimeUnit.MILLISECONDS)) {
-      Assert.fail();
-    }
+    CountDownLatchAssert.await(latch);
+    Mockito.verify(myModel).addOrSet(TestPhysicalDevices.GOOGLE_PIXEL_3);
   }
 }

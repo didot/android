@@ -21,14 +21,17 @@ import com.android.emulator.control.PaneEntry
 import com.android.emulator.control.PaneEntry.PaneIndex
 import com.android.sdklib.internal.avd.AvdInfo
 import com.android.testutils.MockitoKt.mock
-import com.android.tools.adtui.swing.setPortableUiFont
+import com.android.tools.adtui.actions.ZoomType
+import com.android.tools.adtui.swing.FakeUi
+import com.android.tools.adtui.swing.SetPortableUiFontRule
 import com.android.tools.idea.avdmanager.AvdLaunchListener
 import com.android.tools.idea.concurrency.waitForCondition
 import com.android.tools.idea.protobuf.TextFormat
-import com.android.tools.idea.run.AppDeploymentListener
+import com.android.tools.idea.run.DeviceHeadsUpListener
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.ide.ui.LafManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
@@ -37,6 +40,7 @@ import com.intellij.openapi.wm.ex.ToolWindowManagerListener
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.registerServiceInstance
+import com.intellij.testFramework.replaceService
 import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
 import com.intellij.util.ui.UIUtil.dispatchAllInvocationEvents
 import org.junit.Before
@@ -44,7 +48,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.Mockito.`when`
+import java.awt.Dimension
+import java.awt.Point
 import java.util.concurrent.TimeUnit
+import javax.swing.JViewport
+import javax.swing.UIManager
 
 /**
  * Tests for [EmulatorToolWindowManager] and [EmulatorToolWindowFactory].
@@ -57,6 +65,9 @@ class EmulatorToolWindowManagerTest {
   @get:Rule
   val ruleChain: RuleChain = RuleChain.outerRule(projectRule).around(emulatorRule).around(EdtRule())
 
+  @get:Rule
+  val portableUiFontRule = SetPortableUiFontRule()
+
   private val project
     get() = projectRule.project
 
@@ -66,7 +77,10 @@ class EmulatorToolWindowManagerTest {
 
   @Before
   fun setUp() {
-    setPortableUiFont()
+    val mockLafManager = mock<LafManager>()
+    `when`(mockLafManager.currentLookAndFeel).thenReturn(UIManager.LookAndFeelInfo("IntelliJ Light", "Ignored className"))
+    ApplicationManager.getApplication().replaceService(LafManager::class.java, mockLafManager, projectRule.testRootDisposable)
+
     val windowManager = TestToolWindowManager(project)
     toolWindow = windowManager.toolWindow
     project.registerServiceInstance(ToolWindowManager::class.java, windowManager)
@@ -93,8 +107,8 @@ class EmulatorToolWindowManagerTest {
     emulator2.start()
 
     // Send notification that the emulator has been launched.
-    val avdInfo = AvdInfo(emulator1.avdId, emulator1.avdFolder.resolve("config.ini").toFile(),
-                          emulator1.avdFolder.toString(), mock(), null)
+    val avdInfo = AvdInfo(emulator1.avdId, emulator1.avdFolder.resolve("config.ini"),
+                          emulator1.avdFolder, mock(), null)
     val commandLine = GeneralCommandLine("/emulator_home/fake_emulator", "-avd", emulator1.avdId, "-qt-hide-window")
     project.messageBus.syncPublisher(AvdLaunchListener.TOPIC).avdLaunched(avdInfo, commandLine, project)
     dispatchAllInvocationEvents()
@@ -122,7 +136,7 @@ class EmulatorToolWindowManagerTest {
       val device = mock<IDevice>()
       `when`(device.isEmulator).thenReturn(true)
       `when`(device.serialNumber).thenReturn("emulator-${emulator.serialPort}")
-      project.messageBus.syncPublisher(AppDeploymentListener.TOPIC).appDeployedToDevice(device, project)
+      project.messageBus.syncPublisher(DeviceHeadsUpListener.TOPIC).deviceNeedsAttention(device, project)
     }
 
     // Deploying an app activates the corresponding emulator panel.
@@ -159,7 +173,7 @@ class EmulatorToolWindowManagerTest {
     assertThat(contentManager.contents).isEmpty()
 
     val tempFolder = emulatorRule.root
-    val emulator = emulatorRule.newEmulator(FakeEmulator.createPhoneAvd(tempFolder), standalone = false)
+    val emulator = emulatorRule.newEmulator(FakeEmulator.createPhoneAvd(tempFolder))
 
     toolWindow.show()
 
@@ -187,7 +201,7 @@ class EmulatorToolWindowManagerTest {
     assertThat(contentManager.contents).isEmpty()
 
     val tempFolder = emulatorRule.root
-    val emulator = emulatorRule.newEmulator(FakeEmulator.createPhoneAvd(tempFolder), standalone = false)
+    val emulator = emulatorRule.newEmulator(FakeEmulator.createPhoneAvd(tempFolder))
 
     toolWindow.show()
 
@@ -220,6 +234,57 @@ class EmulatorToolWindowManagerTest {
 
     // Wait for the extended controls to show.
     waitForCondition(2, TimeUnit.SECONDS) { emulator.extendedControlsVisible }
+  }
+
+  @Test
+  fun testZoomStatePreservation() {
+    val factory = EmulatorToolWindowFactory()
+    assertThat(factory.shouldBeAvailable(project)).isTrue()
+    factory.createToolWindowContent(project, toolWindow)
+    val contentManager = toolWindow.contentManager
+    assertThat(contentManager.contents).isEmpty()
+
+    val tempFolder = emulatorRule.root
+    val emulator = emulatorRule.newEmulator(FakeEmulator.createPhoneAvd(tempFolder))
+
+    toolWindow.show()
+
+    // Start the emulator.
+    emulator.start()
+
+    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents.isNotEmpty() }
+    assertThat(contentManager.contents).hasLength(1)
+    waitForCondition(2, TimeUnit.SECONDS) { RunningEmulatorCatalog.getInstance().emulators.isNotEmpty() }
+    val emulatorController = RunningEmulatorCatalog.getInstance().emulators.first()
+    waitForCondition(4, TimeUnit.SECONDS) { emulatorController.connectionState == EmulatorController.ConnectionState.CONNECTED }
+    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents[0].displayName != "No Running Emulators" }
+    assertThat(contentManager.contents[0].displayName).isEqualTo(emulator.avdName)
+
+    val panel = contentManager.contents[0].component as EmulatorToolWindowPanel
+    panel.setSize(250, 500)
+    val ui = FakeUi(panel)
+    val emulatorView = ui.getComponent<EmulatorView>()
+    waitForCondition(2, TimeUnit.SECONDS) { emulatorView.frameNumber > 0 }
+
+    // Zoom in.
+    emulatorView.zoom(ZoomType.IN)
+    ui.layoutAndDispatchEvents()
+    assertThat(emulatorView.scale).isWithin(0.0001).of(0.25)
+    var viewport = emulatorView.parent as JViewport
+    val viewportSize = viewport.viewSize
+    assertThat(viewportSize).isEqualTo(Dimension(396, 811))
+    // Scroll to the bottom.
+    val scrollPosition = Point(viewport.viewPosition.x, viewport.viewSize.height - viewport.height)
+    viewport.viewPosition = scrollPosition
+
+    toolWindow.hide()
+    toolWindow.show()
+
+    ui.layoutAndDispatchEvents()
+    assertThat(emulatorView.scale).isWithin(0.0001).of(0.25)
+    viewport = emulatorView.parent as JViewport
+    assertThat(viewport.viewSize).isEqualTo(viewportSize)
+    assertThat(viewport.viewPosition).isEqualTo(scrollPosition)
   }
 
   private val FakeEmulator.avdName

@@ -16,37 +16,49 @@
 package com.android.tools.idea.layoutinspector.pipeline.legacy
 
 import com.android.testutils.MockitoKt.any
+import com.android.testutils.MockitoKt.eq
+import com.android.testutils.VirtualTimeScheduler
+import com.android.tools.idea.concurrency.waitForCondition
 import com.android.tools.idea.layoutinspector.InspectorClientProvider
 import com.android.tools.idea.layoutinspector.LEGACY_DEVICE
-import com.android.tools.idea.layoutinspector.LayoutInspector
 import com.android.tools.idea.layoutinspector.LayoutInspectorRule
 import com.android.tools.idea.layoutinspector.LegacyClientProvider
 import com.android.tools.idea.layoutinspector.createProcess
-import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
-import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLauncher
+import com.android.tools.idea.layoutinspector.pipeline.CONNECT_TIMEOUT_SECONDS
+import com.android.tools.idea.layoutinspector.pipeline.DisconnectedClient
+import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLaunchMonitor
 import com.android.tools.idea.layoutinspector.resource.ResourceLookup
 import com.google.common.truth.Truth.assertThat
+import com.intellij.testFramework.DisposableRule
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers.argThat
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class LegacyClientTest {
   private val windowIds = mutableListOf<String>()
-  private val legacyClientProvider = object : InspectorClientProvider {
-    override fun create(params: InspectorClientLauncher.Params, inspector: LayoutInspector): InspectorClient {
-      val loader = mock(LegacyTreeLoader::class.java)
-      doAnswer { windowIds }.`when`(loader).getAllWindowIds(ArgumentMatchers.any())
-      return LegacyClientProvider(loader).create(params, inspector) as LegacyClient
-    }
+
+  private val disposableRule = DisposableRule()
+  private val scheduler = VirtualTimeScheduler()
+
+  private val legacyClientProvider = InspectorClientProvider { params, inspector ->
+    val loader = mock(LegacyTreeLoader::class.java)
+    doAnswer { windowIds }.`when`(loader).getAllWindowIds(ArgumentMatchers.any())
+    val client = LegacyClientProvider(disposableRule.disposable, loader).create(params, inspector) as LegacyClient
+    client.launchMonitor = InspectorClientLaunchMonitor(scheduler)
+    client
   }
 
+  private val inspectorRule = LayoutInspectorRule(listOf(legacyClientProvider))
   @get:Rule
-  val inspectorRule = LayoutInspectorRule(legacyClientProvider)
+  val ruleChain = RuleChain.outerRule(inspectorRule).around(disposableRule)!!
+
 
   @Test
   fun testReloadAllWindows() {
@@ -54,19 +66,34 @@ class LegacyClientTest {
     inspectorRule.processes.selectedProcess = LEGACY_DEVICE.createProcess() // This causes the tree to get loaded as a side effect
     val client = inspectorRule.inspectorClient as LegacyClient
 
-    verify(client.treeLoader).loadComponentTree(argThat { event: LegacyEvent -> event.windowId == "window1" },
-                                                any(ResourceLookup::class.java))
-    verify(client.treeLoader).loadComponentTree(argThat { event: LegacyEvent -> event.windowId == "window2" },
-                                                any(ResourceLookup::class.java))
-    verify(client.treeLoader).loadComponentTree(argThat { event: LegacyEvent -> event.windowId == "window3" },
-                                                any(ResourceLookup::class.java))
+    verify(client.treeLoader).loadComponentTree(
+      argThat { event: LegacyEvent -> event.windowId == "window1" },
+      any(ResourceLookup::class.java),
+      eq(client.process)
+    )
+    verify(client.treeLoader).loadComponentTree(
+      argThat { event: LegacyEvent -> event.windowId == "window2" },
+      any(ResourceLookup::class.java),
+      eq(client.process)
+    )
+    verify(client.treeLoader).loadComponentTree(
+      argThat { event: LegacyEvent -> event.windowId == "window3" },
+      any(ResourceLookup::class.java),
+      eq(client.process)
+    )
   }
 
   @Test
   fun testReloadAllWindowsWithNone() {
-    inspectorRule.processes.selectedProcess = LEGACY_DEVICE.createProcess()
-    val client = inspectorRule.inspectorClient as LegacyClient
-    assertThat(client.reloadAllWindows()).isFalse()
+    val executor = Executors.newSingleThreadExecutor()
+    executor.execute {
+      inspectorRule.processes.selectedProcess = LEGACY_DEVICE.createProcess()
+    }
+    waitForCondition(5, TimeUnit.SECONDS) { inspectorRule.inspectorClient is LegacyClient }
+    assertThat((inspectorRule.inspectorClient as LegacyClient).reloadAllWindows()).isFalse()
+    scheduler.advanceBy(CONNECT_TIMEOUT_SECONDS + 1, TimeUnit.SECONDS)
+    waitForCondition(5, TimeUnit.SECONDS) { inspectorRule.inspectorClient === DisconnectedClient }
+    executor.shutdownNow()
   }
 
   @Test
@@ -77,7 +104,10 @@ class LegacyClientTest {
     }
     inspectorRule.processes.selectedProcess = LEGACY_DEVICE.createProcess()
     val client = inspectorRule.inspectorClient as LegacyClient
-    verify(client.treeLoader).loadComponentTree(argThat { event: LegacyEvent -> event.windowId == "window1" },
-                                                any(ResourceLookup::class.java))
+    verify(client.treeLoader).loadComponentTree(
+      argThat { event: LegacyEvent -> event.windowId == "window1" },
+      any(ResourceLookup::class.java),
+      eq(client.process)
+    )
   }
 }

@@ -68,7 +68,9 @@ import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBLoadingPanel;
 import com.intellij.uiDesigner.core.GridLayoutManager;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Rectangle;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -81,12 +83,20 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
-import javax.swing.*;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class AppBarConfigurationDialog extends JDialog {
+public class AppBarConfigurationDialog extends JDialog {
   private static final String DIALOG_TITLE = "Configure App Bar";
   private static final String DEFAULT_BACKGROUND_IMAGE = "@android:drawable/sym_def_app_icon";
   private static final String DEFAULT_FAB_IMAGE = "@android:drawable/ic_input_add";

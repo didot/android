@@ -22,10 +22,12 @@ import static javax.swing.BorderFactory.createEmptyBorder;
 import com.intellij.icons.AllIcons;
 import com.intellij.ui.SimpleColoredComponent;
 import com.intellij.ui.components.JBLabel;
-import java.awt.*;
+import java.awt.BorderLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import org.jetbrains.annotations.NotNull;
 
 public class CollapsiblePanel extends JPanel {

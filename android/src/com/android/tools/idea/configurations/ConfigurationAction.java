@@ -32,7 +32,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.util.List;
 import java.util.Objects;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -60,8 +60,8 @@ abstract class ConfigurationAction extends AnAction implements ConfigurationList
 
   @Override
   public void actionPerformed(@NotNull AnActionEvent e) {
-    // Regular actions invoke this method before performing the action.
-    // We do so as well since the analytics subsystem hooks into this event to monitor invoked actions.
+    // Regular actions invoke this method before performing the action. We do so as well since the analytics subsystem hooks into
+    // this event to monitor invoked actions.
     ActionUtil.performDumbAwareWithCallbacks(this, e, () -> {
       tryUpdateConfiguration();
       updatePresentation(e.getPresentation());

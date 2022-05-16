@@ -31,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
 public class IdeaContentRootStub implements IdeaContentRoot {
   @NotNull private final List<IdeaSourceDirectory> mySourceDirs = new ArrayList<>();
   @NotNull private final List<IdeaSourceDirectory> myTestDirs = new ArrayList<>();
-  @NotNull private final Set<File> myExcludedDirs = new HashSet<File>();
+  @NotNull private final Set<File> myExcludedDirs = new HashSet<>();
 
   @NotNull private final FileStructure myFileStructure;
 

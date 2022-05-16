@@ -21,7 +21,6 @@ import com.android.projectmodel.ExternalAndroidLibrary
 import com.android.projectmodel.RecursiveResourceFolder
 import com.android.projectmodel.ResourceFolder
 import com.android.tools.idea.gradle.model.IdeAndroidLibrary
-import com.android.tools.idea.gradle.model.IdeLibrary
 
 /**
  * Converts a builder-model [IdeAndroidLibrary] into a [ExternalAndroidLibrary]. Returns null
@@ -29,16 +28,18 @@ import com.android.tools.idea.gradle.model.IdeLibrary
  */
 fun convertLibraryToExternalLibrary(source: IdeAndroidLibrary): ExternalAndroidLibrary = AndroidLibraryWrapper(source)
 
-private abstract class LibraryWrapper<T: IdeLibrary>(protected val lib: T) : ExternalAndroidLibrary {
+private abstract class LibraryWrapper<T: IdeAndroidLibrary>(protected val lib: T) : ExternalAndroidLibrary {
+  private val file = lib.artifact
+
   @Suppress("FileComparisons")
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     if (javaClass != other?.javaClass) return false
-    return lib.artifact == (other as? LibraryWrapper<*>)?.lib?.artifact
+    return file == (other as? LibraryWrapper<*>)?.lib?.artifact
   }
 
   override fun hashCode(): Int {
-    return lib.artifact.hashCode()
+    return file.hashCode()
   }
 }
 
@@ -48,6 +49,7 @@ private class AndroidLibraryWrapper(source: IdeAndroidLibrary) : LibraryWrapper<
   override val manifestFile: PathString? get() = PathString(lib.manifest)
   override val packageName: String? get() = null
   override val resFolder: ResourceFolder? get() = RecursiveResourceFolder(PathString(lib.resFolder))
+  override val assetsFolder: PathString? get() = PathString(lib.assetsFolder)
   override val symbolFile: PathString? get() = PathString(lib.symbolFile)
   override val resApkFile: PathString? get() = lib.resStaticLibrary?.let(::PathString)
 

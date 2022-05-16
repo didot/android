@@ -17,7 +17,6 @@ package com.android.tools.idea.editors.theme;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import com.android.builder.model.AaptOptions;
 import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.ide.common.rendering.api.ResourceReference;
 import com.android.ide.common.repository.GradleVersion;
@@ -32,9 +31,7 @@ import com.android.tools.idea.projectsystem.TestRepositories;
 import com.android.tools.idea.rendering.multi.CompatibilityRenderTarget;
 import com.android.tools.idea.res.ResourceRepositoryManager;
 import com.intellij.openapi.application.WriteAction;
-import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.ServiceContainerUtil;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;

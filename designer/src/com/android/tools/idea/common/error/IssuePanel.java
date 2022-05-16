@@ -18,7 +18,7 @@ package com.android.tools.idea.common.error;
 import com.android.tools.adtui.common.AdtSecondaryPanel;
 import com.android.tools.adtui.util.ActionToolbarUtil;
 import com.android.tools.idea.common.model.NlComponent;
-import com.android.tools.idea.common.surface.DesignSurface;
+import com.android.tools.idea.flags.StudioFlags;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
@@ -34,11 +34,20 @@ import com.intellij.ui.JBColor;
 import com.intellij.ui.SideBorder;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Paint;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
@@ -52,7 +61,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JViewport;
+import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
+import javax.swing.UIManager;
+import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -60,6 +80,8 @@ import org.jetbrains.annotations.Nullable;
  * Panel that displays a list of {@link Issue}.
  */
 public class IssuePanel extends JPanel implements Disposable, PropertyChangeListener {
+  private static final String ACTION_BAR_PLACE = "issue_panel";
+
   private static final String ISSUE_PANEL_NAME = "Layout Editor Error Panel";
   private static final String TITLE_NO_ISSUES = "No issues";
   private static final String TITLE_NO_IMPORTANT_ISSUE = "Issues";
@@ -86,11 +108,11 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
   private final JBLabel myTitleLabel;
   private final IssueModel.IssueModelListener myIssueModelListener;
   private final JBScrollPane myScrollPane;
-  private final DesignSurface mySurface;
   private final ColumnHeaderPanel myColumnHeaderView;
   private final List<EventListener> myEventListeners = new ArrayList<>();
   @Nullable private IssueView mySelectedIssueView;
   @Nullable private Issue mySelectedIssue;
+  @NotNull final private IssueListener myListener;
 
   /**
    * Whether the user has seen the issues or not. We consider the issues "seen" if the panel is not minimized
@@ -102,13 +124,13 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
    * If set to false, the panel will not minimize/maximaze without user interaction.
    * The default behaviour is to have the panel automatically collapse if no errors are present.
    */
-  private boolean myAutoSize = true;
+  private boolean myAutoSize;
 
-  public IssuePanel(@NotNull DesignSurface designSurface, @NotNull IssueModel issueModel) {
+  public IssuePanel(@NotNull IssueModel issueModel, @NotNull IssueListener listener) {
     super(new BorderLayout());
     setName(ISSUE_PANEL_NAME);
     myIssueModel = issueModel;
-    mySurface = designSurface;
+    myListener = listener;
 
     myTitleLabel = createTitleLabel();
     JComponent titlePanel = createTitlePanel(myTitleLabel);
@@ -129,7 +151,14 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
     setRequestFocusEnabled(true);
     registerKeyboardActions();
     addFocusListener(createFocusListener());
-    setMinimized(true);
+    if (StudioFlags.NELE_SHOW_ISSUE_PANEL_IN_PROBLEMS.get()) {
+      isMinimized = false;
+      myAutoSize = false;
+    }
+    else {
+      setMinimized(true);
+      myAutoSize = true;
+    }
     setMinimumSize(JBUI.size(200));
     UIManager.addPropertyChangeListener(this);
     myInitialized = true;
@@ -230,8 +259,12 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
   @NotNull
   private ActionToolbar createToolbar() {
     DefaultActionGroup actionGroup = new DefaultActionGroup();
-    actionGroup.add(new MinimizeAction());
-    ActionToolbar toolbar = ActionManager.getInstance().createActionToolbar("AndroidDesignerIssuePanel", actionGroup, true);
+    if (!StudioFlags.NELE_SHOW_ISSUE_PANEL_IN_PROBLEMS.get()) {
+      // The minimize button is not needed when showing issue panel in IJ's problem panel.
+      actionGroup.add(new MinimizeAction());
+    }
+    ActionToolbar toolbar = ActionManager.getInstance().createActionToolbar(ACTION_BAR_PLACE, actionGroup, true);
+    toolbar.setTargetComponent(this);
     ActionToolbarUtil.makeToolbarNavigable(toolbar);
     toolbar.setLayoutPolicy(ActionToolbar.NOWRAP_LAYOUT_POLICY);
     return toolbar;
@@ -252,6 +285,9 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
    * Disables the auto-sizing of the panel. This will prevent the panel from automatically collapsing if there are no errors.
    */
   public void disableAutoSize() {
+    if (StudioFlags.NELE_SHOW_ISSUE_PANEL_IN_PROBLEMS.get()) {
+      Logger.getLogger(IssuePanel.class).warn("The issue panel should never auto resize when showing in IJ's problem panel.");
+    }
     myAutoSize = false;
   }
 
@@ -285,7 +321,7 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
         setSelectedIssue(null);
         myDisplayedError.clear();
         myErrorListPanel.removeAll();
-        if (myAutoSize) {
+        if (!StudioFlags.NELE_SHOW_ISSUE_PANEL_IN_PROBLEMS.get() && myAutoSize) {
           setMinimized(true);
         }
         return;
@@ -343,6 +379,9 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
       if (!myDisplayedError.containsKey(error)) {
         addErrorEntry(error);
         needsRevalidate = true;
+      }
+      else {
+        myDisplayedError.get(error).updateDescription(error);
       }
     }
     return needsRevalidate;
@@ -413,6 +452,10 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
   }
 
   public void setMinimized(boolean minimized) {
+    if (StudioFlags.NELE_SHOW_ISSUE_PANEL_IN_PROBLEMS.get()) {
+      Logger.getLogger(IssuePanel.class).warn("Issue panel should never be minimized when showing in IJ's problems panel");
+      return;
+    }
     if (minimized == isMinimized) {
       return;
     }
@@ -478,7 +521,7 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
         if (issue == null) {
           return;
         }
-        issue.getSource().getOnIssueSelected().invoke(mySurface);
+        myListener.onIssueSelected(issue);
       }
     }
   }
@@ -538,7 +581,10 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
         }
       }
     }
-    setMinimized(false);
+
+    if (!StudioFlags.NELE_SHOW_ISSUE_PANEL_IN_PROBLEMS.get()) {
+      setMinimized(false);
+    }
     if (issueView != null) {
       JViewport viewport = myScrollPane.getViewport();
       viewport.validate();
@@ -615,7 +661,7 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
       setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, JBColor.border()));
       mySourceLabel.setBorder(BorderFactory.createCompoundBorder(
         BorderFactory.createMatteBorder(0, 1, 0, 0, JBColor.border()),
-        BorderFactory.createEmptyBorder(0, JBUI.scale(6), 0, 0)));
+        BorderFactory.createEmptyBorder(0, JBUIScale.scale(6), 0, 0)));
       add(myMessageLabel);
       add(mySourceLabel);
       myInitialized = true;
@@ -629,7 +675,7 @@ public class IssuePanel extends JPanel implements Disposable, PropertyChangeList
         mySourceLabel.setFont(UIUtil.getLabelFont(UIUtil.FontSize.SMALL));
         mySourceLabel.setBorder(BorderFactory.createCompoundBorder(
           BorderFactory.createMatteBorder(0, 1, 0, 0, JBColor.border()),
-          BorderFactory.createEmptyBorder(0, JBUI.scale(6), 0, 0)));
+          BorderFactory.createEmptyBorder(0, JBUIScale.scale(6), 0, 0)));
       }
     }
 

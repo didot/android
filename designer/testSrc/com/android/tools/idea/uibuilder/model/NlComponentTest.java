@@ -47,7 +47,6 @@ import com.android.tools.idea.uibuilder.surface.NlDesignSurface;
 import com.android.tools.idea.uibuilder.surface.NlInteractionHandler;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.WriteCommandAction;
-import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
@@ -59,7 +58,6 @@ import com.intellij.psi.xml.XmlTag;
 import com.intellij.util.ui.UIUtil;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.function.Consumer;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
 
@@ -119,7 +117,7 @@ public final class NlComponentTest extends LayoutTestCase {
   @NotNull
   private NlComponent createComponent(@NotNull XmlTag tag) {
     NlComponent result = new NlComponent(myModel, tag);
-    NlComponentHelper.INSTANCE.registerComponent(result);
+    NlComponentRegistrar.INSTANCE.accept(result);
     return result;
   }
 
@@ -320,8 +318,8 @@ public final class NlComponentTest extends LayoutTestCase {
     String editText = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                       "<layout>\n" +
                       "<RelativeLayout\n" +
-                      "  xmlns:tools=\"http://schemas.android.com/tools\"\n" +
-                      "  xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
+                      "  xmlns:android=\"http://schemas.android.com/apk/res/android\"\n" +
+                      "  xmlns:tools=\"http://schemas.android.com/tools\">\n" +
                       "  <Button\n" +
                       "         android:id=\"@+id/button\"\n" +
                       "         android:layout_width=\"wrap_content\"\n" +
@@ -337,9 +335,8 @@ public final class NlComponentTest extends LayoutTestCase {
     XmlFile xmlFile = (XmlFile)myFixture.addFileToProject("res/layout/layout.xml", editText);
 
     DesignSurface surface = ModelBuilder.createSurface(getProject(), NlDesignSurface.class, NlInteractionHandler::new);
-    Consumer<NlComponent> componentRegistrar = (@NotNull NlComponent component) -> NlComponentHelper.INSTANCE.registerComponent(component);
-    when(surface.getComponentRegistrar()).thenReturn(componentRegistrar);
-    myModel = SyncNlModel.create(surface, getTestRootDisposable(), myFacet, xmlFile.getVirtualFile());
+    myModel = SyncNlModel.create(getTestRootDisposable(), NlComponentRegistrar.INSTANCE, null, null, myFacet, xmlFile.getVirtualFile());
+    ((SyncNlModel)myModel).setDesignSurface(surface);
     myModel.syncWithPsi(xmlFile.getRootTag(), Collections.emptyList());
 
     NlComponent component = myModel.find("button");
@@ -347,9 +344,9 @@ public final class NlComponentTest extends LayoutTestCase {
 
     @Language("XML")
     String expected = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
-                      "<layout xmlns:app=\"http://schemas.android.com/apk/res-auto\"\n" +
-                      "    xmlns:tools=\"http://schemas.android.com/tools\"\n" +
-                      "    xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
+                      "<layout xmlns:android=\"http://schemas.android.com/apk/res/android\"\n" +
+                      "    xmlns:app=\"http://schemas.android.com/apk/res-auto\"\n" +
+                      "    xmlns:tools=\"http://schemas.android.com/tools\">\n" +
                       "<RelativeLayout>\n" +
                       "\n" +
                       "    <Button\n" +
@@ -394,8 +391,8 @@ public final class NlComponentTest extends LayoutTestCase {
     String editText = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                       "<layout>\n" +
                       "<RelativeLayout\n" +
-                      "  xmlns:tools123=\"http://schemas.android.com/tools\"\n" +
-                      "  xmlns:android=\"http://schemas.android.com/apk/res/android\">" +
+                      "  xmlns:android=\"http://schemas.android.com/apk/res/android\"\n" +
+                      "  xmlns:tools123=\"http://schemas.android.com/tools\">" +
                       "  <Button\n" +
                       "         android:id=\"@+id/editText\"\n" +
                       "         android:layout_width=\"wrap_content\"\n" +
@@ -409,9 +406,8 @@ public final class NlComponentTest extends LayoutTestCase {
                       "</layout>\n";
     XmlFile xmlFile = (XmlFile)myFixture.addFileToProject("res/layout/layout.xml", editText);
     DesignSurface surface = ModelBuilder.createSurface(getProject(), NlDesignSurface.class, NlInteractionHandler::new);
-    Consumer<NlComponent> componentRegistrar = (@NotNull NlComponent component) -> NlComponentHelper.INSTANCE.registerComponent(component);
-    when(surface.getComponentRegistrar()).thenReturn(componentRegistrar);
-    myModel = SyncNlModel.create(surface, getTestRootDisposable(), myFacet, xmlFile.getVirtualFile());
+    myModel = SyncNlModel.create(getTestRootDisposable(), NlComponentRegistrar.INSTANCE, null, null, myFacet, xmlFile.getVirtualFile());
+    ((SyncNlModel)myModel).setDesignSurface(surface);
     myModel.syncWithPsi(xmlFile.getRootTag(), Collections.emptyList());
     NlComponent relativeLayout = myModel.getComponents().get(0).getChild(0);
 
@@ -429,8 +425,8 @@ public final class NlComponentTest extends LayoutTestCase {
 
     @Language("XML")
     String expected = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
-                      "<layout xmlns:tools123=\"http://schemas.android.com/tools\"\n" +
-                      "    xmlns:android=\"http://schemas.android.com/apk/res/android\">\n" +
+                      "<layout xmlns:android=\"http://schemas.android.com/apk/res/android\"\n" +
+                      "    xmlns:tools123=\"http://schemas.android.com/tools\">\n" +
                       "\n" +
                       "    <RelativeLayout>\n" +
                       "\n" +
@@ -472,9 +468,8 @@ public final class NlComponentTest extends LayoutTestCase {
                       "</RelativeLayout>\n";
     XmlFile xmlFile = (XmlFile)myFixture.addFileToProject("res/layout/layout.xml", editText);
     DesignSurface surface = ModelBuilder.createSurface(getProject(), NlDesignSurface.class, NlInteractionHandler::new);
-    Consumer<NlComponent> componentRegistrar = (@NotNull NlComponent component) -> NlComponentHelper.INSTANCE.registerComponent(component);
-    when(surface.getComponentRegistrar()).thenReturn(componentRegistrar);
-    myModel = SyncNlModel.create(surface, getTestRootDisposable(), myFacet, xmlFile.getVirtualFile());
+    myModel = SyncNlModel.create(getTestRootDisposable(), NlComponentRegistrar.INSTANCE,null, null, myFacet, xmlFile.getVirtualFile());
+    ((SyncNlModel)myModel).setDesignSurface(surface);
     myModel.syncWithPsi(xmlFile.getRootTag(), Collections.emptyList());
     NlComponent relativeLayout = myModel.getComponents().get(0);
 
@@ -644,7 +639,7 @@ public final class NlComponentTest extends LayoutTestCase {
   @NotNull
   private static String arrangeXml(@NotNull Project project, @NotNull PsiFile psiFile) {
     WriteCommandAction.runWriteCommandAction(project, () -> {
-      ServiceManager.getService(project, ArrangementEngine.class).arrange(psiFile, Collections.singleton(psiFile.getTextRange()));
+      project.getService(ArrangementEngine.class).arrange(psiFile, Collections.singleton(psiFile.getTextRange()));
       ApplicationManager.getApplication().saveAll();
     });
     return FileDocumentManager.getInstance().getDocument(psiFile.getVirtualFile()).getText();

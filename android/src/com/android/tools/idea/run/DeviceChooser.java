@@ -22,11 +22,12 @@ import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
 import com.android.sdklib.AndroidVersion;
 import com.android.sdklib.IAndroidTarget;
+import com.android.sdklib.devices.Abi;
 import com.android.tools.idea.avdmanager.AvdManagerUtils;
 import com.android.tools.idea.ddms.DeviceNameProperties;
 import com.android.tools.idea.ddms.DeviceNamePropertiesFetcher;
 import com.android.tools.idea.ddms.DeviceRenderer;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
+import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.model.AndroidModuleInfo;
 import com.android.tools.idea.run.LaunchCompatibility.State;
 import com.google.common.base.Predicate;
@@ -52,7 +53,7 @@ import com.intellij.util.ui.UIUtil;
 import com.intellij.util.ui.update.MergingUpdateQueue;
 import com.intellij.util.ui.update.Update;
 import gnu.trove.TIntArrayList;
-import java.awt.*;
+import java.awt.FontMetrics;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
@@ -68,7 +69,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.JComponent;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.AbstractTableModel;
@@ -98,7 +103,7 @@ public class DeviceChooser implements Disposable, AndroidDebugBridge.IDebugBridg
   private final ListenableFuture<AndroidVersion> myMinSdkVersion;
   private final AndroidFacet myFacet;
   private final IAndroidTarget myProjectTarget;
-  private final Set<String> mySupportedAbis;
+  private final Set<Abi> mySupportedAbis;
 
   private int[] mySelectedRows;
   private final AtomicBoolean myDevicesDetected = new AtomicBoolean();
@@ -112,9 +117,9 @@ public class DeviceChooser implements Disposable, AndroidDebugBridge.IDebugBridg
     myFilter = filter;
     myMinSdkVersion = AndroidModuleInfo.getInstance(facet).getRuntimeMinSdkVersion();
     myProjectTarget = projectTarget;
-    AndroidModuleModel androidModuleModel = AndroidModuleModel.get(facet);
-    mySupportedAbis = androidModuleModel != null ?
-                      androidModuleModel.getSelectedVariant().getMainArtifact().getAbiFilters() :
+    AndroidModel androidModel = AndroidModel.get(facet);
+    mySupportedAbis = androidModel != null ?
+                      androidModel.getSupportedAbis() :
                       Collections.emptySet();
 
     myDeviceTable = new JBTable();
@@ -147,7 +152,7 @@ public class DeviceChooser implements Disposable, AndroidDebugBridge.IDebugBridg
     myDeviceTable.setDefaultRenderer(LaunchCompatibility.class, new LaunchCompatibilityRenderer());
     myDeviceTable.setDefaultRenderer(IDevice.class, new DeviceRenderer.DeviceNameRenderer(
       AvdManagerUtils.getAvdManagerSilently(facet),
-      new DeviceNamePropertiesFetcher(this, new FutureCallback<DeviceNameProperties>() {
+      new DeviceNamePropertiesFetcher(this, new FutureCallback<>() {
         @Override
         public void onSuccess(@Nullable DeviceNameProperties result) {
           updateTable();
@@ -252,7 +257,7 @@ public class DeviceChooser implements Disposable, AndroidDebugBridge.IDebugBridg
     final IDevice[] devices = getFilteredDevices();
     if (devices.length > 1) {
       // sort by API level
-      Arrays.sort(devices, new Comparator<IDevice>() {
+      Arrays.sort(devices, new Comparator<>() {
         @Override
         public int compare(IDevice device1, IDevice device2) {
           int apiLevel1 = safeGetApiLevel(device1);
@@ -497,7 +502,7 @@ public class DeviceChooser implements Disposable, AndroidDebugBridge.IDebugBridg
           return getDeviceState(device);
         case COMPATIBILITY_COLUMN_INDEX:
           // This value is also used in the method isRowCompatible(). Update that if there's a change here.
-          AndroidDevice connectedDevice = new ConnectedAndroidDevice(device, null);
+          AndroidDevice connectedDevice = new ConnectedAndroidDevice(device);
           try {
             return myMinSdkVersion.isDone() ? connectedDevice
               .canRun(myMinSdkVersion.get(), myProjectTarget, myFacet, LaunchCompatibilityCheckerImpl::getRequiredHardwareFeatures,

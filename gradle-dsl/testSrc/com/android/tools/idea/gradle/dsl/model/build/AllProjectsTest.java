@@ -296,7 +296,6 @@ public class AllProjectsTest extends GradleFileModelTestCase {
     ;
 
     @NotNull private @SystemDependent String path;
-
     TestFile(@NotNull @SystemDependent String path) {
       this.path = path;
     }

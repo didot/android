@@ -18,6 +18,7 @@ package com.android.tools.idea.layoutinspector
 import com.android.SdkConstants.CLASS_VIEW
 import com.android.ide.common.rendering.api.ResourceNamespace
 import com.android.ide.common.rendering.api.ResourceReference
+import com.android.ide.common.resources.configuration.FolderConfiguration
 import com.android.resources.ResourceType
 import com.android.testutils.MockitoKt.mock
 import com.android.tools.idea.layoutinspector.model.AndroidWindow.ImageType
@@ -29,10 +30,14 @@ import com.android.tools.idea.layoutinspector.model.InspectorModel
 import com.android.tools.idea.layoutinspector.model.ViewNode
 import com.android.tools.idea.layoutinspector.tree.TreeSettings
 import com.android.tools.idea.layoutinspector.util.ConfigurationParamsBuilder
-import com.android.tools.idea.layoutinspector.util.TestStringTable
 import com.android.tools.idea.layoutinspector.util.FakeTreeSettings
+import com.android.tools.idea.layoutinspector.util.TestStringTable
+import com.android.tools.idea.model.AndroidModel
+import com.android.tools.idea.model.TestAndroidModel
+import com.intellij.facet.ProjectFacetManager
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
+import org.jetbrains.android.facet.AndroidFacet
 import java.awt.Rectangle
 import java.awt.Shape
 import java.awt.image.BufferedImage
@@ -54,10 +59,10 @@ fun window(windowId: Any,
   FakeAndroidWindow(
     InspectorViewDescriptor(rootViewDrawId, rootViewQualifiedName, x, y, width, height, null, null, "", layoutFlags, null)
       .also(body).build(), windowId, imageType) { _, window ->
-    ViewNode.writeDrawChildren { drawChildren ->
+    ViewNode.writeAccess {
       window.root.flatten().forEach {
-        it.drawChildren().clear()
-        it.children.mapTo(it.drawChildren()) { child -> DrawViewChild(child) }
+        it.drawChildren.clear()
+        it.children.mapTo(it.drawChildren) { child -> DrawViewChild(child) }
       }
     }
   }
@@ -166,21 +171,21 @@ class InspectorViewDescriptor(private val drawId: Long,
       if (composePackageHash == 0) ViewNode(drawId, qualifiedName, layout, x, y, width, height, bounds, viewId, textValue, layoutFlags)
       else ComposeViewNode(drawId, qualifiedName, null, x, y, width, height, null, null, textValue, 0,
                            composeFilename, composePackageHash, composeOffset, composeLineNumber, composeFlags)
-    ViewNode.writeDrawChildren { drawChildren ->
+    ViewNode.writeAccess {
       children.forEach {
         when (it) {
           is InspectorViewDescriptor -> {
             val viewNode = it.build()
             result.children.add(viewNode)
-            result.drawChildren().add(DrawViewChild(viewNode))
+            result.drawChildren.add(DrawViewChild(viewNode))
           }
           is InspectorImageDescriptor -> {
-            result.drawChildren().add(DrawViewImage(it.image, result))
+            result.drawChildren.add(DrawViewImage(it.image, result))
           }
         }
       }
+      result.children.forEach { it.parent = result }
     }
-    result.children.forEach { it.parent = result }
     return result
   }
 }
@@ -220,9 +225,9 @@ class InspectorModelDescriptor(val project: Project) {
     val model = InspectorModel(project)
     val windowRoot = root?.build() ?: return model
     val newWindow = FakeAndroidWindow(windowRoot, windowRoot.drawId, root?.imageType ?: ImageType.UNKNOWN) { _, window ->
-      ViewNode.writeDrawChildren { getDrawChildren ->
+      ViewNode.writeAccess {
         window.root.flatten().forEach {
-          val drawChildren = it.getDrawChildren()
+          val drawChildren = it.drawChildren
           val children = it.children
           if (drawChildren.any { drawChild -> drawChild is DrawViewImage }) {
             // We can't support changes to the child list when there are also images, currently, since we can't know where in the order
@@ -244,9 +249,12 @@ class InspectorModelDescriptor(val project: Project) {
     }
     model.update(newWindow, listOf(windowRoot.drawId), 0)
     if (ModuleManager.getInstance(project) != null) {
+      val facet = ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID).singleOrNull() ?: error("AndroidFacet required")
+      AndroidModel.set(facet, TestAndroidModel("com.example"))
       val strings = TestStringTable()
       val config = ConfigurationParamsBuilder(strings)
-      model.resourceLookup.updateConfiguration(config.makeSampleContext(project), strings)
+      model.resourceLookup.updateConfiguration(
+        FolderConfiguration.createDefault(), 0f, config.makeSampleContext(project), strings, config.makeSampleProcess(project))
     }
     // This is usually added by DeviceViewPanel
     model.modificationListeners.add { _, new, _ ->

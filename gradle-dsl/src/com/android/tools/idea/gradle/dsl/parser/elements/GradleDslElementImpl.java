@@ -20,6 +20,8 @@ import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.followEle
 import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.isNonExpressionPropertiesElement;
 import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.isPropertiesElementOrMap;
 import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.METHOD;
+import static com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter.Kind.GROOVY;
+import static com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter.Kind.KOTLIN;
 import static com.android.tools.idea.gradle.dsl.parser.build.BuildScriptDslElement.BUILDSCRIPT;
 import static com.android.tools.idea.gradle.dsl.parser.ext.ExtDslElement.EXT;
 import static com.android.tools.idea.gradle.dsl.parser.settings.ProjectPropertiesDslElement.getStandardProjectKey;
@@ -29,24 +31,24 @@ import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
 import com.android.tools.idea.gradle.dsl.api.BuildModelNotification;
 import com.android.tools.idea.gradle.dsl.api.GradleSettingsModel;
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType;
-import com.android.tools.idea.gradle.dsl.api.util.GradleNameElementUtil;
 import com.android.tools.idea.gradle.dsl.model.GradleSettingsModelImpl;
 import com.android.tools.idea.gradle.dsl.model.notifications.NotificationTypeReference;
 import com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax;
 import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
+import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter.Kind;
 import com.android.tools.idea.gradle.dsl.parser.GradleDslParser;
 import com.android.tools.idea.gradle.dsl.parser.GradleReferenceInjection;
 import com.android.tools.idea.gradle.dsl.parser.ModificationAware;
 import com.android.tools.idea.gradle.dsl.parser.build.BuildScriptDslElement;
 import com.android.tools.idea.gradle.dsl.parser.ext.ExtDslElement;
+import com.android.tools.idea.gradle.dsl.parser.files.GradleBuildFile;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleSettingsFile;
 import com.android.tools.idea.gradle.dsl.parser.semantics.DescribedGradlePropertiesDslElement;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -162,11 +164,11 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
   public String getQualifiedName() {
     // Don't include the name of the parent if this element is a direct child of the file.
     if (myParent == null || myParent instanceof GradleDslFile) {
-      return GradleNameElementUtil.escape(getName());
+      return GradleNameElement.escape(getName());
     }
 
     String ourName = getName();
-    return myParent.getQualifiedName() + (ourName.isEmpty() ? "" : "." + GradleNameElementUtil.escape(ourName));
+    return myParent.getQualifiedName() + (ourName.isEmpty() ? "" : "." + GradleNameElement.escape(ourName));
   }
 
   @Override
@@ -392,15 +394,15 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
     }
 
     // Get Ext properties from the GradleDslFile, and the EXT properties from the buildscript.
-    if (currentElement instanceof GradleDslFile) {
-      GradleDslFile file = (GradleDslFile)currentElement;
+    if (currentElement instanceof GradleBuildFile) {
+      GradleBuildFile file = (GradleBuildFile)currentElement;
       while (file != null) {
         ExtDslElement ext = file.getPropertyElement(ExtDslElement.EXT);
         if (ext != null) {
           results.putAll(ext.getPropertyElements());
         }
         // Add properties files properties
-        GradleDslFile propertiesFile = file.getSiblingDslFile();
+        GradleDslFile propertiesFile = file.getPropertiesFile();
         if (propertiesFile != null) {
           // Only properties with no qualifier are picked up by build scripts.
           Map<String, GradleDslElement> filteredProperties =
@@ -417,7 +419,7 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
           }
         }
 
-        file = file.getParentModuleDslFile();
+        file = file.getParentModuleBuildFile();
       }
     }
 
@@ -536,9 +538,7 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
   protected void modify(Set<GradleDslElement> visited) {
     myModificationCount++;
     visited.add(this);
-    myDependents.forEach(e -> {
-      if (!visited.contains(e.getOriginElement())) e.getOriginElement().modify(visited);
-    });
+    myDependents.forEach(e -> { if (!visited.contains(e.getOriginElement())) e.getOriginElement().modify(visited); });
   }
 
   public void commit() {
@@ -575,8 +575,19 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
   }
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    return ImmutableMap.of();
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, ExternalToModelMap.empty, ExternalToModelMap.empty);
+  }
+
+  protected final @NotNull ExternalToModelMap getExternalToModelMap(
+    @NotNull GradleDslNameConverter converter,
+    ExternalToModelMap groovy,
+    ExternalToModelMap kts
+  ) {
+    Kind kind = converter.getKind();
+    if (kind == GROOVY) return groovy;
+    if (kind == KOTLIN) return kts;
+    return ExternalToModelMap.empty;
   }
 
   @Nullable
@@ -619,14 +630,12 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
 
       return map.getPropertyElement(index);
     }
-    else if (element instanceof GradleDslLiteral && ((GradleDslLiteral)element).isReference()) {
-      GradleDslElement value = followElement((GradleDslLiteral)element);
-      if (value == null) {
-        return null;
-      }
-      else {
-        return dereference(value, index);
-      }
+    GradleDslElement value = followElement(element);
+    if (value == null) {
+      return null;
+    }
+    else if (value != element) {
+      return dereference(value, index);
     }
     else {
       return null;
@@ -692,18 +701,18 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
   }
 
   @Nullable
-  private static GradleDslFile findDslFile(GradleDslFile rootModuleDslFile, File moduleDirectory) {
-    if (filesEqual(rootModuleDslFile.getDirectoryPath(), moduleDirectory)) {
-      return rootModuleDslFile;
+  private static GradleBuildFile findBuildFile(GradleBuildFile rootModuleBuildFile, File moduleDirectory) {
+    if (filesEqual(rootModuleBuildFile.getDirectoryPath(), moduleDirectory)) {
+      return rootModuleBuildFile;
     }
 
-    for (GradleDslFile dslFile : rootModuleDslFile.getChildModuleDslFiles()) {
-      if (filesEqual(dslFile.getDirectoryPath(), moduleDirectory)) {
-        return dslFile;
+    for (GradleBuildFile buildFile : rootModuleBuildFile.getChildModuleBuildFiles()) {
+      if (filesEqual(buildFile.getDirectoryPath(), moduleDirectory)) {
+        return buildFile;
       }
-      GradleDslFile childDslFile = findDslFile(dslFile, moduleDirectory);
-      if (childDslFile != null) {
-        return dslFile;
+      GradleBuildFile childBuildFile = findBuildFile(buildFile, moduleDirectory);
+      if (childBuildFile != null) {
+        return buildFile;
       }
     }
     return null;
@@ -721,9 +730,8 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
       // Only look for variables on the first iteration, otherwise only properties should be accessible.
       element = extractElementFromProperties(properties, nameParts.get(i), converter, i == 0, traceIndex < 0 ? null : trace.get(traceIndex--),
                                              traceIndex >= 0);
-      if (element instanceof GradleDslLiteral && ((GradleDslLiteral)element).isReference()) {
-        element = followElement((GradleDslLiteral)element);
-      }
+      if (element == null) return null;
+      element = followElement(element);
 
       // All elements we find must be GradlePropertiesDslElement on all but the last iteration.
       if (!isPropertiesElementOrMap(element)) {
@@ -805,20 +813,20 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
   }
 
   @Nullable
-  private static GradleDslElement resolveReferenceInPropertiesFile(@NotNull GradleDslFile buildDslFile, @NotNull String referenceText) {
-    GradleDslFile propertiesDslFile = buildDslFile.getSiblingDslFile();
+  private static GradleDslElement resolveReferenceInPropertiesFile(@NotNull GradleBuildFile buildDslFile, @NotNull String referenceText) {
+    GradleDslFile propertiesDslFile = buildDslFile.getPropertiesFile();
     return propertiesDslFile != null ? propertiesDslFile.getPropertyElement(referenceText) : null;
   }
 
   @Nullable
   private static GradleDslElement resolveReferenceInParentModules(
-    @NotNull GradleDslFile dslFile,
+    @NotNull GradleBuildFile buildFile,
     @NotNull List<String> referenceText,
     GradleDslNameConverter converter
   ) {
-    GradleDslFile parentDslFile = dslFile.getParentModuleDslFile();
-    while (parentDslFile != null) {
-      ExtDslElement extDslElement = parentDslFile.getPropertyElement(EXT);
+    GradleBuildFile parentBuildFile = buildFile.getParentModuleBuildFile();
+    while (parentBuildFile != null) {
+      ExtDslElement extDslElement = parentBuildFile.getPropertyElement(EXT);
       if (extDslElement != null) {
         GradleDslElement extPropertyElement = resolveReferenceOnPropertiesElement(extDslElement, referenceText, converter, new Stack<>());
         if (extPropertyElement != null) {
@@ -826,7 +834,7 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
         }
       }
 
-      BuildScriptDslElement bsDslElement = parentDslFile.getPropertyElement(BUILDSCRIPT);
+      BuildScriptDslElement bsDslElement = parentBuildFile.getPropertyElement(BUILDSCRIPT);
       if (bsDslElement != null) {
         GradleDslElement bsElement = resolveReferenceOnElement(bsDslElement, referenceText, converter, false, true, -1);
         if (bsElement != null) {
@@ -834,18 +842,18 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
         }
       }
 
-      if (parentDslFile.getParentModuleDslFile() == null) {
+      if (parentBuildFile.getParentModuleBuildFile() == null) {
         // This is the root project build.gradle file and the root project's gradle.properties file is already considered in
         // resolveReferenceInSameModule method.
         return null;
       }
 
-      GradleDslElement propertyElement = resolveReferenceInPropertiesFile(parentDslFile, String.join(".", referenceText));
+      GradleDslElement propertyElement = resolveReferenceInPropertiesFile(parentBuildFile, String.join(".", referenceText));
       if (propertyElement != null) {
         return propertyElement;
       }
 
-      parentDslFile = parentDslFile.getParentModuleDslFile();
+      parentBuildFile = parentBuildFile.getParentModuleBuildFile();
     }
     return null;
   }
@@ -869,35 +877,39 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
 
     // Try to resolve in the gradle.properties file of the startElement's module.
     GradleDslFile dslFile = startElement.getDslFile();
-    GradleDslElement propertyElement = resolveReferenceInPropertiesFile(dslFile, text);
-    if (propertyElement != null) {
-      return propertyElement;
-    }
-
-    // Ensure we check the buildscript as well.
-    BuildScriptDslElement bsDslElement = dslFile.getPropertyElement(BUILDSCRIPT);
-    if (bsDslElement != null) {
-      GradleDslElement bsElement = resolveReferenceOnElement(bsDslElement, referenceText, converter, false, true, -1);
-      if (bsElement != null) {
-        return bsElement;
+    if (dslFile instanceof GradleBuildFile) {
+      GradleBuildFile buildFile = (GradleBuildFile)dslFile;
+      GradleDslElement propertyElement = resolveReferenceInPropertiesFile(buildFile, text);
+      if (propertyElement != null) {
+        return propertyElement;
       }
-    }
 
-
-    if (dslFile.getParentModuleDslFile() == null) {
-      return null; // This is the root project build.gradle file and there is no further path to look up.
-    }
-
-    // Try to resolve in the root project gradle.properties file.
-    GradleDslFile rootProjectDslFile = dslFile;
-    while (true) {
-      GradleDslFile parentModuleDslFile = rootProjectDslFile.getParentModuleDslFile();
-      if (parentModuleDslFile == null) {
-        break;
+      // Ensure we check the buildscript as well.
+      BuildScriptDslElement bsDslElement = buildFile.getPropertyElement(BUILDSCRIPT);
+      if (bsDslElement != null) {
+        GradleDslElement bsElement = resolveReferenceOnElement(bsDslElement, referenceText, converter, false, true, -1);
+        if (bsElement != null) {
+          return bsElement;
+        }
       }
-      rootProjectDslFile = parentModuleDslFile;
+
+
+      if (buildFile.getParentModuleBuildFile() == null) {
+        return null; // This is the root project build.gradle file and there is no further path to look up.
+      }
+
+      // Try to resolve in the root project gradle.properties file.
+      GradleBuildFile rootProjectBuildFile = buildFile;
+      while (true) {
+        GradleBuildFile parentModuleDslFile = rootProjectBuildFile.getParentModuleBuildFile();
+        if (parentModuleDslFile == null) {
+          break;
+        }
+        rootProjectBuildFile = parentModuleDslFile;
+      }
+      return resolveReferenceInPropertiesFile(rootProjectBuildFile, text);
     }
-    return resolveReferenceInPropertiesFile(rootProjectDslFile, text);
+    return null;
   }
 
   @Nullable
@@ -906,6 +918,15 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
     GradleDslElement searchStartElement = this;
     GradleDslParser parser = getDslFile().getParser();
     referenceText = parser.convertReferenceText(searchStartElement, referenceText);
+
+    return resolveInternalSyntaxReference(referenceText, resolveWithOrder);
+  }
+
+  @Override
+  public @Nullable GradleDslElement resolveExternalSyntaxReference(@NotNull PsiElement psiElement, boolean resolveWithOrder) {
+    GradleDslElement searchStartElement = this;
+    GradleDslParser parser = getDslFile().getParser();
+    String referenceText = parser.convertReferencePsi(searchStartElement, psiElement);
 
     return resolveInternalSyntaxReference(referenceText, resolveWithOrder);
   }
@@ -926,17 +947,17 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
       }
     }
 
-    List<String> referenceTextSegments = GradleNameElementUtil.split(referenceText);
+    List<String> referenceTextSegments = GradleNameElement.split(referenceText);
     int index = 0;
     int segmentCount = referenceTextSegments.size();
     for (; index < segmentCount; index++) {
       // Resolve the project reference elements like parent, rootProject etc.
-      GradleDslFile dslFile = resolveProjectReference(searchStartElement, referenceTextSegments.get(index));
-      if (dslFile == null) {
+      GradleBuildFile buildFile = resolveProjectReference(searchStartElement, referenceTextSegments.get(index));
+      if (buildFile == null) {
         break;
       }
       // start the search for our element at the top-level of the Dsl file (but see below for buildscript handling)
-      searchStartElement = dslFile;
+      searchStartElement = buildFile;
     }
 
     /* For a project with the below hierarchy ...
@@ -987,52 +1008,56 @@ public abstract class GradleDslElementImpl implements GradleDslElement, Modifica
       }
     }
 
-    if (resolvedElement == null) {
+    if (resolvedElement == null && dslFile instanceof GradleBuildFile) {
+      GradleBuildFile buildFile = (GradleBuildFile)dslFile;
       // Now look in the parent projects ext blocks.
-      resolvedElement = resolveReferenceInParentModules(dslFile, referenceTextSegments, parser);
+      resolvedElement = resolveReferenceInParentModules(buildFile, referenceTextSegments, parser);
     }
 
     return resolvedElement;
   }
 
   @Nullable
-  private static GradleDslFile resolveProjectReference(GradleDslElement startElement, @NotNull String projectReference) {
+  private static GradleBuildFile resolveProjectReference(GradleDslElement startElement, @NotNull String projectReference) {
     GradleDslFile dslFile = startElement.getDslFile();
-    if ("project".equals(projectReference)) {
-      return dslFile;
-    }
+    if (dslFile instanceof GradleBuildFile) {
+      GradleBuildFile buildFile = (GradleBuildFile)dslFile;
+      if ("project".equals(projectReference)) {
+        return buildFile;
+      }
 
-    if ("parent".equals(projectReference)) {
-      return dslFile.getParentModuleDslFile();
-    }
+      if ("parent".equals(projectReference)) {
+        return buildFile.getParentModuleBuildFile();
+      }
 
-    if ("rootProject".equals(projectReference)) {
-      while (dslFile != null && !filesEqual(dslFile.getDirectoryPath(), virtualToIoFile(dslFile.getProject().getBaseDir()))) {
-        dslFile = dslFile.getParentModuleDslFile();
+      if ("rootProject".equals(projectReference)) {
+        while (buildFile != null && !filesEqual(buildFile.getDirectoryPath(), virtualToIoFile(buildFile.getProject().getBaseDir()))) {
+          buildFile = buildFile.getParentModuleBuildFile();
+        }
+        return buildFile;
       }
-      return dslFile;
-    }
 
-    String standardProjectKey = getStandardProjectKey(projectReference);
-    if (standardProjectKey != null) { // project(':project:path')
-      String modulePath = standardProjectKey.substring(standardProjectKey.indexOf('\'') + 1, standardProjectKey.lastIndexOf('\''));
-      VirtualFile settingFile = dslFile.tryToFindSettingsFile();
-      if (settingFile == null) {
-        return null;
+      String standardProjectKey = getStandardProjectKey(projectReference);
+      if (standardProjectKey != null) { // project(':project:path')
+        String modulePath = standardProjectKey.substring(standardProjectKey.indexOf('\'') + 1, standardProjectKey.lastIndexOf('\''));
+        VirtualFile settingFile = buildFile.tryToFindSettingsFile();
+        if (settingFile == null) {
+          return null;
+        }
+        GradleSettingsFile file = buildFile.getContext().getOrCreateSettingsFile(settingFile);
+        GradleSettingsModel model = new GradleSettingsModelImpl(file);
+        File moduleDirectory = model.moduleDirectory(modulePath);
+        if (moduleDirectory == null) {
+          return null;
+        }
+        while (buildFile != null && !filesEqual(buildFile.getDirectoryPath(), virtualToIoFile(buildFile.getProject().getBaseDir()))) {
+          buildFile = buildFile.getParentModuleBuildFile();
+        }
+        if (buildFile == null) {
+          return null;
+        }
+        return findBuildFile(buildFile, moduleDirectory); // root module dsl File.
       }
-      GradleSettingsFile file = dslFile.getContext().getOrCreateSettingsFile(settingFile);
-      GradleSettingsModel model = new GradleSettingsModelImpl(file);
-      File moduleDirectory = model.moduleDirectory(modulePath);
-      if (moduleDirectory == null) {
-        return null;
-      }
-      while (dslFile != null && !filesEqual(dslFile.getDirectoryPath(), virtualToIoFile(dslFile.getProject().getBaseDir()))) {
-        dslFile = dslFile.getParentModuleDslFile();
-      }
-      if (dslFile == null) {
-        return null;
-      }
-      return findDslFile(dslFile, moduleDirectory); // root module dsl File.
     }
     return null;
   }

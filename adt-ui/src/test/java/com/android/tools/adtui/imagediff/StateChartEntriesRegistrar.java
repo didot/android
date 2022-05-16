@@ -22,12 +22,12 @@ import com.android.tools.adtui.model.DefaultDataSeries;
 import com.android.tools.adtui.model.RangedSeries;
 import com.android.tools.adtui.model.StateChartModel;
 import com.intellij.ui.ColorUtil;
-import org.jetbrains.annotations.NotNull;
-
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import org.jetbrains.annotations.NotNull;
 
 class StateChartEntriesRegistrar extends ImageDiffEntriesRegistrar {
 
@@ -133,8 +133,6 @@ class StateChartEntriesRegistrar extends ImageDiffEntriesRegistrar {
         // TODO: this might hide some issues. We need to use the same font used in studio, to reflect what is seen by the user.
         myStateChart.setFont(ImageDiffTestUtil.getDefaultFont());
 
-        // Set the render mode of the state chart to text
-        myStateChart.setRenderMode(StateChart.RenderMode.TEXT);
         addSeries();
       }
     });
@@ -181,8 +179,6 @@ class StateChartEntriesRegistrar extends ImageDiffEntriesRegistrar {
         // TODO: this might hide some issues. We need to use the same font used in studio, to reflect what is seen by the user.
         myStateChart.setFont(ImageDiffTestUtil.getDefaultFont());
 
-        // Set the render mode of the state chart to text
-        myStateChart.setRenderMode(StateChart.RenderMode.TEXT);
         // Add a considerable amount of series to the state chart,
         // because the text of a single state chart doesn't occupy a lot of the image
         for (int i = 0; i < 15; i++) {
@@ -261,7 +257,7 @@ class StateChartEntriesRegistrar extends ImageDiffEntriesRegistrar {
       }
     }
 
-    private static final StateChartColorProvider<TestState> TEST_STATE_COLORS = new StateChartColorProvider<TestState>() {
+    private static final StateChartColorProvider<TestState> TEST_STATE_COLORS = new StateChartColorProvider<>() {
       @NotNull
       @Override
       public Color getColor(boolean isMouseOver, @NotNull TestState value) {

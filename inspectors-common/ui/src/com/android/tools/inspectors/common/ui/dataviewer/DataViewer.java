@@ -15,7 +15,7 @@
  */
 package com.android.tools.inspectors.common.ui.dataviewer;
 
-import javax.swing.*;
+import javax.swing.JComponent;
 import org.jetbrains.annotations.NotNull;
 
 /**

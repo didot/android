@@ -15,8 +15,7 @@
  */
 package com.android.tools.idea.gradle.actions;
 
-import com.android.tools.idea.gradle.run.OutputBuildAction;
-import com.android.tools.idea.gradle.run.PostBuildModel;
+import com.android.tools.idea.gradle.project.build.invoker.AssembleInvocationResult;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import java.io.File;
@@ -24,7 +23,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * <p> Generates a map from module/build variant to the location of generated apk or bundle,
@@ -32,7 +30,7 @@ import org.jetbrains.annotations.Nullable;
  * if there're multiple apks, returns the parent folder of apk files;
  * if it's app bundle, returns the bundle file.
  * <p>
- * {@link PostBuildModel} being built from the result of {@link OutputBuildAction} contains paths information of each of the build.
+ * PostBuildModel being built from the result of OutputBuildAction contains paths information of each of the build.
  */
 public abstract class BuildsToPathsMapper {
   @NotNull
@@ -41,9 +39,8 @@ public abstract class BuildsToPathsMapper {
   }
 
   @NotNull
-  public abstract Map<String, File> getBuildsToPaths(@Nullable Object model,
-                                     @NotNull List<String> buildVariants,
-                                     @NotNull Collection<Module> modules,
-                                     boolean isAppBundle,
-                                     @Nullable String signedApkOrBundlePath);
+  public abstract Map<String, File> getBuildsToPaths(@NotNull AssembleInvocationResult assembleResult,
+                                                     @NotNull List<String> buildVariants,
+                                                     @NotNull Collection<Module> modules,
+                                                     boolean isAppBundle);
 }

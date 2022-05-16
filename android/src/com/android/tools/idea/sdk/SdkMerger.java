@@ -18,10 +18,9 @@ package com.android.tools.idea.sdk;
 import com.android.prefs.AndroidLocationsSingleton;
 import com.android.repository.api.LocalPackage;
 import com.android.repository.api.RepoPackage;
-import com.android.repository.io.FileOpUtils;
 import com.android.sdklib.repository.AndroidSdkHandler;
-import com.android.tools.idea.sdk.progress.RepoProgressIndicatorAdapter;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
+import com.android.tools.idea.progress.RepoProgressIndicatorAdapter;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.util.io.FileUtil;
@@ -60,7 +59,7 @@ public class SdkMerger {
         }
       }
       try {
-        FileUtil.copyDir(FileOpUtils.toFileUnsafe(pkg.srcPkg.getLocation()),
+        FileUtil.copyDir(pkg.srcPkg.getLocation().toFile(),
                          new File(pkg.destLocation, pkg.srcPkg.getPath().replace(RepoPackage.PATH_SEPARATOR, File.separatorChar)));
       }
       catch (IOException e) {

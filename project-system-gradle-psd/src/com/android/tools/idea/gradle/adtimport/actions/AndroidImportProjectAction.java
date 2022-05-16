@@ -60,7 +60,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jdom.Element;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -77,7 +77,7 @@ import org.jetbrains.annotations.Nullable;
  * The code in the original action cannot be extended or reused. It is implemented using static methods and the method where we change the
  * behavior is at the bottom of the call chain.
  */
-public final class AndroidImportProjectAction extends AnAction {
+public class AndroidImportProjectAction extends AnAction {
   @NonNls private static final String LAST_IMPORTED_LOCATION = "last.imported.location";
   private static final Logger LOG = Logger.getInstance(AndroidImportProjectAction.class);
 
@@ -131,7 +131,6 @@ public final class AndroidImportProjectAction extends AnAction {
     };
     descriptor.setHideIgnored(false);
     descriptor.setTitle(WIZARD_TITLE);
-    //noinspection DialogTitleCapitalization
     descriptor.setDescription(WIZARD_DESCRIPTION);
     return descriptor;
   }
@@ -163,7 +162,7 @@ public final class AndroidImportProjectAction extends AnAction {
 
   private static boolean isSelectedFileValid(@Nullable Project project, @NotNull VirtualFile file) {
     ProjectImportPathValidator validator = new ProjectImportPathValidator("project file");
-    Validator.Result result = validator.validate(virtualToIoFile(file));
+    Validator.Result result = validator.validate(file.toNioPath());
     if (result.getSeverity() != Validator.Severity.OK) {
       boolean isError = result.getSeverity() == Validator.Severity.ERROR;
       Messages.showInfoMessage(project, result.getMessage(), isError ? "Cannot Import Project" : "Project Import Warning");
@@ -175,7 +174,7 @@ public final class AndroidImportProjectAction extends AnAction {
   }
 
   @Nullable
-  protected AddModuleWizard createImportWizard(@NotNull VirtualFile file) throws IOException, ConfigurationException {
+  protected AddModuleWizard createImportWizard(@NotNull VirtualFile file) {
     VirtualFile target = findImportTarget(file);
     VirtualFile targetDir = target.isDirectory() ? target : target.getParent();
     File targetDirFile = virtualToIoFile(targetDir);
@@ -192,7 +191,9 @@ public final class AndroidImportProjectAction extends AnAction {
       Messages.showErrorDialog(message, "Import Project");
     }
     else if (canImportAsGradleProject(target)) {
-      ProjectUtil.openOrImport(target.getPath(), null, true);
+      if (ProjectUtil.findAndFocusExistingProjectForPath(targetDir.toNioPath()) == null) {
+        ProjectUtil.openOrImport(target.getPath(), null, true);
+      }
     }
     else {
       return importWithExtensions(file);
@@ -259,7 +260,8 @@ public final class AndroidImportProjectAction extends AnAction {
       }
 
       boolean unitTestMode = ApplicationManager.getApplication().isUnitTestMode();
-      Project project = ProjectManagerEx.getInstanceEx().newProject(projectDirPath.toPath(), OpenProjectTask.build().asNewProject().withProjectName(wizard.getProjectName()));
+      ProjectManagerEx projectManager = ProjectManagerEx.getInstanceEx();
+      Project project = projectManager.newProject(projectDirPath.toPath(), OpenProjectTask.build().asNewProject().withProjectName(wizard.getProjectName()));
       if (project == null) {
         return;
       }

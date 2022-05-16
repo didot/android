@@ -15,40 +15,55 @@
  */
 package com.android.tools.idea.appinspection.inspectors.network.model
 
-import com.android.tools.adtui.model.AspectModel
-import com.android.tools.adtui.model.Range
 import com.android.tools.adtui.model.StopwatchTimer
-import com.android.tools.adtui.model.StreamingTimeline
-import com.android.tools.adtui.model.axis.ResizingAxisComponentModel
-import com.android.tools.adtui.model.formatter.TimeAxisFormatter
 import com.android.tools.adtui.model.updater.Updater
-import com.intellij.util.concurrency.AppExecutorUtil
-import java.util.concurrent.Executor
+import com.android.tools.idea.appinspection.inspectors.network.model.analytics.NetworkInspectorTracker
+import com.google.common.util.concurrent.MoreExecutors
+import com.intellij.util.concurrency.EdtExecutorService
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 
+interface NetworkInspectorServices {
+  val navigationProvider: CodeNavigationProvider
+  val client: NetworkInspectorClient
+  val updater: Updater
+  val workerDispatcher: CoroutineDispatcher
+  val uiDispatcher: CoroutineDispatcher
+  val usageTracker: NetworkInspectorTracker
+}
 
 /**
  * Contains the suite of services on which the network inspector relies. Ex: Timeline and updater.
- *
- * It also contains a [backgroundExecutor] that is used by the LineChartModel to perform computation on.
- * Tests can choose to swap it out with a direct executor to make life easier.
  */
-class NetworkInspectorServices(
-  val navigationProvider: CodeNavigationProvider,
-  startTimeStampNs: Long,
+class NetworkInspectorServicesImpl(
+  override val navigationProvider: CodeNavigationProvider,
+  override val client: NetworkInspectorClient,
   timer: StopwatchTimer,
-  val backgroundExecutor: Executor = AppExecutorUtil.getAppExecutorService()
-) : AspectModel<NetworkInspectorAspect>() {
-  val updater: Updater = Updater(timer)
-  val timeline = StreamingTimeline(updater)
-  val viewAxis = ResizingAxisComponentModel.Builder(timeline.viewRange, TimeAxisFormatter.DEFAULT)
-    .setGlobalRange(timeline.dataRange).build()
+  override val workerDispatcher: CoroutineDispatcher,
+  override val uiDispatcher: CoroutineDispatcher,
+  override val usageTracker: NetworkInspectorTracker
+) : NetworkInspectorServices {
+  override val updater = Updater(timer)
+}
 
-  init {
-    timeline.selectionRange.addDependency(this).onChange(Range.Aspect.RANGE) {
-      if (!timeline.selectionRange.isEmpty) {
-        timeline.isStreaming = false
-      }
-    }
-    timeline.reset(startTimeStampNs, startTimeStampNs)
+/**
+ * For tests only.
+ */
+class TestNetworkInspectorServices(
+  override val navigationProvider: CodeNavigationProvider,
+  timer: StopwatchTimer,
+  override val client: NetworkInspectorClient = object : NetworkInspectorClient {
+    override suspend fun getStartTimeStampNs() = 0L
+  }
+) : NetworkInspectorServices {
+  override val updater = Updater(timer)
+  override val workerDispatcher = MoreExecutors.directExecutor().asCoroutineDispatcher()
+  override val uiDispatcher = EdtExecutorService.getInstance().asCoroutineDispatcher()
+  override val usageTracker = object : NetworkInspectorTracker {
+    override fun trackMigrationDialogSelected() = Unit
+    override fun trackConnectionDetailsSelected() = Unit
+    override fun trackRequestTabSelected() = Unit
+    override fun trackResponseTabSelected() = Unit
+    override fun trackCallstackTabSelected() = Unit
   }
 }

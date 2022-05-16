@@ -15,12 +15,18 @@
  */
 package com.android.tools.adtui.ui;
 
-import javax.swing.*;
+import java.awt.Font;
+import javax.swing.JEditorPane;
+import javax.swing.JTextPane;
+import javax.swing.SizeRequirements;
+import javax.swing.UIManager;
 import javax.swing.text.Element;
 import javax.swing.text.View;
 import javax.swing.text.ViewFactory;
-import javax.swing.text.html.*;
-import java.awt.*;
+import javax.swing.text.html.HTMLEditorKit;
+import javax.swing.text.html.InlineView;
+import javax.swing.text.html.ParagraphView;
+import javax.swing.text.html.StyleSheet;
 
 /**
  * A {@link JTextPane} of HTML type whose text can be selected and can be wrapped even in the middle of words.
@@ -36,7 +42,10 @@ public class BreakWordWrapHtmlTextPane extends JTextPane {
     HTMLEditorKit editorKit = new BreakWordWrapHTMLEditorKit();
     StyleSheet styleSheet = editorKit.getStyleSheet();
     Font labelFont = UIManager.getFont("Label.font");
+    String foregroundColor = String.format("#%06x", UIManager.getColor("Label.foreground").getRGB() & 0xFFFFFF);
+    String backgroundColor = String.format("#%06x", UIManager.getColor("Label.background").getRGB() & 0xFFFFFF);
     styleSheet.addRule("body { font-family: " + labelFont.getFamily() + "; font-size: 13pt; }");
+    styleSheet.addRule("body { color:" + foregroundColor + "; background-color:" + backgroundColor + "}");
     styleSheet.addRule("p { margin: 4 0 4 0; }");
     setEditorKit(editorKit);
   }

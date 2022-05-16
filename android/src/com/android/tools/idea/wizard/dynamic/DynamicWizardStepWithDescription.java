@@ -26,12 +26,18 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.StartupUiUtil;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Map;
 import java.util.WeakHashMap;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
@@ -57,7 +63,7 @@ public abstract class DynamicWizardStepWithDescription extends DynamicWizardStep
   private JLabel myDescriptionLabel;
   private JBLabel myErrorWarningLabel;
   private JPanel mySouthPanel;
-  private Map<Component, String> myControlDescriptions = new WeakHashMap<Component, String>();
+  private Map<Component, String> myControlDescriptions = new WeakHashMap<>();
 
   public DynamicWizardStepWithDescription(@Nullable Disposable parentDisposable) {
     myDisposable = parentDisposable;
@@ -129,7 +135,7 @@ public abstract class DynamicWizardStepWithDescription extends DynamicWizardStep
 
   @Override
   public void init() {
-    register(KEY_DESCRIPTION, getDescriptionLabel(), new ComponentBinding<String, JLabel>() {
+    register(KEY_DESCRIPTION, getDescriptionLabel(), new ComponentBinding<>() {
       @Override
       public void setValue(String newValue, @NotNull JLabel label) {
         label.setText(toHtml(newValue));

@@ -29,9 +29,10 @@ import com.android.tools.idea.appinspection.inspector.api.launch.LaunchParameter
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.layoutinspector.model.InspectorModel
-import com.android.tools.idea.layoutinspector.tree.TreeSettings
+import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLaunchMonitor
 import com.android.tools.idea.layoutinspector.ui.InspectorBannerService
 import com.google.common.annotations.VisibleForTesting
+import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo.AttachErrorState
 import kotlinx.coroutines.cancel
 import layoutinspector.compose.inspection.LayoutInspectorComposeProtocol.Command
 import layoutinspector.compose.inspection.LayoutInspectorComposeProtocol.GetAllParametersCommand
@@ -67,16 +68,23 @@ private const val PROGUARD_LEARN_MORE = "https://d.android.com/r/studio-ui/layou
  *
  * @param messenger The messenger that lets us communicate with the view inspector.
  */
-class ComposeLayoutInspectorClient(model: InspectorModel, private val messenger: AppInspectorMessenger) {
+class ComposeLayoutInspectorClient(
+  model: InspectorModel,
+  private val messenger: AppInspectorMessenger,
+  private val launchMonitor: InspectorClientLaunchMonitor
+) {
 
   companion object {
     /**
      * Helper function for launching the compose layout inspector and creating a client to interact
      * with it.
      */
-    suspend fun launch(apiServices: AppInspectionApiServices,
-                       process: ProcessDescriptor,
-                       model: InspectorModel): ComposeLayoutInspectorClient? {
+    suspend fun launch(
+      apiServices: AppInspectionApiServices,
+      process: ProcessDescriptor,
+      model: InspectorModel,
+      launchMonitor: InspectorClientLaunchMonitor
+    ): ComposeLayoutInspectorClient? {
       val jar = if (StudioFlags.APP_INSPECTION_USE_DEV_JAR.get()) {
         DEV_JAR // This branch is used by tests
       }
@@ -100,7 +108,7 @@ class ComposeLayoutInspectorClient(model: InspectorModel, private val messenger:
       val params = LaunchParameters(process, COMPOSE_LAYOUT_INSPECTOR_ID, jar, model.project.name, MINIMUM_COMPOSE_COORDINATE, force = true)
       return try {
         val messenger = apiServices.launchInspector(params)
-        ComposeLayoutInspectorClient(model, messenger)
+        ComposeLayoutInspectorClient(model, messenger, launchMonitor)
       }
       catch (ignored: AppInspectionVersionIncompatibleException) {
         InspectorBannerService.getInstance(model.project).setNotification(INCOMPATIBLE_LIBRARY_MESSAGE)
@@ -124,13 +132,14 @@ class ComposeLayoutInspectorClient(model: InspectorModel, private val messenger:
 
   suspend fun getComposeables(rootViewId: Long, newGeneration: Int): GetComposablesResponse {
     lastGeneration = newGeneration
+    launchMonitor.updateProgress(AttachErrorState.COMPOSE_REQUEST_SENT)
     val response = messenger.sendCommand {
       getComposablesCommand = GetComposablesCommand.newBuilder().apply {
         this.rootViewId = rootViewId
-        skipSystemComposables = TreeSettings.skipSystemNodesInAgent
         generation = lastGeneration
       }.build()
     }
+    launchMonitor.updateProgress(AttachErrorState.COMPOSE_RESPONSE_RECEIVED)
     return response.getComposablesResponse
   }
 
@@ -139,7 +148,6 @@ class ComposeLayoutInspectorClient(model: InspectorModel, private val messenger:
       getParametersCommand = GetParametersCommand.newBuilder().apply {
         this.rootViewId = rootViewId
         this.composableId = composableId
-        skipSystemComposables = TreeSettings.skipSystemNodesInAgent
         generation = lastGeneration
       }.build()
     }
@@ -150,7 +158,6 @@ class ComposeLayoutInspectorClient(model: InspectorModel, private val messenger:
     val response = messenger.sendCommand {
       getAllParametersCommand = GetAllParametersCommand.newBuilder().apply {
         this.rootViewId = rootViewId
-        skipSystemComposables = TreeSettings.skipSystemNodesInAgent
         generation = lastGeneration
       }.build()
     }
@@ -166,7 +173,6 @@ class ComposeLayoutInspectorClient(model: InspectorModel, private val messenger:
     val response = messenger.sendCommand {
       getParameterDetailsCommand = GetParameterDetailsCommand.newBuilder().apply {
         this.rootViewId = rootViewId
-        skipSystemComposables = TreeSettings.skipSystemNodesInAgent
         generation = lastGeneration
         this.startIndex = startIndex
         this.maxElements = maxElements

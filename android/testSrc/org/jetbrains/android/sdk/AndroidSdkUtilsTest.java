@@ -15,10 +15,10 @@
  */
 package org.jetbrains.android.sdk;
 
-import static com.android.SdkConstants.FN_ADB;
 import static com.google.common.truth.Truth.assertThat;
-import static org.jetbrains.android.util.AndroidBuildCommonUtils.platformToolPath;
+import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.android.SdkConstants;
 import com.android.annotations.NonNull;
 import com.android.sdklib.AndroidVersion;
 import com.android.sdklib.IAndroidTarget;
@@ -37,6 +37,7 @@ import com.intellij.testFramework.PlatformTestCase;
 import java.io.File;
 import java.util.Collections;
 import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.android.util.AndroidBuildCommonUtils;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -115,12 +116,14 @@ public class AndroidSdkUtilsTest extends PlatformTestCase {
   }
 
   public void testGetAdbInNonAndroidProject() {
-    assertFalse("Precondition: project with no android facets", ProjectFacetManager.getInstance(myProject).hasFacets(AndroidFacet.ID));
+    assertWithMessage("Precondition: project with no android facets")
+        .that(ProjectFacetManager.getInstance(myProject).hasFacets(AndroidFacet.ID)).isFalse();
     boolean sdkSet = AndroidSdkUtils.tryToCreateAndSetAndroidSdk(myModule, mySdkPath, TestUtils.getLatestAndroidPlatform());
     System.out.println("Trying to set sdk for module from: " + mySdkPath + " -> " + sdkSet);
-    assertTrue("Precondition: android SDK configured", sdkSet);
+    assertWithMessage("Precondition: android SDK configured").that(sdkSet).isTrue();
 
-    assertEquals(new File(IdeSdks.getInstance().getAndroidSdkPath(), platformToolPath(FN_ADB)), AndroidSdkUtils.getAdb(myProject));
+    assertThat(AndroidSdkUtils.getAdb(myProject))
+        .isEqualTo(new File(IdeSdks.getInstance().getAndroidSdkPath(), AndroidBuildCommonUtils.platformToolPath(SdkConstants.FN_ADB)));
   }
 
   private static void createAndroidSdk(@NotNull File androidHomePath, @NotNull String targetHashString, @NotNull Sdk javaSdk) {

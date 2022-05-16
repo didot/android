@@ -15,12 +15,10 @@
  */
 package com.android.tools.idea.gradle.dsl.api;
 
-import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,18 +52,4 @@ public abstract class GradleModelProvider {
 
   @NotNull
   public abstract GradleSettingsModel getSettingsModel(@NotNull VirtualFile settingsFile, @NotNull Project hostProject);
-
-  @NotNull
-  public abstract ArtifactDependencySpec getArtifactDependencySpec(@NotNull String name,
-                                                                   @Nullable String group,
-                                                                   @Nullable String version);
-
-  @NotNull
-  public abstract ArtifactDependencySpec getArtifactDependencySpec(@NotNull String name,
-                                                                   @Nullable String group,
-                                                                   @Nullable String version,
-                                                                   @Nullable String classifier,
-                                                                   @Nullable String extension);
-  @Nullable
-  public abstract ArtifactDependencySpec getArtifactDependencySpec(@NotNull String notation);
 }

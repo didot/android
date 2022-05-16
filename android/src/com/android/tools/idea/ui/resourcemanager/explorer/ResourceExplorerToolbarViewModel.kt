@@ -43,13 +43,14 @@ import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
 import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.application.runReadAction
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.util.Comparing
-import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiManager
@@ -113,8 +114,12 @@ class ResourceExplorerToolbarViewModel(
       when (resourceType) {
         ResourceType.MIPMAP,
         ResourceType.DRAWABLE -> {
-          add(actionManager.getAction("NewAndroidImageAsset"))
-          add(actionManager.getAction("NewAndroidVectorAsset"))
+          actionManager.getAction("NewAndroidImageAsset")?.let { add(it) }
+          ?: thisLogger().warn("No action associated with id: \"NewAndroidImageAsset\".")
+
+          actionManager.getAction("NewAndroidVectorAsset")?.let { add(it) }
+          ?: thisLogger().warn("No action associated with id: \"NewAndroidVectorAsset\".")
+
           add(Separator())
           add(ImportResourceAction())
         }
@@ -161,7 +166,7 @@ class ResourceExplorerToolbarViewModel(
       }
     return FileChooser.chooseFiles(fileChooserDescriptor, facet.module.project, null)
       .map(VirtualFile::getPath)
-      .map(FileUtil::toSystemDependentName)
+      .map { FileUtilRt.toSystemDependentName(it) }
   }
 
   private val customImporters get() = importersProvider.importers.filter { it.hasCustomImport }

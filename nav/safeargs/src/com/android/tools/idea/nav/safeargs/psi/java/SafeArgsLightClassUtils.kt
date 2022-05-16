@@ -15,9 +15,7 @@
  */
 package com.android.tools.idea.nav.safeargs.psi.java
 
-import com.android.SdkConstants
 import com.android.tools.idea.nav.safeargs.index.NavArgumentData
-import com.android.tools.idea.nav.safeargs.psi.xml.findChildTagElementByNameAttr
 import com.android.tools.idea.psi.annotateType
 import com.android.tools.idea.psi.light.NullabilityLightFieldBuilder
 import com.android.utils.usLocaleCapitalize
@@ -80,7 +78,9 @@ internal fun parsePsiType(modulePackage: String, typeStr: String?, defaultValue:
 }
 
 internal fun getPsiTypeStr(modulePackage: String, typeStr: String?, defaultValue: String?): String {
-  var psiTypeStr = typeStr
+  // When specified as inputs to safe args, inner classes in XML should use the Java syntax (e.g. "Outer$Inner"), but IntelliJ resolves
+  // the type using dot syntax ("Outer.Inner")
+  var psiTypeStr = typeStr?.replace('$', '.')
 
   if (psiTypeStr == null) {
     psiTypeStr = guessFromDefaultValue(defaultValue)

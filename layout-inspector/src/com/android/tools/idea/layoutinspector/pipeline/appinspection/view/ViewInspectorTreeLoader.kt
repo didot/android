@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.layoutinspector.pipeline.appinspection.view
 
+import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.layoutinspector.model.AndroidWindow
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.AppInspectionTreeLoader
@@ -25,10 +26,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.LowMemoryWatcher
 import layoutinspector.compose.inspection.LayoutInspectorComposeProtocol
 import layoutinspector.view.inspection.LayoutInspectorViewProtocol
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
-
-private val LOAD_TIMEOUT = TimeUnit.SECONDS.toMillis(20)
 
 /**
  * View-inspector specific logic supporting [AppInspectionTreeLoader].
@@ -38,10 +35,11 @@ class ViewInspectorTreeLoader(
   private val skiaParser: SkiaParser,
   private val viewEvent: LayoutInspectorViewProtocol.LayoutEvent,
   private val resourceLookup: ResourceLookup,
+  private val process: ProcessDescriptor,
   composeEvent: LayoutInspectorComposeProtocol.GetComposablesResponse?,
   private val logEvent: (DynamicLayoutInspectorEventType) -> Unit,
 ) {
-  private val loadStartTime = AtomicLong(-1)
+  private var folderConfig = LayoutInspectorViewProtocol.Configuration.getDefaultInstance().convert(1)
 
   // if true, exit immediately and return null
   private var isInterrupted = false
@@ -58,17 +56,13 @@ class ViewInspectorTreeLoader(
     }, LowMemoryWatcher.LowMemoryWatcherType.ONLY_AFTER_GC)
 
   fun loadComponentTree(): AndroidWindow? {
-    val time = System.currentTimeMillis()
-    if (time - loadStartTime.get() < LOAD_TIMEOUT) {
-      return null
+    val configuration = viewEvent.configuration
+    if (configuration !== LayoutInspectorViewProtocol.Configuration.getDefaultInstance()) {
+      folderConfig = configuration.convert(process.device.apiLevel)
+      resourceLookup.updateConfiguration(folderConfig, configuration.fontScale, viewEvent.appContext.convert(), viewNodeCreator.strings,
+                                         process)
     }
-    try {
-      resourceLookup.updateConfiguration(viewEvent.appContext.convert(), viewNodeCreator.strings)
-      val rootView = viewNodeCreator.createRootViewNode { isInterrupted } ?: return null
-      return ViewAndroidWindow(project, skiaParser, rootView, viewEvent, { isInterrupted }, logEvent)
-    }
-    finally {
-      loadStartTime.set(0)
-    }
+    val rootView = viewNodeCreator.createRootViewNode { isInterrupted } ?: return null
+    return ViewAndroidWindow(project, skiaParser, rootView, viewEvent, folderConfig, { isInterrupted }, logEvent)
   }
 }

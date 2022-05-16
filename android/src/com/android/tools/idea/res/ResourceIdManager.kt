@@ -19,15 +19,30 @@ import com.android.annotations.concurrency.GuardedBy
 import com.android.ide.common.rendering.api.ResourceNamespace
 import com.android.ide.common.rendering.api.ResourceReference
 import com.android.resources.ResourceType
-import com.android.resources.ResourceType.*
-import com.android.tools.idea.experimental.codeanalysis.datastructs.Modifier
+import com.android.resources.ResourceType.ANIM
+import com.android.resources.ResourceType.ARRAY
+import com.android.resources.ResourceType.ATTR
+import com.android.resources.ResourceType.BOOL
+import com.android.resources.ResourceType.COLOR
+import com.android.resources.ResourceType.DIMEN
+import com.android.resources.ResourceType.DRAWABLE
+import com.android.resources.ResourceType.ID
+import com.android.resources.ResourceType.INTEGER
+import com.android.resources.ResourceType.LAYOUT
+import com.android.resources.ResourceType.PLURALS
+import com.android.resources.ResourceType.STRING
+import com.android.resources.ResourceType.STYLE
+import com.android.resources.ResourceType.STYLEABLE
+import com.android.tools.idea.layoutlib.LayoutLibraryLoader
 import com.android.tools.idea.model.Namespacing
 import com.intellij.openapi.module.Module
 import gnu.trove.TIntObjectHashMap
 import gnu.trove.TObjectIntHashMap
 import org.jetbrains.android.facet.AndroidFacet
 import java.lang.reflect.Field
-import java.util.*
+import java.lang.reflect.Modifier
+import java.util.Arrays
+import java.util.EnumMap
 
 private const val FIRST_PACKAGE_ID: Byte = 0x02
 
@@ -37,6 +52,7 @@ private const val FIRST_PACKAGE_ID: Byte = 0x02
 class ResourceIdManager private constructor(val module: Module) : ResourceClassGenerator.NumericIdProvider {
 
   private val facet = AndroidFacet.getInstance(module) ?: error("${ResourceIdManager::class.qualifiedName} used on a non-Android module.")
+  private var generationCounter = 1L
 
   companion object {
     @JvmStatic
@@ -110,7 +126,7 @@ class ResourceIdManager private constructor(val module: Module) : ResourceClassG
   val finalIdsUsed: Boolean
     @JvmName("finalIdsUsed")
     get() {
-      return facet.configuration.isAppProject
+      return facet.configuration.isAppOrFeature
              && ResourceRepositoryManager.getInstance(facet).namespacing == Namespacing.DISABLED
     }
 
@@ -162,37 +178,45 @@ class ResourceIdManager private constructor(val module: Module) : ResourceClassG
 
   @Synchronized
   fun resetDynamicIds() {
+    generationCounter++
     resetProviders()
     dynamicToIdMap.clear()
     dynamicFromIdMap.clear()
   }
 
   @Synchronized
+  override fun getGeneration(): Long = generationCounter
+
+  @Synchronized
   fun loadCompiledIds(klass: Class<*>) {
-    val mapping = SingleNamespaceIdMapping(ResourceNamespace.RES_AUTO)
-    loadIdsFromResourceClass(klass, into = mapping)
-    compiledIds = mapping
+    if (compiledIds == null) {
+      compiledIds = SingleNamespaceIdMapping(ResourceNamespace.RES_AUTO)
+    }
+    loadIdsFromResourceClass(klass, into = compiledIds!!)
   }
 
   private fun loadFrameworkIds(): SingleNamespaceIdMapping {
     val frameworkIds = SingleNamespaceIdMapping(ResourceNamespace.ANDROID).apply {
-      // These are the counts around the P time frame, to allocate roughly the right amount of space upfront.
-      toIdMap[ANIM] = TObjectIntHashMap(70)
-      toIdMap[ATTR] = TObjectIntHashMap(1624)
-      toIdMap[ARRAY] = TObjectIntHashMap(113)
-      toIdMap[BOOL] = TObjectIntHashMap(217)
-      toIdMap[COLOR] = TObjectIntHashMap(70)
-      toIdMap[DIMEN] = TObjectIntHashMap(184)
-      toIdMap[DRAWABLE] = TObjectIntHashMap(450)
-      toIdMap[ID] = TObjectIntHashMap(423)
-      toIdMap[INTEGER] = TObjectIntHashMap(212)
-      toIdMap[LAYOUT] = TObjectIntHashMap(203)
-      toIdMap[PLURALS] = TObjectIntHashMap(34)
-      toIdMap[STRING] = TObjectIntHashMap(1254)
-      toIdMap[STYLE] = TObjectIntHashMap(781)
+      // These are the counts around the S time frame, to allocate roughly the right amount of space upfront.
+      toIdMap[ANIM] = TObjectIntHashMap(75)
+      toIdMap[ATTR] = TObjectIntHashMap(1752)
+      toIdMap[ARRAY] = TObjectIntHashMap(181)
+      toIdMap[BOOL] = TObjectIntHashMap(382)
+      toIdMap[COLOR] = TObjectIntHashMap(151)
+      toIdMap[DIMEN] = TObjectIntHashMap(310)
+      toIdMap[DRAWABLE] = TObjectIntHashMap(519)
+      toIdMap[ID] = TObjectIntHashMap(526)
+      toIdMap[INTEGER] = TObjectIntHashMap(226)
+      toIdMap[LAYOUT] = TObjectIntHashMap(221)
+      toIdMap[PLURALS] = TObjectIntHashMap(33)
+      toIdMap[STRING] = TObjectIntHashMap(1585)
+      toIdMap[STYLE] = TObjectIntHashMap(794)
     }
 
-    loadIdsFromResourceClass(com.android.internal.R::class.java, into = frameworkIds, lookForAttrsInStyleables = true)
+    val rClass = LayoutLibraryLoader.LayoutLibraryProvider.EP_NAME.computeSafeIfAny { provider -> provider.frameworkRClass }
+    if (rClass != null) {
+      loadIdsFromResourceClass(rClass, into = frameworkIds, lookForAttrsInStyleables = true)
+    }
 
     return frameworkIds
   }
@@ -282,6 +306,13 @@ class ResourceIdManager private constructor(val module: Module) : ResourceClassG
         }
       }
     }
+  }
+
+  /**
+   * Resets the currently loaded compiled ids. Call this method before start loading new compiled ids via [loadCompiledIds].
+   */
+  fun resetCompiledIds() {
+    compiledIds = null
   }
 
   /**

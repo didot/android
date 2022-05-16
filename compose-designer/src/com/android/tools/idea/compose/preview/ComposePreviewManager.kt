@@ -17,6 +17,8 @@ package com.android.tools.idea.compose.preview
 
 import com.android.tools.idea.compose.preview.ComposePreviewBundle.message
 import com.android.tools.idea.compose.preview.util.PreviewElementInstance
+import com.intellij.openapi.Disposable
+import com.intellij.psi.PsiFile
 import org.jetbrains.annotations.ApiStatus
 import javax.swing.Icon
 
@@ -47,7 +49,7 @@ data class PreviewGroup private constructor(
 /**
  * Interface that provides access to the Compose Preview logic.
  */
-interface ComposePreviewManager {
+interface ComposePreviewManager: Disposable {
   /**
    * Enum that determines the current status of the interactive preview.
    *
@@ -67,6 +69,7 @@ interface ComposePreviewManager {
     STOPPING;
 
     fun isStartingOrReady() = this == STARTING || this == READY
+    fun isStoppingOrDisabled() = this == STOPPING || this == DISABLED
   }
   /**
    * Status of the preview.
@@ -94,7 +97,7 @@ interface ComposePreviewManager {
   /**
    * When true, a build will automatically be triggered when the user makes a source code change.
    */
-  var isBuildOnSaveEnabled: Boolean
+  val isBuildOnSaveEnabled: Boolean
 
   /**
    * List of available groups in this preview. The editor can contain multiple groups and only will be displayed at a given time.
@@ -109,7 +112,7 @@ interface ComposePreviewManager {
   /**
    * Represents the [PreviewElementInstance] open in the Interactive Preview. Null if no preview is in interactive mode.
    */
-  var interactivePreviewElementInstance: PreviewElementInstance?
+  val interactivePreviewElementInstance: PreviewElementInstance?
 
   /**
    * Represents the [PreviewElementInstance] open in the Animation Inspector. Null if no preview is being inspected.
@@ -130,6 +133,22 @@ interface ComposePreviewManager {
    * When true, the ComposeViewAdapter will search for Composables that can return a DesignInfo object.
    */
   val hasDesignInfoProviders: Boolean
+
+  /**
+   * The [PsiFile] that this preview is representing, if any. For cases where the preview is rendering synthetic previews or
+   * elements from multiple files, this can be null.
+   */
+  val previewedFile: PsiFile?
+
+  /**
+   * Starts the interactive preview focusing in the given [PreviewElementInstance] [instance].
+   */
+  suspend fun startInteractivePreview(instance: PreviewElementInstance)
+
+  /**
+   * Stops the interactive preview.
+   */
+  fun stopInteractivePreview()
 }
 
 val ComposePreviewManager.isInStaticAndNonAnimationMode: Boolean

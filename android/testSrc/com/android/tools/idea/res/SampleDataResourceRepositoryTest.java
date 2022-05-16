@@ -31,7 +31,6 @@ import com.android.tools.idea.configurations.Configuration;
 import com.android.tools.idea.configurations.ConfigurationManager;
 import com.android.tools.idea.projectsystem.AndroidModuleSystem;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.intellij.openapi.application.ApplicationManager;
@@ -41,6 +40,7 @@ import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -48,7 +48,6 @@ import java.util.stream.Collectors;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.android.AndroidTestCase;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Test for {@link SampleDataResourceRepository}.
@@ -103,11 +102,14 @@ public class SampleDataResourceRepositoryTest extends AndroidTestCase {
                                "Insert image here 2\n");
     myFixture.addFileToProject("sampledata/images/image3.png",
                                "Insert image here 3\n");
+    myFixture.addFileToProject("sampledata/root_image.png",
+                               "Insert image here 3\n");
     SampleDataResourceRepository repo = SampleDataResourceRepository.getInstance(myFacet);
 
-    assertEquals(2, getResources(repo).size());
+    assertEquals(3, getResources(repo).size());
     assertEquals(1, getResources(repo, "strings").size());
     assertEquals(1, getResources(repo, "images").size());
+    assertEquals(1, getResources(repo, "root_image.png").size());
   }
 
   public void testResolver() {
@@ -328,7 +330,7 @@ public class SampleDataResourceRepositoryTest extends AndroidTestCase {
         sampleDataFile.getVirtualFile().setBinaryContent(("new1\n" +
                                                      "new2\n" +
                                                      "new3\n" +
-                                                     "new4\n").getBytes(Charsets.UTF_8));
+                                                     "new4\n").getBytes(StandardCharsets.UTF_8));
         PsiDocumentManager.getInstance(getProject()).commitAllDocuments();
       }
       catch (IOException e) {
@@ -345,11 +347,15 @@ public class SampleDataResourceRepositoryTest extends AndroidTestCase {
     myFixture.addFileToProject("sampledata/images/image1.png", "\n");
     myFixture.addFileToProject("sampledata/images/image2.png", "\n");
     myFixture.addFileToProject("sampledata/images/image3.png", "\n");
+    PsiFile rootImagePsiFile = myFixture.addFileToProject("sampledata/root_image.png", "\n");
+
 
     LocalResourceRepository repository = ResourceRepositoryManager.getAppResources(myFacet);
     Collection<ResourceItem> items = repository.getResources(RES_AUTO, ResourceType.SAMPLE_DATA).values();
-    assertSize(1, items);
-    SampleDataResourceItem item = (SampleDataResourceItem)Iterables.getOnlyElement(items);
+    assertSize(2, items);
+    SampleDataResourceItem item =
+      (SampleDataResourceItem)Iterables.getOnlyElement(
+        repository.getResources(RES_AUTO, ResourceType.SAMPLE_DATA, "images"));
     assertEquals("images", item.getName());
     assertEquals(SampleDataResourceItem.ContentType.IMAGE, item.getContentType());
     SampleDataResourceValue value = (SampleDataResourceValue)item.getResourceValue();
@@ -357,6 +363,12 @@ public class SampleDataResourceRepositoryTest extends AndroidTestCase {
          .map(file -> new File(file).getName())
          .collect(Collectors.toList());
     assertContainsElements(fileNames, "image1.png", "image2.png", "image3.png");
+
+    SampleDataResourceItem rootImageItem =
+      (SampleDataResourceItem)Iterables.getOnlyElement(repository.getResources(
+        RES_AUTO, ResourceType.SAMPLE_DATA, "root_image.png"));
+    assertEquals(rootImageItem.getContentType(), rootImageItem.getContentType());
+    assertEquals(rootImagePsiFile.getVirtualFile().getPath(), rootImageItem.getValueText());
   }
 
   public void testSubsetSampleData() {

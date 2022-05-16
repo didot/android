@@ -16,13 +16,18 @@
 package com.android.tools.profilers.perfetto.traceprocessor
 
 import com.android.tools.profiler.perfetto.proto.TraceProcessor
+import com.android.tools.profiler.perfetto.proto.TraceProcessor.AndroidFrameEventsResult.FrameEvent
+import com.android.tools.profiler.perfetto.proto.TraceProcessor.AndroidFrameEventsResult.Layer
+import com.android.tools.profiler.perfetto.proto.TraceProcessor.AndroidFrameEventsResult.Phase
 import com.android.tools.profilers.cpu.ThreadState
+import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineEvent
 import com.android.tools.profilers.cpu.systemtrace.CounterModel
 import com.android.tools.profilers.cpu.systemtrace.CpuCoreModel
 import com.android.tools.profilers.cpu.systemtrace.SchedulingEventModel
 import com.android.tools.profilers.cpu.systemtrace.TraceEventModel
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import perfetto.protos.PerfettoTrace
 
 class TraceProcessorModelTest {
 
@@ -111,10 +116,12 @@ class TraceProcessorModelTest {
     val schedProtoBuilder = TraceProcessor.SchedulingEventsResult.newBuilder().setNumCores(4)
     schedProtoBuilder.addSchedulingEvent(1, 1, 1, 1000, 3000,
                                          TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.SLEEPING)
-    schedProtoBuilder.addSchedulingEvent(1, 1, 1, 7000, 2000, TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNING)
+    schedProtoBuilder.addSchedulingEvent(1, 1, 1, 7000, 2000,
+                                         TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNABLE)
     schedProtoBuilder.addSchedulingEvent(1, 1, 2, 11000, 2000,
-                                         TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNING)
-    schedProtoBuilder.addSchedulingEvent(1, 2, 2, 2000, 4000, TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNING)
+                                         TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNABLE)
+    schedProtoBuilder.addSchedulingEvent(1, 2, 2, 2000, 4000,
+                                         TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNABLE)
     schedProtoBuilder.addSchedulingEvent(1, 2, 1, 10000, 1000,
                                          TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.SLEEPING)
 
@@ -126,14 +133,17 @@ class TraceProcessorModelTest {
     val process = model.getProcessById(1)!!
     val thread1 = process.threadById[1] ?: error("Thread 1 should be present")
     assertThat(thread1.schedulingEvents).containsExactly(
-      SchedulingEventModel(ThreadState.SLEEPING_CAPTURED, 1, 4, 3, 3, 1, 1, 1),
+      SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 1, 4, 3, 3, 1, 1, 1),
+      SchedulingEventModel(ThreadState.SLEEPING_CAPTURED, 4, 7, 3, 3, 1, 1, 1),
       SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 7, 9, 2, 2, 1, 1, 1),
+      SchedulingEventModel(ThreadState.RUNNABLE_CAPTURED, 9, 11, 2, 2, 1, 1, 1),
       SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 11, 13, 2, 2, 1, 1, 2))
       .inOrder()
     val thread2 = process.threadById[2] ?: error("Thread 2 should be present")
     assertThat(thread2.schedulingEvents).containsExactly(
       SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 2, 6, 4, 4, 1, 2, 2),
-      SchedulingEventModel(ThreadState.SLEEPING_CAPTURED, 10, 11, 1, 1, 1, 2, 1))
+      SchedulingEventModel(ThreadState.RUNNABLE_CAPTURED, 6, 10, 4, 4, 1, 2, 2),
+      SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 10, 11, 1, 1, 1, 2, 1))
       .inOrder()
 
     val cpus = model.getCpuCores()
@@ -142,15 +152,13 @@ class TraceProcessorModelTest {
     assertThat(cpus[0].schedulingEvents).isEmpty()
 
     assertThat(cpus[1].id).isEqualTo(1)
-    assertThat(cpus[1].schedulingEvents).hasSize(3)
     assertThat(cpus[1].schedulingEvents).containsExactly(
-      SchedulingEventModel(ThreadState.SLEEPING_CAPTURED, 1, 4, 3, 3, 1, 1, 1),
+      SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 1, 4, 3, 3, 1, 1, 1),
       SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 7, 9, 2, 2, 1, 1, 1),
-      SchedulingEventModel(ThreadState.SLEEPING_CAPTURED, 10, 11, 1, 1, 1, 2, 1))
+      SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 10, 11, 1, 1, 1, 2, 1))
       .inOrder()
 
     assertThat(cpus[2].id).isEqualTo(2)
-    assertThat(cpus[2].schedulingEvents).hasSize(2)
     assertThat(cpus[2].schedulingEvents).containsExactly(
       SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 2, 6, 4, 4, 1, 2, 2),
       SchedulingEventModel(ThreadState.RUNNING_CAPTURED, 11, 13, 2, 2, 1, 1, 2))
@@ -229,14 +237,14 @@ class TraceProcessorModelTest {
 
   @Test
   fun addAndroidFrameLayers() {
-    val layer = TraceProcessor.AndroidFrameEventsResult.Layer.newBuilder()
+    val layer = Layer.newBuilder()
       .setLayerName("foobar")
-      .addPhase(TraceProcessor.AndroidFrameEventsResult.Phase.newBuilder()
+      .addPhase(Phase.newBuilder()
                   .setPhaseName("Display")
-                  .addFrameEvent(TraceProcessor.AndroidFrameEventsResult.FrameEvent.newBuilder().setId(1)))
-      .addPhase(TraceProcessor.AndroidFrameEventsResult.Phase.newBuilder()
+                  .addFrameEvent(FrameEvent.newBuilder().setId(1)))
+      .addPhase(Phase.newBuilder()
                   .setPhaseName("GPU")
-                  .addFrameEvent(TraceProcessor.AndroidFrameEventsResult.FrameEvent.newBuilder().setId(2)))
+                  .addFrameEvent(FrameEvent.newBuilder().setId(2)))
       .build()
     val frameEventResult = TraceProcessor.AndroidFrameEventsResult.newBuilder()
       .addLayer(layer)
@@ -245,6 +253,143 @@ class TraceProcessorModelTest {
       addAndroidFrameEvents(frameEventResult)
     }.build()
     assertThat(model.getAndroidFrameLayers()).containsExactly(layer)
+  }
+
+  @Test
+  fun addAndroidFrameTimelineEvents() {
+    val frameTimelineResult = TraceProcessor.AndroidFrameTimelineResult.newBuilder()
+      .addExpectedSlice(TraceProcessor.AndroidFrameTimelineResult.ExpectedSlice.newBuilder()
+                          .setDisplayFrameToken(1)
+                          .setSurfaceFrameToken(101)
+                          .setTimestampNanoseconds(1000)
+                          .setDurationNanoseconds(1000))
+      .addExpectedSlice(TraceProcessor.AndroidFrameTimelineResult.ExpectedSlice.newBuilder()
+                          .setDisplayFrameToken(4)
+                          .setSurfaceFrameToken(104)
+                          .setTimestampNanoseconds(7000)
+                          .setDurationNanoseconds(1000))
+      .addExpectedSlice(TraceProcessor.AndroidFrameTimelineResult.ExpectedSlice.newBuilder()
+                          .setDisplayFrameToken(3)
+                          .setSurfaceFrameToken(103)
+                          .setTimestampNanoseconds(5000)
+                          .setDurationNanoseconds(1000))
+      .addExpectedSlice(TraceProcessor.AndroidFrameTimelineResult.ExpectedSlice.newBuilder()
+                          .setDisplayFrameToken(2)
+                          .setSurfaceFrameToken(102)
+                          .setTimestampNanoseconds(3000)
+                          .setDurationNanoseconds(1000))
+      .addActualSlice(TraceProcessor.AndroidFrameTimelineResult.ActualSlice.newBuilder()
+                        .setDisplayFrameToken(2)
+                        .setSurfaceFrameToken(102)
+                        .setTimestampNanoseconds(3000)
+                        .setDurationNanoseconds(2000)
+                        .setLayerName("foo")
+                        .setPresentType("Late Present")
+                        .setJankType("App Deadline Missed, SurfaceFlinger CPU Deadline Missed")
+                        .setOnTimeFinish(false)
+                        .setGpuComposition(true)
+                        .setLayoutDepth(1))
+      .addActualSlice(TraceProcessor.AndroidFrameTimelineResult.ActualSlice.newBuilder()
+                        .setDisplayFrameToken(3)
+                        .setSurfaceFrameToken(103)
+                        .setTimestampNanoseconds(5000)
+                        .setDurationNanoseconds(1000)
+                        .setLayerName("foo")
+                        .setPresentType("Early Present")
+                        .setJankType("Buffer Stuffing, SurfaceFlinger GPU Deadline Missed")
+                        .setOnTimeFinish(true)
+                        .setGpuComposition(true)
+                        .setLayoutDepth(2))
+      .addActualSlice(TraceProcessor.AndroidFrameTimelineResult.ActualSlice.newBuilder()
+                        .setDisplayFrameToken(4)
+                        .setSurfaceFrameToken(104)
+                        .setTimestampNanoseconds(7000)
+                        .setDurationNanoseconds(3000)
+                        .setLayerName("foo")
+                        .setPresentType("Dropped Frame")
+                        .setJankType("Unknown Jank")
+                        .setOnTimeFinish(true)
+                        .setGpuComposition(false)
+                        .setLayoutDepth(0))
+      .addActualSlice(TraceProcessor.AndroidFrameTimelineResult.ActualSlice.newBuilder()
+                        .setDisplayFrameToken(1)
+                        .setSurfaceFrameToken(101)
+                        .setTimestampNanoseconds(1000)
+                        .setDurationNanoseconds(1000)
+                        .setLayerName("foo")
+                        .setPresentType("On-time Present")
+                        .setJankType("None")
+                        .setOnTimeFinish(true)
+                        .setGpuComposition(true)
+                        .setLayoutDepth(0))
+      .build()
+    val model = TraceProcessorModel.Builder().apply {
+      addAndroidFrameTimelineEvents(frameTimelineResult)
+    }.build()
+    assertThat(model.getAndroidFrameTimelineEvents()).containsExactly(
+      AndroidFrameTimelineEvent(1, 101, 1, 2, 2, "foo", PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_ON_TIME,
+                                PerfettoTrace.FrameTimelineEvent.JankType.JANK_NONE,
+                                onTimeFinish = true, gpuComposition = true, layoutDepth = 0),
+      AndroidFrameTimelineEvent(2, 102, 3, 4, 5, "foo", PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_LATE,
+                                PerfettoTrace.FrameTimelineEvent.JankType.JANK_APP_DEADLINE_MISSED,
+                                onTimeFinish = false, gpuComposition = true, layoutDepth = 1),
+      AndroidFrameTimelineEvent(3, 103, 5, 6, 6, "foo", PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_EARLY,
+                                PerfettoTrace.FrameTimelineEvent.JankType.JANK_BUFFER_STUFFING,
+                                onTimeFinish = true, gpuComposition = true, layoutDepth = 2),
+      AndroidFrameTimelineEvent(4, 104, 7, 8, 10, "foo", PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_DROPPED,
+                                PerfettoTrace.FrameTimelineEvent.JankType.JANK_UNKNOWN,
+                                onTimeFinish = true, gpuComposition = false, layoutDepth = 0),
+    ).inOrder()
+  }
+
+  @Test
+  fun `grouping layers by phase adjusts depths`() {
+    fun<O,B> constructorOf(builder: () -> B, build: B.() -> O): (B.() -> Unit) -> O = { builder().apply(it).build() }
+    val layer = constructorOf(Layer::newBuilder, Layer.Builder::build)
+    val phase = constructorOf(Phase::newBuilder, Phase.Builder::build)
+    val frame = constructorOf(FrameEvent::newBuilder, FrameEvent.Builder::build)
+    val displayPhase = phase {
+      phaseName = "Display"
+      addFrameEvent(frame { frameNumber = 1; depth = 0 })
+      addFrameEvent(frame { frameNumber = 2; depth = 1 })
+    }
+    val layer1 = layer {
+      addPhase(phase {
+        phaseName = "Application"
+        addFrameEvent(frame { frameNumber = 1; depth = 0 })
+        addFrameEvent(frame { frameNumber = 2; depth = 1 })
+      })
+      addPhase(displayPhase)
+    }
+    val layer2 = layer {
+      addPhase(phase {
+        phaseName = "Application"
+        addFrameEvent(frame { frameNumber = 3; depth = 0 })
+        addFrameEvent(frame { frameNumber = 4; depth = 1 })
+      })
+      addPhase(displayPhase)
+    }
+    val layer3 = layer {
+      addPhase(phase {
+        phaseName = "Application"
+        addFrameEvent(frame { frameNumber = 5; depth = 0 })
+        addFrameEvent(frame { frameNumber = 6; depth = 1 })
+      })
+      addPhase(displayPhase)
+    }
+
+    assertThat(listOf(layer1, layer2, layer3).groupedByPhase()).isEqualTo(listOf(
+      phase {
+        phaseName = "Application"
+        addFrameEvent(frame { frameNumber = 1; depth = 0 })
+        addFrameEvent(frame { frameNumber = 2; depth = 1 })
+        addFrameEvent(frame { frameNumber = 3; depth = 2 })
+        addFrameEvent(frame { frameNumber = 4; depth = 3 })
+        addFrameEvent(frame { frameNumber = 5; depth = 4 })
+        addFrameEvent(frame { frameNumber = 6; depth = 5 })
+      },
+      displayPhase
+    ))
   }
 
   private fun TraceProcessor.ProcessMetadataResult.Builder.addProcess(id: Long, name: String)
@@ -276,14 +421,14 @@ class TraceProcessorModelTest {
 
   private fun TraceProcessor.SchedulingEventsResult.Builder.addSchedulingEvent(
     processId: Long, threadId: Long, cpu: Int, tsNs: Long, durNs: Long,
-    state: TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState) {
+    endState: TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState) {
     this.addSchedEventBuilder()
       .setProcessId(processId)
       .setThreadId(threadId)
       .setCpu(cpu)
       .setTimestampNanoseconds(tsNs)
       .setDurationNanoseconds(durNs)
-      .setState(state)
+      .setEndState(endState)
   }
 
 }

@@ -54,6 +54,7 @@ import com.android.tools.idea.sqlite.model.ExportRequest.ExportTableRequest
 import com.android.tools.idea.sqlite.model.SqliteDatabaseId
 import com.android.tools.idea.sqlite.model.SqliteDatabaseId.FileSqliteDatabaseId
 import com.android.tools.idea.sqlite.model.SqliteDatabaseId.LiveSqliteDatabaseId
+import com.android.tools.idea.sqlite.model.SqliteRow
 import com.android.tools.idea.sqlite.model.SqliteStatement
 import com.android.tools.idea.sqlite.model.createSqliteStatement
 import com.android.tools.idea.sqlite.model.isInMemoryDatabase
@@ -68,7 +69,6 @@ import com.android.tools.idea.testing.runDispatching
 import com.google.common.base.Stopwatch
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
-import com.google.common.util.concurrent.ListenableFuture
 import com.google.wireless.android.sdk.stats.AppInspectionEvent.DatabaseInspectorEvent.ConnectivityState
 import com.google.wireless.android.sdk.stats.AppInspectionEvent.DatabaseInspectorEvent.ExportOperationCompletedEvent.Destination
 import com.google.wireless.android.sdk.stats.AppInspectionEvent.DatabaseInspectorEvent.ExportOperationCompletedEvent.Outcome
@@ -97,10 +97,14 @@ import com.intellij.util.io.isFile
 import com.intellij.util.io.size
 import junit.framework.TestCase.fail
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.guava.asListenableFuture
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -113,8 +117,8 @@ import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.mockito.ArgumentCaptor
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -344,7 +348,7 @@ class ExportToFileControllerTest(private val testConfig: TestConfig) {
     requireEmptyFileAtDestination(exportRequest.dstPath, testConfig.targetFileAlreadyExists)
     submitExportRequest(exportRequest)
     verify(exportInProgressListener).invoke(controller.lastExportJob!!)
-    awaitExportComplete(5000L)
+    awaitExportComplete(15_000L)
     stopwatch.stop()
 
     verifyExportCallbacks(stopwatch.elapsed(MILLISECONDS))
@@ -445,8 +449,11 @@ class ExportToFileControllerTest(private val testConfig: TestConfig) {
     val queryIssuedLatch = CountDownLatch(1)
     `when`(connection.query(any())).thenAnswer {
       queryIssuedLatch.countDown()
-      CountDownLatch(1).await() // never released giving us time to cancel the job
-      mock<ListenableFuture<SqliteResultSet>>() // never returned, so irrelevant what the value is
+      CoroutineScope(taskExecutor.asCoroutineDispatcher()).async<List<SqliteRow>> {
+        CompletableDeferred<SqliteResultSet>().await() // never going to complete, giving us time to cancel the job
+        fail() // we never expect to get past the above line
+        mock()
+      }.asListenableFuture()
     }
 
     val databaseId = SqliteDatabaseId.fromFileDatabase(DatabaseFileData(MockVirtualFile("srcDb")))
@@ -468,7 +475,7 @@ class ExportToFileControllerTest(private val testConfig: TestConfig) {
     job.cancel(UserCancellationException())
 
     // verify the job gets cancelled and notifyError gets the confirmation
-    awaitExportComplete(500L)
+    awaitExportComplete(5000L)
     stopwatch.stop()
     assertThat(exportProcessedListener.scenario).isEqualTo(ERROR)
     assertThat(exportProcessedListener.capturedRequest).isEqualTo(exportRequest)

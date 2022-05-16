@@ -17,13 +17,13 @@ package com.android.tools.idea.tests.gui.framework.fixture;
 
 import com.android.tools.idea.tests.gui.framework.GuiTests;
 import com.android.tools.idea.tests.gui.framework.matcher.Matchers;
+import com.intellij.build.BuildContentManager;
 import com.intellij.execution.impl.ConsoleViewImpl;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.wm.ToolWindowId;
-import com.intellij.openapi.wm.impl.ToolWindowImpl;
+import com.intellij.openapi.wm.ex.ToolWindowEx;
+import com.intellij.openapi.wm.impl.InternalDecorator;
 import com.intellij.openapi.wm.impl.content.BaseLabel;
 import com.intellij.openapi.wm.impl.content.ContentTabLabelFixture;
-import com.intellij.openapi.wm.impl.content.ToolWindowContentUi;
 import com.intellij.ui.content.Content;
 import java.awt.Point;
 import javax.swing.JComponent;
@@ -40,7 +40,7 @@ import org.jetbrains.annotations.NotNull;
 public class BuildToolWindowFixture extends ToolWindowFixture {
 
   BuildToolWindowFixture(@NotNull Project project, @NotNull Robot robot) {
-    super(ToolWindowId.BUILD, project, robot);
+    super(BuildContentManager.TOOL_WINDOW_ID, project, robot);
   }
 
   /**
@@ -100,13 +100,13 @@ public class BuildToolWindowFixture extends ToolWindowFixture {
     return consoleView.getText();
   }
 
-  private ToolWindowContentUi getContentUI() {
-    return ((ToolWindowImpl)myToolWindow).getContentUI();
+  private InternalDecorator getToolWindowInternalDecorator() {
+    return ((ToolWindowEx)myToolWindow).getDecorator();
   }
 
   public void waitTabExist(@NotNull String displayName) {
     ComponentMatcher matcher = Matchers.byText(BaseLabel.class, displayName);
-    GuiTests.waitUntilShowing(myRobot, getContentUI().getTabComponent(), new GenericTypeMatcher<BaseLabel>(BaseLabel.class) {
+    GuiTests.waitUntilShowing(myRobot, getToolWindowInternalDecorator(), new GenericTypeMatcher<>(BaseLabel.class) {
       @Override
       protected boolean isMatching(@NotNull BaseLabel component) {
         return matcher.matches(component);
@@ -116,7 +116,7 @@ public class BuildToolWindowFixture extends ToolWindowFixture {
 
   public void waitTabNotExist(@NotNull String displayName) {
     ComponentMatcher matcher = Matchers.byText(BaseLabel.class, displayName);
-    GuiTests.waitUntilGone(myRobot, getContentUI().getTabComponent(), new GenericTypeMatcher<BaseLabel>(BaseLabel.class) {
+    GuiTests.waitUntilGone(myRobot, getToolWindowInternalDecorator(), new GenericTypeMatcher<>(BaseLabel.class) {
       @Override
       protected boolean isMatching(@NotNull BaseLabel component) {
         return matcher.matches(component);
@@ -132,13 +132,13 @@ public class BuildToolWindowFixture extends ToolWindowFixture {
   }
 
   private void clickTab(@NotNull String name) {
-    ContentTabLabelFixture buildTab = ContentTabLabelFixture.findByText(myRobot, getContentUI().getTabComponent(), name, 3);
+    ContentTabLabelFixture buildTab = ContentTabLabelFixture.findByText(myRobot, getToolWindowInternalDecorator(), name, 3);
     buildTab.click();
   }
 
   private void clickCloseTab(@NotNull String name) {
     ContentTabLabelFixture buildTab =
-      ContentTabLabelFixture.findByText(myRobot, getContentUI().getTabComponent(), name, 3);
+      ContentTabLabelFixture.findByText(myRobot, getToolWindowInternalDecorator(), name, 3);
     buildTab.close();
   }
 

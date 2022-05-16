@@ -42,7 +42,6 @@ import com.intellij.ui.ColorUtil
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.UIUtil
 import org.jetbrains.android.facet.AndroidFacet
-import org.jetbrains.android.util.AndroidUtils
 import java.util.function.Consumer
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -57,6 +56,7 @@ private const val STRIPE_TITLE = "Resource Manager"
  * Provides the tool explorer panel
  */
 class ResourceExplorerToolFactory : ToolWindowFactory, DumbAware {
+
   override fun init(window: ToolWindow) {
     window.stripeTitle = STRIPE_TITLE
   }
@@ -232,6 +232,7 @@ private class MyFileEditorListener(
 }
 
 private class MyToolWindowManagerListener(private val project: Project) : ToolWindowManagerListener {
+
   override fun stateChanged(toolWindowManager: ToolWindowManager) {
     val window: ToolWindow = toolWindowManager.getToolWindow(RESOURCE_EXPLORER_TOOL_WINDOW_ID) ?: return
     val contentManager = window.contentManager

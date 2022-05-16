@@ -18,7 +18,6 @@ import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
 public class ManifestDomFileDescription extends DomFileDescription<Manifest> {
   public ManifestDomFileDescription() {
     super(Manifest.class, AndroidManifest.NODE_MANIFEST);
@@ -43,7 +42,7 @@ public class ManifestDomFileDescription extends DomFileDescription<Manifest> {
     }
 
     VirtualFile virtualFile = file.getVirtualFile();
-    if (virtualFile == null) {  // happens during indexing
+    if (virtualFile == null) {  // happens while indexing
       return false;
     }
 

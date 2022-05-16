@@ -16,7 +16,7 @@
 package com.android.tools.adtui.model;
 
 import com.intellij.util.containers.OrderedSet;
-import javax.swing.*;
+import javax.swing.DefaultListModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -141,11 +141,11 @@ public class DragAndDropListModel<T extends DragAndDropModelListElement> extends
    * @param <T>
    */
   private static final class OrderedElement<T extends DragAndDropModelListElement> {
-    private final int myId;
+    private int myId;
     @Nullable
     private T myElement;
 
-    private OrderedElement(@NotNull T element) {
+    public OrderedElement(@NotNull T element) {
       myId = element.getId();
       myElement = element;
     }
@@ -180,7 +180,7 @@ public class DragAndDropListModel<T extends DragAndDropModelListElement> extends
 
     @Override
     public boolean equals(Object obj) {
-      return obj instanceof DragAndDropListModel.OrderedElement && getId() == ((OrderedElement<?>)obj).getId();
+      return obj instanceof DragAndDropListModel.OrderedElement && getId() == ((OrderedElement)obj).getId();
     }
   }
 }

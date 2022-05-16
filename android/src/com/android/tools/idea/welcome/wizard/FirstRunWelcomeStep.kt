@@ -16,12 +16,11 @@
 package com.android.tools.idea.welcome.wizard
 
 import com.android.tools.idea.ui.wizard.WizardUtils.wrapWithVScroll
-import com.android.tools.idea.util.getFormFactorsImage
 import com.android.tools.idea.wizard.model.ModelWizardStep
 import com.intellij.openapi.application.ApplicationNamesInfo
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.components.JBLabel
-import com.intellij.ui.layout.*
+import com.intellij.ui.layout.panel
 import com.intellij.uiDesigner.core.Spacer
 import javax.swing.JComponent
 

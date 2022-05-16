@@ -17,22 +17,21 @@ package com.android.tools.idea.gradle.dsl.parser.elements;
 
 import static com.android.tools.idea.gradle.dsl.parser.ext.ExtDslElement.EXT;
 
-import com.android.tools.idea.gradle.dsl.api.util.GradleNameElementUtil;
 import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiNamedElement;
 import com.intellij.util.containers.ContainerUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public final class GradleNameElement {
+public class GradleNameElement {
   /**
    * This regex is used to extract indexes out from a dereferenced map or list property.
    * Example properties would be:
@@ -77,7 +76,7 @@ public final class GradleNameElement {
 
   @NotNull
   public static GradleNameElement create(@NotNull String name) {
-    return new GradleNameElement(GradleNameElementUtil.escape(name), false);
+    return new GradleNameElement(escape(name), false);
   }
 
   @NotNull
@@ -141,14 +140,14 @@ public final class GradleNameElement {
   public List<String> fullNameParts() {
     String name = findName();
     if (name == null) {
-      return Lists.newArrayList();
+      return new ArrayList<>();
     }
-    List<String> nameSegments = GradleNameElementUtil.split(name);
+    List<String> nameSegments = split(name);
     return ContainerUtil.map(nameSegments, GradleNameElement::convertNameToKey);
   }
 
   public static String createNameFromParts(@NotNull List<String> parts) {
-    return GradleNameElementUtil.join(parts);
+    return join(parts);
   }
 
   @NotNull
@@ -204,11 +203,11 @@ public final class GradleNameElement {
   }
 
   public void rename(@NotNull String newName) {
-    internalRename(GradleNameElementUtil.escape(newName));
+    internalRename(escape(newName));
   }
 
   public void rename(@NotNull List<String> hierarchicalName) {
-    internalRename(GradleNameElementUtil.join(hierarchicalName));
+    internalRename(join(hierarchicalName));
   }
 
   public boolean isEmpty() {
@@ -240,7 +239,7 @@ public final class GradleNameElement {
       }
     }
 
-    List<String> parts = GradleNameElementUtil.split(propertyReference);
+    List<String> parts = split(propertyReference);
     if (!parts.isEmpty() && parts.get(0).equals(name)) {
       return true;
     }
@@ -271,6 +270,65 @@ public final class GradleNameElement {
     return StringUtil.unquoteString(str);
   }
 
+  @NotNull
+  public static String escape(@NotNull String part) {
+    StringBuilder buf = new StringBuilder();
+    for (int i = 0; i < part.length(); i++) {
+      char c = part.charAt(i);
+      if (c == '.' || c == '\\') {
+        buf.append('\\');
+      }
+      buf.append(c);
+    }
+    String result = buf.toString();
+    return result;
+  }
+
+  @NotNull
+  public static String unescape(@NotNull String part) {
+    StringBuilder buf = new StringBuilder();
+    for (int i = 0; i < part.length(); i++) {
+      char c = part.charAt(i);
+      if (c == '\\') {
+        assert i < part.length() - 1;
+        buf.append(part.charAt(++i));
+      }
+      else {
+        buf.append(c);
+      }
+    }
+    String result = buf.toString();
+    return result;
+  }
+
+  @NotNull
+  public static String join (@NotNull List<String> parts) {
+    String result = parts.stream().map(GradleNameElement::escape).collect(Collectors.joining("."));
+    return result;
+  }
+
+  @NotNull
+  public static List<String> split(@NotNull String name) {
+    StringBuilder buf = new StringBuilder();
+    List<String> result = new ArrayList<>();
+    for (int i = 0; i < name.length(); i++) {
+      char c = name.charAt(i);
+      if (c == '\\') {
+        assert i < name.length() - 1;
+        buf.append(name.charAt(++i));
+      }
+      else if (c == '.') {
+        result.add(buf.toString());
+        buf.setLength(0);
+      }
+      else {
+        buf.append(name.charAt(i));
+      }
+    }
+    result.add(buf.toString());
+    return result;
+  }
+
   /**
    * READ ACCESS REQUIRED.
    */
@@ -278,7 +336,7 @@ public final class GradleNameElement {
     myNameElement = element;
     myFakeName = null;
     if (myNameElement instanceof PsiNamedElement) {
-      myLocalName = GradleNameElementUtil.escape(((PsiNamedElement)myNameElement).getName());
+      myLocalName = escape(((PsiNamedElement)myNameElement).getName());
     }
     else if (myNameElement != null) {
       myLocalName = converter.psiToName(myNameElement);

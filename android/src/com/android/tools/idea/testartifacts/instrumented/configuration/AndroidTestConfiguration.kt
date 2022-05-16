@@ -15,9 +15,9 @@
  */
 package com.android.tools.idea.testartifacts.instrumented.configuration
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.RoamingType
-import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.util.xmlb.XmlSerializerUtil
@@ -26,16 +26,13 @@ import com.intellij.util.xmlb.XmlSerializerUtil
        storages = [Storage(value = "android-test-configuration.xml",
                            roamingType = RoamingType.DISABLED)])
 data class AndroidTestConfiguration(
-  // Use the new Android Test Matrix for both single and multi-device test results.
-  var ALWAYS_DISPLAY_RESULTS_IN_THE_TEST_MATRIX: Boolean = true,
-  // Show the opt-in banner in the legacy results UI.
-  var SHOW_ANDROID_TEST_MATRIX_OPT_IN_BANNER: Boolean = true,
   // Run Android Instrumented Tests using Gradle.
-  var RUN_ANDROID_TEST_USING_GRADLE: Boolean = false,
+  @JvmField
+  var RUN_ANDROID_TEST_USING_GRADLE: Boolean = true,
 ) : PersistentStateComponent<AndroidTestConfiguration> {
   companion object {
     @JvmStatic
-    fun getInstance(): AndroidTestConfiguration = ServiceManager.getService(AndroidTestConfiguration::class.java)
+    fun getInstance(): AndroidTestConfiguration = ApplicationManager.getApplication().getService(AndroidTestConfiguration::class.java)
   }
   override fun getState(): AndroidTestConfiguration = this
   override fun loadState(state: AndroidTestConfiguration) {

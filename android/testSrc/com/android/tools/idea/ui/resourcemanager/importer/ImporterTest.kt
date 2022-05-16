@@ -52,7 +52,7 @@ class ImporterTest {
     // Since the ApplicationManager does not restore 'null' application on Dispose
     // make sure IdeEventQueue is initialized before we setApplication to a not-null value to
     // prevent later attempts to initialize it accessing the already disposed MockApplication.
-    assertTrue(EventQueue.isDispatchThread(), Thread.currentThread().toString()) // FIXME-ank5
+    assertTrue(EventQueue.isDispatchThread(), Thread.currentThread().toString()) // IdeEventQueue should only be initialized on EDT
     IdeEventQueue.getInstance()
     disposable = Disposer.newDisposable()
     ApplicationManager.setApplication(MockApplication(disposable), disposable)

@@ -38,7 +38,6 @@ import com.android.tools.idea.tests.gui.framework.fixture.designer.NlEditorFixtu
 import com.android.tools.idea.tests.gui.framework.fixture.designer.layout.VisualizationFixture;
 import com.android.tools.idea.tests.gui.framework.fixture.translations.TranslationsEditorFixture;
 import com.android.tools.idea.uibuilder.visual.VisualizationToolWindowFactory;
-import com.google.common.collect.Lists;
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.DataManager;
@@ -83,6 +82,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -91,8 +91,6 @@ import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.KeyStroke;
-import com.intellij.ui.tabs.impl.JBEditorTabs;
-import com.intellij.ui.tabs.impl.TabLabel;
 import org.fest.swing.core.GenericTypeMatcher;
 import org.fest.swing.core.KeyPressInfo;
 import org.fest.swing.core.Robot;
@@ -435,7 +433,7 @@ public class EditorFixture {
     // 1) text-only, 2) split view, 3) preview(design)-only. We try to find this toolbar and select the corresponding action.
     SplitEditorToolbar toolbar = robot.finder().find(
       editor.getComponent(),
-      new GenericTypeMatcher<SplitEditorToolbar>(SplitEditorToolbar.class) {
+      new GenericTypeMatcher<>(SplitEditorToolbar.class) {
         @Override
         protected boolean isMatching(@NotNull SplitEditorToolbar component) {
           return true;
@@ -445,7 +443,7 @@ public class EditorFixture {
 
     ActionToolbar actionToolbar = robot.finder().find(
       toolbar,
-      new GenericTypeMatcher<ActionToolbarImpl>(ActionToolbarImpl.class) {
+      new GenericTypeMatcher<>(ActionToolbarImpl.class) {
         @Override
         protected boolean isMatching(@NotNull ActionToolbarImpl component) {
           return component.getPlace().equals("TextEditorWithPreview");
@@ -636,7 +634,7 @@ public class EditorFixture {
 
   @NotNull
   public List<String> getHighlights(HighlightSeverity severity) {
-    List<String> infos = Lists.newArrayList();
+    List<String> infos = new ArrayList<>();
     for (HighlightInfo info : getCurrentFileFixture().getHighlightInfos(severity)) {
       infos.add(info.getDescription());
     }
@@ -671,7 +669,7 @@ public class EditorFixture {
 
   @NotNull
   public EditorFixture waitForQuickfix() {
-    waitUntilFound(robot, new GenericTypeMatcher<JLabel>(JLabel.class) {
+    waitUntilFound(robot, new GenericTypeMatcher<>(JLabel.class) {
       @Override
       protected boolean isMatching(@NotNull JLabel component) {
         Icon icon = component.getIcon();
@@ -862,7 +860,7 @@ public class EditorFixture {
       GuiTask.execute(() -> selectSplitEditorTab(tab, (TextEditorWithPreview)selected));
     }
     else {
-      TabLabel tab = waitUntilShowing(robot, new GenericTypeMatcher<TabLabel>(TabLabel.class) {
+      TabLabel tab = waitUntilShowing(robot, new GenericTypeMatcher<>(TabLabel.class) {
         @Override
         protected boolean isMatching(@NotNull TabLabel tabLabel) {
           return tabName.equals(tabLabel.getAccessibleContext().getAccessibleName());

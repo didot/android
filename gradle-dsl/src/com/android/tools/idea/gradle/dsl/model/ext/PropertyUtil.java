@@ -157,7 +157,7 @@ public class PropertyUtil {
 
   /**
    * Follows references as the DslElement level to obtain the resulting element. Note: This only works
-   * on GradleDslSimpleExpressions, for any expressions please use {@link #followElement(GradleDslSimpleExpression)}
+   * on GradleDslSimpleExpressions, for arbitrary elements please use {@link #followElement(GradleDslElement)}
    *
    * @param expression expression to start at
    * @return resolved expression
@@ -179,7 +179,7 @@ public class PropertyUtil {
   }
 
   @Nullable
-  public static GradleDslElement followElement(@NotNull GradleDslSimpleExpression expression) {
+  public static GradleDslElement followElement(@NotNull GradleDslElement expression) {
     GradleDslElement element = expression;
     Set<GradleDslElement> seen = new HashSet<>();
     while (element instanceof GradleDslLiteral && ((GradleDslLiteral)element).isReference() && !((GradleDslLiteral)element).hasCycle()) {

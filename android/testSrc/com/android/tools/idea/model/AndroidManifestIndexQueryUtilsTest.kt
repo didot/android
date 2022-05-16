@@ -27,15 +27,19 @@ import com.intellij.testFramework.fixtures.IdeaProjectTestFixture
 import com.intellij.testFramework.fixtures.TestFixtureBuilder
 import org.jetbrains.android.AndroidTestCase
 import org.jetbrains.android.facet.AndroidFacet
+import java.util.concurrent.TimeUnit
 
 class AndroidManifestIndexQueryUtilsTest : AndroidTestCase() {
   private val LIB_MODULE1_WITH_DEPENDENCY = "withDependency1"
   private val LIB_MODULE2_WITH_DEPENDENCY = "withDependency2"
+  private lateinit var modificationListener: MergedManifestModificationListener
 
   override fun setUp() {
     super.setUp()
     MergedManifestModificationListener.ensureSubscribed(project)
+    modificationListener = MergedManifestModificationListener(project)
   }
+
 
   override fun configureAdditionalModules(projectBuilder: TestFixtureBuilder<IdeaProjectTestFixture>,
                                           modules: MutableList<MyAdditionalModuleData>) {
@@ -260,6 +264,7 @@ class AndroidManifestIndexQueryUtilsTest : AndroidTestCase() {
   private fun updateManifest(module: Module, relativePath: String, manifestContents: String) {
     deleteManifest(module)
     myFixture.addFileToProject(relativePath, manifestContents)
+    modificationListener.waitAllUpdatesCompletedWithTimeout(1, TimeUnit.SECONDS)
   }
 
   fun testQueryAndroidFacets_packageChanged() {

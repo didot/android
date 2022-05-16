@@ -18,17 +18,16 @@ package com.android.tools.idea.appinspection.inspectors.network.model
 import com.android.tools.adtui.model.Range
 import com.android.tools.idea.appinspection.inspector.api.AppInspectorMessenger
 import com.android.tools.idea.concurrency.createChildScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import studio.network.inspection.NetworkInspectorProtocol.Event
-import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 
 
@@ -105,7 +104,7 @@ private sealed class Intention {
  */
 private fun CoroutineScope.processEvents(commandChannel: ReceiveChannel<Intention>) = launch {
   val speedData = mutableListOf<Event>()
-  val httpData = mutableListOf<Event>()
+  val httpMap = mutableMapOf<Long, MutableList<Event>>()
 
   for (command in commandChannel) {
     if (command is Intention.InsertData) {
@@ -113,22 +112,36 @@ private fun CoroutineScope.processEvents(commandChannel: ReceiveChannel<Intentio
         speedData.add(command.event)
       }
       else if (command.event.hasHttpConnectionEvent()) {
-        httpData.add(command.event)
+        httpMap.getOrPut(command.event.httpConnectionEvent.connectionId) { mutableListOf() }.add(command.event)
       }
     }
     else if (command is Intention.QueryForSpeedData) {
       command.deferred.complete(searchRange(speedData, command.range))
     }
     else if (command is Intention.QueryForHttpData) {
-      command.deferred.complete(searchRange(httpData, command.range))
+      val min = TimeUnit.MICROSECONDS.toNanos(command.range.min.toLong())
+      val max = TimeUnit.MICROSECONDS.toNanos(command.range.max.toLong())
+      val results = httpMap.values.filter { data -> intersectsRange(min, max, data) }
+        .flatten()
+        .sortedBy { event -> event.timestamp }
+      command.deferred.complete(results)
     }
   }
+}
+
+private fun intersectsRange(min: Long, max: Long, data: List<Event>): Boolean {
+  val firstEventTimestamp = data.firstOrNull()?.timestamp ?: return false
+  val lastEventTimestamp = data.last().timestamp
+  if (firstEventTimestamp in min..max || lastEventTimestamp in min .. max || (firstEventTimestamp < min && lastEventTimestamp > max)) {
+    return true
+  }
+  return false
 }
 
 /**
  * The data backend of network inspector.
  *
- * It collects all of the events sent by the inspector and makes them available
+ * It collects all the events sent by the inspector and makes them available
  * for queries based on time ranges.
  */
 interface NetworkInspectorDataSource {
@@ -148,7 +161,13 @@ class NetworkInspectorDataSourceImpl(
       channel.close(e)
     }
     scope.launch {
-      processEvents(channel)
+      try {
+        processEvents(channel)
+      } catch (e: CancellationException) {
+        channel.close(e.cause)
+      }
+    }
+    scope.launch {
       messenger.eventFlow.collect {
         val event = Event.parseFrom(it)
         channel.send(Intention.InsertData(event))

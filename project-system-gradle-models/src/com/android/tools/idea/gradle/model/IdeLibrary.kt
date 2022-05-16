@@ -22,6 +22,15 @@ import java.io.File
  */
 interface IdeLibrary {
   /**
+   * Returns the location of the lint jar. The file may not point to an existing file.
+   *
+   * Only valid for Android Library
+   */
+  val lintJar: String?
+}
+
+interface IdeArtifactLibrary: IdeLibrary {
+  /**
    * Returns the artifact address in a unique way.
    *
    *
@@ -30,15 +39,10 @@ interface IdeLibrary {
    */
   val artifactAddress: String
 
-  /** Returns the artifact location.  */
-  val artifact: File
-
   /**
-   * Returns the location of the lint jar. The file may not point to an existing file.
-   *
-   * Only valid for Android Library
+   * The name to be used to represent the library in the IDE.
    */
-  val lintJar: String?
+  val name: String
 
   /**
    * Returns whether the dependency is on the compile class path but is not on the runtime class
@@ -47,7 +51,10 @@ interface IdeLibrary {
   val isProvided: Boolean
 }
 
-interface IdeAndroidLibrary: IdeLibrary {
+interface IdeAndroidLibrary: IdeArtifactLibrary {
+  /** Returns the artifact location.  */
+  val artifact: File
+
   /**
    * Returns the location of the unzipped bundle folder.
    */
@@ -124,7 +131,19 @@ interface IdeAndroidLibrary: IdeLibrary {
   val symbolFile: String
 }
 
-interface IdeJavaLibrary: IdeLibrary {
+interface IdeJavaLibrary: IdeArtifactLibrary {
+  /** Returns the artifact location.  */
+  val artifact: File
+}
+
+/**
+ * A source set in an Android module.
+ */
+enum class IdeModuleSourceSet(val sourceSetName: String, val canBeConsumed: Boolean) {
+  MAIN("main", true),
+  TEST_FIXTURES("testFixtures", true),
+  UNIT_TEST("unitTest", false),
+  ANDROID_TEST("androidTest", false),
 }
 
 interface IdeModuleLibrary: IdeLibrary {
@@ -142,5 +161,15 @@ interface IdeModuleLibrary: IdeLibrary {
   /**
    * Returns the build id.
    */
-  val buildId: String?
+  val buildId: String
+
+  /**
+   * Returns the sourceSet associated with the library.
+   */
+  val sourceSet: IdeModuleSourceSet
+
+  /**
+   * The artifact that this module dependency is targeting, this is only populated when V2 models are used
+   */
+  val artifact: File?
 }

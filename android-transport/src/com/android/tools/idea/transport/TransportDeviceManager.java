@@ -35,7 +35,6 @@ import com.android.tools.profiler.proto.Agent;
 import com.android.tools.profiler.proto.Commands;
 import com.android.tools.profiler.proto.Common;
 import com.android.tools.profiler.proto.Transport;
-import com.google.common.base.Charsets;
 import com.google.wireless.android.sdk.stats.AndroidProfilerEvent;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
 import com.google.wireless.android.sdk.stats.PerfdCrashInfo;
@@ -50,6 +49,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -57,6 +57,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -306,7 +307,7 @@ public final class TransportDeviceManager implements AndroidDebugBridge.IDebugBr
       myDevice.executeShellCommand(command, new IShellOutputReceiver() {
         @Override
         public void addOutput(byte[] data, int offset, int length) {
-          String s = new String(data, offset, length, Charsets.UTF_8);
+          String s = new String(data, offset, length, StandardCharsets.UTF_8);
           if (s.contains("Perfd Segmentation Fault:")) {
             reportTransportSegmentationFault(s);
           }
@@ -466,9 +467,17 @@ public final class TransportDeviceManager implements AndroidDebugBridge.IDebugBr
     private boolean waitForBootComplete() throws InterruptedException {
       // This checks the flag for a minute before giving up.
       // TODO: move ProfilerServiceProxy to support user-triggered retries, in cases where 1m isn't enough for the emulator to boot.
-      for (int i = 0; i < 60; i++) {
+      int maxSeconds = 60;
+      for (int i = 0; i < maxSeconds; i++) {
         String state = myDevice.getProperty(BOOT_COMPLETE_PROPERTY);
         if (BOOT_COMPLETE_MESSAGE.equals(state)) {
+          try {
+            // In case the device is an AVD, also wait for the AvdData#getName to be ready
+            myDevice.getAvdData().get(maxSeconds - i, TimeUnit.SECONDS);
+          }
+          catch (ExecutionException | java.util.concurrent.TimeoutException ignore) {
+            // ignore
+          }
           return true;
         }
         Thread.sleep(TimeUnit.SECONDS.toMillis(1));

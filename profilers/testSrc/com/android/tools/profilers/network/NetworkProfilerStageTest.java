@@ -413,7 +413,7 @@ public class NetworkProfilerStageTest {
   private static ByteString gzip(String input) {
     ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
     try (GZIPOutputStream compressor = new GZIPOutputStream(byteOutputStream)) {
-      compressor.write(input.getBytes());
+      compressor.write(input.getBytes(StandardCharsets.UTF_8));
     }
     catch (IOException ignored) {
     }

@@ -1,9 +1,8 @@
 package org.jetbrains.android.util;
 
+import java.util.Map;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Map;
 
 public class AndroidBuildTestingManager {
 
@@ -45,7 +44,7 @@ public class AndroidBuildTestingManager {
 
   public interface MyCommandExecutor {
     @NotNull
-    Process createProcess(@NotNull String[] args, @NotNull Map<String, String> environment);
+    Process createProcess(@NotNull String[] args, @NotNull Map<? extends String, ? extends String> environment);
 
     void log(@NotNull String s);
 

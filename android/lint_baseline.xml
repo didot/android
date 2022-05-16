@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="5" by="lint 7.0.0-dev">
+<issues format="5" by="lint 7.2.0-dev">
 
     <issue
         id="SimpleDateFormat"
         message="To get local formatting use `getDateInstance()`, `getDateTimeInstance()`, or `getTimeInstance()`, or use `new SimpleDateFormat(String template, Locale locale)` with for example `Locale.US` for ASCII dates.">
         <location
             file="src/com/android/tools/idea/profiling/capture/CaptureService.java"
-            line="113"/>
+            line="112"/>
     </issue>
 
     <issue
@@ -14,7 +14,7 @@
         message="To get local formatting use `getDateInstance()`, `getDateTimeInstance()`, or `getTimeInstance()`, or use `new SimpleDateFormat(String template, Locale locale)` with for example `Locale.US` for ASCII dates.">
         <location
             file="src/com/android/tools/idea/run/LaunchTaskRunner.java"
-            line="311"/>
+            line="310"/>
     </issue>
 
     <issue
@@ -206,7 +206,7 @@
         message="Do not store `JBUI.scale` scaled results in fields; this will not work correctly on dynamic theme or font size changes">
         <location
             file="src/com/android/tools/idea/rendering/GutterIconRenderer.java"
-            line="63"/>
+            line="62"/>
     </issue>
 
     <issue
@@ -214,15 +214,7 @@
         message="Do not store `JBUI.scale` scaled results in fields; this will not work correctly on dynamic theme or font size changes">
         <location
             file="src/com/android/tools/idea/rendering/GutterIconRenderer.java"
-            line="64"/>
-    </issue>
-
-    <issue
-        id="JbUiStored"
-        message="Do not store `JBUI.scale` scaled results in fields; this will not work correctly on dynamic theme or font size changes">
-        <location
-            file="src/com/android/tools/idea/npw/assetstudio/ui/IconPickerDialog.java"
-            line="73"/>
+            line="63"/>
     </issue>
 
     <issue
@@ -374,7 +366,7 @@
         message="Do not store `JBUI.scale` scaled results in fields; this will not work correctly on dynamic theme or font size changes">
         <location
             file="src/com/android/tools/idea/wizard/WizardConstants.java"
-            line="47"/>
+            line="46"/>
     </issue>
 
     <issue
@@ -382,39 +374,15 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/android/tools/idea/startup/AndroidStudioAnalyticsImpl.java"
-            line="52"/>
+            line="55"/>
     </issue>
 
     <issue
         id="VisibleForTests"
         message="This method should only be accessed from tests or within private scope">
         <location
-            file="src/com/android/tools/idea/gradle/project/build/invoker/GradleTasksExecutorImpl.java"
-            line="388"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope">
-        <location
-            file="src/com/android/tools/idea/stats/StatisticsViewer.java"
-            line="68"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope">
-        <location
-            file="src/com/android/tools/idea/stats/StatisticsViewer.java"
-            line="70"/>
-    </issue>
-
-    <issue
-        id="VisibleForTests"
-        message="This method should only be accessed from tests or within private scope">
-        <location
-            file="src/com/android/tools/idea/stats/StatisticsViewer.java"
-            line="171"/>
+            file="src/com/android/tools/idea/gradle/project/build/output/BuildOutputParserWrapper.kt"
+            line="42"/>
     </issue>
 
     <issue
@@ -426,43 +394,11 @@
     </issue>
 
     <issue
-        id="UseValueOf"
-        message="Use `Integer.valueOf(0)` instead">
-        <location
-            file="src/com/android/tools/idea/flags/ExperimentalSettingsConfigurable.java"
-            line="87"/>
-    </issue>
-
-    <issue
-        id="UseValueOf"
-        message="Use `Integer.valueOf(100)` instead">
-        <location
-            file="src/com/android/tools/idea/flags/ExperimentalSettingsConfigurable.java"
-            line="88"/>
-    </issue>
-
-    <issue
-        id="FileComparisons"
-        message="Do not compare java.io.File with `equals` or `==`: will not work correctly on case insensitive file systems! See `go/files-howto`.">
-        <location
-            file="src/com/android/tools/idea/npw/assetstudio/wizard/ConfirmGenerateImagesStep.java"
-            line="432"/>
-    </issue>
-
-    <issue
         id="FileComparisons"
         message="Do not compare java.io.File with `equals` or `==`: will not work correctly on case insensitive file systems! See `go/files-howto`.">
         <location
             file="src/com/android/tools/idea/fonts/DownloadableFontCacheServiceImpl.java"
             line="272"/>
-    </issue>
-
-    <issue
-        id="FileComparisons"
-        message="Do not compare java.io.File with `equals` or `==`: will not work correctly on case insensitive file systems! See `go/files-howto`.">
-        <location
-            file="src/com/android/tools/idea/gradle/project/build/invoker/GradleBuildInvoker.java"
-            line="753"/>
     </issue>
 
     <issue
@@ -494,7 +430,7 @@
         message="Do not compare java.io.File with `equals` or `==`: will not work correctly on case insensitive file systems! See `go/files-howto`.">
         <location
             file="src/com/android/tools/idea/gradle/model/java/JavaModuleContentRoot.java"
-            line="181"/>
+            line="183"/>
     </issue>
 
     <issue
@@ -510,7 +446,7 @@
         message="Do not compare java.io.File with `equals` or `==`: will not work correctly on case insensitive file systems! See `go/files-howto`.">
         <location
             file="src/com/android/tools/idea/editors/manifest/ManifestPanel.java"
-            line="995"/>
+            line="902"/>
     </issue>
 
     <issue
@@ -518,15 +454,7 @@
         message="Do not compare java.io.File with `equals` or `==`: will not work correctly on case insensitive file systems! See `go/files-howto`.">
         <location
             file="src/com/android/tools/idea/model/MergedManifestInfo.java"
-            line="353"/>
-    </issue>
-
-    <issue
-        id="FileComparisons"
-        message="Do not compare java.io.File with `equals` or `==`: will not work correctly on case insensitive file systems! See `go/files-howto`.">
-        <location
-            file="src/com/android/tools/idea/navigator/nodes/apk/ndk/NdkSourceNode.java"
-            line="99"/>
+            line="352"/>
     </issue>
 
     <issue
@@ -550,7 +478,7 @@
         message="Use `supplyAsync` overload with an explicit Executor instead. See `go/do-not-freeze`.">
         <location
             file="src/com/android/tools/idea/ddms/actions/CachedFeatures.java"
-            line="68"/>
+            line="63"/>
     </issue>
 
     <issue
@@ -574,7 +502,7 @@
         message="Use `whenCompleteAsync` overload with an explicit Executor instead. See `go/do-not-freeze`.">
         <location
             file="src/com/android/tools/idea/rendering/RenderTask.java"
-            line="827"/>
+            line="852"/>
     </issue>
 
     <issue

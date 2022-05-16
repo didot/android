@@ -62,6 +62,7 @@ import com.google.common.collect.ImmutableSet
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import icons.StudioIcons
+import java.util.function.Consumer
 import javax.swing.Icon
 
 /*
@@ -177,14 +178,8 @@ fun NlComponent.ensureLiveId(): String {
 
 @AndroidCoordinate
 fun NlComponent.getBaseline(): Int {
-  try {
-    val viewObject = viewInfo?.viewObject ?: return -1
-    return viewObject.javaClass.getMethod("getBaseline").invoke(viewObject) as Int
-  }
-  catch (ignore: Throwable) {
-  }
-
-  return -1
+  val baseline = viewInfo?.baseLine ?: return -1
+  return if (baseline == Integer.MIN_VALUE) -1 else baseline
 }
 
 private fun fixDefault(value: Int): Int {
@@ -352,10 +347,10 @@ fun NlComponent.getMostSpecificClass(classNames: Set<String>): String? {
 }
 
 val NlComponent.viewHandler: ViewHandler?
-  get() = ViewHandlerManager.get(model.project).getHandler(this)
+  get() = if (!model.project.isDisposed) ViewHandlerManager.get(model.project).getHandler(this) else null
 
 val NlComponent.viewGroupHandler: ViewGroupHandler?
-  get() = ViewHandlerManager.get(model.project).findLayoutHandler(this, false)
+  get() = if (!model.project.isDisposed) ViewHandlerManager.get(model.project).findLayoutHandler(this, false) else null
 
 /**
  * Creates a new child of the given type, and inserts it before the given sibling (or null to append at the end).
@@ -588,16 +583,18 @@ class NlComponentMixin(component: NlComponent)
   }
 }
 
-object NlComponentHelper {
-
-  /**
-   * Enhance the given [NlComponent] with layout-specific properties and methods.
-   *
-   * Note: For mocked components, you probably want LayoutTestUtilities.registerNlComponent.
-   */
-  fun registerComponent(component: NlComponent) {
+/**
+ * Enhance the given [NlComponent] with layout-specific properties and methods.
+ *
+ * Note: For mocked components, you probably want LayoutTestUtilities.registerNlComponent.
+ */
+object NlComponentRegistrar : Consumer<NlComponent> {
+  override fun accept(component: NlComponent) {
     component.setMixin(NlComponentMixin(component))
   }
+}
+
+object NlComponentHelper {
 
   // TODO Add a needsId method to the handler classes
   val TAGS_THAT_DONT_NEED_DEFAULT_IDS: Collection<String> = ImmutableSet.Builder<String>()

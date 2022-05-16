@@ -18,9 +18,13 @@ package com.android.tools.idea.gradle.dsl.model.android;
 import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.LIST_TYPE;
 import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.STRING_TYPE;
 import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.NONE;
+import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR;
 import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.FILE_TRANSFORM;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.OTHER;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_LIST;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_MAP;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.UNSPECIFIED_FOR_NOW;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelSemanticsDescription.CREATE_WITH_VALUE;
 
 import com.android.tools.idea.gradle.dsl.api.android.FlavorTypeModel;
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
@@ -29,6 +33,7 @@ import com.android.tools.idea.gradle.dsl.api.ext.SigningConfigPropertyModel;
 import com.android.tools.idea.gradle.dsl.model.GradleDslBlockModel;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelImpl;
+import com.android.tools.idea.gradle.dsl.model.ext.transforms.ListOrVarargsTransform;
 import com.android.tools.idea.gradle.dsl.parser.android.AbstractFlavorTypeDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList;
@@ -51,13 +56,19 @@ public abstract class FlavorTypeModelImpl extends GradleDslBlockModel implements
   @NonNls public static final String APPLICATION_ID_SUFFIX = "mApplicationIdSuffix";
   @NonNls public static final ModelPropertyDescription BUILD_CONFIG_FIELD =
     new ModelPropertyDescription("mBuildConfigField", UNSPECIFIED_FOR_NOW);
-  @NonNls public static final String CONSUMER_PROGUARD_FILES = "mConsumerProguardFiles";
-  @NonNls public static final String MANIFEST_PLACEHOLDERS = "mMmanifestPlaceholders";
-  @NonNls public static final String MATCHING_FALLBACKS = "mMatchingFallbacks";
+  @NonNls public static final ModelPropertyDescription CONSUMER_PROGUARD_FILES =
+    // see comment by specification of PROGUARD_FILES
+    new ModelPropertyDescription("mConsumerProguardFiles", UNSPECIFIED_FOR_NOW);
+  @NonNls public static final ModelPropertyDescription MANIFEST_PLACEHOLDERS =
+    new ModelPropertyDescription("mManifestPlaceholders", MUTABLE_MAP);
+  @NonNls public static final ModelPropertyDescription MATCHING_FALLBACKS =
+    new ModelPropertyDescription("mMatchingFallbacks", MUTABLE_LIST);
   @NonNls public static final String MULTI_DEX_ENABLED = "mMultiDexEnabled";
   @NonNls public static final String MULTI_DEX_KEEP_FILE = "mMultiDexKeepFile";
   @NonNls public static final String MULTI_DEX_KEEP_PROGUARD = "mMultiDexKeepProguard";
-  @NonNls public static final String PROGUARD_FILES = "mProguardFiles";
+  @NonNls public static final ModelPropertyDescription PROGUARD_FILES =
+    // UNSPECIFIED_FOR_NOW because MUTABLE_LIST actually indicates a list of Strings, whereas proguardFiles is a list of Files
+    new ModelPropertyDescription("mProguardFiles", UNSPECIFIED_FOR_NOW);
   @NonNls public static final ModelPropertyDescription RES_VALUE = new ModelPropertyDescription("mResValue", UNSPECIFIED_FOR_NOW);
   @NonNls public static final String SIGNING_CONFIG = "mSigningConfig";
   @NonNls public static final String USE_JACK = "mUseJack";
@@ -132,7 +143,9 @@ public abstract class FlavorTypeModelImpl extends GradleDslBlockModel implements
   @Override
   @NotNull
   public ResolvedPropertyModel consumerProguardFiles() {
-    return getModelForProperty(CONSUMER_PROGUARD_FILES);
+    return GradlePropertyModelBuilder.create(myDslElement, CONSUMER_PROGUARD_FILES)
+      .addTransform(new ListOrVarargsTransform(CONSUMER_PROGUARD_FILES, "setConsumerProguardFiles", "consumerProguardFiles"))
+      .buildResolved();
   }
 
   @Override
@@ -140,7 +153,11 @@ public abstract class FlavorTypeModelImpl extends GradleDslBlockModel implements
   public ResolvedPropertyModel manifestPlaceholders() {
     GradleDslExpressionMap manifestPlaceholders = myDslElement.getPropertyElement(GradleDslExpressionMap.MANIFEST_PLACEHOLDERS);
     if (manifestPlaceholders == null) {
-      myDslElement.addDefaultProperty(new GradleDslExpressionMap(myDslElement, GradleNameElement.fake(MANIFEST_PLACEHOLDERS)));
+      manifestPlaceholders = new GradleDslExpressionMap(myDslElement, GradleNameElement.fake(MANIFEST_PLACEHOLDERS.name));
+      ModelEffectDescription effect = new ModelEffectDescription(MANIFEST_PLACEHOLDERS, CREATE_WITH_VALUE);
+      manifestPlaceholders.setModelEffect(effect);
+      manifestPlaceholders.setElementType(REGULAR);
+      myDslElement.addDefaultProperty(manifestPlaceholders);
     }
     return getModelForProperty(MANIFEST_PLACEHOLDERS);
   }
@@ -173,7 +190,9 @@ public abstract class FlavorTypeModelImpl extends GradleDslBlockModel implements
   @Override
   @NotNull
   public ResolvedPropertyModel proguardFiles() {
-    return getModelForProperty(PROGUARD_FILES);
+    return GradlePropertyModelBuilder.create(myDslElement, PROGUARD_FILES)
+      .addTransform(new ListOrVarargsTransform(PROGUARD_FILES, "setProguardFiles", "proguardFiles"))
+      .buildResolved();
   }
 
   @Override
@@ -312,34 +331,17 @@ public abstract class FlavorTypeModelImpl extends GradleDslBlockModel implements
                                                                           @NotNull String name,
                                                                           @NotNull String value) {
     String elementName = property.name;
-    GradleNameElement nameElement = GradleNameElement.create(elementName);
-    // TODO(b/155853837): Groovy expects buildConfigField and resValue to be expressed with GradleDslExpressionList, while Kotlin expresses
-    //  them with a GradleDslMethodCall.  This method of detecting which to produce is unsound given the possibility of multi-language build
-    //  files, and should in any case be replaced by the two language backends producing a common representation.
-    boolean forKotlin = myDslElement.getDslFile().isKotlin();
-    GradleDslExpressionList expressionList;
-    GradleDslMethodCall expressionCall = null;
-    if (forKotlin) {
-      expressionCall = new GradleDslMethodCall(myDslElement, GradleNameElement.empty(), elementName);
-      ModelEffectDescription effect = new ModelEffectDescription(property, OTHER);
-      expressionCall.setModelEffect(effect);
-      expressionList = new GradleDslExpressionList(expressionCall, GradleNameElement.empty(), false);
-      expressionCall.setParsedArgumentList(expressionList);
-    }
-    else {
-      expressionList = new GradleDslExpressionList(myDslElement, nameElement, false);
-    }
+    GradleDslMethodCall expressionCall = new GradleDslMethodCall(myDslElement, GradleNameElement.empty(), elementName);
+    ModelEffectDescription effect = new ModelEffectDescription(property, OTHER);
+    expressionCall.setModelEffect(effect);
+    GradleDslExpressionList expressionList = new GradleDslExpressionList(expressionCall, GradleNameElement.empty(), false);
+    expressionCall.setParsedArgumentList(expressionList);
     T newValue = producer.apply(expressionList);
     assert newValue != null;
     newValue.type().setValue(type);
     newValue.name().setValue(name);
     newValue.value().setValue(value);
-    if (expressionCall == null) {
-      myDslElement.setNewElement(expressionList);
-    }
-    else {
-      myDslElement.setNewElement(expressionCall);
-    }
+    myDslElement.setNewElement(expressionCall);
     return newValue;
   }
 

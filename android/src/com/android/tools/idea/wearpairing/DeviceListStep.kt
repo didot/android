@@ -18,14 +18,15 @@ package com.android.tools.idea.wearpairing
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.adtui.HtmlLabel
 import com.android.tools.adtui.common.ColoredIconGenerator.generateWhiteIcon
+import com.android.tools.adtui.util.HelpTooltipForList
 import com.android.tools.idea.concurrency.AndroidDispatchers.ioThread
 import com.android.tools.idea.observable.ListenerManager
 import com.android.tools.idea.observable.core.BoolValueProperty
 import com.android.tools.idea.observable.core.ObservableBool
 import com.android.tools.idea.wizard.model.ModelWizard
 import com.android.tools.idea.wizard.model.ModelWizardStep
+import com.google.wireless.android.sdk.stats.WearPairingEvent
 import com.intellij.execution.runners.ExecutionUtil
-import com.intellij.ide.IdeTooltipManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.progress.ProgressManager
@@ -38,7 +39,6 @@ import com.intellij.ui.CollectionListModel
 import com.intellij.ui.IdeBorderFactory
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.SideBorder
-import com.intellij.ui.TooltipWithClickableLinks
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
@@ -60,6 +60,7 @@ import java.awt.GridBagLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
+import java.net.URL
 import javax.swing.BoxLayout
 import javax.swing.DefaultListSelectionModel
 import javax.swing.Icon
@@ -73,11 +74,10 @@ import javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities.isRightMouseButton
 import javax.swing.event.HyperlinkEvent.EventType.ACTIVATED
-import com.intellij.ui.TooltipWithClickableLinks.ForBrowser as TooltipForBrowser
 
 internal const val WEAR_DOCS_LINK = "https://developer.android.com/training/wearables/apps/creating#pairing-assistant"
 
-class DeviceListStep(model: WearDevicePairingModel, val project: Project, val wizardAction: WizardAction) :
+class DeviceListStep(model: WearDevicePairingModel, val project: Project?, val wizardAction: WizardAction) :
   ModelWizardStep<WearDevicePairingModel>(model, "") {
   private val listeners = ListenerManager()
   private val phoneListPanel = createDeviceListPanel(
@@ -86,53 +86,79 @@ class DeviceListStep(model: WearDevicePairingModel, val project: Project, val wi
     emptyTextTitle = message("wear.assistant.device.list.no.phone")
   )
   private val wearListPanel = createDeviceListPanel(
-    title = message("wear.assistant.device.list.phone.header"),
+    title = message("wear.assistant.device.list.wear.header"),
     listName = "wearList",
     emptyTextTitle = message("wear.assistant.device.list.no.wear")
   )
+  private var preferredFocus: JComponent? = null
   private val canGoForward = BoolValueProperty()
 
   override fun onWizardStarting(wizard: ModelWizard.Facade) {
-    listeners.listenAndFire(model.phoneList) {
-      updateList(phoneListPanel, model.phoneList.get())
+    if (model.selectedPhoneDevice.valueOrNull == null) { // Don't update list if a value is pre-selected
+      listeners.listenAndFire(model.phoneList) {
+        updateList(phoneListPanel, model.phoneList.get())
+      }
     }
 
-    listeners.listenAndFire(model.wearList) {
-      updateList(wearListPanel, model.wearList.get())
+    if (model.selectedWearDevice.valueOrNull == null) { // Don't update list if a value is pre-selected
+      listeners.listenAndFire(model.wearList) {
+        updateList(wearListPanel, model.wearList.get())
+      }
     }
+  }
+
+  override fun onEntering() {
+    val eventType = if (model.selectedPhoneDevice.valueOrNull == null && model.selectedWearDevice.valueOrNull == null)
+      WearPairingEvent.EventKind.SHOW_ASSISTANT_FULL_SELECTION
+    else
+      WearPairingEvent.EventKind.SHOW_ASSISTANT_PRE_SELECTION
+    WearPairingUsageTracker.log(eventType)
   }
 
   override fun createDependentSteps(): Collection<ModelWizardStep<*>> {
     return listOf(
-      NewConnectionAlertStep(model, project),
+      NewConnectionAlertStep(model),
       DevicesConnectionStep(model, project, wizardAction),
     )
   }
 
-  override fun getComponent(): JComponent = JBPanel<JBPanel<*>>(null).apply {
+  override fun getComponent(): JComponent = JBPanel<JBPanel<*>>(GridBagLayout()).apply {
     border = empty(24)
-    layout = BoxLayout(this, BoxLayout.Y_AXIS)
 
-    add(JBLabel(message("wear.assistant.device.list.title"), UIUtil.ComponentStyle.LARGE).apply {
+    val selectedPhone = model.selectedPhoneDevice.valueOrNull
+    val selectedWear = model.selectedWearDevice.valueOrNull
+    add(JBLabel(UIUtil.ComponentStyle.LARGE).apply {
       font = JBFont.label().biggerOn(5.0f)
-      alignmentX = Component.LEFT_ALIGNMENT
-    })
+      text = message("wear.assistant.device.list.title")
+    }, gridConstraint(x = 0, y = 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-    add(JBLabel(message("wear.assistant.device.list.subtitle")).apply {
-      alignmentX = Component.LEFT_ALIGNMENT
+    add(HtmlLabel().apply {
       border = empty(24, 0)
-    })
+      HtmlLabel.setUpAsHtmlLabel(this)
+      text = when {
+        selectedPhone != null -> message("wear.assistant.device.list.subtitle_one", selectedPhone.displayName, WEAR_DOCS_LINK)
+        selectedWear != null -> message("wear.assistant.device.list.subtitle_one", selectedWear.displayName, WEAR_DOCS_LINK)
+        else -> message("wear.assistant.device.list.subtitle_two", WEAR_DOCS_LINK)
+      }
+    }, gridConstraint(x = 0, y = 1, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
     add(Splitter(false, 0.5f).apply {
-      alignmentX = Component.LEFT_ALIGNMENT
-      firstComponent = phoneListPanel
-      secondComponent = wearListPanel
-    })
+      firstComponent = phoneListPanel.takeIf { selectedPhone == null }
+      secondComponent = wearListPanel.takeIf { selectedWear == null }
+    }, gridConstraint(x = 0, y = 2, weightx = 1.0, weighty = 1.0, fill = GridBagConstraints.BOTH))
+
+    preferredFocus = if (selectedPhone == null) phoneListPanel.list else wearListPanel.list
   }
 
+  override fun getPreferredFocusComponent(): JComponent? = preferredFocus
+
   override fun onProceeding() {
-    model.selectedPhoneDevice.setNullableValue(phoneListPanel.list.selectedValue)
-    model.selectedWearDevice.setNullableValue(wearListPanel.list.selectedValue)
+    if (model.selectedPhoneDevice.valueOrNull == null) {
+      model.selectedPhoneDevice.setNullableValue(phoneListPanel.list.selectedValue)
+    }
+    if (model.selectedWearDevice.valueOrNull == null) {
+      model.selectedWearDevice.setNullableValue(wearListPanel.list.selectedValue)
+    }
   }
 
   override fun canGoForward(): ObservableBool = canGoForward
@@ -140,15 +166,25 @@ class DeviceListStep(model: WearDevicePairingModel, val project: Project, val wi
   override fun dispose() = listeners.releaseAll()
 
   private fun updateGoForward() {
-    canGoForward.set(phoneListPanel.list.selectedValue != null && wearListPanel.list.selectedValue != null)
+    canGoForward.set(
+      (model.selectedPhoneDevice.valueOrNull != null || phoneListPanel.list.selectedValue != null) &&
+      (model.selectedWearDevice.valueOrNull != null || wearListPanel.list.selectedValue != null)
+    )
   }
 
   private fun createDeviceListPanel(title: String, listName: String, emptyTextTitle: String): DeviceListPanel {
     val list = createList(listName)
+    HelpTooltipForList<PairingDevice>().installOnList(this, list) { listIndex, helpTooltip ->
+        val tooltip = list.model.getElementAt(listIndex).getTooltip() ?: return@installOnList false
+        helpTooltip.setDescription(tooltip)
+        helpTooltip.setBrowserLink(message("wear.assistant.device.list.tooltip.learn.more"), URL(WEAR_DOCS_LINK))
+        true
+      }
+
     return DeviceListPanel(title, list, createEmptyListPanel(list, emptyTextTitle))
   }
 
-  private fun createList(listName: String): JBList<PairingDevice> {
+  private fun createList(listName: String): TooltipList<PairingDevice> {
     return TooltipList<PairingDevice>().apply {
       name = listName
       setCellRenderer { _, value, _, isSelected, _ ->
@@ -185,16 +221,12 @@ class DeviceListStep(model: WearDevicePairingModel, val project: Project, val wi
               gridx = 1
             }
           )
-          if (value.isPaired) {
+          if (WearPairingManager.isPaired(value.deviceID)) {
             add(JBLabel(getIcon(StudioIcons.LayoutEditor.Toolbar.INSERT_HORIZ_CHAIN, isSelected)))
           }
 
           isOpaque = true
           background = UIUtil.getListBackground(isSelected, isSelected)
-          toolTipText = value.getTooltip()?.let {
-            val learnMore = message("wear.assistant.device.list.tooltip.learn.more")
-            """<html>$it<br><a href="$WEAR_DOCS_LINK">$learnMore</a>"""
-          }
           border = empty(4, 16)
         }
       }
@@ -218,9 +250,6 @@ class DeviceListStep(model: WearDevicePairingModel, val project: Project, val wi
         val listDevice = uiList.model.getElementAt(index)
         if (listDevice != device) {
           (uiList.model as CollectionListModel).setElementAt(device, index)
-          if (device.isPaired && device.state != ConnectionState.DISCONNECTED && uiList.selectedIndex < 0) {
-            uiList.selectedIndex = index
-          }
         }
       }
     }
@@ -228,11 +257,18 @@ class DeviceListStep(model: WearDevicePairingModel, val project: Project, val wi
       uiList.model = CollectionListModel(deviceList)
     }
 
-    if (uiList.selectedValue?.state == ConnectionState.DISCONNECTED) {
+    if (uiList.selectedValue?.isDisabled() == true) {
       uiList.clearSelection()
     }
 
-    deviceListPanel.showList(showEmpty = uiList.isEmpty)
+    if (uiList.selectedValue == null) {
+      val firstAvailable = deviceList.indexOfFirst { !it.isDisabled() }
+      if (firstAvailable >= 0) {
+        uiList.selectedIndex = firstAvailable
+      }
+    }
+
+    deviceListPanel.showList()
     updateGoForward()
   }
 
@@ -257,22 +293,31 @@ class DeviceListStep(model: WearDevicePairingModel, val project: Project, val wi
         val row = locationToIndex(e.point)
         if (row >= 0 && isRightMouseButton(e)) {
           val listDevice = model.getElementAt(row)
-          val (pairedPhone, pairedWear) = WearPairingManager.getPairedDevices()
-          if (listDevice.isPaired && pairedPhone != null && pairedWear != null) {
-            val peerDevice = if (pairedPhone.deviceID == listDevice.deviceID) pairedWear else pairedPhone
+          val phoneWearPair = WearPairingManager.getPairedDevices(listDevice.deviceID)
+          if (phoneWearPair != null) {
+            val peerDevice = phoneWearPair.getPeerDevice(listDevice.deviceID)
             val item = JBMenuItem(message("wear.assistant.device.list.forget.connection", peerDevice.displayName))
             item.addActionListener {
               val process = Runnable {
                 val cloudSyncIsEnabled = runBlocking(context = ioThread) {
                   withTimeoutOrNull(5_000) {
-                    WearPairingManager.checkCloudSyncIsEnabled(pairedPhone)
+                    WearPairingManager.checkCloudSyncIsEnabled(phoneWearPair.phone)
                   }
                 }
                 if (cloudSyncIsEnabled == true) {
-                  ApplicationManager.getApplication().invokeLater({ showCloudSyncDialog(pairedPhone) }, ModalityState.any())
+                  ApplicationManager.getApplication().invokeLater({ showCloudSyncDialog(phoneWearPair.phone) }, ModalityState.any())
                 }
                 GlobalScope.launch(ioThread) {
-                  WearPairingManager.removePairedDevices()
+                  WearPairingManager.removePairedDevices(listDevice.deviceID)
+                  // Update pairing icon
+                  ApplicationManager.getApplication().invokeLater(
+                    {
+                      phoneListPanel.list.cleanCache()
+                      wearListPanel.list.cleanCache()
+                      phoneListPanel.showList()
+                      wearListPanel.showList()
+                    }, ModalityState.any()
+                  )
                 }
               }
               val progressTitle = message("wear.assistant.device.list.forget.connection", peerDevice.displayName)
@@ -335,10 +380,16 @@ private fun PairingDevice.isDisabled(): Boolean {
   return state == ConnectionState.DISCONNECTED || isEmulator && !isWearDevice && (apiLevel < 30 || !hasPlayStore)
 }
 
-private fun PairingDevice.getTooltip(): String? = when {
-  isEmulator && !isWearDevice && apiLevel < 30 -> message("wear.assistant.device.list.tooltip.requires.api")
-  isEmulator && !isWearDevice && !hasPlayStore -> message("wear.assistant.device.list.tooltip.requires.play")
-  else -> null
+private fun PairingDevice.getTooltip(): String? {
+  WearPairingManager.getPairedDevices(deviceID)?.apply {
+    return "Paired with ${getPeerDevice(deviceID).displayName}"
+  }
+
+  return when {
+    isEmulator && !isWearDevice && apiLevel < 30 -> message("wear.assistant.device.list.tooltip.requires.api")
+    isEmulator && !isWearDevice && !hasPlayStore -> message("wear.assistant.device.list.tooltip.requires.play")
+    else -> null
+  }
 }
 
 /**
@@ -349,7 +400,6 @@ private class TooltipList<E> : JBList<E>() {
 
   // Tooltip manager keeps requesting cell items when the mouse moves (even inside the same item!). Keep the last few in memory.
   private val cellRendererCache = FixedHashMap<CellRendererItem<E>, Component>(8)
-  private val tooltipCache = hashMapOf<String, TooltipWithClickableLinks>()
 
   override fun setCellRenderer(cellRenderer: ListCellRenderer<in E>) {
     super.setCellRenderer { list, value, index, isSelected, cellHasFocus ->
@@ -359,20 +409,14 @@ private class TooltipList<E> : JBList<E>() {
     }
   }
 
-  override fun getToolTipText(event: MouseEvent?): String? {
-    // Do nothing if tooltip already showing (or it will dismiss, making pressing the link very hard)
-    val manager = IdeTooltipManager.getInstance().takeIf { !it.hasCurrent() } ?: return null
-    val toolTipText = super.getToolTipText(event)
-    val tooltip = toolTipText?.let { tooltipCache.getOrPut(toolTipText) { TooltipForBrowser(this, toolTipText) } }
+  override fun getToolTipText(event: MouseEvent?): String? = null
 
-    tooltip?.point = event?.point
-    manager.setCustomTooltip(this, tooltip)
-
-    return toolTipText
+  fun cleanCache() {
+    cellRendererCache.clear()
   }
 }
 
-private class DeviceListPanel(title: String, val list: JBList<PairingDevice>, val emptyListPanel: JPanel) : JPanel(BorderLayout()) {
+private class DeviceListPanel(title: String, val list: TooltipList<PairingDevice>, val emptyListPanel: JPanel) : JPanel(BorderLayout()) {
   val scrollPane = ScrollPaneFactory.createScrollPane(list, VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER).apply {
     border = IdeBorderFactory.createBorder(SideBorder.TOP)
   }
@@ -387,8 +431,8 @@ private class DeviceListPanel(title: String, val list: JBList<PairingDevice>, va
     add(scrollPane, BorderLayout.CENTER)
   }
 
-  fun showList(showEmpty: Boolean) {
-    val view = if (showEmpty) emptyListPanel else list
+  fun showList() {
+    val view = if (list.isEmpty) emptyListPanel else list
     scrollPane.setViewportView(view)
   }
 }

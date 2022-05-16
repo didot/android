@@ -40,7 +40,11 @@ import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase
 import com.intellij.testFramework.registerServiceInstance
 import com.intellij.ui.awt.RelativePoint
-import org.mockito.Mockito.*
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.spy
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import java.awt.Component
 import java.awt.Point
 import java.awt.event.MouseEvent

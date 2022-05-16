@@ -22,17 +22,16 @@ import com.intellij.ide.ProhibitAWTEvents
 import com.intellij.openapi.CompositeDisposable
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.util.Condition
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.LeakHunter
 import com.intellij.util.PairProcessor
-import com.intellij.util.io.PersistentEnumeratorBase
+import com.intellij.util.io.PersistentEnumeratorCache
 import com.intellij.util.ref.DebugReflectionUtil
 import com.intellij.util.ui.UIUtil
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet
 import org.jetbrains.annotations.TestOnly
 import java.io.Closeable
-import java.util.*
+import java.util.WeakHashMap
 import javax.swing.SwingUtilities
 
 /**
@@ -140,7 +139,7 @@ private class LeakCollector(val description: String, val enforce: Boolean = fals
       SwingUtilities.isEventDispatchThread() -> UIUtil.dispatchAllInvocationEvents()
       else -> UIUtil.pump()
     }
-    PersistentEnumeratorBase.clearCacheForTests()
+    PersistentEnumeratorCache.clearCacheForTests()
   }
 
   fun registerLeak(leaked: Any, backlink: Any) {

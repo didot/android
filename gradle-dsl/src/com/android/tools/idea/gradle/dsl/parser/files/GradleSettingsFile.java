@@ -15,22 +15,23 @@
  */
 package com.android.tools.idea.gradle.dsl.parser.files;
 
+import static com.android.tools.idea.gradle.dsl.parser.include.IncludeDslElement.INCLUDE;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+
 import com.android.tools.idea.gradle.dsl.model.BuildModelContext;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import com.android.tools.idea.gradle.dsl.parser.include.IncludeDslElement;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
 import com.android.tools.idea.gradle.dsl.parser.settings.DependencyResolutionManagementDslElement;
+import com.android.tools.idea.gradle.dsl.parser.settings.PluginManagementDslElement;
 import com.google.common.collect.ImmutableMap;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
-import static com.android.tools.idea.gradle.dsl.parser.include.IncludeDslElement.INCLUDE;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-
-public class GradleSettingsFile extends GradleDslFile {
+public class GradleSettingsFile extends GradleScriptFile {
   public GradleSettingsFile(@NotNull VirtualFile file,
                             @NotNull Project project,
                             @NotNull String moduleName,
@@ -39,7 +40,8 @@ public class GradleSettingsFile extends GradleDslFile {
   }
 
   public static final ImmutableMap<String, PropertiesElementDescription> CHILD_PROPERTIES_ELEMENTS_MAP = Stream.of(new Object[][]{
-    {"dependencyResolutionManagement", DependencyResolutionManagementDslElement.DEPENDENCY_RESOLUTION_MANAGEMENT}
+    {"dependencyResolutionManagement", DependencyResolutionManagementDslElement.DEPENDENCY_RESOLUTION_MANAGEMENT},
+    {"pluginManagement", PluginManagementDslElement.PLUGIN_MANAGEMENT_DSL_ELEMENT},
   }).collect(toImmutableMap(data -> (String) data[0], data -> (PropertiesElementDescription) data[1]));
 
   @NotNull

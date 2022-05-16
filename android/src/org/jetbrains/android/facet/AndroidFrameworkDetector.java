@@ -141,14 +141,14 @@ public final class AndroidFrameworkDetector extends FacetBasedFrameworkDetector<
       "'" + propertyName +
       "' property is detected in " + SdkConstants.FN_PROJECT_PROPERTIES +
       " file.<br>You may enable related option in <a href='configure'>Settings | Compiler | Android DX</a>",
-      NotificationType.INFORMATION);
-    notification.setListener(new NotificationListener.Adapter() {
-      @Override
-      protected void hyperlinkActivated(@NotNull Notification notification, @NotNull HyperlinkEvent event) {
-        notification.expire();
-        ShowSettingsUtil.getInstance().showSettingsDialog(project, AndroidBundle.message("android.dex.compiler.configurable.display.name"));
-      }
-    });
+      NotificationType.INFORMATION).setListener(new NotificationListener.Adapter() {
+        @Override
+        protected void hyperlinkActivated(@NotNull Notification notification, @NotNull HyperlinkEvent event) {
+          notification.expire();
+          ShowSettingsUtil.getInstance().showSettingsDialog(
+            project, AndroidBundle.message("android.dex.compiler.configurable.display.name"));
+        }
+      });
     notification.notify(project);
     return notification;
   }

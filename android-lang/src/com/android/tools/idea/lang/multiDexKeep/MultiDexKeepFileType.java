@@ -16,7 +16,7 @@
 package com.android.tools.idea.lang.multiDexKeep;
 
 import com.intellij.openapi.fileTypes.LanguageFileType;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 
 /**

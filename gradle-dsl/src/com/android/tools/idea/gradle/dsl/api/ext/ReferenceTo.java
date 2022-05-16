@@ -16,11 +16,12 @@
 package com.android.tools.idea.gradle.dsl.api.ext;
 
 import com.android.tools.idea.gradle.dsl.api.android.SigningConfigModel;
-import com.android.tools.idea.gradle.dsl.api.util.GradleNameElementUtil;
+import com.android.tools.idea.gradle.dsl.api.util.GradleDslElementModel;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
-import com.android.tools.idea.gradle.dsl.parser.android.SigningConfigsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import com.google.common.base.Objects;
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,33 +29,36 @@ import org.jetbrains.annotations.Nullable;
  * Represents a reference to another property or variable.
  */
 public final class ReferenceTo {
-  @NotNull private static final String SIGNING_CONFIGS = "signingConfigs";
-  @NotNull private String myReferenceText;  // The internal fully qualified name of the DSL reference.
-  @NotNull private GradlePropertyModel propertyModel;
+  @NotNull private final String fullyQualifiedName;  // The internal fully qualified name of the DSL reference.
+  @NotNull private final GradleDslElementModel elementModel;
+  @NotNull private final GradleDslElement scope;
 
   /**
-   * Create a reference to a {@link GradlePropertyModel}.
+   * Create a reference to a {@link GradleDslElementModel}
    * @param model the model we want to refer to.
    * @throws IllegalArgumentException if the model isn't of a valid existing property.
    */
-  public ReferenceTo(@NotNull GradlePropertyModel model) {
-    if (model.getRawElement() != null) {
-      myReferenceText = model.getFullyQualifiedName();
-      propertyModel = model;
-    }
-    else {
-      throw new IllegalArgumentException("The model property isn't valid. Please check the property exist");
-    }
+  public ReferenceTo(@NotNull GradleDslElementModel model) {
+    // TODO(xof): this constructor should probably not exist, or at least not be exported from the Dsl module.  (It's needed internally
+    //  but should probably not be used in any external usage of the Dsl system.
+    this(model, model);
   }
 
   /**
-   * Create a reference to a {@link SigningConfigModel}.
-   * In this method the reference is set to a model, so we are dealing with internal names.
-   * @param model the signingConfigModel we are trying to refer to.
+   * Create a reference to a {@link GradleDslElementModel}.
+   * @param model the model we want to refer to.
+   * @param context the context in which we want to refer to the model.
+   * @throws IllegalArgumentException if the model isn't of a valid existing property.
    */
-  public ReferenceTo(@NotNull SigningConfigModel model) {
-    myReferenceText = SIGNING_CONFIGS + "." + GradleNameElementUtil.escape(model.name());
-    propertyModel = GradlePropertyModelBuilder.createModelFromDslElement(model.getDslElement());
+  public ReferenceTo(@NotNull GradleDslElementModel model, @NotNull GradleDslElementModel context) {
+    if (model.getRawElement() != null) {
+      fullyQualifiedName = model.getFullyQualifiedName();
+      elementModel = model;
+      scope = context.getRawPropertyHolder();
+    }
+    else {
+      throw new IllegalArgumentException("Invalid model property: please check the property exists.");
+    }
   }
 
   /**
@@ -75,12 +79,12 @@ public final class ReferenceTo {
     if (referenceModel == null) {
       return null;
     }
-    return new ReferenceTo(referenceModel);
+    return new ReferenceTo(referenceModel, propertyContext);
   }
 
   @NotNull
   public GradleDslElement getReferredElement() {
-    return propertyModel.getRawElement();
+    return elementModel.getRawElement();
   }
 
   /**
@@ -88,8 +92,8 @@ public final class ReferenceTo {
    * @return the reference text.
    */
   @NotNull
-  public String getText() {
-    return myReferenceText;
+  public String getFullyQualifiedName() {
+    return fullyQualifiedName;
   }
 
   @Override
@@ -97,19 +101,30 @@ public final class ReferenceTo {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ReferenceTo text = (ReferenceTo)o;
-    return Objects.equal(myReferenceText, text.myReferenceText);
+    return Objects.equal(fullyQualifiedName, text.fullyQualifiedName);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(myReferenceText);
+    return Objects.hashCode(fullyQualifiedName);
   }
 
   @Override
   @NotNull
   public String toString() {
-    // Special treatment for signingConfigs.
-    if (propertyModel.getRawPropertyHolder() instanceof SigningConfigsDslElement) return SIGNING_CONFIGS + "." + propertyModel.getName();
-    return propertyModel.getName();
+    List<String> scopeNameParts = GradleNameElement.split(scope.getQualifiedName());
+    List<String> resultParts = GradleNameElement.split(elementModel.getFullyQualifiedName());
+    int r = 0;
+    int s = 0;
+    if ("buildscript".equals(scopeNameParts.get(s))) s++;
+    if ("buildscript".equals(resultParts.get(r))) r++;
+    if ("ext".equals(scopeNameParts.get(s))) s++;
+    if ("ext".equals(resultParts.get(r))) r++;
+    if (r >= resultParts.size()) return GradleNameElement.join(resultParts);
+    while (r < resultParts.size() && s < scopeNameParts.size() && java.util.Objects.equals(resultParts.get(r), scopeNameParts.get(s))) {
+      r++;
+      s++;
+    }
+    return GradleNameElement.join(resultParts.subList(r, resultParts.size()));
   }
 }

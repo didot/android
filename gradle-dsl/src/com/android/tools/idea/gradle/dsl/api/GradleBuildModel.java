@@ -22,6 +22,7 @@ import com.android.tools.idea.gradle.dsl.api.dependencies.DependenciesModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ExtModel;
 import com.android.tools.idea.gradle.dsl.api.java.JavaModel;
 import com.android.tools.idea.gradle.dsl.api.repositories.RepositoriesModel;
+import com.android.tools.idea.gradle.dsl.api.settings.PluginsModel;
 import com.android.tools.idea.gradle.dsl.api.util.GradleDslModel;
 import com.intellij.openapi.diagnostic.ControlFlowException;
 import com.intellij.openapi.diagnostic.Logger;
@@ -30,15 +31,15 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import java.io.File;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
 
-import java.util.List;
-import java.util.Set;
-
-public interface GradleBuildModel extends GradleFileModel {
+public interface GradleBuildModel extends GradleFileModel, PluginsModel {
   /**
    * Runs the given supplier and returns the result if no exception was thrown. If an exception was thrown then
    * log it to back intellijs logs and the AndroidStudioCrashReporter and return null.
@@ -96,17 +97,6 @@ public interface GradleBuildModel extends GradleFileModel {
     return GradleModelProvider.getInstance().parseBuildFile(file, project);
   }
 
-  @NotNull
-  List<PluginModel> plugins();
-
-  @NotNull
-  PluginModel applyPlugin(@NotNull String plugin);
-
-  @NotNull
-  PluginModel applyPlugin(@NotNull String plugin, @NotNull String version, boolean apply);
-
-  void removePlugin(@NotNull String plugin);
-
   /**
    * In most cases in the Dsl api, we can obtain a PsiElement for an element from the corresponding model.  In the specific case of plugins,
    * where there are multiple forms of expression (including `apply plugin: ...` which has no corresponding block element) there is no
@@ -149,6 +139,9 @@ public interface GradleBuildModel extends GradleFileModel {
    */
   @NotNull
   Set<GradleFileModel> getInvolvedFiles();
+
+  @NotNull
+  Map<String, List<BuildModelNotification>> getNotifications();
 
   /**
    * @return the root directory of the module corresponding to this model.  Implementations are permitted to provide a best-effort

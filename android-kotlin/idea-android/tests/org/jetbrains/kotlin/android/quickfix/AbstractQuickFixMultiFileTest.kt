@@ -40,7 +40,6 @@ import org.jetbrains.kotlin.android.KotlinLightProjectDescriptor
 import org.jetbrains.kotlin.android.KotlinTestUtils
 import org.jetbrains.kotlin.psi.KtFile
 import java.io.File
-import java.util.ArrayList
 import java.util.regex.Pattern
 
 // Largely copied from the Kotlin test framework (after taking over android-kotlin sources).
@@ -61,7 +60,7 @@ abstract class AbstractQuickFixMultiFileTest : LightJavaCodeInsightFixtureTestCa
   private fun createTestFile(testFile: TestFile): VirtualFile {
     return runWriteAction {
       val vFile = myFixture.tempDirFixture.createFile(testFile.path)
-      vFile.charset = CharsetToolkit.UTF8_CHARSET
+      vFile.charset = Charsets.UTF_8
       VfsUtil.saveText(vFile, testFile.content)
       vFile
     }

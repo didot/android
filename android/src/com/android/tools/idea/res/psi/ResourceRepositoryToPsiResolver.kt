@@ -20,15 +20,20 @@ import com.android.ide.common.rendering.api.ResourceNamespace
 import com.android.ide.common.rendering.api.ResourceReference
 import com.android.ide.common.resources.ResourceItem
 import com.android.ide.common.resources.ResourceRepository
+import com.android.ide.common.resources.SingleNamespaceResourceRepository
 import com.android.ide.common.resources.configuration.FolderConfiguration
 import com.android.ide.common.resources.sampledata.SampleDataManager
 import com.android.resources.ResourceType
 import com.android.resources.ResourceUrl
 import com.android.tools.idea.projectsystem.getModuleSystem
+import com.android.tools.idea.res.ResourceFolderRepository
 import com.android.tools.idea.res.ResourceRepositoryManager
+import com.android.tools.idea.res.ResourceUpdateTracer
 import com.android.tools.idea.res.getDeclaringAttributeValue
 import com.android.tools.idea.res.getSourceAsVirtualFile
+import com.android.tools.idea.res.isIdDefinition
 import com.android.tools.idea.res.resolve
+import com.android.utils.TraceUtils
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementResolveResult
@@ -43,6 +48,7 @@ import com.intellij.psi.xml.XmlElement
 import com.intellij.util.containers.toArray
 import org.jetbrains.android.dom.resources.ResourceValue
 import org.jetbrains.android.facet.AndroidFacet
+import org.jetbrains.kotlin.psi.psiUtil.getParentOfType
 
 object ResourceRepositoryToPsiResolver : AndroidResourceToPsiResolver {
   override fun getGotoDeclarationFileBasedTargets(resourceReference: ResourceReference, context: PsiElement): Array<PsiFile> {
@@ -124,7 +130,29 @@ object ResourceRepositoryToPsiResolver : AndroidResourceToPsiResolver {
         }
       }
     }
+
+    if (allItems.isEmpty() && ResourceUpdateTracer.isTracingActive()) {
+      resourceRepository.traceHasResources(resourceReference)
+      for (repository in resourceRepository.leafResourceRepositories) {
+        if (repository is ResourceFolderRepository) {
+          repository.traceHasResources(resourceReference)
+        }
+      }
+      val file = ResourceUpdateTracer.pathForLogging(context.getParentOfType<PsiFile>(true)) ?: "unknown file"
+      ResourceUpdateTracer.dumpTrace("Unresolved resource reference \"${resourceReference.resourceUrl}\" in $file")
+    }
+
     return allItems.toArray(ResolveResult.EMPTY_ARRAY)
+  }
+
+  private fun ResourceRepository.traceHasResources(resourceReference: ResourceReference) {
+    if (this !is SingleNamespaceResourceRepository || resourceReference.namespace == namespace) {
+      ResourceUpdateTracer.log {
+        TraceUtils.getSimpleId(this) + ".hasResources(" + resourceReference.namespace + ", " + resourceReference.resourceType +
+            ", " + resourceReference.name + ") returned " +
+            hasResources(resourceReference.namespace, resourceReference.resourceType, resourceReference.name)
+      }
+    }
   }
 
   override fun getXmlAttributeNameGotoDeclarationTargets(
@@ -148,10 +176,25 @@ object ResourceRepositoryToPsiResolver : AndroidResourceToPsiResolver {
 
   private fun getGotoDeclarationElements(resourceReference: ResourceReference, context: PsiElement): List<PsiElement> {
     val resourceRepositoryManager = ResourceRepositoryManager.getInstance(context) ?: return emptyList()
-    return getRelevantResourceRepository(resourceReference, resourceRepositoryManager)
-      ?.getResources(resourceReference)
-      ?.mapNotNull { resolveToDeclaration(it, context.project) }
-      .orEmpty()
+    val repository = getRelevantResourceRepository(resourceReference, resourceRepositoryManager) ?: return emptyList()
+    return repository
+      .getResources(resourceReference)
+      .filterDefinitions(context.project)
+      .mapNotNull { resolveToDeclaration(it, context.project) }
+  }
+
+  /**
+   * Filters a collection of resources of the same type. If the collection contains non-ID
+   * resources, returns the whole collection. If the collection contains ID resources, returns
+   * a subset corresponding to ID definitions, unless this subset is empty, in which case
+   * returns all resources.
+   */
+  private fun Collection<ResourceItem>.filterDefinitions(project: Project): Collection<ResourceItem> {
+    if (size <= 1 || first().type != ResourceType.ID) {
+      return this // Nothing to filter out.
+    }
+    val definitions = filter { it.isIdDefinition(project) }
+    return definitions.ifEmpty { this }
   }
 
   private fun getGotoDeclarationElementsFromDynamicFeatureModules(

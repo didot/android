@@ -33,10 +33,13 @@ import com.android.tools.idea.common.scene.SceneManager;
 import com.android.tools.idea.common.scene.draw.ColorSet;
 import com.android.tools.idea.configurations.Configuration;
 import com.google.common.collect.ImmutableList;
-import com.intellij.openapi.Disposable;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.JBInsets;
-import java.awt.*;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
@@ -46,7 +49,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * View of a {@link Scene} used in a {@link DesignSurface}.
  */
-public abstract class SceneView implements Disposable {
+public abstract class SceneView {
   /**
    * Policy for determining the {@link Shape} of a {@link SceneView}.
    */
@@ -102,6 +105,7 @@ public abstract class SceneView implements Disposable {
   @SwingCoordinate private int x;
   @SwingCoordinate private int y;
   private boolean myAnimated = false;
+  private boolean myIsVisible = true;
   @NotNull private final ShapePolicy myShapePolicy;
 
   /**
@@ -287,6 +291,9 @@ public abstract class SceneView implements Disposable {
    * @param graphics
    */
   final void paint(@NotNull Graphics2D graphics) {
+    if (!myIsVisible) {
+      return;
+    }
     for (Layer layer : getLayers()) {
       if (layer.isVisible()) {
         layer.paint(graphics);
@@ -327,16 +334,14 @@ public abstract class SceneView implements Disposable {
    * rendering or if the rendering is failure.
    */
   public boolean hasContentSize() {
-    return true;
+    return isVisible();
   }
 
-  @Override
   public void dispose() {
     synchronized (myLayersCacheLock) {
       if (myLayersCache != null) {
         // TODO(b/148936113)
         myLayersCache.forEach(Disposer::dispose);
-        myLayersCache = null;
       }
     }
   }
@@ -344,7 +349,7 @@ public abstract class SceneView implements Disposable {
   /**
    * Called by the {@link DesignSurface} on mouse hover. The coordinates might be outside of the boundaries of this {@link SceneView}
    */
-  final void onHover(@SwingCoordinate int mouseX, @SwingCoordinate int mouseY) {
+  public final void onHover(@SwingCoordinate int mouseX, @SwingCoordinate int mouseY) {
     for (Layer layer : getLayers()) {
       layer.onHover(mouseX, mouseY);
     }
@@ -454,5 +459,13 @@ public abstract class SceneView implements Disposable {
    */
   public boolean isAnimated() {
     return myAnimated;
+  }
+
+  public void setVisible(boolean visibility) {
+    myIsVisible = visibility;
+  }
+
+  public boolean isVisible() {
+    return myIsVisible;
   }
 }

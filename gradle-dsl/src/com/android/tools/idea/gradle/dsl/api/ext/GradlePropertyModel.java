@@ -14,8 +14,8 @@
 package com.android.tools.idea.gradle.dsl.api.ext;
 
 import com.android.tools.idea.gradle.dsl.api.util.DeletablePsiElementHolder;
+import com.android.tools.idea.gradle.dsl.api.util.GradleDslElementModel;
 import com.android.tools.idea.gradle.dsl.api.util.TypeReference;
-import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import java.math.BigDecimal;
@@ -38,21 +38,9 @@ import org.jetbrains.annotations.Nullable;
  *   <li>{@link #toMap()}<li/>
  * <ul/>
  */
-public interface GradlePropertyModel extends DeletablePsiElementHolder {
+public interface GradlePropertyModel extends DeletablePsiElementHolder, GradleDslElementModel {
   @NotNull
   String DOUBLE_QUOTES = "\"";
-
-  /**
-   * @return the model property holder. For {@link ResolvedPropertyModel} this means the unresolved model property holder.
-   */
-  @NotNull
-  GradleDslElement getRawPropertyHolder();  // FIXME-ank5: real type is GradleDslElement
-
-  /**
-   * @return instance of GradleDslElement, which is not accessible from this module
-   */
-  @Nullable
-  GradleDslElement getRawElement(); // FIXME-ank4: real type is GradleDslElement
 
   /**
    * Converts a string to one that can be used to set interpolated strings using {@link #setValue(Object)}
@@ -71,15 +59,24 @@ public interface GradlePropertyModel extends DeletablePsiElementHolder {
   }
 
   // The following are TypeReferences used in calls to getValue and getRawValue.
-  TypeReference<String> STRING_TYPE = new TypeReference<String>() {};
-  TypeReference<Integer> INTEGER_TYPE = new TypeReference<Integer>() {};
-  TypeReference<BigDecimal> BIG_DECIMAL_TYPE = new TypeReference<BigDecimal>() {};
-  TypeReference<Boolean> BOOLEAN_TYPE = new TypeReference<Boolean>() {};
-  TypeReference<List<GradlePropertyModel>> LIST_TYPE = new TypeReference<List<GradlePropertyModel>>() {};
-  TypeReference<Map<String, GradlePropertyModel>> MAP_TYPE = new TypeReference<Map<String, GradlePropertyModel>>() {};
-  TypeReference<Object> OBJECT_TYPE = new TypeReference<Object>() {};
-  TypeReference<ReferenceTo> REFERENCE_TO_TYPE = new TypeReference<ReferenceTo>() {};
-  TypeReference<InterpolatedText> INTERPOLATED_TEXT_TYPE = new TypeReference<InterpolatedText>() {};
+  TypeReference<String> STRING_TYPE = new TypeReference<>() {
+  };
+  TypeReference<Integer> INTEGER_TYPE = new TypeReference<>() {
+  };
+  TypeReference<BigDecimal> BIG_DECIMAL_TYPE = new TypeReference<>() {
+  };
+  TypeReference<Boolean> BOOLEAN_TYPE = new TypeReference<>() {
+  };
+  TypeReference<List<GradlePropertyModel>> LIST_TYPE = new TypeReference<>() {
+  };
+  TypeReference<Map<String, GradlePropertyModel>> MAP_TYPE = new TypeReference<>() {
+  };
+  TypeReference<Object> OBJECT_TYPE = new TypeReference<>() {
+  };
+  TypeReference<ReferenceTo> REFERENCE_TO_TYPE = new TypeReference<>() {
+  };
+  TypeReference<InterpolatedText> INTERPOLATED_TEXT_TYPE = new TypeReference<>() {
+  };
 
   /**
    * Represents the type of the value stored by this property, or when a type can't be found
@@ -167,12 +164,6 @@ public interface GradlePropertyModel extends DeletablePsiElementHolder {
   String getName();
 
   /**
-   * Returns the name of the property including any enclosing blocks, e.g "ext.deps.prop1".
-   */
-  @NotNull
-  String getFullyQualifiedName();
-
-  /**
    * Returns the Gradle file where this gradle property lives.
    */
   @NotNull
@@ -232,6 +223,11 @@ public interface GradlePropertyModel extends DeletablePsiElementHolder {
    */
   @Nullable
   GradlePropertyModel getListValue(@NotNull Object value);
+
+  /**
+   * Ensure that this property will be rewritten to whatever syntactic form is best for the build model.
+   */
+  void rewrite();
 
   /**
    * @return a resolved model representing this property.

@@ -15,6 +15,14 @@
  */
 package com.android.tools.idea.gradle.project.sync.hyperlink;
 
+import static com.android.tools.idea.testing.TestProjectPaths.DEPENDENT_MODULES;
+import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION;
+import static com.google.common.truth.Truth.assertThat;
+import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction;
+import static org.junit.Assume.assumeTrue;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel;
@@ -28,18 +36,9 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.ServiceContainerUtil;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.IOException;
 import java.util.List;
-
-import static com.android.tools.idea.testing.TestProjectPaths.DEPENDENT_MODULES;
-import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION;
-import static com.google.common.truth.Truth.assertThat;
-import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction;
-import static org.junit.Assume.assumeTrue;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Tests for {@link AddGoogleMavenRepositoryHyperlink}.
@@ -49,11 +48,6 @@ public class AddGoogleMavenRepositoryHyperlinkTest extends AndroidGradleTestCase
   @Override
   public void setUp() throws Exception {
     super.setUp();
-  }
-
-  public void testExecuteWithGradle3dot5() throws Exception {
-    // Check that quickfix adds google maven repository using url when gradle version is lower than 4.0
-    verifyExecute("3.5");
   }
 
   public void testExecuteWithGradle4dot0() throws Exception {
@@ -178,7 +172,7 @@ public class AddGoogleMavenRepositoryHyperlinkTest extends AndroidGradleTestCase
   }
 
   private void verifyExecute(@NotNull String version) throws IOException {
-    assumeTrue(version.equals("3.5") || version.equals("4.0"));
+    assumeTrue(version.equals("4.0"));
     // Prepare project and mock version
     prepareProjectForImport(SIMPLE_APPLICATION);
     Project project = getProject();
@@ -201,12 +195,12 @@ public class AddGoogleMavenRepositoryHyperlinkTest extends AndroidGradleTestCase
     assertThat(buildModel).isNotNull();
     List<? extends RepositoryModel> repositories = buildModel.repositories().repositories();
     assertThat(repositories).hasSize(1);
-    verifyRepositoryForm(repositories.get(0), version.equals("4.0"));
+    verifyRepositoryForm(repositories.get(0), true);
 
     // Verify it was added in buildscript
     repositories = buildModel.buildscript().repositories().repositories();
     assertThat(repositories).hasSize(1);
-    verifyRepositoryForm(repositories.get(0), version.equals("4.0"));
+    verifyRepositoryForm(repositories.get(0), true);
   }
 
   private void removeRepositories(@NotNull Project project) {

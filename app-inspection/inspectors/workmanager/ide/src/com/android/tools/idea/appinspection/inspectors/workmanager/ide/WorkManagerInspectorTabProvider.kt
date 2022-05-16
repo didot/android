@@ -23,10 +23,13 @@ import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescrip
 import com.android.tools.idea.appinspection.inspector.ide.AppInspectorTab
 import com.android.tools.idea.appinspection.inspector.ide.AppInspectorTabProvider
 import com.android.tools.idea.appinspection.inspector.ide.LibraryInspectorLaunchParams
+import com.android.tools.idea.appinspection.inspector.ide.SingleAppInspectorTab
+import com.android.tools.idea.appinspection.inspector.ide.SingleAppInspectorTabProvider
 import com.android.tools.idea.appinspection.inspectors.workmanager.analytics.IdeWorkManagerInspectorTracker
 import com.android.tools.idea.appinspection.inspectors.workmanager.model.WorkManagerInspectorClient
 import com.android.tools.idea.appinspection.inspectors.workmanager.view.WorkManagerInspectorTab
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
+import com.android.tools.idea.flags.StudioFlags.ENABLE_BACKGROUND_TASK_INSPECTOR_TAB
 import com.android.tools.idea.flags.StudioFlags.ENABLE_WORK_MANAGER_INSPECTOR_TAB
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
@@ -36,7 +39,7 @@ import javax.swing.JComponent
 
 const val MINIMUM_WORKMANAGER_VERSION = "2.5.0"
 
-class WorkManagerInspectorTabProvider : AppInspectorTabProvider {
+class WorkManagerInspectorTabProvider : SingleAppInspectorTabProvider() {
   override val inspectorId = "androidx.work.inspection"
   override val displayName = "Background Task Inspector"
   override val icon: Icon = StudioIcons.LayoutEditor.Palette.LIST_VIEW
@@ -45,9 +48,10 @@ class WorkManagerInspectorTabProvider : AppInspectorTabProvider {
                     developmentDirectory = "prebuilts/tools/common/app-inspection/androidx/work/"),
     ArtifactCoordinate("androidx.work", "work-runtime", MINIMUM_WORKMANAGER_VERSION, ArtifactCoordinate.Type.AAR)
   )
+  override val learnMoreUrl = "https://d.android.com/r/studio-ui/background-task-inspector-help"
 
   override fun isApplicable(): Boolean {
-    return ENABLE_WORK_MANAGER_INSPECTOR_TAB.get()
+    return ENABLE_WORK_MANAGER_INSPECTOR_TAB.get() && !ENABLE_BACKGROUND_TASK_INSPECTOR_TAB.get()
   }
 
   override fun createTab(
@@ -58,10 +62,8 @@ class WorkManagerInspectorTabProvider : AppInspectorTabProvider {
     parentDisposable: Disposable
   ): AppInspectorTab {
     val scope = AndroidCoroutineScope(parentDisposable)
-    return object : AppInspectorTab {
-      override val messenger = messenger
+    return object : SingleAppInspectorTab(messenger) {
       private val client = WorkManagerInspectorClient(messenger, scope, IdeWorkManagerInspectorTracker(project))
-
       override val component: JComponent = WorkManagerInspectorTab(client, ideServices, scope).component
     }
   }

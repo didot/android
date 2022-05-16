@@ -16,8 +16,6 @@
 package com.android.tools.idea;
 
 import com.android.testutils.JarTestSuiteRunner;
-import com.android.tools.idea.gradle.project.sync.perf.AbstractGradleSyncSmokeTestCase;
-import com.android.tools.idea.gradle.project.sync.perf.AbstractGradleSyncPerfTestCase;
 import com.android.tools.idea.gradle.project.sync.perf.TestProjectPaths;
 import com.android.tools.tests.GradleDaemonsRule;
 import com.android.tools.tests.IdeaTestSuiteBase;
@@ -29,8 +27,6 @@ import org.junit.runner.RunWith;
 @RunWith(JarTestSuiteRunner.class)
 @JarTestSuiteRunner.ExcludeClasses({
   SyncPerfTestSuite.class,               // a suite mustn't contain itself
-  AbstractGradleSyncPerfTestCase.class,  // Abstract class
-  AbstractGradleSyncSmokeTestCase.class, // Abstract class
 })
 public class SyncPerfTestSuite extends IdeaTestSuiteBase {
   @ClassRule public static final LeakCheckerRule checker = new LeakCheckerRule();
@@ -90,8 +86,8 @@ public class SyncPerfTestSuite extends IdeaTestSuiteBase {
       LOG.warning("Could not prepare extra-large project: " + e);
     }
 
-    unzipIntoOfflineMavenRepo("tools/adt/idea/sync-perf-tests/test_deps.zip");
-    unzipIntoOfflineMavenRepo("tools/base/build-system/studio_repo.zip");
-    unzipIntoOfflineMavenRepo("tools/base/third_party/kotlin/kotlin-m2repository.zip");
+    linkIntoOfflineMavenRepo("tools/adt/idea/sync-perf-tests/test_deps.manifest");
+    linkIntoOfflineMavenRepo("tools/base/build-system/studio_repo.manifest");
+    linkIntoOfflineMavenRepo("tools/base/build-system/integration-test/kotlin_gradle_plugin_prebuilts.manifest");
   }
 }

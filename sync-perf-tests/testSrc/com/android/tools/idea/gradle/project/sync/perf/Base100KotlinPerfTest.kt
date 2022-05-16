@@ -15,10 +15,17 @@
  */
 package com.android.tools.idea.gradle.project.sync.perf
 
-class Base100KotlinPerfTest(useSingleVariantSyncInfrastructure: Boolean, gradleVersion: String?, agpVersion: String?) :
-AbstractGradleSyncPerfTestCase(useSingleVariantSyncInfrastructure, gradleVersion, agpVersion) {
+open class Base100KotlinPerfTestV1 : AbstractGradleSyncPerfTestCase() {
   override val relativePath: String = TestProjectPaths.BASE100_KOTLIN
-  override val projectName: String = "Base100Kotlin"
+  override val projectName: String = "Base100Kotlin_V1"
   override val initialDrops: Int = 1
   override val numSamples: Int = 5
+}
+
+class Base100KotlinPerfTestV2 : AbstractGradleSyncPerfTestCase() {
+  override val relativePath: String = TestProjectPaths.BASE100_KOTLIN
+  override val projectName: String = "Base100Kotlin_V2"
+  override val initialDrops: Int = 1
+  override val numSamples: Int = 5
+  override val useModelV2: Boolean = true
 }

@@ -30,8 +30,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.doAnswer
+import org.mockito.Mockito.`when`
 
-class TreeSettingsTest {
+class InspectorTreeSettingsTest {
 
   @get:Rule
   val appRule = ApplicationRule()
@@ -48,7 +49,7 @@ class TreeSettingsTest {
   @Before
   fun before() {
     appRule.testApplication.registerService(PropertiesComponent::class.java, PropertiesComponentMock())
-    settings = TreeSettingsImpl { client }
+    settings = InspectorTreeSettings { client }
     inspector = LayoutInspector(mock(), mock(), mock(), settings, MoreExecutors.directExecutor())
     doAnswer { capabilities }.`when`(client).capabilities
     doAnswer { isConnected }.`when`(client).isConnected
@@ -65,13 +66,19 @@ class TreeSettingsTest {
   }
 
   @Test
-  fun testMergedSemanticsTree() {
-    testFlag(DEFAULT_MERGED_SEMANTICS_TREE, KEY_MERGED_SEMANTICS_TREE, Capability.SUPPORTS_SEMANTICS) { settings.mergedSemanticsTree }
-  }
+  fun testHighlightSemantics() {
+    assertThat(settings.highlightSemantics).isFalse()
+    settings.highlightSemantics = true
+    assertThat(settings.highlightSemantics).isTrue()
+    settings.highlightSemantics = false
+    assertThat(settings.highlightSemantics).isFalse()
 
-  @Test
-  fun testUnmergedSemanticsTree() {
-    testFlag(DEFAULT_UNMERGED_SEMANTICS_TREE, KEY_UNMERGED_SEMANTICS_TREE, Capability.SUPPORTS_SEMANTICS) { settings.unmergedSemanticsTree }
+    StudioFlags.DYNAMIC_LAYOUT_INSPECTOR_SHOW_SEMANTICS.override(false)
+    assertThat(settings.highlightSemantics).isFalse()
+    settings.highlightSemantics = true
+    assertThat(settings.highlightSemantics).isFalse()
+    settings.highlightSemantics = false
+    assertThat(settings.highlightSemantics).isFalse()
   }
 
   @Test
@@ -113,5 +120,31 @@ class TreeSettingsTest {
       assertThat(flag()).named("Connected with $controllingCapability (opposite): $key").isEqualTo(!defaultValue)
       properties.unsetValue(key)
     }
+  }
+}
+
+class EditorTreeSettingsTest {
+  @get:Rule
+  val flagRule = SetFlagRule(StudioFlags.DYNAMIC_LAYOUT_INSPECTOR_SHOW_SEMANTICS, true)
+
+  @Test
+  fun testSettings() {
+    val client: InspectorClient = mock()
+    `when`(client.capabilities).thenReturn(setOf(Capability.SUPPORTS_SYSTEM_NODES))
+    val settings1 = EditorTreeSettings(client.capabilities)
+    assertThat(settings1.composeAsCallstack).isEqualTo(DEFAULT_COMPOSE_AS_CALLSTACK)
+    assertThat(settings1.hideSystemNodes).isEqualTo(DEFAULT_HIDE_SYSTEM_NODES)
+    assertThat(settings1.highlightSemantics).isEqualTo(DEFAULT_HIGHLIGHT_SEMANTICS)
+    assertThat(settings1.supportLines).isEqualTo(DEFAULT_SUPPORT_LINES)
+
+    settings1.hideSystemNodes = !DEFAULT_HIDE_SYSTEM_NODES
+    settings1.supportLines = !DEFAULT_SUPPORT_LINES
+    assertThat(settings1.supportLines).isEqualTo(!DEFAULT_SUPPORT_LINES)
+    assertThat(settings1.hideSystemNodes).isEqualTo(!DEFAULT_HIDE_SYSTEM_NODES)
+
+    `when`(client.capabilities).thenReturn(setOf())
+    val settings2 = EditorTreeSettings(client.capabilities)
+    assertThat(settings2.hideSystemNodes).isEqualTo(false)
+    assertThat(settings2.supportLines).isEqualTo(DEFAULT_SUPPORT_LINES)
   }
 }

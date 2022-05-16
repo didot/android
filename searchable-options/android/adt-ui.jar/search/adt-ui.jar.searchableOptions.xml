@@ -1,6 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <options>
   <configurable id="preferences.keymap" configurable_name="Keymap">
+    <option name="" path="ActionManager" hit="" />
+    <option name="left" path="ActionManager" hit="Move Tab Left" />
+    <option name="move" path="ActionManager" hit="Move Tab Left" />
+    <option name="tab" path="ActionManager" hit="Move Tab Left" />
+    <option name="move" path="ActionManager" hit="Move Tab Right" />
+    <option name="right" path="ActionManager" hit="Move Tab Right" />
+    <option name="tab" path="ActionManager" hit="Move Tab Right" />
+    <option name="rename" path="ActionManager" hit="Rename Tab" />
+    <option name="tab" path="ActionManager" hit="Rename Tab" />
     <option name="reset" path="ActionManager" hit="Reset Zoom" />
     <option name="zoom" path="ActionManager" hit="Reset Zoom" />
     <option name="default" path="ActionManager" hit="Reset zoom level to default" />
@@ -8,6 +16,10 @@
     <option name="reset" path="ActionManager" hit="Reset zoom level to default" />
     <option name="to" path="ActionManager" hit="Reset zoom level to default" />
     <option name="zoom" path="ActionManager" hit="Reset zoom level to default" />
+    <option name="down" path="ActionManager" hit="Split Down" />
+    <option name="split" path="ActionManager" hit="Split Down" />
+    <option name="right" path="ActionManager" hit="Split Right" />
+    <option name="split" path="ActionManager" hit="Split Right" />
     <option name="in" path="ActionManager" hit="Zoom In" />
     <option name="zoom" path="ActionManager" hit="Zoom In" />
     <option name="out" path="ActionManager" hit="Zoom Out" />
@@ -25,7 +37,6 @@
     <option name="the" path="ActionManager" hit="Zoom the preview to fit the screen size" />
     <option name="to" path="ActionManager" hit="Zoom the preview to fit the screen size" />
     <option name="zoom" path="ActionManager" hit="Zoom the preview to fit the screen size" />
-    <option name="100" path="ActionManager" hit="Zoom to Actual Size (100%)" />
     <option name="actual" path="ActionManager" hit="Zoom to Actual Size (100%)" />
     <option name="size" path="ActionManager" hit="Zoom to Actual Size (100%)" />
     <option name="to" path="ActionManager" hit="Zoom to Actual Size (100%)" />
@@ -42,4 +53,3 @@
     <option name="zoom" path="ActionManager" hit="Zoom to actual size of preview" />
   </configurable>
 </options>
-

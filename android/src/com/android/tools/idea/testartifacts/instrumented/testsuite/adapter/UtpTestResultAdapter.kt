@@ -26,14 +26,13 @@ import com.android.tools.idea.testartifacts.instrumented.testsuite.model.Android
 import com.android.tools.idea.testartifacts.instrumented.testsuite.model.AndroidTestSuiteResult
 import com.android.tools.utp.plugins.host.device.info.proto.AndroidTestDeviceInfoProto
 import com.google.common.annotations.VisibleForTesting
-import com.google.protobuf.Timestamp
 import com.google.protobuf.TextFormat
+import com.google.protobuf.Timestamp
 import com.google.testing.platform.proto.api.core.TestResultProto
 import com.google.testing.platform.proto.api.core.TestStatusProto
 import com.google.testing.platform.proto.api.core.TestSuiteResultProto
 import com.intellij.openapi.util.io.FileUtil.exists
 import java.io.File
-import java.io.IOException
 import java.nio.charset.Charset
 
 
@@ -91,7 +90,7 @@ class UtpTestResultAdapter(private val protoFile: File) {
   @WorkerThread
   fun forwardResults(listener: AndroidTestResultListener) {
     val dir = protoFile.parentFile
-    startAll(listener, deviceMap, resultProto)
+    startAll(listener, deviceMap, dir, resultProto)
     runAll(listener, deviceMap, dir, resultProto)
     finishAll(listener, deviceMap)
   }
@@ -144,15 +143,28 @@ class UtpTestResultAdapter(private val protoFile: File) {
     }
   }
 
-  private fun startAll(listener: AndroidTestResultListener, deviceMap: DeviceMap, resultProto: TestSuiteResultProto.TestSuiteResult) {
+  private fun startAll(listener: AndroidTestResultListener, deviceMap: DeviceMap, dir: File, resultProto: TestSuiteResultProto.TestSuiteResult) {
     for (deviceTestSuite in deviceMap.values) {
       listener.onTestSuiteScheduled(deviceTestSuite.device)
       deviceTestSuite.testSuite = AndroidTestSuite(resultProto.testSuiteMetaData.testSuiteName,
                                                    resultProto.testSuiteMetaData.testSuiteName,
-                                                   resultProto.testResultCount,
+                                                   countTestCaseCount(deviceTestSuite.device, dir, resultProto),
                                                    AndroidTestSuiteResult.PASSED)
       listener.onTestSuiteStarted(deviceTestSuite.device, deviceTestSuite.testSuite)
     }
+  }
+
+  private fun countTestCaseCount(device: AndroidDevice, dir: File, resultProto: TestSuiteResultProto.TestSuiteResult): Int {
+    var testCaseCount = 0
+    for (testResultProto in resultProto.testResultList) {
+      val deviceInfo = testResultProto.getDeviceInfo(dir)
+      if (deviceInfo != null) {
+        if (device.deviceName == deviceInfo.displayName() && device.deviceType == deviceInfo.deviceType()) {
+          testCaseCount++
+        }
+      }
+    }
+    return testCaseCount
   }
 
   private fun runAll(listener: AndroidTestResultListener, deviceMap: DeviceMap, dir: File, resultProto: TestSuiteResultProto.TestSuiteResult) {
@@ -176,6 +188,10 @@ class UtpTestResultAdapter(private val protoFile: File) {
       val iceboxInfo = testResultProto.outputArtifactList.find {
         it.label.label == "icebox.info" && it.label.namespace == "android"
       }
+      val logcatInfoArtifact = testResultProto.outputArtifactList.find {
+        it.label.label == "logcat" && it.label.namespace == "android"
+      }
+      val logcat = resolveFile(dir, logcatInfoArtifact?.sourcePath?.path)?.readText() ?: ""
       val retentionArtifactFile = resolveFile(dir, iceboxArtifact?.sourcePath?.path)
       val iceboxInfoFile = resolveFile(dir, iceboxInfo?.sourcePath?.path)
       val testCase = AndroidTestCase(id = fullName,
@@ -189,12 +205,18 @@ class UtpTestResultAdapter(private val protoFile: File) {
                                        TestStatusProto.TestStatus.FAILED -> AndroidTestCaseResult.FAILED
                                        else -> AndroidTestCaseResult.SKIPPED
                                      },
+                                     logcat = logcat,
                                      startTimestampMillis = testCaseProto.startTime.millis(),
                                      endTimestampMillis = testCaseProto.endTime.millis()
       )
       if (testResultProto.testStatus == TestStatusProto.TestStatus.FAILED) {
         testSuite.result = AndroidTestSuiteResult.FAILED
       }
+
+      setBenchmarkContextAndPrepareFiles(testResultProto, testCase) { outputArtifactPath ->
+        resolveFile(dir, outputArtifactPath) ?: File(outputArtifactPath)
+      }
+
       listener.onTestCaseStarted(device, testSuite, testCase)
       listener.onTestCaseFinished(device, testSuite, testCase)
     }

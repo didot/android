@@ -16,8 +16,11 @@
 <idea-plugin xmlns:xi="http://www.w3.org/2001/XInclude">
   <name>Android Data Binding Tests</name>
   <id>com.android.tools.idea.android.databinding.tests</id>
-
-  <depends>org.jetbrains.android</depends>
+  <xi:include href="/META-INF/android-plugin.xml" xpointer="xpointer(/idea-plugin/*)"/>
+  <xi:include href="/META-INF/android-lang-databinding.xml" xpointer="xpointer(/idea-plugin/*)"/>
+  <xi:include href="/META-INF/databinding.xml" xpointer="xpointer(/idea-plugin/*)"/>
+  <xi:include href="/META-INF/project-system-plugin.xml" xpointer="xpointer(/idea-plugin/*)"/>
+  <xi:include href="/META-INF/project-system-gradle-plugin.xml" xpointer="xpointer(/idea-plugin/*)"/>
 
   <extensions defaultExtensionNs="com.intellij">
     <projectService serviceInterface="com.android.tools.idea.databinding.analytics.api.DataBindingTracker"

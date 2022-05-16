@@ -27,9 +27,11 @@ import com.intellij.testFramework.registerServiceInstance
 import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 
+@Ignore("b/207568525")
 class LayoutInspectorSettingsTest {
 
   @get:Rule

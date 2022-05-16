@@ -16,9 +16,6 @@
 package com.android.tools.idea.run;
 
 import com.android.ddmlib.IDevice;
-import com.intellij.packaging.artifacts.ArtifactManager;
-import com.intellij.packaging.elements.CompositePackagingElement;
-import com.intellij.packaging.elements.PackagingElementFactory;
 import java.util.Collection;
 import org.jetbrains.android.AndroidTestCase;
 import org.mockito.Mockito;

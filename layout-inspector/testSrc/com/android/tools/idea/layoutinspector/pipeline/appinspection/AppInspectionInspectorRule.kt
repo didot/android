@@ -22,11 +22,11 @@ import com.android.tools.idea.appinspection.api.AppInspectionApiServices
 import com.android.tools.idea.appinspection.test.AppInspectionServiceRule
 import com.android.tools.idea.appinspection.test.TestAppInspectorCommandHandler
 import com.android.tools.idea.appinspection.test.createResponse
+import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.layoutinspector.InspectorClientProvider
-import com.android.tools.idea.layoutinspector.LayoutInspector
-import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
-import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLauncher
+import com.android.tools.idea.layoutinspector.metrics.LayoutInspectorMetrics
+import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLaunchMonitor
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.compose.COMPOSE_LAYOUT_INSPECTOR_ID
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.inspectors.FakeComposeLayoutInspector
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.inspectors.FakeInspector
@@ -37,6 +37,7 @@ import com.android.tools.idea.transport.faketransport.FakeTransportService
 import com.android.tools.idea.transport.faketransport.commands.CommandHandler
 import com.android.tools.profiler.proto.Commands
 import com.android.tools.profiler.proto.Common
+import com.intellij.openapi.Disposable
 import kotlinx.coroutines.CoroutineScope
 import org.junit.rules.TestRule
 import org.junit.runner.Description
@@ -49,39 +50,43 @@ import layoutinspector.view.inspection.LayoutInspectorViewProtocol as ViewProtoc
  *
  * Note that some parameters are provided lazily to allow rules to initialize them first.
  */
-class AppInspectionClientProvider(private val getApiServices: () -> AppInspectionApiServices,
-                                  private val getScope: () -> CoroutineScope)
-  : InspectorClientProvider {
-  override fun create(params: InspectorClientLauncher.Params, inspector: LayoutInspector): InspectorClient {
-    val apiServices = getApiServices()
-    val scope = getScope()
+fun AppInspectionClientProvider(
+  getApiServices: () -> AppInspectionApiServices,
+  getScope: () -> CoroutineScope,
+  getMonitor: () -> InspectorClientLaunchMonitor,
+  parentDisposable: Disposable
+) = InspectorClientProvider { params, inspector ->
+  val apiServices = getApiServices()
 
-    return AppInspectionInspectorClient(params.adb, params.process, inspector.layoutInspectorModel, inspector.stats, apiServices, scope)
+  AppInspectionInspectorClient(params.process, params.isInstantlyAutoConnected, inspector.layoutInspectorModel,
+                               LayoutInspectorMetrics(inspector.layoutInspectorModel.project, params.process, inspector.stats),
+                               parentDisposable, apiServices, getScope()).apply {
+    launchMonitor = getMonitor()
   }
 }
 
 /**
  * App inspection-pipeline specific setup and teardown for tests.
  */
-class AppInspectionInspectorRule : TestRule {
+class AppInspectionInspectorRule(private val parentDisposable: Disposable, withDefaultResponse: Boolean = true) : TestRule {
   private val timer = FakeTimer()
   private val transportService = FakeTransportService(timer)
 
-  private val inspectionFlagRule = SetFlagRule(StudioFlags.DYNAMIC_LAYOUT_INSPECTOR_USE_INSPECTION, true)
-  private val composeFlagRule = SetFlagRule(StudioFlags.DYNAMIC_LAYOUT_INSPECTOR_ENABLE_COMPOSE_SUPPORT, true)
   // This flag allows us to avoid a path in Compose inspector client construction so we don't need to mock a bunch of services
   private val devModeFlagRule = SetFlagRule(StudioFlags.APP_INSPECTION_USE_DEV_JAR, true)
   private val grpcServer = FakeGrpcServer.createFakeGrpcServer("AppInspectionInspectorRuleServer", transportService)
-  private val inspectionService = AppInspectionServiceRule(timer, transportService, grpcServer)
+  val inspectionService = AppInspectionServiceRule(timer, transportService, grpcServer)
 
   val viewInspector = FakeViewLayoutInspector(object : FakeInspector.Connection<ViewProtocol.Event>() {
     override fun sendEvent(event: ViewProtocol.Event) {
-      inspectionService.addAppInspectionEvent(
-        AppInspection.AppInspectionEvent.newBuilder().apply {
-          inspectorId = VIEW_LAYOUT_INSPECTOR_ID
-          rawEventBuilder.content = event.toByteString()
-        }.build()
-      )
+      if (withDefaultResponse) {
+        inspectionService.addAppInspectionEvent(
+          AppInspection.AppInspectionEvent.newBuilder().apply {
+            inspectorId = VIEW_LAYOUT_INSPECTOR_ID
+            rawEventBuilder.content = event.toByteString()
+          }.build()
+        )
+      }
     }
   })
   val composeInspector = FakeComposeLayoutInspector()
@@ -124,13 +129,16 @@ class AppInspectionInspectorRule : TestRule {
   /**
    * Convenience method so users don't have to manually create an [AppInspectionClientProvider].
    */
-  fun createInspectorClientProvider(): AppInspectionClientProvider {
-    return AppInspectionClientProvider({ inspectionService.apiServices }, { inspectionService.scope })
+  fun createInspectorClientProvider(monitor: InspectorClientLaunchMonitor = InspectorClientLaunchMonitor()): InspectorClientProvider {
+    return AppInspectionClientProvider({ inspectionService.apiServices }, {
+      // We might want to shut down the client and create a new one, so it needs its own supervisor scope
+      inspectionService.scope.createChildScope(true)
+    }, { monitor }, parentDisposable)
   }
 
   override fun apply(base: Statement, description: Description): Statement {
     // Rules will be applied in reverse order. This class will evaluate last.
-    val innerRules = listOf(inspectionService, grpcServer, inspectionFlagRule, composeFlagRule, devModeFlagRule)
+    val innerRules = listOf(inspectionService, grpcServer, devModeFlagRule)
     return innerRules.fold(base) { stmt: Statement, rule: TestRule -> rule.apply(stmt, description) }
   }
 }

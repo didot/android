@@ -376,7 +376,7 @@ public class BuildOutputParserTest {
   private void writeToFile(@NotNull String... lines) throws IOException {
     BufferedWriter out = null;
     try {
-      out = new BufferedWriter(new FileWriter(sourceFile));
+      out = new BufferedWriter(new FileWriter(sourceFile, StandardCharsets.UTF_8));
       for (String line : lines) {
         out.write(line);
         out.newLine();

@@ -32,9 +32,8 @@ import com.android.tools.adtui.model.Range;
 import com.android.tools.adtui.model.StreamingTimeline;
 import com.android.tools.adtui.model.formatter.NumberFormatter;
 import com.android.tools.adtui.model.formatter.TimeFormatter;
-import com.android.tools.adtui.stdui.ContextMenuItem;
 import com.android.tools.adtui.stdui.StandardColors;
-import com.android.tools.inspectors.common.api.stacktrace.CodeLocation;
+import com.android.tools.idea.codenavigation.CodeLocation;
 import com.android.tools.inspectors.common.ui.ContextMenuInstaller;
 import com.android.tools.profilers.IdeProfilerComponents;
 import com.android.tools.profilers.ProfilerColors;
@@ -45,8 +44,6 @@ import com.android.tools.profilers.memory.adapters.InstanceObject;
 import com.android.tools.profilers.memory.adapters.MemoryObject;
 import com.android.tools.profilers.memory.adapters.ValueObject;
 import com.android.tools.profilers.memory.adapters.classifiers.ClassSet;
-import com.android.tools.profilers.memory.adapters.classifiers.ClassifierSet;
-import com.android.tools.profilers.memory.adapters.classifiers.HeapSet;
 import com.android.tools.profilers.memory.adapters.instancefilters.CaptureObjectInstanceFilter;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.ui.ColoredTreeCellRenderer;
@@ -58,27 +55,11 @@ import java.awt.Graphics;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.event.TreeExpansionEvent;
-import javax.swing.event.TreeExpansionListener;
-import javax.swing.tree.DefaultTreeModel;
-import javax.swing.tree.TreePath;
-import javax.swing.tree.TreeSelectionModel;
-import java.awt.*;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
-import java.util.List;
-import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongFunction;
 import javax.swing.Icon;
@@ -353,7 +334,7 @@ public final class MemoryClassSetView extends AspectObserver {
     assert myTree != null && myCaptureObject != null && myClassSet != null;
 
     Comparator<MemoryObjectTreeNode<MemoryObject>> comparator = myTreeRoot == null ? myInitialComparator : myTreeRoot.getComparator();
-    myTreeRoot = new LazyMemoryObjectTreeNode<MemoryObject>(myClassSet, true) {
+    myTreeRoot = new LazyMemoryObjectTreeNode<>(myClassSet, true) {
       @Override
       public int computeChildrenCount() {
         return myClassSet.getInstancesCount();

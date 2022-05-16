@@ -17,27 +17,16 @@ package com.android.tools.idea.gradle.project.build.compiler;
 
 import static com.google.common.base.Strings.nullToEmpty;
 
-import com.android.tools.idea.project.AndroidProjectInfo;
 import com.google.common.base.Objects;
 import com.intellij.compiler.CompilerConfiguration;
-import com.intellij.compiler.CompilerWorkspaceConfiguration;
-import com.intellij.ide.PowerSaveMode;
-import com.intellij.ide.actionsOnSave.ActionOnSaveBackedByOwnConfigurable;
-import com.intellij.ide.actionsOnSave.ActionOnSaveComment;
-import com.intellij.ide.actionsOnSave.ActionOnSaveContext;
-import com.intellij.ide.actionsOnSave.ActionOnSaveInfo;
-import com.intellij.ide.actionsOnSave.ActionOnSaveInfoProvider;
-import com.intellij.openapi.compiler.JavaCompilerBundle;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.HyperlinkLabel;
 import com.intellij.ui.RawCommandLineEditor;
-import com.intellij.ui.components.ActionLink;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import javax.swing.*;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -46,9 +35,6 @@ import org.jetbrains.annotations.Nullable;
  * Configuration page for Gradle compiler settings.
  */
 public class GradleCompilerSettingsConfigurable implements SearchableConfigurable, Configurable.NoScroll {
-  private static final String CONFIGURABLE_ID = "gradle.compiler";
-
-  private final CompilerWorkspaceConfiguration myCompilerWorkspaceConfiguration;
   private final CompilerConfiguration myCompilerConfiguration;
   private final AndroidGradleBuildConfiguration myBuildConfiguration;
 
@@ -59,8 +45,6 @@ public class GradleCompilerSettingsConfigurable implements SearchableConfigurabl
   @SuppressWarnings("UnusedDeclaration")
   private HyperlinkLabel myParallelBuildDocHyperlinkLabel;
 
-  private JCheckBox myAutoMakeCheckBox;
-
   private RawCommandLineEditor myCommandLineOptionsEditor;
   @SuppressWarnings("UnusedDeclaration")
   private HyperlinkLabel myCommandLineOptionsDocHyperlinkLabel;
@@ -70,7 +54,6 @@ public class GradleCompilerSettingsConfigurable implements SearchableConfigurabl
 
   public GradleCompilerSettingsConfigurable(@NotNull Project project, @NotNull String displayName) {
     myDisplayName = displayName;
-    myCompilerWorkspaceConfiguration = CompilerWorkspaceConfiguration.getInstance(project);
     myCompilerConfiguration = CompilerConfiguration.getInstance(project);
     myBuildConfiguration = AndroidGradleBuildConfiguration.getInstance(project);
   }
@@ -78,7 +61,7 @@ public class GradleCompilerSettingsConfigurable implements SearchableConfigurabl
   @Override
   @NotNull
   public String getId() {
-    return CONFIGURABLE_ID;
+    return "gradle.compiler";
   }
 
   @Override
@@ -102,7 +85,6 @@ public class GradleCompilerSettingsConfigurable implements SearchableConfigurabl
   @Override
   public boolean isModified() {
     return myCompilerConfiguration.isParallelCompilationEnabled() != isParallelBuildsEnabled() ||
-           myCompilerWorkspaceConfiguration.MAKE_PROJECT_ON_SAVE != isAutoMakeEnabled() ||
            myBuildConfiguration.CONTINUE_FAILED_BUILD != isContinueWithFailuresEnabled() ||
            !Objects.equal(getCommandLineOptions(), myBuildConfiguration.COMMAND_LINE_OPTIONS);
   }
@@ -112,17 +94,12 @@ public class GradleCompilerSettingsConfigurable implements SearchableConfigurabl
     if (myCompilerConfiguration.isParallelCompilationEnabled() != isParallelBuildsEnabled()) {
       myCompilerConfiguration.setParallelCompilationEnabled(isParallelBuildsEnabled());
     }
-    myCompilerWorkspaceConfiguration.MAKE_PROJECT_ON_SAVE = isAutoMakeEnabled();
     myBuildConfiguration.COMMAND_LINE_OPTIONS = getCommandLineOptions();
     myBuildConfiguration.CONTINUE_FAILED_BUILD = isContinueWithFailuresEnabled();
   }
 
   private boolean isParallelBuildsEnabled() {
     return myParallelBuildCheckBox.isSelected();
-  }
-
-  private boolean isAutoMakeEnabled() {
-    return myAutoMakeCheckBox.isSelected();
   }
 
   private boolean isContinueWithFailuresEnabled() {
@@ -137,10 +114,6 @@ public class GradleCompilerSettingsConfigurable implements SearchableConfigurabl
   @Override
   public void reset() {
     myParallelBuildCheckBox.setSelected(myCompilerConfiguration.isParallelCompilationEnabled());
-    myAutoMakeCheckBox.setSelected(myCompilerWorkspaceConfiguration.MAKE_PROJECT_ON_SAVE);
-    myAutoMakeCheckBox.setText("Make project automatically (only works while not running / debugging" +
-                               (PowerSaveMode.isEnabled() ? ", disabled in Power Save mode" : "") +
-                               ")");
     String commandLineOptions = nullToEmpty(myBuildConfiguration.COMMAND_LINE_OPTIONS);
     myContinueBuildWithErrors.setSelected(myBuildConfiguration.CONTINUE_FAILED_BUILD);
     myCommandLineOptionsEditor.setText(commandLineOptions);
@@ -172,76 +145,5 @@ public class GradleCompilerSettingsConfigurable implements SearchableConfigurabl
     label.setHyperlinkText(beforeLinkText, linkText, afterLinkText);
     label.setHyperlinkTarget(target);
     return label;
-  }
-
-
-  public static class BuildOnSaveInfoProvider extends ActionOnSaveInfoProvider {
-    @Override
-    protected @NotNull Collection<? extends ActionOnSaveInfo> getActionOnSaveInfos(@NotNull ActionOnSaveContext context) {
-      if (context.getSettings().find(CONFIGURABLE_ID) == null) {
-        return Collections.emptyList();
-      }
-
-      // The condition must be the opposite of what is in com.android.tools.idea.gradle.project.build.compiler.HideCompilerOptions.isAvailable()
-      return AndroidProjectInfo.getInstance(context.getProject()).requiresAndroidModel()
-             ? List.of(new BuildOnSaveInfo(context))
-             : Collections.emptyList();
-    }
-
-    @Override
-    public Collection<String> getSearchableOptions() {
-      return List.of(JavaCompilerBundle.message("settings.actions.on.save.page.build.project.on.save.checkbox"));
-    }
-  }
-
-
-  /**
-   * Pretty much the same as {@link com.intellij.compiler.options.BuildOnSaveInfo} but for {@link GradleCompilerSettingsConfigurable}.
-   */
-  private static class BuildOnSaveInfo extends ActionOnSaveBackedByOwnConfigurable<GradleCompilerSettingsConfigurable> {
-    private BuildOnSaveInfo(@NotNull ActionOnSaveContext context) {
-      super(context, CONFIGURABLE_ID, GradleCompilerSettingsConfigurable.class);
-    }
-
-    @Override
-    public @NotNull String getActionOnSaveName() {
-      return JavaCompilerBundle.message("settings.actions.on.save.page.build.project.on.save.checkbox");
-    }
-
-    @Override
-    protected @Nullable ActionOnSaveComment getCommentAccordingToStoredState() {
-      return ActionOnSaveComment.info(JavaCompilerBundle.message("settings.actions.on.save.page.build.project.on.save.checkbox.comment"));
-    }
-
-    @Override
-    protected @Nullable ActionOnSaveComment getCommentAccordingToUiState(@NotNull GradleCompilerSettingsConfigurable configurable) {
-      return ActionOnSaveComment.info(JavaCompilerBundle.message("settings.actions.on.save.page.build.project.on.save.checkbox.comment"));
-    }
-
-    @Override
-    protected boolean isActionOnSaveEnabledAccordingToStoredState() {
-      return CompilerWorkspaceConfiguration.getInstance(getProject()).MAKE_PROJECT_ON_SAVE;
-    }
-
-    @Override
-    protected boolean isActionOnSaveEnabledAccordingToUiState(@NotNull GradleCompilerSettingsConfigurable configurable) {
-      return configurable.myAutoMakeCheckBox.isSelected();
-    }
-
-    @Override
-    protected void setActionOnSaveEnabled(@NotNull GradleCompilerSettingsConfigurable configurable, boolean enabled) {
-      configurable.myAutoMakeCheckBox.setSelected(enabled);
-    }
-
-    @Override
-    public @NotNull List<? extends ActionLink> getActionLinks() {
-      String linkText = JavaCompilerBundle.message("settings.actions.on.save.page.compiler.settings.link");
-      return List.of(createGoToPageInSettingsLink(linkText, CONFIGURABLE_ID));
-    }
-
-    @Override
-    protected @NotNull String getActivatedOnDefaultText() {
-      return getAnySaveAndExternalChangeText();
-    }
   }
 }

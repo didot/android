@@ -25,6 +25,7 @@ import com.android.tools.idea.ui.resourcemanager.plugin.DesignAssetRenderer
 import com.google.common.truth.Truth
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
@@ -43,7 +44,11 @@ import java.awt.image.BufferedImage
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import javax.swing.*
+import javax.swing.DefaultListModel
+import javax.swing.Icon
+import javax.swing.JComponent
+import javax.swing.JLabel
+import javax.swing.JPanel
 
 class DrawableGridTest {
 
@@ -161,6 +166,8 @@ class StubRenderer : DesignAssetRenderer {
   fun hasRendered() = latch.count == 0L
 
   fun registerAsExtension(disposable: Disposable) {
-    ApplicationManager.getApplication().extensionArea.getExtensionPoint<DesignAssetRenderer>("com.android.resourceViewer").registerExtension(this, disposable)
+    ApplicationManager.getApplication().registerExtension(ExtensionPointName.create<DesignAssetRenderer>("com.android.resourceViewer"),
+                                       this,
+                                       disposable)
   }
 }

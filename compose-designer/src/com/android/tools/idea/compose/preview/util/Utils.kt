@@ -24,9 +24,10 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.SmartPsiElementPointer
-import org.jetbrains.kotlin.backend.common.pop
+import org.apache.commons.lang.time.DurationFormatUtils
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.uast.UElement
+import java.time.Duration
 
 fun UElement?.toSmartPsiPointer(): SmartPsiElementPointer<PsiElement>? {
   val bodyPsiElement = this?.sourcePsi ?: return null
@@ -97,7 +98,7 @@ internal fun matchElementsToModels(models: List<NlModel>, elements: List<Preview
   val matches = MutableList(affinityMatrix.size) { -1 }
 
   while (sortedPairs.isNotEmpty()) {
-    val (elementIdx, modelIdx) = sortedPairs.pop()
+    val (elementIdx, modelIdx) = sortedPairs.removeLast()
     if (elementIdx in matchedElements || modelIdx in matchedModels) {
       continue
     }
@@ -115,3 +116,29 @@ internal fun matchElementsToModels(models: List<NlModel>, elements: List<Preview
 fun Segment?.containsOffset(offset: Int) = this?.let {
   it.startOffset <= offset && offset <= it.endOffset
 } ?: false
+
+/**
+ * Returns an [Enum] that matches [value] from the given class [E]. If no existing Enum, returns [default] instead.
+ */
+internal inline fun <reified E: Enum<E>> enumValueOfOrDefault(value: String, default: E): E = enumValueOfOrNull<E>(value) ?: default
+
+/**
+ * Returns an [Enum] that matches [value] from the given class [E]. Null if no Enum matches [value].
+ */
+internal inline fun <reified E: Enum<E>> enumValueOfOrNull(value: String): E? {
+  return try {
+    enumValueOf<E>(value)
+  }catch (_: Exception) {
+    null
+  }
+}
+
+/**
+ * Converts the given duration to a display string that contains minutes (if the duration is greater than 60s), seconds and
+ * milliseconds.
+ */
+internal fun Duration.toDisplayString(): String {
+  val durationMs = toMillis()
+  val durationFormat = if (durationMs >= 60_000) "mm 'm' ss 's' SSS 'ms'" else "ss 's' SSS 'ms'"
+  return DurationFormatUtils.formatDuration(durationMs, durationFormat, false)
+}

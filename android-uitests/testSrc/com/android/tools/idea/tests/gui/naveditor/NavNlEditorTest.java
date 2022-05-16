@@ -22,7 +22,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 
 import com.android.tools.idea.common.model.NlComponent;
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.tests.gui.framework.GuiTestRule;
 import com.android.tools.idea.tests.gui.framework.RunIn;
 import com.android.tools.idea.tests.gui.framework.TestGroup;
@@ -62,7 +61,7 @@ public class NavNlEditorTest {
     SceneComponentFixture screen = ((NavDesignSurfaceFixture)layout.getSurface()).findDestination("first_screen");
     screen.click();
 
-    assertThat(layout.getSelection()).containsExactly(screen.getSceneComponent());
+    assertThat(layout.getSelection()).containsExactly(screen.getSceneComponent().getNlComponent());
 
     List<NlComponent> selectedComponents = getPanelSelectedComponents(layout);
     assertEquals(1, selectedComponents.size());

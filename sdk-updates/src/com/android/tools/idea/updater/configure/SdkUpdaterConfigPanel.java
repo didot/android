@@ -37,8 +37,8 @@ import com.android.tools.idea.observable.BindingsManager;
 import com.android.tools.idea.observable.adapters.AdapterProperty;
 import com.android.tools.idea.observable.core.OptionalValueProperty;
 import com.android.tools.idea.observable.ui.TextProperty;
+import com.android.tools.idea.progress.StudioProgressRunner;
 import com.android.tools.idea.sdk.IdeSdks;
-import com.android.tools.idea.sdk.progress.StudioProgressRunner;
 import com.android.tools.idea.ui.ApplicationUtils;
 import com.android.tools.idea.ui.validation.validators.PathValidator;
 import com.android.tools.idea.welcome.config.FirstRunWizardMode;
@@ -83,7 +83,9 @@ import com.intellij.ui.dualView.TreeTableView;
 import com.intellij.ui.table.SelectionProvider;
 import com.intellij.util.ui.accessibility.ScreenReader;
 import com.intellij.util.ui.tree.TreeUtil;
-import java.awt.*;
+import java.awt.CardLayout;
+import java.awt.Component;
+import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
@@ -92,6 +94,7 @@ import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -100,7 +103,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.HyperlinkEvent;
@@ -234,8 +244,8 @@ public class SdkUpdaterConfigPanel implements Disposable {
                                @Nullable SettingsController settings,
                                @NotNull SdkUpdaterConfigurable configurable) {
     UsageTracker.log(AndroidStudioEvent.newBuilder()
-                       .setCategory(EventCategory.SDK_MANAGER)
-                       .setKind(EventKind.SDK_MANAGER_LOADED));
+                                     .setCategory(EventCategory.SDK_MANAGER)
+                                     .setKind(EventKind.SDK_MANAGER_LOADED));
 
     myConfigurable = configurable;
     myUpdateSitesPanel.setConfigurable(configurable);
@@ -253,7 +263,7 @@ public class SdkUpdaterConfigPanel implements Disposable {
     setUpDiskCleanupLink();
     myBindingsManager.bindTwoWay(
       mySelectedSdkLocation,
-      new AdapterProperty<String, Optional<File>>(new TextProperty(mySdkLocationTextField), mySelectedSdkLocation.get()) {
+      new AdapterProperty<>(new TextProperty(mySdkLocationTextField), mySelectedSdkLocation.get()) {
         @NotNull
         @Override
         protected Optional<File> convertFromSourceType(@NotNull String value) {
@@ -439,7 +449,7 @@ public class SdkUpdaterConfigPanel implements Disposable {
               return htmlBuilder;
             }
             return null;
-          }, "Analyzing SDK Disk Space Utilization", true, null);
+          },"Analyzing SDK Disk Space Utilization", true, null);
       }
       catch (ProcessCanceledException ex) {
         return;
@@ -457,7 +467,7 @@ public class SdkUpdaterConfigPanel implements Disposable {
               File cleanupDirFile = new File(sdkLocation, cleanupDir);
               FileUtil.delete(cleanupDirFile);
             }
-          }, "Deleting SDK Temporary Files", false, null);
+          },"Deleting SDK Temporary Files", false, null);
       }
     });
   }
@@ -630,8 +640,7 @@ public class SdkUpdaterConfigPanel implements Disposable {
    */
   private void validate() {
     Path nullableSdkPath = myConfigurable.getRepoManager().getLocalPath();
-    File nullableSdkLocation = nullableSdkPath == null ? null : myConfigurable.getSdkHandler().getFileOp().toFile(nullableSdkPath);
-    @NotNull File sdkLocation = nullableSdkLocation == null ? new File("") : nullableSdkLocation;
+    @NotNull Path sdkLocation = nullableSdkPath == null ? Paths.get("") : nullableSdkPath;
 
     Validator.Result result = PathValidator.forAndroidSdkLocation().validate(sdkLocation);
     Validator.Severity severity = result.getSeverity();
@@ -639,8 +648,7 @@ public class SdkUpdaterConfigPanel implements Disposable {
     if (severity == OK) {
       mySdkLocationLabel.setForeground(JBColor.foreground());
       mySdkErrorLabel.setVisible(false);
-    }
-    else {
+    } else {
       mySdkErrorLabel.setIcon(severity.getIcon());
       mySdkErrorLabel.setText(result.getMessage());
       mySdkErrorLabel.setVisible(true);
@@ -654,7 +662,7 @@ public class SdkUpdaterConfigPanel implements Disposable {
 
   private void loadPackages(RepositoryPackages packages) {
     Multimap<AndroidVersion, UpdatablePackage> platformPackages = TreeMultimap.create();
-    Set<UpdatablePackage> toolsPackages = new TreeSet<UpdatablePackage>();
+    Set<UpdatablePackage> toolsPackages = new TreeSet<>();
     for (UpdatablePackage info : packages.getConsolidatedPkgs().values()) {
       RepoPackage p = info.getRepresentative();
       TypeDetails details = p.getTypeDetails();

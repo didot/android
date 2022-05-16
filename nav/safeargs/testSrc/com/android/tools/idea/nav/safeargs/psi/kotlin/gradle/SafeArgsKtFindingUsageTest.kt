@@ -19,6 +19,7 @@ import com.android.flags.junit.RestoreFlagRule
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.nav.safeargs.TestDataPaths
 import com.android.tools.idea.nav.safeargs.project.NavigationResourcesModificationListener
+import com.android.tools.idea.projectsystem.getMainModule
 import com.android.tools.idea.testing.AndroidGradleProjectRule
 import com.android.tools.idea.testing.caret
 import com.android.tools.idea.testing.fileUnderGradleRoot
@@ -82,33 +83,34 @@ class SafeArgsKtFindingUsageTest {
   fun testFindingUsages() {
     projectRule.requestSyncAndWait()
 
-    val file = fixture.project.findAppModule().fileUnderGradleRoot("src/main/java/com/example/myapplication/FooClass.kt")
+    val appModuleMain = fixture.project.findAppModule().getMainModule()
+    val file = appModuleMain.fileUnderGradleRoot("src/main/java/com/example/myapplication/FooClass.kt")
     fixture.configureFromExistingVirtualFile(file!!)
     val targets = UsageTargetUtil.findUsageTargets { (fixture.editor as EditorEx).dataContext.getData(it) }
     val presentation = fixture.getUsageViewTreeTextRepresentation((targets.first() as PsiElementUsageTarget).element)
     assertThat(presentation).isEqualTo("""
-      Usage (3 usages)
+      <root> (3)
        XML tag
         <FirstFragmentArgs> of file nav_graph.xml
-       Found usages (3 usages)
-        Nested class/object (1 usage)
-         testFindingUsages.app (1 usage)
-          com.example.myapplication (1 usage)
-           FooClass.kt (1 usage)
-            FooClass (1 usage)
-             myTest (1 usage)
+       Usages in Project Files (3)
+        Nested class/object (1)
+         ${appModuleMain.name} (1)
+          com.example.myapplication (1)
+           FooClass.kt (1)
+            FooClass (1)
+             myTest (1)
               7val argsClass1 = FirstFragmentArgs.
-        New instance creation (1 usage)
-         testFindingUsages.app (1 usage)
-          com.example.myapplication (1 usage)
-           FooClass.kt (1 usage)
-            FooClass (1 usage)
-             myTest (1 usage)
+        New instance creation (1)
+         ${appModuleMain.name} (1)
+          com.example.myapplication (1)
+           FooClass.kt (1)
+            FooClass (1)
+             myTest (1)
               8val argsClass2 = FirstFragmentArgs().
-        Usage in import (1 usage)
-         testFindingUsages.app (1 usage)
-          com.example.myapplication (1 usage)
-           FooClass.kt (1 usage)
+        Usage in import (1)
+         ${appModuleMain.name} (1)
+          com.example.myapplication (1)
+           FooClass.kt (1)
             3import com.example.mylibrary.FirstFragmentArgs
 
     """.trimIndent())

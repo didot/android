@@ -26,13 +26,14 @@ import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanti
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 
 import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
+import com.android.tools.idea.gradle.dsl.parser.android.testOptions.EmulatorSnapshotsDslElement;
+import com.android.tools.idea.gradle.dsl.parser.android.testOptions.FailureRetentionDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.testOptions.UnitTestsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
 import com.google.common.collect.ImmutableMap;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
@@ -42,6 +43,8 @@ public class TestOptionsDslElement extends GradleDslBlockElement {
     new PropertiesElementDescription<>("testOptions", TestOptionsDslElement.class, TestOptionsDslElement::new);
 
   public static final ImmutableMap<String,PropertiesElementDescription> CHILD_PROPERTIES_ELEMENTS_MAP = Stream.of(new Object[][]{
+    {"emulatorSnapshots", EmulatorSnapshotsDslElement.EMULATOR_SNAPSHOTS},
+    {"failureRetention", FailureRetentionDslElement.FAILURE_RETENTION},
     {"unitTests", UnitTestsDslElement.UNIT_TESTS}
   }).collect(toImmutableMap(data -> (String) data[0], data -> (PropertiesElementDescription) data[1]));
 
@@ -51,13 +54,13 @@ public class TestOptionsDslElement extends GradleDslBlockElement {
     return CHILD_PROPERTIES_ELEMENTS_MAP;
   }
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelNameMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap ktsToModelNameMap = Stream.of(new Object[][]{
     {"reportDir", property, REPORT_DIR, VAR},
     {"resultsDir", property, RESULTS_DIR, VAR},
     {"execution", property, EXECUTION, VAR}
   }).collect(toModelMap());
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelNameMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap groovyToModelNameMap = Stream.of(new Object[][]{
     {"reportDir", property, REPORT_DIR, VAR},
     {"reportDir", exactly(1), REPORT_DIR, SET},
     {"resultsDir", property, RESULTS_DIR, VAR},
@@ -67,16 +70,8 @@ public class TestOptionsDslElement extends GradleDslBlockElement {
   }).collect(toModelMap());
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter.isKotlin()) {
-      return ktsToModelNameMap;
-    }
-    else if (converter.isGroovy()) {
-      return groovyToModelNameMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelNameMap, ktsToModelNameMap);
   }
 
   public TestOptionsDslElement(@NotNull GradleDslElement parent, @NotNull GradleNameElement name) {

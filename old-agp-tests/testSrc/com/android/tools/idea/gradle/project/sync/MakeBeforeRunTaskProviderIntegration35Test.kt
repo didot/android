@@ -16,15 +16,19 @@
 package com.android.tools.idea.gradle.project.sync
 
 import com.android.sdklib.devices.Abi
+import com.android.testutils.junit4.OldAgpTest
 import com.android.tools.idea.gradle.project.facet.ndk.NdkFacet
 import com.android.tools.idea.run.AndroidRunConfiguration
 import com.android.tools.idea.run.DeviceFutures
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.testing.GradleIntegrationTest
 import com.android.tools.idea.testing.TestProjectPaths
+import com.android.tools.idea.testing.executeMakeBeforeRunStepInTest
 import com.android.tools.idea.testing.gradleModule
+import com.android.tools.idea.testing.mockDeviceFor
 import com.android.tools.idea.testing.openPreparedProject
 import com.android.tools.idea.testing.prepareGradleProject
+import com.android.tools.idea.testing.withSimulatedSyncError
 import com.google.common.truth.Truth
 import com.intellij.execution.RunManager
 import org.junit.Assert.fail
@@ -33,6 +37,7 @@ import org.junit.Test
 import org.junit.rules.TestName
 import java.io.File
 
+@OldAgpTest(agpVersions = ["3.5.0"], gradleVersions = ["5.5"])
 class MakeBeforeRunTaskProviderIntegration35Test : GradleIntegrationTest {
 
   @get:Rule
@@ -71,7 +76,7 @@ class MakeBeforeRunTaskProviderIntegration35Test : GradleIntegrationTest {
 
   @Test
   fun testModelsAreFetchedForNotSyncedAbi() {
-    prepareGradleProject(TestProjectPaths.DEPENDENT_NATIVE_MODULES,"project", GRADLE_VERSION, ANDROID_GRADLE_PLUGIN_VERSION)
+    prepareGradleProject(TestProjectPaths.DEPENDENT_NATIVE_MODULES, "project", GRADLE_VERSION, ANDROID_GRADLE_PLUGIN_VERSION)
     openPreparedProject("project") { project ->
       val ndkFacet = NdkFacet.getInstance(project.gradleModule(":app") ?: error(":app module not found"))
       val selectedVariant = ndkFacet?.selectedVariantAbi
@@ -97,6 +102,6 @@ class MakeBeforeRunTaskProviderIntegration35Test : GradleIntegrationTest {
 }
 
 private const val ANDROID_GRADLE_PLUGIN_VERSION = "3.5.0"
-private const val GRADLE_VERSION = "6.5"
+private const val GRADLE_VERSION = "5.5"
 
 private const val errorMessage: String = "Unexpected attempt to resolve a project."

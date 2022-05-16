@@ -58,8 +58,7 @@ public class ComponentStack {
     Disposer.dispose(myDisposable);
     while (!myComponents.isEmpty()) {
       ComponentItem component = myComponents.pop();
-      //noinspection unchecked
-      ServiceContainerUtil.registerComponentInstance(myComponentManager, (Class)component.key, component.instance, myComponentManager);
+      ServiceContainerUtil.registerComponentInstance(myComponentManager, component.key, component.instance, myComponentManager);
     }
     while (!myServices.isEmpty()) {
       myComponentManager.unregisterComponent(myServices.pop().key);

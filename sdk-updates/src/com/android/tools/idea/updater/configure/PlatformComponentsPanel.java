@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
 import com.intellij.CommonBundle;
+import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.dualView.TreeTableView;
@@ -31,12 +32,14 @@ import com.intellij.ui.treeStructure.treetable.TreeColumnInfo;
 import com.intellij.util.ui.AsyncProcessIcon;
 import com.intellij.util.ui.ColumnInfo;
 import com.intellij.util.ui.tree.TreeUtil;
-import java.awt.*;
+import java.awt.CardLayout;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.JCheckBox;
+import javax.swing.JPanel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.jetbrains.annotations.NotNull;
@@ -45,6 +48,8 @@ import org.jetbrains.annotations.NotNull;
  * Panel that shows all the packages corresponding to an AndroidVersion.
  */
 public class PlatformComponentsPanel {
+  private static final String PLATFORM_DETAILS_CHECKBOX_SELECTED = "updater.configure.platform.details.checkbox.selected";
+
   private TreeTableView myPlatformSummaryTable;
   private TreeTableView myPlatformDetailTable;
   private JPanel myPlatformPanel;
@@ -61,7 +66,7 @@ public class PlatformComponentsPanel {
   @VisibleForTesting
   UpdaterTreeNode myPlatformSummaryRootNode;
 
-  Set<PackageNodeModel> myStates = new HashSet<PackageNodeModel>();
+  Set<PackageNodeModel> myStates = new HashSet<>();
 
   // map of versions to current subpackages
   private final Multimap<AndroidVersion, UpdatablePackage> myCurrentPackages = TreeMultimap.create();
@@ -74,11 +79,23 @@ public class PlatformComponentsPanel {
   };
   private SdkUpdaterConfigurable myConfigurable;
 
-  public PlatformComponentsPanel() {
+  @SuppressWarnings("unused")
+  PlatformComponentsPanel() {
+    this(PropertiesComponent.getInstance());
+  }
+
+  @VisibleForTesting
+  PlatformComponentsPanel(@NotNull PropertiesComponent propertiesComponent) {
     myPlatformSummaryTable.setColumnSelectionAllowed(false);
     myPlatformLoadingLabel.setForeground(JBColor.GRAY);
 
-    myPlatformDetailsCheckbox.addActionListener(e -> updatePlatformTable());
+    myPlatformDetailsCheckbox.setSelected(propertiesComponent.getBoolean(PLATFORM_DETAILS_CHECKBOX_SELECTED, false));
+    myPlatformDetailsCheckbox.addActionListener(e -> {
+      propertiesComponent.setValue(PLATFORM_DETAILS_CHECKBOX_SELECTED, myPlatformDetailsCheckbox.isSelected());
+      updatePlatformTable();
+    });
+    updatePlatformTable();
+
     myHideObsoletePackagesCheckbox.addActionListener(e -> updatePlatformItems());
   }
 
@@ -92,11 +109,15 @@ public class PlatformComponentsPanel {
     myStates.clear();
     List<AndroidVersion> versions = Lists.newArrayList(myCurrentPackages.keySet());
     versions = Lists.reverse(versions);
+    // Sort in reverse API level, and then forward comparing extension level.
+    versions.sort(((Comparator<AndroidVersion>)(o1, o2) -> o1.compareTo(o2.getApiLevel(), o2.getCodename()) * -1)
+                    .thenComparing(AndroidVersion::compareTo));
     for (AndroidVersion version : versions) {
-      if (version.equals(0)) {
+      // When an API level is not parsed correctly, it is given API level 0, which is undefined and we should not show the package.
+      if (version.equals(AndroidVersion.VersionCodes.UNDEFINED)) {
         continue;
       }
-      Set<UpdaterTreeNode> versionNodes = new HashSet<UpdaterTreeNode>();
+      Set<UpdaterTreeNode> versionNodes = new HashSet<>();
       UpdaterTreeNode marker = new ParentTreeNode(version);
       for (UpdatablePackage info : myCurrentPackages.get(version)) {
         RepoPackage pkg = info.getRepresentative();
@@ -113,7 +134,7 @@ public class PlatformComponentsPanel {
         myPlatformDetailsRootNode.add(marker);
       }
       SummaryTreeNode node = SummaryTreeNode.createNode(version, versionNodes);
-      if (node != null) {
+      if (node != null && version.isBaseExtension()) {
         myPlatformSummaryRootNode.add(node);
       }
     }

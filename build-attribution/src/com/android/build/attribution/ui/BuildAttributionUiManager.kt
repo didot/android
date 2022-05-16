@@ -20,6 +20,7 @@ import com.android.build.attribution.BuildAttributionStateReporter
 import com.android.build.attribution.BuildAttributionStateReporterImpl
 import com.android.build.attribution.BuildAttributionWarningsFilter
 import com.android.build.attribution.analyzers.ConfigurationCachingCompatibilityProjectResult
+import com.android.build.attribution.analyzers.JetifierUsageAnalyzerResult
 import com.android.build.attribution.ui.analytics.BuildAttributionUiAnalytics
 import com.android.build.attribution.ui.controllers.BuildAnalyzerViewController
 import com.android.build.attribution.ui.controllers.TaskIssueReporter
@@ -33,6 +34,7 @@ import com.android.build.attribution.ui.data.CriticalPathTasksUiData
 import com.android.build.attribution.ui.data.TaskIssuesGroup
 import com.android.build.attribution.ui.model.BuildAnalyzerViewModel
 import com.android.build.attribution.ui.view.BuildAnalyzerComboBoxView
+import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.build.BuildContentManager
 import com.intellij.openapi.Disposable
@@ -144,6 +146,8 @@ class BuildAttributionUiManagerImpl(
     return object : BuildAttributionReportUiData {
       override val successfulBuild: Boolean
         get() = false
+      override val buildRequest: GradleBuildInvoker.Request
+        get() = throw UnsupportedOperationException("Shouldn't be called on this object")
       override val buildSummary: BuildSummary
         get() = throw UnsupportedOperationException("Shouldn't be called on this object")
       override val criticalPathTasks: CriticalPathTasksUiData
@@ -157,6 +161,8 @@ class BuildAttributionUiManagerImpl(
       override val annotationProcessors: AnnotationProcessorsReport
         get() = throw UnsupportedOperationException("Shouldn't be called on this object")
       override val confCachingData: ConfigurationCachingCompatibilityProjectResult
+        get() = throw UnsupportedOperationException("Shouldn't be called on this object")
+      override val jetifierData: JetifierUsageAnalyzerResult
         get() = throw UnsupportedOperationException("Shouldn't be called on this object")
     }
   }
@@ -173,6 +179,9 @@ class BuildAttributionUiManagerImpl(
       // Tab is closed, create new tab only in successful build case.
       createNewView()
       createNewTab()
+    }
+    if (reportUiData.shouldAutoOpenTab()) {
+      openTab(BuildAttributionUiAnalytics.TabOpenEventSource.AUTO_OPEN)
     }
   }
 
@@ -268,7 +277,7 @@ private class NewViewComponentContainer(
   init {
     val model = BuildAnalyzerViewModel(uiData, BuildAttributionWarningsFilter.getInstance(project))
     val controller = BuildAnalyzerViewController(model, project, uiAnalytics, issueReporter)
-    view = BuildAnalyzerComboBoxView(model, controller)
+    view = BuildAnalyzerComboBoxView(model, controller, this)
   }
 
   override fun getPreferredFocusableComponent(): JComponent = component
@@ -304,4 +313,9 @@ private data class OpenRequest(
     val NO_REQUEST = OpenRequest(false, BuildAttributionUiAnalytics.TabOpenEventSource.TAB_HEADER)
     fun requestFrom(eventSource: BuildAttributionUiAnalytics.TabOpenEventSource) = OpenRequest(true, eventSource)
   }
+}
+
+private fun BuildAttributionReportUiData.shouldAutoOpenTab() : Boolean = when {
+  successfulBuild && jetifierData.checkJetifierBuild -> true
+  else -> false
 }

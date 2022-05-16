@@ -49,9 +49,9 @@ public class AndroidXmlFormattingModelBuilder implements CustomFormattingModelBu
            IdeResourcesUtil.getFolderType(xmlFile) != null;
   }
 
+  @NotNull
   @Override
-  public @NotNull
-  FormattingModel createModel(@NotNull FormattingContext formattingContext) {
+  public FormattingModel createModel(@NotNull FormattingContext formattingContext) {
     final FormattingModel baseModel = myXmlFormattingModelBuilder.createModel(formattingContext);
     CodeStyleSettings codeStyleSettings = formattingContext.getCodeStyleSettings();
     final AndroidXmlCodeStyleSettings baseSettings = AndroidXmlCodeStyleSettings.getInstance(codeStyleSettings);

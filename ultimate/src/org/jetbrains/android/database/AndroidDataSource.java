@@ -1,4 +1,6 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+/*
+ * Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+ */
 
 package org.jetbrains.android.database;
 
@@ -11,15 +13,16 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.ui.classpath.SimpleClasspathElement;
 import com.intellij.util.ui.classpath.SimpleClasspathElementFactory;
 import com.intellij.util.xmlb.annotations.Tag;
-import icons.AndroidIcons;
+import icons.AndroidArtworkIcons;
+import org.jdom.Element;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import javax.swing.*;
-import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
 
 class AndroidDataSource extends LocalDataSource implements ModificationTracker {
   private static final Logger LOG = Logger.getInstance("#org.jetbrains.android.database.AndroidDataSource");
@@ -145,7 +148,7 @@ class AndroidDataSource extends LocalDataSource implements ModificationTracker {
 
   @Override
   public Icon getBaseIcon() {
-    return AndroidIcons.Android;
+    return AndroidArtworkIcons.Icons.Android;
   }
 
   @Override

@@ -102,7 +102,7 @@ class KtDescriptorCacheModuleService(val module: Module) {
 
         val packages =
           createArgsPackages(moduleDescriptor, currVersion, navEntry, sourceElement, packageFqName.asString()) +
-          createDirectionsPackages(moduleDescriptor, navEntry, sourceElement, packageFqName.asString())
+          createDirectionsPackages(moduleDescriptor, currVersion, navEntry, sourceElement, packageFqName.asString())
 
         packages.asSequence()
       }
@@ -111,6 +111,7 @@ class KtDescriptorCacheModuleService(val module: Module) {
 
   private fun createDirectionsPackages(
     moduleDescriptor: ModuleDescriptor,
+    navigationVersion: GradleVersion,
     entry: NavEntryKt,
     sourceElement: SourceElement,
     modulePackage: String,
@@ -132,12 +133,26 @@ class KtDescriptorCacheModuleService(val module: Module) {
                                       ?.findXmlTagById(destination.id)
                                       ?.let {
                                         XmlSourceElement(
-                                          SafeArgsXmlTag(it as XmlTagImpl, PlatformIcons.CLASS_ICON, className.asString()))
+                                          SafeArgsXmlTag(
+                                            it as XmlTagImpl,
+                                            PlatformIcons.CLASS_ICON,
+                                            className.asString(),
+                                            packageName.asString()
+                                          )
+                                        )
                                       }
                                     ?: sourceElement
 
-        val packageDescriptor = KtDirectionsPackageDescriptor(SafeArgsModuleInfo(moduleDescriptor, module), packageName, className,
-                                                              destination, entry.data, resolvedSourceElement, storageManager)
+        val packageDescriptor = KtDirectionsPackageDescriptor(
+          SafeArgsModuleInfo(moduleDescriptor, module),
+          navigationVersion,
+          packageName,
+          className,
+          destination,
+          entry.data,
+          resolvedSourceElement,
+          storageManager
+        )
 
         QualifiedDescriptor(packageName, packageDescriptor)
       }
@@ -169,7 +184,13 @@ class KtDescriptorCacheModuleService(val module: Module) {
                                       ?.findXmlTagById(destination.id)
                                       ?.let {
                                         XmlSourceElement(
-                                          SafeArgsXmlTag(it as XmlTagImpl, PlatformIcons.CLASS_ICON, className.asString()))
+                                          SafeArgsXmlTag(
+                                            it as XmlTagImpl,
+                                            PlatformIcons.CLASS_ICON,
+                                            className.asString(),
+                                            packageName.asString()
+                                          )
+                                        )
                                       }
                                     ?: sourceElement
 
@@ -178,8 +199,15 @@ class KtDescriptorCacheModuleService(val module: Module) {
           listOf(ktType)
         }
 
-        val packageDescriptor = KtArgsPackageDescriptor(SafeArgsModuleInfo(moduleDescriptor, module), navigationVersion, packageName,
-                                                        className, destination, superTypesProvider, resolvedSourceElement, storageManager)
+        val packageDescriptor = KtArgsPackageDescriptor(
+          SafeArgsModuleInfo(moduleDescriptor, module),
+          navigationVersion, packageName,
+          className,
+          destination,
+          superTypesProvider,
+          resolvedSourceElement,
+          storageManager
+        )
 
         QualifiedDescriptor(packageName, packageDescriptor)
       }

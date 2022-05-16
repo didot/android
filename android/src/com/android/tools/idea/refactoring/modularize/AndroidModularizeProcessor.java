@@ -62,13 +62,13 @@ import com.intellij.refactoring.util.RefactoringUIUtil;
 import com.intellij.usageView.UsageInfo;
 import com.intellij.usageView.UsageViewDescriptor;
 import com.intellij.usageView.UsageViewUtil;
+import com.intellij.util.CommonJavaRefactoringUtil;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import javax.swing.*;
-import com.intellij.util.CommonJavaRefactoringUtil;
+import javax.swing.JComponent;
 import org.jetbrains.android.AndroidFileTemplateProvider;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.ResourceFolderManager;
@@ -112,7 +112,7 @@ AndroidModularizeProcessor extends BaseRefactoringProcessor {
     for (PsiElement root : myRoots) {
       AndroidFacet facet = AndroidFacet.getInstance(root);
       if (facet != null) {
-        if (!collectModulesClosure(facet.getModule(), new HashSet<Module>()).contains(myTargetModule)) {
+        if (!collectModulesClosure(facet.getModule(), new HashSet<>()).contains(myTargetModule)) {
           myShouldSelectAllReferences = false;
           break;
         }

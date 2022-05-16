@@ -16,16 +16,16 @@
 package com.android.tools.idea.rendering
 
 import com.android.tools.idea.rendering.imagepool.ImagePool
-import com.android.tools.idea.validator.ValidatorResult
+import com.android.tools.idea.validator.ValidatorHierarchy
 import com.android.tools.perflogger.Benchmark
 import com.android.tools.perflogger.Metric
 import com.android.tools.perflogger.Metric.MetricSample
 import com.google.common.collect.LinkedListMultimap
+import com.google.common.math.Quantiles
 import com.google.common.util.concurrent.Futures
 import com.intellij.openapi.util.ThrowableComputable
 import junit.framework.TestCase
 import java.time.Instant
-import java.util.ArrayList
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -200,6 +200,13 @@ internal class PostTouchEventCallbacksExecutionTimeMeasurement(metric: Metric) :
   else null // No time available
 }
 
+@Suppress("UnstableApiUsage")
+private fun Collection<Long>.median() =
+  Quantiles.median().compute(this)
+
+@Suppress("UnstableApiUsage")
+private fun Collection<Long>.p95() =
+  Quantiles.percentiles().index(95).compute(this)
 
 /**
  * Measures the given operation applying the given [MetricMeasurement]s.
@@ -231,7 +238,12 @@ internal fun <T> Benchmark.measureOperation(measures: List<MetricMeasurement<T>>
     val samples = metricSamples.get(metric.metricName)
     if (samples.isNotEmpty()) {
       if (printSamples) {
-        println("${metric.metricName}: ${samples.joinToString(",") { it.sampleData.toString() }}")
+        val dataPoints = samples.map { it.sampleData }.toList()
+        println(
+          """
+            ${metric.metricName}: ${samples.joinToString(",") { it.sampleData.toString() }}
+              median=${dataPoints.median()} p95=${dataPoints.p95()}
+          """.trimIndent())
       }
       metric.addSamples(this, *samples.toTypedArray())
       metric.commit()
@@ -301,7 +313,7 @@ fun getRenderMetric(task: RenderTask, resultVerifier: (RenderResult) -> Unit): P
 
 fun verifyValidatorResult(result: RenderResult) {
   val validatorResult = result.validatorResult
-  TestCase.assertTrue(validatorResult is ValidatorResult)
+  TestCase.assertTrue(validatorResult is ValidatorHierarchy)
 }
 
 fun ImagePool.Image.getPixel(x: Int, y: Int) = this.getCopy(x, y, 1, 1)!!.getRGB(0, 0)

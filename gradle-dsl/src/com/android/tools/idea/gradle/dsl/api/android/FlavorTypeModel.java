@@ -16,15 +16,13 @@
 package com.android.tools.idea.gradle.dsl.api.android;
 
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
-import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.SigningConfigPropertyModel;
-import com.android.tools.idea.gradle.dsl.api.util.GradleDslModel;
+import com.android.tools.idea.gradle.dsl.api.util.GradleBlockModel;
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
-
-public interface FlavorTypeModel extends GradleDslModel {
+public interface FlavorTypeModel extends GradleBlockModel {
   @NotNull
   String name();
 
@@ -92,12 +90,6 @@ public interface FlavorTypeModel extends GradleDslModel {
 
   void removeAllResValues();
 
-  /**
-   * You most likely want to set this property as a reference to a signing config,
-   * to do this please use {@link ReferenceTo#ReferenceTo(SigningConfigModel)}.
-   *
-   * You can obtain a list of signing configs from {@link AndroidModel#signingConfigs()}
-   */
   @NotNull
   SigningConfigPropertyModel signingConfig();
 

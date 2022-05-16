@@ -50,6 +50,7 @@ import com.android.tools.idea.gradle.dsl.model.android.BuildTypeModelImpl
 import com.android.tools.idea.gradle.dsl.model.notifications.CircularApplication
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression
 import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement
+import com.android.tools.idea.gradle.dsl.parser.semantics.AndroidGradlePluginVersion
 import com.google.common.collect.ImmutableMap
 import com.intellij.testFramework.UsefulTestCase
 import junit.framework.TestCase
@@ -958,7 +959,7 @@ class GradlePropertyModelTest : GradleFileModelTestCase() {
       isGroovy -> gradleBuildModel.ext().findProperty("prop3")
       else -> gradleBuildModel.declaredProperties.find { it.name == "prop3" }!!
     }
-    //assertEquals(INTERPOLATED, propertyModel.valueType) // this enum value does not exist in 4.2 yet
+    assertEquals(INTERPOLATED, propertyModel.valueType)
     assertEquals(VARIABLE, propertyModel.propertyType)
     assertEquals("${'$'}{prop2[\"key2\"]prop2[\"key1\"]}", propertyModel.getRawValue(STRING_TYPE))
   }
@@ -2423,13 +2424,13 @@ verifyPropertyModel(depModel, STRING_TYPE, "goodbye", STRING, DERIVED, 0)*/
 
     run {
       val proguardFiles = buildModel.android().defaultConfig().proguardFiles()
-      verifyListProperty(proguardFiles, listOf("getDefaultProguardFile(${quoteChar}proguard-android.txt${quoteChar})", "proguard-rules2.txt"), DERIVED, 0)
+      verifyListProperty(proguardFiles, listOf("getDefaultProguardFile(${quoteChar}proguard-android.txt${quoteChar})", "proguard-rules2.txt"), REGULAR, 0)
       proguardFiles.addListValueAt(0).setValue("z.txt")
       proguardFiles.addListValueAt(2).setValue("proguard-rules.txt")
       verifyListProperty(
         proguardFiles,
         listOf("z.txt", "getDefaultProguardFile(${quoteChar}proguard-android.txt${quoteChar})", "proguard-rules.txt", "proguard-rules2.txt"),
-        DERIVED,
+        REGULAR,
         0
       )
     }
@@ -2442,7 +2443,7 @@ verifyPropertyModel(depModel, STRING_TYPE, "goodbye", STRING, DERIVED, 0)*/
       verifyListProperty(
         proguardFiles,
         listOf("z.txt", "getDefaultProguardFile(${quoteChar}proguard-android.txt${quoteChar})", "proguard-rules.txt", "proguard-rules2.txt"),
-        DERIVED,
+        REGULAR,
         0
       )
     }
@@ -3330,8 +3331,8 @@ verifyPropertyModel(depModel, STRING_TYPE, "goodbye", STRING, DERIVED, 0)*/
     assertThat(refValue, instanceOf(ReferenceTo::class.java))
     val referenceTo = value as ReferenceTo
     val refReferenceTo = refValue as ReferenceTo
-    assertThat(referenceTo.text, equalTo("ext.hello"))
-    assertThat(refReferenceTo.text, equalTo("ext.hello"))
+    assertThat(referenceTo.fullyQualifiedName, equalTo("ext.hello"))
+    assertThat(refReferenceTo.fullyQualifiedName, equalTo("ext.hello"))
   }
 
   @Test
@@ -3375,6 +3376,21 @@ verifyPropertyModel(depModel, STRING_TYPE, "goodbye", STRING, DERIVED, 0)*/
   }
 
   @Test
+  fun testWriteReferenceToMap400() {
+    writeToBuildFile(TestFile.WRITE_REFERENCE_TO_MAP)
+
+    val buildModel = gradleBuildModel
+    buildModel.context.agpVersion = AndroidGradlePluginVersion.parse("4.0.0")
+    val mapModel = buildModel.ext().findProperty("mP")
+    assertContainsElements(listOf("a", "c"), mapModel.toMap()!!.keys)
+    assertEquals("b", mapModel.toMap()!!["a"]!!.forceString())
+    assertEquals("d", mapModel.toMap()!!["c"]!!.forceString())
+    buildModel.android().defaultConfig().manifestPlaceholders().setValue(ReferenceTo(mapModel))
+    applyChangesAndReparse(buildModel)
+    verifyFileContents(myBuildFile, TestFile.WRITE_REFERENCE_TO_MAP_EXPECTED_400)
+  }
+
+  @Test
   fun testWriteReferenceToMap() {
     writeToBuildFile(TestFile.WRITE_REFERENCE_TO_MAP)
 
@@ -3402,6 +3418,46 @@ verifyPropertyModel(depModel, STRING_TYPE, "goodbye", STRING, DERIVED, 0)*/
     appBuildModel.dependencies().artifacts().get(0).version().setValue(ReferenceTo(kotlinVersionModel))
     applyChangesAndReparse(appBuildModel)
     verifyFileContents(mySubModuleBuildFile, TestFile.WRITE_REFERENCE_TO_BUIDLSCRIPT_EXT_APP_EXPECTED)
+  }
+
+  @Test
+  fun testReferenceToMapElement() {
+    writeToBuildFile(TestFile.REFERENCE_TO_MAP_ELEMENT)
+
+    val buildModel = gradleBuildModel
+    val versionsModel = buildModel.ext().findProperty("versions")
+    val agpModel = versionsModel.getMapValue("agp")
+
+    val versionModel = buildModel.dependencies().artifacts().get(0).version()
+    val reference = ReferenceTo(agpModel, versionModel)
+    assertEquals("versions.agp", reference.toString())
+    versionModel.setValue(ReferenceTo(agpModel, versionModel))
+    applyChangesAndReparse(buildModel)
+    verifyFileContents(myBuildFile, TestFile.REFERENCE_TO_MAP_ELEMENT_EXPECTED)
+  }
+
+  @Test
+  fun testRewriteProperties() {
+    writeToBuildFile(TestFile.REWRITE_PROPERTIES)
+
+    val buildModel = gradleBuildModel
+    val varInt = buildModel.ext().findProperty("varInt")
+    val varString = buildModel.ext().findProperty("varString")
+    val varList = buildModel.ext().findProperty("varList")
+    val varMap = buildModel.ext().findProperty("varMap")
+
+    assertEquals("varInt", 1, varInt)
+    assertEquals("varString", "foo", varString)
+    assertEquals("varList", listOf("bar", "baz"), varList)
+    assertEquals("varMap", mapOf("key" to "value", "num" to 1), varMap)
+
+    varInt.rewrite()
+    varString.rewrite()
+    varList.rewrite()
+    varMap.rewrite()
+
+    applyChangesAndReparse(buildModel)
+    verifyFileContents(myBuildFile, TestFile.REWRITE_PROPERTIES_EXPECTED)
   }
 
   @Test
@@ -4027,11 +4083,16 @@ verifyPropertyModel(depModel, STRING_TYPE, "goodbye", STRING, DERIVED, 0)*/
     PARSE_MAP_WITH_SPACES_IN_KEYS("parseMapWithSpacesInKeys"),
     WRITE_REFERENCE_TO_MAP("writeReferenceToMap"),
     WRITE_REFERENCE_TO_MAP_EXPECTED("writeReferenceToMapExpected"),
+    WRITE_REFERENCE_TO_MAP_EXPECTED_400("writeReferenceToMapExpected400"),
     WRITE_REFERENCE_TO_BUILDSCRIPT_EXT("writeReferenceToBuildscriptExt"),
     WRITE_REFERENCE_TO_BUILDSCRIPT_EXT_APP("writeReferenceToBuildscriptExtApp"),
     WRITE_REFERENCE_TO_BUIDLSCRIPT_EXT_APP_EXPECTED("writeReferenceToBuildscriptExtAppExpected"),
     REFERENCE_TO_MAP_IN_MAP("referenceToMapInMap"),
     REFERENCE_TO_MAP_IN_MAP_EXPECTED("referenceToMapInMapExpected"),
+    REFERENCE_TO_MAP_ELEMENT("referenceToMapElement"),
+    REFERENCE_TO_MAP_ELEMENT_EXPECTED("referenceToMapElementExpected"),
+    REWRITE_PROPERTIES("rewriteProperties"),
+    REWRITE_PROPERTIES_EXPECTED("rewritePropertiesExpected"),
     PROJECT_VARIABLE_CIRCULARITY("projectVariableCircularity"),
     ;
 

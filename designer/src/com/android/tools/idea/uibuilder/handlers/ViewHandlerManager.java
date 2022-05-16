@@ -30,7 +30,6 @@ import com.android.tools.idea.uibuilder.menu.MenuViewHandlerManager;
 import com.android.tools.idea.uibuilder.model.NlComponentHelper;
 import com.android.tools.idea.uibuilder.statelist.ItemHandler;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -38,11 +37,11 @@ import com.intellij.openapi.extensions.ExtensionPointName;
 import com.intellij.openapi.project.IndexNotReadyException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.search.GlobalSearchScope;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,16 +58,17 @@ public class ViewHandlerManager implements Disposable {
   @VisibleForTesting
   static final ExtensionPointName<ViewHandlerProvider> EP_NAME =
     ExtensionPointName.create("com.android.tools.idea.uibuilder.handlers.viewHandlerProvider");
+
   /**
    * View handlers are named the same as the class for the view they represent, plus this suffix
    */
   private static final String HANDLER_CLASS_SUFFIX = "Handler";
 
   private final Project myProject;
-  private final Map<String, ViewHandler> myHandlers = Maps.newHashMap();
+  private final Map<String, ViewHandler> myHandlers = new HashMap<>();
   public static final ViewHandler NONE = new ViewHandler();
-  private final Map<ViewHandler, List<ViewAction>> myToolbarActions = Maps.newHashMap();
-  private final Map<ViewHandler, List<ViewAction>> myMenuActions = Maps.newHashMap();
+  private final Map<ViewHandler, List<ViewAction>> myToolbarActions = new HashMap<>();
+  private final Map<ViewHandler, List<ViewAction>> myMenuActions = new HashMap<>();
 
   @NotNull
   public static ViewHandlerManager get(@NotNull Project project) {
@@ -152,10 +152,6 @@ public class ViewHandlerManager implements Disposable {
    */
   @Nullable
   public ViewHandler getHandler(@NotNull String viewTag) {
-    if (Disposer.isDisposed(this)) {
-      Logger.getInstance(ViewHandlerManager.class).warn("ViewHandlerManager::getHandler after dispose()");
-      return null;
-    }
     ViewHandler handler = myHandlers.get(viewTag);
     if (handler == null) {
       if (viewTag.indexOf('.') != -1) {
@@ -184,10 +180,6 @@ public class ViewHandlerManager implements Disposable {
    * @param handler corresponding view handler
    */
   public void registerHandler(@NotNull String viewTag, @NotNull ViewHandler handler) {
-    if (Disposer.isDisposed(this)) {
-      Logger.getInstance(ViewHandlerManager.class).warn("ViewHandlerManager::registerHandler(" + viewTag + ", ...) after dispose()");
-      return;
-    }
     myHandlers.put(viewTag, handler);
   }
 

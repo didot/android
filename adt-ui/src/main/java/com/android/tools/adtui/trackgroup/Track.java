@@ -21,6 +21,7 @@ import com.android.tools.adtui.model.trackgroup.TrackModel;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.icons.AllIcons;
 import com.intellij.util.ui.JBUI;
+import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
 import java.awt.BorderLayout;
 import java.awt.Rectangle;
@@ -61,7 +62,7 @@ public class Track {
     JBUI.Borders.customLine(StudioColorsKt.getSelectionBackground(), SELECTION_BORDER_PX, SELECTION_BORDER_PX, SELECTION_BORDER_PX, 0),
     false);
   private static final Border CONTENT_BORDER_DEFAULT = JBUI.Borders.customLine(
-    StudioColorsKt.getPrimaryContentBackground(), SELECTION_BORDER_PX, 0, SELECTION_BORDER_PX, 0);
+    UIUtil.TRANSPARENT_COLOR, SELECTION_BORDER_PX, 0, SELECTION_BORDER_PX, 0);
   private static final Border CONTENT_BORDER_SELECTED = JBUI.Borders.customLine(
     StudioColorsKt.getSelectionBackground(), SELECTION_BORDER_PX, 0, SELECTION_BORDER_PX, 0);
 
@@ -73,12 +74,7 @@ public class Track {
 
   private Track(@NotNull TrackModel trackModel, @NotNull JComponent trackContent) {
     myTrackContent = trackContent;
-
-    // Icon for reordering tracks via drag-n-drop.
-    JLabel recorderIconLabel = new JLabel(REORDER_ICON);
-    recorderIconLabel.setVerticalAlignment(SwingConstants.TOP);
-    recorderIconLabel.setBorder(JBUI.Borders.emptyTop(4));
-
+    trackContent.setBackground(StudioColorsKt.getTrackBackground());
     myTitleLabel = new JLabel(trackModel.getTitle());
     myTitleLabel.setVerticalAlignment(SwingConstants.TOP);
     myTitleLabel.setToolTipText(trackModel.getTitleTooltip());
@@ -104,7 +100,13 @@ public class Track {
 
     // Front panel has a dynamic background color based on selection state.
     myTitleFrontPanel = new JPanel(new BorderLayout());
-    myTitleFrontPanel.add(recorderIconLabel, BorderLayout.WEST);
+    if (trackModel.isDragEnabled()) {
+      // Icon for reordering tracks via drag-n-drop.
+      JLabel recorderIconLabel = new JLabel(REORDER_ICON);
+      recorderIconLabel.setVerticalAlignment(SwingConstants.TOP);
+      recorderIconLabel.setBorder(JBUI.Borders.emptyTop(4));
+      myTitleFrontPanel.add(recorderIconLabel, BorderLayout.WEST);
+    }
     myTitleFrontPanel.add(myTitleLabel, BorderLayout.CENTER);
 
     // Back panel has a static background color but its border color changes based on selection state.
@@ -134,20 +136,23 @@ public class Track {
    * @return a Track that visualizes the given {@link TrackModel} using the provided {@link TrackRenderer}
    */
   @NotNull
-  public static <M, R extends Enum> Track create(@NotNull TrackModel<M, R> trackModel, @NotNull TrackRenderer<M, R> trackRenderer) {
+  public static <M, R extends Enum> Track create(@NotNull TrackModel<M, R> trackModel, @NotNull TrackRenderer<M> trackRenderer) {
     return new Track(trackModel, trackRenderer.render(trackModel));
   }
 
   /**
-   * Update UI to reflect selection state.
+   * Update UI states to reflect selection and theme changes.
    *
    * @return current instance
    */
   @NotNull
-  public Track updateSelected(boolean selected) {
+  public Track updateUiStates(boolean selected) {
     myTitleFrontPanel.setBackground(selected ? StudioColorsKt.getSelectionOverlayBackground() : null);
     myTitleBackPanel.setBorder(selected ? TITLE_BORDER_SELECTED : TITLE_BORDER_DEFAULT);
     myTrackContent.setBorder(selected ? CONTENT_BORDER_SELECTED : CONTENT_BORDER_DEFAULT);
+    // Manually call updateUI to reflect potential theme changes.
+    myTitleLabel.updateUI();
+    myTrackContent.updateUI();
     return this;
   }
 

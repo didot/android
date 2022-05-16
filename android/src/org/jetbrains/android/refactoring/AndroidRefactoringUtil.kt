@@ -29,8 +29,8 @@ import com.intellij.refactoring.BaseRefactoringProcessor
 import com.intellij.refactoring.RefactoringBundle
 import com.intellij.refactoring.migration.MigrationUtil
 import org.jetbrains.android.dom.resources.Style
+import org.jetbrains.android.refactoring.errorreporter.ErrorReporter
 import org.jetbrains.android.util.AndroidUtils
-import org.jetbrains.android.util.ErrorReporter
 import javax.swing.JCheckBox
 
 internal val DataContext.project: Project? get() = LangDataKeys.PROJECT.getData(this)

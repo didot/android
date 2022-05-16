@@ -17,7 +17,6 @@
 package org.jetbrains.android.dom;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.intellij.util.ui.UIUtil.dispatchAllInvocationEvents;
 
 import com.android.AndroidProjectTypes;
 import com.android.SdkConstants;
@@ -100,6 +99,54 @@ public class AndroidValueResourcesTest extends AndroidDomTestCase {
       return "res-overlay/values/" + testFileName;
     }
     return "res/values/" + testFileName;
+  }
+
+  public void testMacroTagHighlighting() {
+    PsiFile file = myFixture.addFileToProject("res/values/values.xml",
+                                              "<resources>\n" +
+                                              "  <macro name=\"foo\">@string/bar</macro>\n" +
+                                              "  <string name=\"bar\">bar</string>\n" +
+                                              "  <string name=\"otherbar\">bar</string>\n" +
+                                              "  <color name=\"colorbar\">#123456</color>\n" +
+                                              "</resources>");
+    myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+    myFixture.checkHighlighting();
+  }
+
+  public void testMacroTagStyleAttributeHighlighting() {
+    PsiFile file = myFixture.addFileToProject("res/values/values.xml",
+                                              "<resources>\n" +
+                                              "  <macro name=\"foo\">@string/bar</macro>\n" +
+                                              "  <string name=\"bar\">bar</string>\n" +
+                                              "  <macro name=\"asdsf\">?attr/<caret>textColor</macro>\n" +
+                                              "  <color name=\"colorbar\">#123456</color>\n" +
+                                              "</resources>");
+    myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+    myFixture.checkHighlighting();
+    PsiElement elementAtCaret = myFixture.getElementAtCaret();
+    assertThat(elementAtCaret).isInstanceOf(ResourceReferencePsiElement.class);
+    assertThat(((ResourceReferencePsiElement)elementAtCaret).getResourceReference()).isEqualTo(
+      new ResourceReference(ResourceNamespace.RES_AUTO, ResourceType.ATTR, "textColor"));
+  }
+
+  public void testStringArrayHighlighting() {
+    PsiFile file = myFixture.addFileToProject("res/values/strings.xml",
+                                              "<resources>\n" +
+                                              "    <string-array name=\"foo\" translatable=\"false\"/>\n" +
+                                              "</resources>");
+    myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+    myFixture.checkHighlighting();
+  }
+
+  public void testStringArrayCompletion() {
+    PsiFile file = myFixture.addFileToProject("res/values/strings.xml",
+                                              "<resources>\n" +
+                                              "    <string-array name=\"foo\" <caret>/>\n" +
+                                              "</resources>");
+    myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+    myFixture.completeBasic();
+    List<String> lookupElementStrings = myFixture.getLookupElementStrings();
+    assertThat(lookupElementStrings).contains("translatable");
   }
 
   public void testHtmlTags() throws Throwable {
@@ -187,7 +234,7 @@ public class AndroidValueResourcesTest extends AndroidDomTestCase {
     for (PsiElement target : targets) {
       assertThat(target).isInstanceOf(XmlAttributeValue.class);
     }
-    List<String> getTextList = ContainerUtil.map(targets, it -> it.getText());
+    List<String> getTextList = ContainerUtil.map(targets, PsiElement::getText);
     assertThat(getTextList).containsExactlyElementsIn(Array.of("\"LabelView\"", "\"LabelView\"", "\"LabelView\""));
     List<String> containingFileList = ContainerUtil.map(targets, it -> it.getContainingFile().getName());
     assertThat(containingFileList).containsExactlyElementsIn(Array.of("attrs5.xml", "attrs.xml", "attrs.xml"));
@@ -301,6 +348,12 @@ public class AndroidValueResourcesTest extends AndroidDomTestCase {
     toTestCompletion("overlayable.xml", "overlayable_after.xml");
   }
 
+  public void testOverlayable() throws Throwable {
+    // Note that the expected
+    doTestHighlighting("overlayable_example.xml");
+  }
+
+
   public void testPolicyTagCompletion() throws Throwable {
     toTestCompletion("policy.xml", "policy_after.xml");
   }
@@ -349,19 +402,19 @@ public class AndroidValueResourcesTest extends AndroidDomTestCase {
     doTestHighlighting();
   }
 
-  public void testIntResourceReference() throws Throwable {
+  public void testIntResourceReference() {
     myFixture.copyFileToProject(myTestFolder + "/intResReference.xml", "res/layout/main.xml");
     myFixture.copyFileToProject(myTestFolder + "/intbool.xml", "res/values/values.xml");
     myFixture.testCompletion("res/layout/main.xml", myTestFolder + "/intResReference_after.xml");
   }
 
-  public void testBoolResourceReference() throws Throwable {
+  public void testBoolResourceReference() {
     myFixture.copyFileToProject(myTestFolder + "/boolResReference.xml", "res/layout/main.xml");
     myFixture.copyFileToProject(myTestFolder + "/intbool.xml", "res/values/values.xml");
     myFixture.testCompletion("res/layout/main.xml", myTestFolder + "/boolResReference_after.xml");
   }
 
-  public void testBoolResourceReferenceDumbMode() throws Throwable {
+  public void testBoolResourceReferenceDumbMode() {
     myFixture.copyFileToProject(myTestFolder + "/boolResReference.xml", "res/layout/main.xml");
     myFixture.copyFileToProject(myTestFolder + "/intbool.xml", "res/values/values.xml");
     // Completion providers don't actually kick in in dumb mode, but does outside of dumb mode.
@@ -410,7 +463,7 @@ public class AndroidValueResourcesTest extends AndroidDomTestCase {
 
     // Add a mipmap to resources and expect for it to be listed
     myFixture.copyFileToProject(myTestFolder + "/icon.png", "res/mipmap/icon.png");
-    dispatchAllInvocationEvents();
+    waitForResourceRepositoryUpdates();
     myFixture.complete(CompletionType.BASIC);
     assertContainsElements(myFixture.getLookupElementStrings(), "@android:", "@color/color1", "@drawable/picture1", "@mipmap/icon");
   }
@@ -745,7 +798,7 @@ public class AndroidValueResourcesTest extends AndroidDomTestCase {
     myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
     myFixture.setReadEditorMarkupModel(true);
 
-    IdentifierHighlighterPassFactory.doWithHighlightingEnabled(getProject(), getTestRootDisposable(), () -> {
+    IdentifierHighlighterPassFactory.doWithHighlightingEnabled(getProject(), myFixture.getProjectDisposable(), () -> {
       AndroidTestUtils.moveCaret(myFixture, "<string name=\"f|oo\">foo</string>");
       // Identifier highlighting has been moved out of the highlighting passes, so we need to wait for BackgroundHighlighter to be computed.
       IdentifierHighlighterPassFactory.waitForIdentifierHighlighting();

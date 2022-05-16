@@ -19,10 +19,9 @@ import com.android.tools.idea.gradle.dsl.api.ext.InterpolatedText;
 import com.android.tools.idea.gradle.dsl.api.ext.RawText;
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo;
 import com.intellij.psi.PsiElement;
+import java.math.BigDecimal;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.math.BigDecimal;
 
 /**
  * Represents a GradleExpression that has a value that can be set/reset. This class stores a tentative value. Subclasses should
@@ -80,7 +79,8 @@ public abstract class GradleDslSettableExpression extends GradleDslSimpleExpress
           value instanceof BigDecimal ||
           value instanceof InterpolatedText)) {
       throw new IllegalArgumentException(
-        "Can't set a property value with: " + value.getClass() + " type must be one of [Boolean, Integer, String, ReferenceTo]");
+        "Can't set a property value with: " + value.getClass() + " - type must be one of:\n" +
+        "    [String, Integer, Boolean, RawText, ReferenceTo, BigDecimal, InterpolatedText].");
     }
   }
 }

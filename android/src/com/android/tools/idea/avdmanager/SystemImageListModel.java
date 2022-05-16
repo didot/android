@@ -27,29 +27,31 @@ import com.android.sdklib.repository.AndroidSdkHandler;
 import com.android.sdklib.repository.IdDisplay;
 import com.android.sdklib.repository.targets.SystemImage;
 import com.android.sdklib.repository.targets.SystemImageManager;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
+import com.android.tools.idea.progress.StudioProgressRunner;
 import com.android.tools.idea.sdk.AndroidSdks;
 import com.android.tools.idea.sdk.StudioDownloader;
 import com.android.tools.idea.sdk.StudioSettingsController;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
-import com.android.tools.idea.sdk.progress.StudioProgressRunner;
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils;
 import com.android.tools.idea.wizard.model.ModelWizardDialog;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.AbstractTableCellEditor;
 import com.intellij.util.ui.ColumnInfo;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.ListTableModel;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.UIUtil;
-import java.awt.*;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -59,10 +61,13 @@ import java.awt.font.TextLayout;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EventObject;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import javax.swing.JTable;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import org.jetbrains.annotations.NotNull;
@@ -188,6 +193,7 @@ public class SystemImageListModel extends ListTableModel<SystemImageDescription>
   }
 
   @VisibleForTesting
+  @NotNull
   static String releaseDisplayName(@NotNull SystemImageDescription systemImage) {
     AndroidVersion version = systemImage.getVersion();
     String codeName = version.isPreview() ? version.getCodename()
@@ -195,9 +201,10 @@ public class SystemImageListModel extends ListTableModel<SystemImageDescription>
     if (codeName == null) {
       codeName = "API " + version.getApiLevel();
     }
-    String maybeDeprecated = systemImage.obsolete() ||
-                             version.getApiLevel() < SdkVersionInfo.LOWEST_ACTIVE_API ? " (Deprecated)" : "";
-    return codeName + maybeDeprecated;
+    String maybeDeprecated = systemImage.obsolete() || version.getApiLevel() < SdkVersionInfo.LOWEST_ACTIVE_API ? " (Deprecated)" : "";
+    String extensionDetails =
+      !version.isBaseExtension() && version.getExtensionLevel() != null ? " (Extension Level " + version.getExtensionLevel() + ")" : "";
+    return codeName + extensionDetails + maybeDeprecated;
   }
 
   /**
@@ -206,28 +213,34 @@ public class SystemImageListModel extends ListTableModel<SystemImageDescription>
    */
   private final ColumnInfo[] ourColumnInfos = new ColumnInfo[] {
     new SystemImageColumnInfo("Release Name") {
-      @Nullable
+      @NotNull
       @Override
       public String valueOf(SystemImageDescription systemImage) {
         return releaseDisplayName(systemImage);
       }
+
+      @NotNull
+      @Override
+      public Comparator<SystemImageDescription> getComparator() {
+        return Comparator.comparing(SystemImageDescription::getVersion);
+      }
     },
-    new SystemImageColumnInfo("API Level", JBUI.scale(100)) {
-      @Nullable
+    new SystemImageColumnInfo("API Level", JBUIScale.scale(100)) {
+      @NotNull
       @Override
       public String valueOf(SystemImageDescription systemImage) {
         return systemImage.getVersion().getApiString();
       }
     },
-    new SystemImageColumnInfo("ABI", JBUI.scale(100)) {
-      @Nullable
+    new SystemImageColumnInfo("ABI", JBUIScale.scale(100)) {
+      @NotNull
       @Override
       public String valueOf(SystemImageDescription systemImage) {
         return systemImage.getAbiType();
       }
     },
     new SystemImageColumnInfo("Target") {
-      @Nullable
+      @NotNull
       @Override
       public String valueOf(SystemImageDescription systemImage) {
         IdDisplay tag = systemImage.getTag();
@@ -335,7 +348,7 @@ public class SystemImageListModel extends ListTableModel<SystemImageDescription>
           link.setForeground(JBColor.BLUE);
           Font font = link.getFont();
           if (isSelected) {
-            Map<TextAttribute, Integer> attrs = Maps.newHashMap();
+            Map<TextAttribute, Integer> attrs = new HashMap<>();
             attrs.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
             font = font.deriveFont(attrs);
           }
@@ -380,8 +393,9 @@ public class SystemImageListModel extends ListTableModel<SystemImageDescription>
     @Nullable
     @Override
     public Comparator<SystemImageDescription> getComparator() {
-      return new Comparator<SystemImageDescription>() {
+      return new Comparator<>() {
         ApiLevelComparator myComparator = new ApiLevelComparator();
+
         @Override
         public int compare(SystemImageDescription o1, SystemImageDescription o2) {
           int res = myComparator.compare(valueOf(o1), valueOf(o2));
@@ -389,7 +403,6 @@ public class SystemImageListModel extends ListTableModel<SystemImageDescription>
             return o1.getTag().compareTo(o2.getTag());
           }
           return res;
-
         }
       };
     }

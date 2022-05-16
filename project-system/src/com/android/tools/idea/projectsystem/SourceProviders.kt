@@ -57,6 +57,31 @@ interface SourceProviders {
   val androidTestSources: IdeaSourceProvider
 
   /**
+   * Returns the source provider for all test fixtures sources in the currently selected variant in the overlay order.
+   */
+  val testFixturesSources: IdeaSourceProvider
+
+  /**
+   * Returns the source provider for all production sources in the currently selected variant in the overlay order.
+   */
+  val generatedSources: IdeaSourceProvider
+
+  /**
+   * Returns the source provider for all unit test sources in the currently selected variant in the overlay order.
+   */
+  val generatedUnitTestSources: IdeaSourceProvider
+
+  /**
+   * Returns the source provider for all android test sources in the currently selected variant in the overlay order.
+   */
+  val generatedAndroidTestSources: IdeaSourceProvider
+
+  /**
+   * Returns the source provider for all test fixtures sources in the currently selected variant in the overlay order.
+   */
+  val generatedTestFixturesSources: IdeaSourceProvider
+
+  /**
    * The first in the overlay order [NamedIdeaSourceProvider].
    *
    * Note: This source provider does not necessarily include all the source code required to build the module. Consider using [sources]
@@ -97,6 +122,14 @@ interface SourceProviders {
    * @see currentSourceProviders
    */
   val currentAndroidTestSourceProviders: List<NamedIdeaSourceProvider>
+
+  /**
+   * Returns a list of source providers for test fixtures artifacts (e.g. `testFixtures/` source sets), in increasing
+   * precedence order.
+   *
+   * @see currentSourceProviders
+   */
+  val currentTestFixturesSourceProviders: List<NamedIdeaSourceProvider>
 
   /**
    * NOTE: (In Gradle) Does not return ALL source providers!
@@ -141,11 +174,23 @@ interface SourceProviders {
           get() = throw UnsupportedOperationException()
         override val androidTestSources: IdeaSourceProvider
           get() = throw UnsupportedOperationException()
+        override val testFixturesSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
+        override val generatedSources: IdeaSourceProvider =
+          createMergedSourceProvider(ScopeType.MAIN, emptyList())
+        override val generatedUnitTestSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
+        override val generatedAndroidTestSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
+        override val generatedTestFixturesSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
         override val currentSourceProviders: List<NamedIdeaSourceProvider>
           get() = ImmutableList.of(sourceSet)
         override val currentUnitTestSourceProviders: List<NamedIdeaSourceProvider>
           get() = throw UnsupportedOperationException()
         override val currentAndroidTestSourceProviders: List<NamedIdeaSourceProvider>
+          get() = throw UnsupportedOperationException()
+        override val currentTestFixturesSourceProviders: List<NamedIdeaSourceProvider>
           get() = throw UnsupportedOperationException()
         override val currentAndSomeFrequentlyUsedInactiveSourceProviders: List<NamedIdeaSourceProvider>
           get() = ImmutableList.of(sourceSet)
@@ -174,11 +219,23 @@ interface SourceProviders {
           get() = throw UnsupportedOperationException()
         override val androidTestSources: IdeaSourceProvider
           get() = throw UnsupportedOperationException()
+        override val testFixturesSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
+        override val generatedSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
+        override val generatedUnitTestSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
+        override val generatedAndroidTestSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
+        override val generatedTestFixturesSources: IdeaSourceProvider
+          get() = throw UnsupportedOperationException()
         override val currentSourceProviders: List<NamedIdeaSourceProvider>
           get() = throw UnsupportedOperationException()
         override val currentUnitTestSourceProviders: List<NamedIdeaSourceProvider>
           get() = throw UnsupportedOperationException()
         override val currentAndroidTestSourceProviders: List<NamedIdeaSourceProvider>
+          get() = throw UnsupportedOperationException()
+        override val currentTestFixturesSourceProviders: List<NamedIdeaSourceProvider>
           get() = throw UnsupportedOperationException()
         override val currentAndSomeFrequentlyUsedInactiveSourceProviders: List<NamedIdeaSourceProvider>
           get() = throw UnsupportedOperationException()
@@ -274,8 +331,43 @@ fun createMergedSourceProvider(scopeType: ScopeType, providers: List<NamedIdeaSo
       override val assetsDirectoryUrls get() = providers.asSequence().map { it.assetsDirectoryUrls.asSequence() }.flatten()
       override val shadersDirectoryUrls get() = providers.asSequence().map { it.shadersDirectoryUrls.asSequence() }.flatten()
       override val mlModelsDirectoryUrls get() = providers.asSequence().map { it.mlModelsDirectoryUrls.asSequence() }.flatten()
+      override val customSourceDirectories: Map<String, Sequence<String>> =
+        providers.asSequence().flatMap { it.custom.keys }.toSet().associateWith { customKey ->
+          providers.asSequence().map { it.custom[customKey]!!.directoryUrls.asSequence() }.flatten()
+        }
     }
   )
+}
+
+fun emptySourceProvider(scopeType: ScopeType): IdeaSourceProvider {
+  return object : IdeaSourceProvider {
+    override val scopeType: ScopeType = scopeType
+    override val manifestFileUrls: Iterable<String> = emptyList()
+    override val manifestDirectoryUrls: Iterable<String> = emptyList()
+    override val javaDirectoryUrls: Iterable<String> = emptyList()
+    override val kotlinDirectoryUrls: Iterable<String> = emptyList()
+    override val resourcesDirectoryUrls: Iterable<String> = emptyList()
+    override val aidlDirectoryUrls: Iterable<String> = emptyList()
+    override val renderscriptDirectoryUrls: Iterable<String> = emptyList()
+    override val jniLibsDirectoryUrls: Iterable<String> = emptyList()
+    override val resDirectoryUrls: Iterable<String> = emptyList()
+    override val assetsDirectoryUrls: Iterable<String> = emptyList()
+    override val shadersDirectoryUrls: Iterable<String> = emptyList()
+    override val mlModelsDirectoryUrls: Iterable<String> = emptyList()
+    override val manifestFiles: Iterable<VirtualFile> = emptyList()
+    override val manifestDirectories: Iterable<VirtualFile> = emptyList()
+    override val javaDirectories: Iterable<VirtualFile> = emptyList()
+    override val kotlinDirectories: Iterable<VirtualFile> = emptyList()
+    override val resourcesDirectories: Iterable<VirtualFile> = emptyList()
+    override val aidlDirectories: Iterable<VirtualFile> = emptyList()
+    override val renderscriptDirectories: Iterable<VirtualFile> = emptyList()
+    override val jniLibsDirectories: Iterable<VirtualFile> = emptyList()
+    override val resDirectories: Iterable<VirtualFile> = emptyList()
+    override val assetsDirectories: Iterable<VirtualFile> = emptyList()
+    override val shadersDirectories: Iterable<VirtualFile> = emptyList()
+    override val mlModelsDirectories: Iterable<VirtualFile> = emptyList()
+    override val custom: Map<String, IdeaSourceProvider.Custom> get() = emptyMap()
+  }
 }
 
 /**
@@ -328,14 +420,19 @@ private val IdeaSourceProvider.allSourceFolderUrls: Sequence<String>
       .asSequence()
       .flatten()
 
-
 /**
  * Returns true if this SourceProvider has one or more source folders contained by (or equal to)
  * the given folder.
  */
-fun IdeaSourceProvider.containsFile(file: VirtualFile): Boolean {
+fun IdeaSourceProvider.containsFile(file: VirtualFile): Boolean = findSourceRoot(file) != null
+
+/**
+ * Returns the source root as a VirualFile that includes the given [file]. If the [file] is not present in
+ * the [IdeaSourceProvider] then this method will return null.
+ */
+fun IdeaSourceProvider.findSourceRoot(file: VirtualFile): VirtualFile? {
   if (manifestFiles.contains(file) || manifestDirectories.contains(file)) {
-    return true
+    return file
   }
 
   for (container in allSourceFolders) {
@@ -345,10 +442,10 @@ fun IdeaSourceProvider.containsFile(file: VirtualFile): Boolean {
     }
 
     if (VfsUtilCore.isAncestor(container, file, false /* allow them to be the same */)) {
-      return true
+      return container
     }
   }
-  return false
+  return null
 }
 
 fun <T : IdeaSourceProvider> Iterable<T>.findByFile(file: VirtualFile): T? = firstOrNull { it.containsFile(file) }

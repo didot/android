@@ -26,7 +26,6 @@ import com.intellij.openapi.module.Module;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.SmartPsiElementPointer;
-import com.intellij.testFramework.ServiceContainerUtil;
 import com.intellij.testFramework.fixtures.IdeaProjectTestFixture;
 import com.intellij.testFramework.fixtures.TestFixtureBuilder;
 import java.util.List;
@@ -103,7 +102,7 @@ public class TagToClassMapperImplTest extends AndroidTestCase {
     CountingMapper countingMapper = new CountingMapper(myModule);
 
     // Use the counting mapper.
-    ServiceContainerUtil.replaceService(myModule, TagToClassMapper.class, countingMapper, getTestRootDisposable());
+    new IdeComponents(getProject()).replaceModuleService(myModule, TagToClassMapper.class, countingMapper);
 
     // Use a min API level that affects short names, to make sure it's used in up-to-date checks. See ResourceHelper.isViewPackageNeeded.
     runWriteCommandAction(getProject(), () -> Manifest.getMainManifest(myFacet).addUsesSdk().getMinSdkVersion().setValue("21"));

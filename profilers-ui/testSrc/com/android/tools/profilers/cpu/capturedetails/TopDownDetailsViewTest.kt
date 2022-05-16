@@ -22,22 +22,14 @@ import com.android.tools.adtui.model.FakeTimer
 import com.android.tools.adtui.model.Range
 import com.android.tools.idea.transport.faketransport.FakeGrpcChannel
 import com.android.tools.idea.transport.faketransport.FakeTransportService
-import com.android.tools.idea.transport.faketransport.FakeTransportService.FAKE_DEVICE_NAME
-import com.android.tools.idea.transport.faketransport.FakeTransportService.FAKE_PROCESS_NAME
+import com.android.tools.perflib.vmtrace.ClockType
 import com.android.tools.profilers.FakeIdeProfilerComponents
 import com.android.tools.profilers.FakeIdeProfilerServices
-import com.android.tools.profilers.FakeProfilerService
 import com.android.tools.profilers.ProfilerClient
 import com.android.tools.profilers.StudioProfilers
 import com.android.tools.profilers.StudioProfilersView
-import com.android.tools.profilers.cpu.CpuProfilerStage
-import com.android.tools.profilers.cpu.CpuProfilerStageView
 import com.android.tools.profilers.cpu.CpuProfilerUITestUtils
-import com.android.tools.profilers.cpu.FakeCpuService
 import com.android.tools.profilers.cpu.capturedetails.TopDownNodeTest.newNode
-import com.android.tools.profilers.event.FakeEventService
-import com.android.tools.profilers.memory.FakeMemoryService
-import com.android.tools.profilers.network.FakeNetworkService
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Rule
@@ -46,48 +38,25 @@ import java.util.concurrent.TimeUnit
 import javax.swing.JTree
 
 class TopDownDetailsViewTest {
-
-  private val cpuService = FakeCpuService()
   private val timer = FakeTimer()
 
   @JvmField
   @Rule
-  val grpcChannel = FakeGrpcChannel("TopDownDetailsViewTest", cpuService,
-                                    FakeTransportService(timer), FakeProfilerService(timer),
-                                    FakeMemoryService(), FakeEventService(), FakeNetworkService.newBuilder().build())
+  val grpcChannel = FakeGrpcChannel("TopDownDetailsViewTest", FakeTransportService(timer))
 
   private lateinit var profilersView: StudioProfilersView
-  private lateinit var stageView: CpuProfilerStageView
-  private lateinit var stage: CpuProfilerStage
   private val capture = CpuProfilerUITestUtils.validCapture()
 
   @Before
   fun setUp() {
     val profilers = StudioProfilers(ProfilerClient(grpcChannel.channel), FakeIdeProfilerServices(), timer)
-    timer.tick(FakeTimer.ONE_SECOND_IN_NS)
-    profilers.setPreferredProcess(FAKE_DEVICE_NAME, FAKE_PROCESS_NAME, null)
-
-    stage = CpuProfilerStage(profilers)
-    stage.studioProfilers.stage = stage
-    stage.capture = capture
-    stage.enter()
-
     profilersView = StudioProfilersView(profilers, FakeIdeProfilerComponents())
-    stageView = CpuProfilerStageView(profilersView, stage)
-  }
-
-  @Test
-  fun topDownModelIsNullOnEmptyThreadData() {
-    stage.setCaptureDetails(CaptureDetails.Type.TOP_DOWN)
-    stage.selectedThread = 1
-
-    val topDown = stage.captureDetails as CaptureDetails.TopDown
-    assertThat(topDown.model).isNull()
   }
 
   @Test
   fun showsNoDataForThreadMessageWhenNodeIsEmpty() {
-    val topDown = CaptureDetails.Type.TOP_DOWN.build(Range(), emptyList(), capture) as CaptureDetails.TopDown
+    val topDown = CaptureDetails.Type.TOP_DOWN.build(ClockType.GLOBAL, Range(), emptyList(), capture)
+      as CaptureDetails.TopDown
     val topDownView = TreeDetailsView.TopDownDetailsView(profilersView, topDown)
 
     val noDataInstructions = TreeWalker(topDownView.component).descendants().filterIsInstance<InstructionsPanel>().first {
@@ -99,7 +68,8 @@ class TopDownDetailsViewTest {
 
   @Test
   fun showsContentWhenNodeIsNotNull() {
-    val topDown = CaptureDetails.Type.TOP_DOWN.build(Range(), listOf(capture.getCaptureNode(capture.mainThreadId)),
+    val topDown = CaptureDetails.Type.TOP_DOWN.build(ClockType.GLOBAL, Range(),
+                                                     listOf(capture.getCaptureNode(capture.mainThreadId)),
                                                      capture) as CaptureDetails.TopDown
     val topDownView = TreeDetailsView.TopDownDetailsView(profilersView, topDown)
 
@@ -117,7 +87,8 @@ class TopDownDetailsViewTest {
   fun showsNoDataForRangeMessage() {
     // Select a range where we don't have trace data
     val range = Range(Double.MAX_VALUE - 10, Double.MAX_VALUE - 5)
-    val topDown = CaptureDetails.Type.TOP_DOWN.build(range, listOf(capture.getCaptureNode(capture.mainThreadId)),
+    val topDown = CaptureDetails.Type.TOP_DOWN.build(ClockType.GLOBAL, range,
+                                                     listOf(capture.getCaptureNode(capture.mainThreadId)),
                                                      capture) as CaptureDetails.TopDown
     val topDownView = TreeDetailsView.TopDownDetailsView(profilersView, topDown)
 
@@ -131,7 +102,8 @@ class TopDownDetailsViewTest {
   @Test
   fun rootIsHiddenOnInvalidNodeId() {
     val range = Range(Double.MAX_VALUE - 10, Double.MAX_VALUE - 5)
-    val topDown = CaptureDetails.Type.TOP_DOWN.build(range, listOf(newNode("", 0, 10)), capture) as CaptureDetails.TopDown
+    val topDown = CaptureDetails.Type.TOP_DOWN.build(ClockType.GLOBAL, range,
+                                                     listOf(newNode("", 0, 10)), capture) as CaptureDetails.TopDown
     val topDownView = TreeDetailsView.TopDownDetailsView(profilersView, topDown)
     val tree = TreeWalker(topDownView.component).descendants().filterIsInstance<JTree>().first()
     assertThat(tree.isRootVisible).isFalse()
@@ -140,7 +112,8 @@ class TopDownDetailsViewTest {
   @Test
   fun maintainsExpandedStateWhenRangeChanges() {
     val range = Range(capture.range)
-    val topDown = CaptureDetails.Type.TOP_DOWN.build(range, listOf(capture.getCaptureNode(capture.mainThreadId)),
+    val topDown = CaptureDetails.Type.TOP_DOWN.build(ClockType.GLOBAL, range,
+                                                     listOf(capture.getCaptureNode(capture.mainThreadId)),
                                                      capture) as CaptureDetails.TopDown
     val topDownView = TreeDetailsView.TopDownDetailsView(profilersView, topDown)
     val tree = TreeWalker(topDownView.component).descendants().filterIsInstance<JTree>().first()

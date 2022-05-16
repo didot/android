@@ -19,9 +19,10 @@ import com.android.tools.idea.common.error.Issue
 import com.android.tools.idea.common.error.IssuePanel
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.surface.LayoutScannerControl
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.flags.StudioFlags.NELE_LAYOUT_SCANNER_ADD_INCLUDE
+import com.android.tools.idea.flags.StudioFlags.NELE_LAYOUT_SCANNER_COMMON_ERROR_PANEL
 import com.android.tools.idea.rendering.RenderResult
+import com.android.tools.idea.uibuilder.lint.CommonLintUserDataHandler
 import com.android.tools.idea.validator.LayoutValidator
 import com.android.tools.idea.validator.ValidatorData
 import com.android.tools.idea.validator.ValidatorHierarchy
@@ -90,6 +91,11 @@ class NlLayoutScanner(private val surface: NlDesignSurface, parent: Disposable):
   init {
     Disposer.register(parent, this)
     surface.issuePanel.addEventListener(issuePanelListener)
+
+    // Enabling this will retrieve text character locations from TextView to improve the
+    // accuracy of TextContrastCheck in ATF. However, it can burden the render time quite alot
+    // specially if the view contains a long text.
+    LayoutValidator.setObtainCharacterLocations(false)
   }
 
   override fun pause() {
@@ -112,10 +118,7 @@ class NlLayoutScanner(private val surface: NlDesignSurface, parent: Disposable):
           listeners.forEach { it.lintUpdated(null) }
           return
         }
-        validateAndUpdateLint(renderResult, LayoutValidator.validate(validatorResult), model, surface)
-      }
-      is ValidatorResult -> {
-        validateAndUpdateLint(renderResult, validatorResult, model, surface)
+        updateLint(renderResult, LayoutValidator.validate(validatorResult), model, surface)
       }
       else -> {
         // Result not available.
@@ -124,7 +127,8 @@ class NlLayoutScanner(private val surface: NlDesignSurface, parent: Disposable):
     }
   }
 
-  private fun validateAndUpdateLint(
+  @VisibleForTesting
+  fun updateLint(
     renderResult: RenderResult,
     validatorResult: ValidatorResult,
     model: NlModel,
@@ -150,7 +154,7 @@ class NlLayoutScanner(private val surface: NlDesignSurface, parent: Disposable):
           if (component == null) {
             issuesWithoutSources++
           } else {
-            lintIntegrator.createIssue(it, component, atfIssueEventListener)
+            lintIntegrator.createIssue(it, component, model, atfIssueEventListener)
           }
         }
         // TODO: b/180069618 revisit metrics. Should log each issue.
@@ -160,11 +164,15 @@ class NlLayoutScanner(private val surface: NlDesignSurface, parent: Disposable):
         lintIntegrator.handleInclude(layoutParser, surface)
       }
 
+      if (NELE_LAYOUT_SCANNER_COMMON_ERROR_PANEL.get()) {
+        CommonLintUserDataHandler.updateAtfIssues(model.file, issues)
+      }
+
       lintIntegrator.populateLints()
       result = validatorResult
     } finally {
       renderMetric.renderMs = renderResult.stats.renderDurationMs
-      renderMetric.scanMs = validatorResult.metric.mElapsedMs
+      renderMetric.scanMs = validatorResult.metric.mHierarchyCreationMs
       renderMetric.componentCount = layoutParser.componentCount
       renderMetric.isRenderResultSuccess = renderResult.renderResult.isSuccess
 

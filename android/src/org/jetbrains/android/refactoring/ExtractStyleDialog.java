@@ -1,22 +1,9 @@
-/*
- * Copyright 2000-2012 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.android.refactoring;
 
 import com.android.resources.ResourceFolderType;
 import com.android.resources.ResourceType;
+import com.android.tools.idea.res.AndroidDependenciesCache;
 import com.android.tools.idea.res.IdeResourcesUtil;
 import com.intellij.application.options.ModulesComboBox;
 import com.intellij.ide.util.PropertiesComponent;
@@ -42,14 +29,16 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.JTree;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import org.jetbrains.android.actions.CreateXmlResourceDialog;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.ResourceFolderManager;
 import org.jetbrains.android.util.AndroidBundle;
-import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -91,10 +80,10 @@ class ExtractStyleDialog extends DialogWrapper {
       }
     }
 
-    final Set<Module> modulesSet = new HashSet<Module>();
+    final Set<Module> modulesSet = new HashSet<>();
     modulesSet.add(module);
 
-    for (AndroidFacet depFacet : AndroidUtils.getAllAndroidDependencies(module, true)) {
+    for (AndroidFacet depFacet : AndroidDependenciesCache.getAllAndroidDependencies(module, true)) {
       modulesSet.add(depFacet.getModule());
     }
 
@@ -132,7 +121,7 @@ class ExtractStyleDialog extends DialogWrapper {
     myTree = new CheckboxTree(renderer, myRootNode) {
       @Override
       protected void installSpeedSearch() {
-        new TreeSpeedSearch(this, new Convertor<TreePath, String>() {
+        new TreeSpeedSearch(this, new Convertor<>() {
           @Override
           public String convert(TreePath path) {
             Object object = path.getLastPathComponent();
@@ -238,7 +227,7 @@ class ExtractStyleDialog extends DialogWrapper {
 
   @NotNull
   public List<XmlAttribute> getStyledAttributes() {
-    List<XmlAttribute> attributes = new ArrayList<XmlAttribute>();
+    List<XmlAttribute> attributes = new ArrayList<>();
     int count = myRootNode.getChildCount();
 
     for (int i = 0; i < count; i++) {

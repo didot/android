@@ -16,12 +16,16 @@
 package com.android.build.attribution.ui
 
 import com.android.build.attribution.ui.data.TimeWithPercentage
+import com.android.build.attribution.ui.view.ViewActionHandlers
 import com.intellij.icons.AllIcons
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.SwingHelper
 import javax.swing.Icon
 import javax.swing.JEditorPane
+import javax.swing.event.HyperlinkEvent
+import javax.swing.event.HyperlinkListener
 
 
 fun TimeWithPercentage.durationString() = durationString(timeMs)
@@ -56,18 +60,24 @@ fun warningIcon(): Icon = AllIcons.General.BalloonWarning
  * Label with auto-wrapping turned on that accepts html text.
  * Used in Build Analyzer to render long multi-line text.
  */
-fun htmlTextLabelWithLinesWrap(htmlBodyContent: String): JEditorPane =
+fun htmlTextLabelWithLinesWrap(htmlBodyContent: String, linksHandler: HtmlLinksHandler? = null): JEditorPane =
   SwingHelper.createHtmlViewer(true, null, null, null).apply {
     border = JBUI.Borders.empty()
     isFocusable = true
     SwingHelper.setHtml(this, htmlBodyContent, null)
+    if (linksHandler != null) {
+      addHyperlinkListener(linksHandler)
+    }
   }
 
-fun htmlTextLabelWithFixedLines(htmlBodyContent: String): JEditorPane =
+fun htmlTextLabelWithFixedLines(htmlBodyContent: String, linksHandler: HtmlLinksHandler? = null): JEditorPane =
   SwingHelper.createHtmlViewer(false, null, null, null).apply {
     border = JBUI.Borders.empty()
     isFocusable = true
     SwingHelper.setHtml(this, htmlBodyContent, null)
+    if (linksHandler != null) {
+      addHyperlinkListener(linksHandler)
+    }
   }
 
 /**
@@ -75,6 +85,28 @@ fun htmlTextLabelWithFixedLines(htmlBodyContent: String): JEditorPane =
  */
 fun wrapPathToSpans(text: String): String = "<p>${text.replace("/", "<span>/</span>")}</p>"
 fun String.insertBRTags(): String = replace("\n", "<br/>\n")
-fun externalLink(text: String, link: BuildAnalyzerBrowserLinks) =
-  "<a href='${link.name}'>$text</a><icon src='ide/external_link_arrow.svg'>"
 fun helpIcon(text: String): String = "<icon alt='$text' src='AllIcons.General.ContextHelp'>"
+
+class HtmlLinksHandler(val actionHandlers: ViewActionHandlers) : HyperlinkListener {
+  private val registeredLinkActions = mutableMapOf<String, Runnable>()
+
+  fun externalLink(text: String, link: BuildAnalyzerBrowserLinks): String {
+    registeredLinkActions[link.name] = Runnable {
+      BrowserUtil.browse(link.urlTarget)
+      actionHandlers.helpLinkClicked(link)
+    }
+    return "<a href='${link.name}'>$text</a><icon src='AllIcons.Ide.External_link_arrow'>"
+  }
+
+  fun actionLink(text: String, actionId: String, action: Runnable): String {
+    registeredLinkActions[actionId] = action
+    return "<a href='$actionId'>$text</a>"
+  }
+
+  override fun hyperlinkUpdate(hyperlinkEvent: HyperlinkEvent?) {
+    if (hyperlinkEvent == null) return
+    if (hyperlinkEvent.eventType == HyperlinkEvent.EventType.ACTIVATED) {
+      registeredLinkActions[hyperlinkEvent.description]?.run()
+    }
+  }
+}

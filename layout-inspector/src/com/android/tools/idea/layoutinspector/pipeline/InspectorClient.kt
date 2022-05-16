@@ -21,8 +21,11 @@ import com.android.tools.idea.layoutinspector.model.AndroidWindow
 import com.android.tools.idea.layoutinspector.properties.EmptyPropertiesProvider
 import com.android.tools.idea.layoutinspector.properties.PropertiesProvider
 import com.android.tools.idea.layoutinspector.resource.ResourceLookup
-import com.android.tools.idea.layoutinspector.tree.TreeSettings
+import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo
+import com.intellij.openapi.Disposable
+import java.nio.file.Path
 import java.util.EnumSet
+import java.util.concurrent.CompletableFuture
 
 /**
  * Client for communicating with the agent.
@@ -30,7 +33,7 @@ import java.util.EnumSet
  * When created, it is expected that [connect] should be called shortly after, and that the client
  * will be in a valid state until [disconnect] is called.
  */
-interface InspectorClient {
+interface InspectorClient: Disposable {
   enum class State {
     INITIALIZED,
     CONNECTING,
@@ -46,18 +49,12 @@ interface InspectorClient {
     SUPPORTS_CONTINUOUS_MODE,
 
     /**
-     * Indicates that this client is aware of and uses [TreeSettings.skipSystemNodesInAgent] when
-     * [startFetching] is called.
-     */
-    SUPPORTS_FILTERING_SYSTEM_NODES,
-
-    /**
      * Indicates that this client is able to separate user defined nodes from system defined nodes.
      */
     SUPPORTS_SYSTEM_NODES,
 
     /**
-     * Indicates that this client is able to send [Screenshot.Type.SKP] screenshots.
+     * Indicates that this client is able to send [AndroidWindow.ImageType.SKP] screenshots.
      */
     SUPPORTS_SKP,
 
@@ -100,6 +97,8 @@ interface InspectorClient {
    */
   fun connect()
 
+  fun updateProgress(state: DynamicLayoutInspectorErrorInfo.AttachErrorState)
+
   /**
    * Disconnect this client.
    *
@@ -123,7 +122,7 @@ interface InspectorClient {
    * If this client does not have the [Capability.SUPPORTS_CONTINUOUS_MODE] capability, then this
    * method should not be called, and doing so is undefined.
    */
-  fun startFetching()
+  fun startFetching(): CompletableFuture<Unit>
 
   /**
    * Stop fetching information off the device.
@@ -133,7 +132,7 @@ interface InspectorClient {
    * If this client does not have the [Capability.SUPPORTS_CONTINUOUS_MODE] capability, then this
    * method should not be called, and doing so is undefined.
    */
-  fun stopFetching()
+  fun stopFetching(): CompletableFuture<Unit>
 
   /**
    * Refresh the content of the inspector.
@@ -154,6 +153,11 @@ interface InspectorClient {
   fun addDynamicCapabilities(dynamicCapabilities: Set<Capability>) {}
 
   /**
+   * Save a snapshot of the current view, including all data needed to reconstitute it (e.g. properties information) to the given [path].
+   */
+  fun saveSnapshot(path: Path)
+
+  /**
    * Report this client's capabilities so that external systems can check what functionality is
    * available before interacting with some of this client's methods.
    */
@@ -168,6 +172,11 @@ interface InspectorClient {
    * If a new process is connected, a new client should be created to handle it.
    */
   val process: ProcessDescriptor
+
+  /**
+   * Weather the process was auto connected or was manually selected.
+   */
+  val isInstantlyAutoConnected: Boolean
 
   val treeLoader: TreeLoader
 
@@ -186,18 +195,23 @@ interface InspectorClient {
    * process.
    */
   val isConnected: Boolean get() = (state == State.CONNECTED)
+
+  override fun dispose() {}
 }
 
 object DisconnectedClient : InspectorClient {
   override fun connect() {}
+  override fun updateProgress(state: DynamicLayoutInspectorErrorInfo.AttachErrorState) {}
+
   override fun disconnect() {}
 
   override fun registerStateCallback(callback: (InspectorClient.State) -> Unit) = Unit
   override fun registerErrorCallback(callback: (String) -> Unit) = Unit
   override fun registerTreeEventCallback(callback: (Any) -> Unit) = Unit
-  override fun startFetching() = Unit
-  override fun stopFetching() = Unit
+  override fun startFetching(): CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit)
+  override fun stopFetching(): CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit)
   override fun refresh() {}
+  override fun saveSnapshot(path: Path) {}
 
   override val state = InspectorClient.State.DISCONNECTED
   override val process = object : ProcessDescriptor {
@@ -216,8 +230,9 @@ object DisconnectedClient : InspectorClient {
     override val pid: Int = 0
     override val streamId: Long = 0
   }
+  override val isInstantlyAutoConnected = false
   override val treeLoader = object : TreeLoader {
-    override fun loadComponentTree(data: Any?, resourceLookup: ResourceLookup): ComponentTreeData? = null
+    override fun loadComponentTree(data: Any?, resourceLookup: ResourceLookup, process: ProcessDescriptor): ComponentTreeData? = null
     override fun getAllWindowIds(data: Any?): List<*> = emptyList<Any>()
   }
   override val isCapturing = false

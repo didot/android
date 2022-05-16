@@ -32,17 +32,18 @@ import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.projectImport.ProjectOpenProcessor
 
+
 /**
  * A project open processor to open Gradle projects in Android Studio.
  *
  * It supports opening projects with or without .idea directory.
  */
-internal class AndroidGradleProjectOpenProcessor : ProjectOpenProcessor() {
+class AndroidGradleProjectOpenProcessor : ProjectOpenProcessor() {
   override fun getName(): String = "Android Gradle"
 
   override fun canOpenProject(file: VirtualFile): Boolean =
-    (Registry.`is`("android.gradle.importer.enabled") || IdeInfo.getInstance().isAndroidStudio) &&
-    GradleProjects.canImportAsGradleProject(file)
+      (Registry.`is`("android.gradle.importer.enabled") || IdeInfo.getInstance().isAndroidStudio) &&
+      GradleProjects.canImportAsGradleProject(file)
 
   override fun doOpenProject(virtualFile: VirtualFile, projectToClose: Project?, forceOpenInNewFrame: Boolean): Project? {
     if (!canOpenProject(virtualFile)) return null

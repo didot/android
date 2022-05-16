@@ -16,14 +16,17 @@
 package com.android.tools.idea.updater.configure
 
 import com.android.repository.api.UpdatablePackage
+import com.intellij.ide.util.PropertiesComponent
 import org.junit.Test
 import org.mockito.Mockito.mock
+import kotlin.test.assertEquals
 
 class ToolComponentsPanelTest {
   // basic test of tree construction with no packages installed
   @Test
   fun testNodes() {
-    val panel = ToolComponentsPanel()
+    val propertiesComponent = mock(PropertiesComponent::class.java)
+    val panel = ToolComponentsPanel(propertiesComponent)
     panel.setConfigurable(mock(SdkUpdaterConfigurable::class.java))
     val foo = createLocalPackage("foo", 1)
     val bar = createLocalPackage("bar", 2)
@@ -36,18 +39,25 @@ class ToolComponentsPanelTest {
     val packages = setOf(foo, bar, buildTools12, buildTools13a1, buildTools1, cmdlineTools1, cmdlineTools12, cmdlineToolsLatest)
     panel.setPackages(packages.map { UpdatablePackage(it) }.toSet())
 
-
-    verifyNodes(Node("", listOf("build-tools;", "cmdline-tools;", "bar", "foo").map { Node(it) }), panel.myToolsSummaryRootNode)
-    verifyNodes(Node("", listOf(
-      Node("build-tools;", listOf(
-        Node("1.3.0 rc1"),
-        Node("1.2"),
-        Node("1"))),
-      Node("cmdline-tools;", listOf(
-        Node("latest"),
-        Node("1.2"),
-        Node("1"))),
-      Node("bar"),
-      Node("foo"))), panel.myToolsDetailsRootNode)
+    assertEquals("""
+      Root
+       build-tools;
+       cmdline-tools;
+       bar
+       foo
+    """.trimIndent(), panel.myToolsSummaryRootNode.asString())
+    assertEquals("""
+      Root
+       build-tools;
+        1.3.0 rc1
+        1.2
+        1
+       cmdline-tools;
+        latest
+        1.2
+        1
+       bar
+       foo
+    """.trimIndent(), panel.myToolsDetailsRootNode.asString())
   }
 }

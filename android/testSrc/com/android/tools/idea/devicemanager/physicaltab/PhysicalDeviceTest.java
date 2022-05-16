@@ -16,10 +16,9 @@
 package com.android.tools.idea.devicemanager.physicaltab;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
-import java.time.Instant;
-import java.util.Arrays;
-import java.util.List;
+import com.android.tools.idea.devicemanager.Resolution;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -27,42 +26,48 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class PhysicalDeviceTest {
   @Test
-  public void sort() {
-    Instant time1 = Instant.parse("2021-03-24T22:38:05.890571Z");
-    Instant time2 = Instant.parse("2021-03-24T22:38:05.890570Z");
-
-    Object device1 = new PhysicalDevice.Builder()
-      .setSerialNumber("serialNumber1")
-      .setLastOnlineTime(time1)
-      .setOnline(true)
-      .build();
-
-    Object device2 = new PhysicalDevice.Builder()
-      .setSerialNumber("serialNumber2")
-      .setLastOnlineTime(time2)
-      .setOnline(true)
-      .build();
-
-    Object device3 = new PhysicalDevice.Builder()
-      .setSerialNumber("serialNumber3")
-      .setLastOnlineTime(time1)
-      .build();
-
-    Object device4 = new PhysicalDevice.Builder()
-      .setSerialNumber("serialNumber4")
-      .setLastOnlineTime(time2)
-      .build();
-
-    Object device5 = new PhysicalDevice.Builder()
-      .setSerialNumber("serialNumber5")
-      .build();
-
-    List<Object> devices = Arrays.asList(device5, device4, device2, device1, device3);
-
+  public void getDpDensityEqualsNegativeOne() {
     // Act
-    devices.sort(null);
+    Object dp = TestPhysicalDevices.GOOGLE_PIXEL_3.getDp();
 
     // Assert
-    assertEquals(Arrays.asList(device1, device2, device3, device4, device5), devices);
+    assertNull(dp);
+  }
+
+  @Test
+  public void getDpResolutionIsNull() {
+    // Arrange
+    PhysicalDevice device = new PhysicalDevice.Builder()
+      .setKey(new SerialNumber("86UX00F4R"))
+      .setName("Google Pixel 3")
+      .setTarget("Android 12.0")
+      .setApi("S")
+      .setDensity(440)
+      .build();
+
+    // Act
+    Object dp = device.getDp();
+
+    // Assert
+    assertNull(dp);
+  }
+
+  @Test
+  public void getDp() {
+    // Arrange
+    PhysicalDevice device = new PhysicalDevice.Builder()
+      .setKey(new SerialNumber("86UX00F4R"))
+      .setName("Google Pixel 3")
+      .setTarget("Android 12 Preview")
+      .setApi("S")
+      .setResolution(new Resolution(1080, 2160))
+      .setDensity(440)
+      .build();
+
+    // Act
+    Object dp = device.getDp();
+
+    // Assert
+    assertEquals(new Resolution(393, 786), dp);
   }
 }

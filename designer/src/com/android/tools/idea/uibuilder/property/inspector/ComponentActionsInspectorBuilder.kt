@@ -31,13 +31,14 @@ import com.android.tools.property.panel.api.InspectorBuilder
 import com.android.tools.property.panel.api.InspectorPanel
 import com.android.tools.property.panel.api.PropertiesTable
 import com.intellij.openapi.actionSystem.ActionManager
-import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.impl.ActionButton.HIDE_DROPDOWN_ICON
 import java.awt.BorderLayout
 import javax.swing.JPanel
+
+private const val COMPONENT_ACTION_INSPECTOR_PLACE = "component_action_inspector"
 
 /**
  * An [InspectorBuilder] for the component actions shown on top in the Nele inspector.
@@ -79,7 +80,7 @@ class ComponentActionsInspectorBuilder(private val model: NlPropertiesModel) : I
 
     if (group.childrenCount != 0) {
       val actionManager = ActionManager.getInstance()
-      val toolbar = actionManager.createActionToolbar(ActionPlaces.UNKNOWN, group, true)
+      val toolbar = actionManager.createActionToolbar(COMPONENT_ACTION_INSPECTOR_PLACE, group, true)
       ActionToolbarUtil.makeToolbarNavigable(toolbar)
       toolbar.setTargetComponent(panel)
       panel.add(toolbar.component.apply { background = secondaryPanelBackground }, BorderLayout.WEST)

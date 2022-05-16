@@ -17,7 +17,6 @@ package com.android.tools.idea.layoutinspector.properties
 
 import com.android.SdkConstants.ANDROID_URI
 import com.android.testutils.MockitoKt.mock
-import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model.ViewNode
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.compose.ParameterItem
 import com.android.tools.idea.layoutinspector.properties.PropertySection.DECLARED
@@ -97,7 +96,7 @@ class InspectorPropertiesViewTest {
     assertTable(inspector.lines[8], param)
     assertThat(inspector.lines[9].title).isEqualTo("Merged Semantics")
     assertTable(inspector.lines[10], semantic1)
-    assertThat(inspector.lines[11].title).isEqualTo("Semantics")
+    assertThat(inspector.lines[11].title).isEqualTo("Declared Semantics")
     assertTable(inspector.lines[12], semantic2)
   }
 

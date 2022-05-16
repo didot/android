@@ -15,23 +15,54 @@
  */
 package com.android.tools.idea.logcat;
 
-import com.android.ddmlib.*;
+import static com.android.ddmlib.IDevice.CHANGE_STATE;
+
+import com.android.annotations.NonNull;
+import com.android.ddmlib.AdbCommandRejectedException;
+import com.android.ddmlib.AndroidDebugBridge;
+import com.android.ddmlib.IDevice;
+import com.android.ddmlib.IShellEnabledDevice;
+import com.android.ddmlib.IShellOutputReceiver;
 import com.android.ddmlib.Log.LogLevel;
+import com.android.ddmlib.MultiLineReceiver;
+import com.android.ddmlib.ShellCommandUnresponsiveException;
+import com.android.ddmlib.TimeoutException;
 import com.android.ddmlib.logcat.LogCatHeader;
 import com.android.ddmlib.logcat.LogCatMessage;
 import com.android.tools.idea.IdeInfo;
-import com.android.tools.idea.run.LoggingReceiver;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.intellij.execution.impl.ConsoleBuffer;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.openapi.util.SystemInfo;
+import java.io.EOFException;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import net.jcip.annotations.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 import org.jetbrains.android.util.AndroidBundle;
@@ -39,15 +70,6 @@ import org.jetbrains.android.util.AndroidOutputReceiver;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@link AndroidLogcatService} is the class that manages logs in all connected devices and emulators.
@@ -211,9 +233,18 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
       connect(device);
 
       AndroidLogcatReceiver receiver = newAndroidLogcatReceiver(device);
+      Disposer.register(this, receiver);
       myLogReceivers.put(device, receiver);
       myLogBuffers.put(device, new LogcatBuffer());
-      myExecutors.get(device).execute(() -> executeLogcat(device, receiver));
+      myExecutors.get(device).execute(() -> {
+        String filename = System.getProperty("studio.logcat.debug.readFromFile");
+        if (filename != null && SystemInfo.isUnix) {
+          executeDebugLogcatFromFile(filename, receiver);
+        }
+        else {
+          executeLogcat(device, receiver);
+        }
+      });
     }
   }
 
@@ -241,16 +272,53 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
     try {
       execute(device, supportsEpochFormatModifier(device) ? "logcat -v long -v epoch" : "logcat -v long", receiver, Duration.ZERO);
     }
+    catch (EOFException e) {
+      getLog().info("Logcat process terminated");
+    }
     catch (Throwable throwable) {
       getLog().warn(throwable);
 
       String app = IdeInfo.getInstance().isAndroidStudio() ? "com.android.studio" : "com.jetbrains.idea";
-      receiver.notifyLine(new LogCatHeader(LogLevel.ERROR, 0, 0, app, "AndroidLogcatService", Instant.now()), throwable.toString());
+      receiver.notifyLogcatMessage(new LogCatHeader(LogLevel.ERROR, 0, 0, app, "AndroidLogcatService", Instant.now()),
+                                   throwable.toString());
+    }
+  }
+
+  // A blocking call that runs a tail command reading logcat data from a file. Only to be used for debugging and profiling, this method
+  // mimics the behavior of AdbHelper#executeRemoteCommand() including a busy wait loop with a 25ms delay.
+  private static void executeDebugLogcatFromFile(@NotNull String filename, IShellOutputReceiver receiver) {
+    if (!new File(filename).exists()) {
+      getLog().warn(String.format("Failed to load logcat from %s. File does not exist", filename));
+    }
+    try {
+      Process process = new ProcessBuilder("tail", "-n", "+1", "-f", filename).start();
+      InputStream inputStream = process.getInputStream();
+      byte[] buf = new byte[16384];
+      while (!receiver.isCancelled()) {
+        if (inputStream.available() > 0) {
+          int n = inputStream.read(buf);
+          if (n < 0) {
+            break;
+          }
+          receiver.addOutput(buf, 0, n);
+        }
+        else {
+          //noinspection BusyWait
+          Thread.sleep(25);
+        }
+      }
+      receiver.flush();
+    }
+    catch (IOException e) {
+      getLog().warn("Failed to load logcat from " + filename);
+    }
+    catch (InterruptedException e) {
+      getLog().warn("Logcat loading from file interrupted");
     }
   }
 
   private static boolean supportsEpochFormatModifier(@NotNull IShellEnabledDevice device)
-      throws TimeoutException, AdbCommandRejectedException, ShellCommandUnresponsiveException, IOException {
+    throws TimeoutException, AdbCommandRejectedException, ShellCommandUnresponsiveException, IOException {
     LogcatHelpReceiver receiver = new LogcatHelpReceiver();
     device.executeShellCommand("logcat --help", receiver, 10, TimeUnit.SECONDS);
 
@@ -262,7 +330,7 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
     private boolean myCancelled;
 
     @Override
-    public void processNewLines(@NotNull String[] lines) {
+    public void processNewLines(@NonNull String[] lines) {
       if (mySupportsEpochFormatModifier) {
         myCancelled = true;
         return;
@@ -332,10 +400,11 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
         catch (Exception exception) {
           getLog().warn(exception);
 
-          ApplicationManager.getApplication().invokeLater(() -> {
-            String title = AndroidBundle.message("android.logcat.error.dialog.title");
-            Messages.showErrorDialog(project, exception.toString(), title);
-          });
+          ApplicationManager.getApplication().invokeLater(() -> Notifications.Bus.notify(new Notification(
+            "Logcat",
+            AndroidBundle.message("android.logcat.error.title"),
+            AndroidBundle.message("android.logcat.error.clearLogcat"),
+            NotificationType.ERROR)));
         }
 
         notifyThatLogcatWasCleared(device);
@@ -366,7 +435,7 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
   public void addListener(@NotNull IDevice device, @NotNull LogcatListener listener, boolean addOldLogs) {
     synchronized (myLock) {
       List<LogCatMessage> oldMessages =
-          addOldLogs && myLogBuffers.containsKey(device) ? myLogBuffers.get(device).getMessages() : ImmutableList.of();
+        addOldLogs && myLogBuffers.containsKey(device) ? myLogBuffers.get(device).getMessages() : ImmutableList.of();
 
       ListenerConnector listenerConnector = new ListenerConnector(listener, oldMessages);
       myDeviceToListenerMultimap.put(device, listenerConnector);
@@ -378,7 +447,7 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
       if (!oldMessages.isEmpty()) {
         ExecutorService executor = myExecutors.get(device);
         assert executor != null;
-        executor.execute(() -> listenerConnector.processBacklog());
+        executor.execute(listenerConnector::processBacklog);
       }
     }
   }
@@ -398,7 +467,7 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
         return;
       }
 
-      for (Iterator<ListenerConnector> iter = connectors.iterator(); iter.hasNext();) {
+      for (Iterator<ListenerConnector> iter = connectors.iterator(); iter.hasNext(); ) {
         ListenerConnector connector = iter.next();
         if (connector.isConnectedTo(listener)) {
           connector.disconnectListener();
@@ -429,6 +498,9 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
 
   @Override
   public void deviceChanged(@NotNull IDevice device, int changeMask) {
+    if ((changeMask & CHANGE_STATE) == 0) {
+      return;
+    }
     if (device.isOnline()) {
       startReceiving(device);
     }
@@ -460,7 +532,10 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
       myExecutors.values().forEach(executor -> {
         try {
           executor.shutdownNow();
-          executor.awaitTermination(5_000, TimeUnit.MILLISECONDS);
+          boolean terminated = executor.awaitTermination(5_000, TimeUnit.MILLISECONDS);
+          if (!terminated) {
+            getLog().info("Timed out shutting down executor");
+          }
         }
         catch (InterruptedException e) {
           getLog().info("Error shutting down executor", e);
@@ -481,5 +556,14 @@ public final class AndroidLogcatService implements AndroidDebugBridge.IDeviceCha
     }
 
     receiver.invalidate();
+  }
+
+  @TestOnly
+  void waitForIdle(IDevice device) throws InterruptedException {
+    AndroidLogcatReceiver receiver;
+    synchronized (myLock) {
+      receiver = myLogReceivers.get(device);
+    }
+    receiver.waitForIdle();
   }
 }

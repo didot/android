@@ -24,6 +24,7 @@ import com.android.tools.idea.AndroidPsiUtils;
 import com.android.tools.idea.configurations.Configuration;
 import com.android.tools.idea.configurations.ConfigurationManager;
 import com.android.tools.idea.lint.common.AndroidQuickfixContexts;
+import com.android.tools.idea.lint.common.DefaultLintQuickFix;
 import com.android.tools.idea.lint.common.LintIdeQuickFix;
 import com.android.tools.idea.res.IdeResourcesUtil;
 import com.android.tools.idea.ui.designer.EditorDesignSurface;
@@ -250,16 +251,15 @@ public class OverrideResourceAction extends AbstractIntentionAction {
       // that it becomes a single atomic operation.
       IdeResourcesUtil.createValueResource(project, resDir.getVirtualFile(), resName, type, filename, dirNames, value, elements);
       if (elements.size() == 1) {
-        final XmlTag tag1 = elements.get(0).getXmlTag();
-        if (tag1 != null && tag1.isValid()) {
+        final XmlTag tag = elements.get(0).getXmlTag();
+        if (tag != null && tag.isValid()) {
           try {
-            XmlTag tagFromText = XmlElementFactory.getInstance(tag1.getProject()).createTagFromText(oldTagText);
-            PsiElement replaced = tag1.replace(tagFromText);
+            XmlTag tagFromText = XmlElementFactory.getInstance(tag.getProject()).createTagFromText(oldTagText);
+            PsiElement replaced = tag.replace(tagFromText);
             openAfter.set(replaced);
-          }
-          catch (IncorrectOperationException e) {
+          } catch (IncorrectOperationException e) {
             // The user tried to override an invalid XML fragment: don't attempt to do a replacement in that case
-            openAfter.set(tag1);
+            openAfter.set(tag);
           }
         }
       }
@@ -376,7 +376,6 @@ public class OverrideResourceAction extends AbstractIntentionAction {
           String message = String.format("File 'res/%1$s/%2$s' already exists!", folderName, file.getName());
           return Pair.of(message, null);
         }
-
         // Attempt to get the document from the PSI file rather than the file on disk: get edited contents too
         String text;
         if (xmlFile != null && xmlFile.isValid()) {
@@ -514,10 +513,11 @@ public class OverrideResourceAction extends AbstractIntentionAction {
     return new OverrideElementFix(folder);
   }
 
-  private static class OverrideElementFix implements LintIdeQuickFix {
+  private static class OverrideElementFix extends DefaultLintQuickFix {
     private final String myFolder;
 
     private OverrideElementFix(@Nullable String folder) {
+      super(getActionName(folder));
       myFolder = folder;
     }
 
@@ -554,12 +554,6 @@ public class OverrideResourceAction extends AbstractIntentionAction {
                                 @NotNull PsiElement endElement,
                                 @NotNull AndroidQuickfixContexts.ContextType contextType) {
       return true;
-    }
-
-    @NotNull
-    @Override
-    public String getName() {
-      return getActionName(myFolder);
     }
   }
 }

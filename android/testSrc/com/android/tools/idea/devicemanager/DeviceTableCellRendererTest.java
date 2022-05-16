@@ -18,16 +18,19 @@ package com.android.tools.idea.devicemanager;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import com.android.flags.junit.SetFlagRule;
+import com.android.tools.idea.devicemanager.physicaltab.ConnectionType;
 import com.android.tools.idea.devicemanager.physicaltab.PhysicalDevice;
-import com.intellij.ide.ui.laf.darcula.DarculaTableSelectedCellHighlightBorder;
+import com.android.tools.idea.devicemanager.physicaltab.SerialNumber;
+import com.android.tools.idea.devicemanager.physicaltab.TestPhysicalDevices;
+import com.android.tools.idea.flags.StudioFlags;
+import com.android.tools.idea.wearpairing.WearPairingManager;
+import com.android.tools.idea.wearpairing.WearPairingManager.PairingState;
+import com.android.tools.idea.wearpairing.WearPairingManager.PhoneWearPair;
 import com.intellij.ui.table.JBTable;
 import icons.StudioIcons;
-import java.util.function.Function;
 import javax.swing.JTable;
-import javax.swing.UIManager;
-import javax.swing.border.Border;
-import javax.swing.plaf.BorderUIResource.EmptyBorderUIResource;
-import org.jetbrains.annotations.NotNull;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,17 +38,22 @@ import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public final class DeviceTableCellRendererTest {
+  @Rule
+  public SetFlagRule<Boolean> setWearPairingFlag = new SetFlagRule<>(StudioFlags.WEAR_OS_VIRTUAL_DEVICE_PAIRING_ASSISTANT_ENABLED, true);
+
   private final JTable myTable = new JBTable();
 
   @Test
   public void getTableCellRendererComponentDeviceIsOnline() {
     // Arrange
-    Function<Object, Border> getBorder = mockGetBorder("Table.cellNoFocusBorder", new EmptyBorderUIResource(2, 3, 2, 3));
-    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, getBorder);
+    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class);
 
     Device device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .setOnline(true)
+      .setKey(new SerialNumber("86UX00F4R"))
+      .setName("Google Pixel 3")
+      .setTarget("Android 12.0")
+      .setApi("S")
+      .addConnectionType(ConnectionType.USB)
       .build();
 
     // Act
@@ -54,130 +62,70 @@ public final class DeviceTableCellRendererTest {
     // Assert
     assertEquals(device.getIcon(), renderer.getIconLabel().getIcon());
     assertEquals(device.getName(), renderer.getNameLabel().getText());
-    assertEquals(StudioIcons.Common.CIRCLE_GREEN, renderer.getOnlineLabel().getIcon());
+    assertEquals(StudioIcons.Avd.STATUS_DECORATOR_ONLINE, renderer.getOnlineLabel().getIcon());
     assertEquals(device.getTarget(), renderer.getLine2Label().getText());
+  }
+
+  @Test
+  public void getTableCellRendererComponentDeviceIsPairedAndConnected() {
+    // Arrange
+    PhoneWearPair pair = Mockito.mock(PhoneWearPair.class);
+    Mockito.when(pair.getPairingStatus()).thenReturn(PairingState.CONNECTED);
+
+    WearPairingManager manager = Mockito.mock(WearPairingManager.class);
+    Mockito.when(manager.getPairedDevices("86UX00F4R")).thenReturn(pair);
+
+    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, manager);
+    assert renderer.getPairedLabel().getIcon() == null;
+
+    // Act
+    renderer.getTableCellRendererComponent(myTable, TestPhysicalDevices.GOOGLE_PIXEL_3, false, false, 0, 0);
+
+    // Assert
+    assertEquals(StudioIcons.DeviceExplorer.DEVICE_PAIRED_AND_CONNECTED, renderer.getPairedLabel().getIcon());
+  }
+
+  @Test
+  public void getTableCellRendererComponentDeviceIsPaired() {
+    // Arrange
+    PhoneWearPair pair = Mockito.mock(PhoneWearPair.class);
+    Mockito.when(pair.getPairingStatus()).thenReturn(PairingState.UNKNOWN);
+
+    WearPairingManager manager = Mockito.mock(WearPairingManager.class);
+    Mockito.when(manager.getPairedDevices("86UX00F4R")).thenReturn(pair);
+
+    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, manager);
+    assert renderer.getPairedLabel().getIcon() == null;
+
+    // Act
+    renderer.getTableCellRendererComponent(myTable, TestPhysicalDevices.GOOGLE_PIXEL_3, false, false, 0, 0);
+
+    // Assert
+    assertEquals(StudioIcons.LayoutEditor.Toolbar.INSERT_HORIZ_CHAIN, renderer.getPairedLabel().getIcon());
   }
 
   @Test
   public void getTableCellRendererComponent() {
     // Arrange
-    Function<Object, Border> getBorder = mockGetBorder("Table.cellNoFocusBorder", new EmptyBorderUIResource(2, 3, 2, 3));
-    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, getBorder);
-
-    Device device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
-
-    // Act
-    renderer.getTableCellRendererComponent(myTable, device, false, false, 0, 0);
-
-    // Assert
-    assertEquals(device.getIcon(), renderer.getIconLabel().getIcon());
-    assertEquals(device.getName(), renderer.getNameLabel().getText());
-    assertNull(renderer.getOnlineLabel().getIcon());
-    assertEquals(device.getTarget(), renderer.getLine2Label().getText());
-  }
-
-  @Test
-  public void getBackgroundSelected() {
-    // Arrange
-    Function<Object, Border> getBorder = mockGetBorder("Table.cellNoFocusBorder", new EmptyBorderUIResource(2, 3, 2, 3));
-    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, getBorder);
-
-    Object device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
-
-    // Act
-    renderer.getTableCellRendererComponent(myTable, device, true, false, 0, 0);
-
-    // Assert
-    assertEquals(myTable.getSelectionBackground(), renderer.getPanel().getBackground());
-  }
-
-  @Test
-  public void getBackground() {
-    // Arrange
-    Function<Object, Border> getBorder = mockGetBorder("Table.cellNoFocusBorder", new EmptyBorderUIResource(2, 3, 2, 3));
-    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, getBorder);
-
-    Object device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
-
-    // Act
-    renderer.getTableCellRendererComponent(myTable, device, false, false, 0, 0);
-
-    // Assert
-    assertEquals(myTable.getBackground(), renderer.getPanel().getBackground());
-  }
-
-  @Test
-  public void getBorderUnfocused() {
-    // Arrange
-    Border border = new EmptyBorderUIResource(2, 3, 2, 3);
-
-    Function<Object, Border> getBorder = mockGetBorder("Table.cellNoFocusBorder", border);
-    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, getBorder);
-
-    Object device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
-
-    // Act
-    renderer.getTableCellRendererComponent(myTable, device, false, false, 0, 0);
-
-    // Assert
-    assertEquals(border, renderer.getPanel().getBorder());
-  }
-
-  @Test
-  public void getBorderSelected() {
-    // Arrange
-    Border border = new DarculaTableSelectedCellHighlightBorder();
-
-    Function<Object, Border> getBorder = mockGetBorder("Table.focusSelectedCellHighlightBorder", border);
-    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, getBorder);
-
-    Object device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
-
-    // Act
-    renderer.getTableCellRendererComponent(myTable, device, true, true, 0, 0);
-
-    // Assert
-    assertEquals(border, renderer.getPanel().getBorder());
-  }
-
-  @Test
-  public void getBorder() {
-    // Arrange
     DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class);
 
-    Object device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
-
     // Act
-    renderer.getTableCellRendererComponent(myTable, device, false, true, 0, 0);
+    renderer.getTableCellRendererComponent(myTable, TestPhysicalDevices.GOOGLE_PIXEL_3, false, false, 0, 0);
 
     // Assert
-    assertEquals(UIManager.getBorder("Table.focusCellHighlightBorder"), renderer.getPanel().getBorder());
+    assertEquals(TestPhysicalDevices.GOOGLE_PIXEL_3.getIcon(), renderer.getIconLabel().getIcon());
+    assertEquals(TestPhysicalDevices.GOOGLE_PIXEL_3.getName(), renderer.getNameLabel().getText());
+    assertNull(renderer.getOnlineLabel().getIcon());
+    assertEquals(TestPhysicalDevices.GOOGLE_PIXEL_3.getTarget(), renderer.getLine2Label().getText());
   }
 
   @Test
   public void getForegroundSelected() {
     // Arrange
-    Function<Object, Border> getBorder = mockGetBorder("Table.cellNoFocusBorder", new EmptyBorderUIResource(2, 3, 2, 3));
-    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, getBorder);
-
-    Object device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
+    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class);
 
     // Act
-    renderer.getTableCellRendererComponent(myTable, device, true, false, 0, 0);
+    renderer.getTableCellRendererComponent(myTable, TestPhysicalDevices.GOOGLE_PIXEL_3, true, false, 0, 0);
 
     // Assert
     assertEquals(myTable.getSelectionForeground(), renderer.getNameLabel().getForeground());
@@ -186,26 +134,12 @@ public final class DeviceTableCellRendererTest {
   @Test
   public void getForeground() {
     // Arrange
-    Function<Object, Border> getBorder = mockGetBorder("Table.cellNoFocusBorder", new EmptyBorderUIResource(2, 3, 2, 3));
-    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class, getBorder);
-
-    Object device = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
+    DeviceTableCellRenderer<Device> renderer = new DeviceTableCellRenderer<>(Device.class);
 
     // Act
-    renderer.getTableCellRendererComponent(myTable, device, false, false, 0, 0);
+    renderer.getTableCellRendererComponent(myTable, TestPhysicalDevices.GOOGLE_PIXEL_3, false, false, 0, 0);
 
     // Assert
     assertEquals(myTable.getForeground(), renderer.getNameLabel().getForeground());
-  }
-
-  private static @NotNull Function<@NotNull Object, @NotNull Border> mockGetBorder(@NotNull Object key, @NotNull Border border) {
-    @SuppressWarnings("unchecked")
-    Function<Object, Border> getBorder = Mockito.mock(Function.class);
-
-    Mockito.when(getBorder.apply(key)).thenReturn(border);
-
-    return getBorder;
   }
 }

@@ -83,6 +83,7 @@ public class AddMissingAttributesFix extends HtmlLinkManager.CommandLink {
     return missing;
   }
 
+
   @Override
   public void run() {
     findViewsMissingSizes(myFile, myResourceResolver).stream()

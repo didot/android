@@ -441,7 +441,7 @@ public final class UpdaterTest {
 
   private static @NotNull DevicesSelectedService newDevicesSelectedService() {
     Clock clock = Clock.fixed(Instant.parse("2018-11-28T01:15:27Z"), ZoneId.of("America/Los_Angeles"));
-    return new DevicesSelectedService(new PersistentStateComponent(), clock, () -> false);
+    return new DevicesSelectedService(new PersistentStateComponent(), clock);
   }
 
   @Test

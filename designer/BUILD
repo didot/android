@@ -1,4 +1,5 @@
 load("//tools/base/bazel:bazel.bzl", "iml_module")
+load("//tools/base/bazel:maven.bzl", "maven_repository")
 
 # managed by go/iml_to_build
 iml_module(
@@ -8,6 +9,7 @@ iml_module(
     javacopts = ["-XepAllErrorsAsWarnings"],
     lint_baseline = "lint_baseline.xml",
     resources = ["resources"],
+    test_srcs = ["testFramework"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
@@ -30,7 +32,6 @@ iml_module(
         "//tools/adt/idea/project-system-gradle:intellij.android.projectSystem.gradle[module]",
         "//tools/adt/idea/adt-ui-model:intellij.android.adt.ui.model[module]",
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto",
-        "//tools/adt/idea/resources-base:intellij.android.resources-base[module]",
         "//tools/adt/idea/layout-ui:intellij.android.layout-ui[module]",
         "//tools/base/wizard/template-plugin:studio.intellij.android.wizardTemplate.plugin[module]",
         "//tools/base/wizard/template-impl:studio.intellij.android.wizardTemplate.impl[module]",
@@ -38,6 +39,12 @@ iml_module(
         "//tools/adt/idea/lint:intellij.lint[module]",
         "//tools/base/lint:studio.android.sdktools.lint-checks[module]",
         "//tools/adt/idea/intellij.android.compose-common[module]",
+        "//tools/adt/idea/android-npw:intellij.android.newProjectWizard[module]",
+        "//tools/adt/idea/.idea/libraries:truth[test]",
+        "//tools/adt/idea/.idea/libraries:mockito[test]",
+        "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
+        "//tools/analytics-library/testing:android.sdktools.analytics-testing[module, test]",
+        "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
     ],
 )
 
@@ -48,6 +55,7 @@ iml_module(
     tags = ["no_test_windows"],
     test_class = "com.android.tools.idea.DesignerTestSuite",
     test_data = [
+        ":test_deps",
         "//prebuilts/studio/jdk",
         "//prebuilts/studio/layoutlib:build.prop",
         "//prebuilts/studio/layoutlib/data:framework_res.jar",
@@ -56,15 +64,13 @@ iml_module(
         "//prebuilts/studio/layoutlib/data/icu",
         "//prebuilts/studio/sdk:build-tools/latest",
         "//prebuilts/studio/sdk:platforms/latest",
-        "//tools/adt/idea/android:test_deps.zip",
         "//tools/adt/idea/android/annotations",
         "//tools/adt/idea/android/lib:sampleData",
         "//tools/adt/idea/android/testData",
         "//tools/adt/idea/designer/testData",
         "//tools/base/build-system:gradle-distrib",
-        "//tools/base/build-system:studio_repo.zip",
-        "//tools/base/build-system/previous-versions:2.2.0.zip",
-        "//tools/base/third_party/kotlin:kotlin-m2repository.zip",
+        "//tools/base/build-system:studio_repo",
+        "//tools/base/third_party/kotlin:kotlin-m2repository",
     ],
     test_shard_count = 4,
     test_srcs = ["testSrc"],
@@ -108,5 +114,26 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:layoutlib[test]",
         "//tools/adt/idea/lint:intellij.lint[module, test]",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin",
+        "//tools/adt/idea/layoutlib:intellij.android.layoutlib[module, test]",
+        "//tools/adt/idea/android-lint:intellij.android.lint[module, test]",
+    ],
+)
+
+maven_repository(
+    name = "test_deps",
+    artifacts = [
+        "@maven//:com.android.support.constraint.constraint-layout_2.0.4",
+        "@maven//:com.android.support.design_28.0.0",
+        "@maven//:com.android.support.test.espresso.espresso-core_3.0.2",
+        "@maven//:com.google.android.material.material_1.4.0",
+        "@maven//:com.google.auto.value.auto-value_1.6.2",
+        "@maven//:com.google.jimfs.jimfs_1.1",
+        "@maven//:com.sun.activation.javax.activation_1.2.0",
+        "@maven//:commons-lang.commons-lang_2.4",
+        "@maven//:org.codehaus.mojo.animal-sniffer-annotations_1.17",
+        "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.4.32",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-common_1.4.32",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk7_1.4.32",
+        "@maven//:xmlpull.xmlpull_1.1.3.1",
     ],
 )

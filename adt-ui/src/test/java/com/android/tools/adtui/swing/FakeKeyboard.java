@@ -21,7 +21,7 @@ import java.awt.Component;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import javax.swing.*;
+import javax.swing.SwingUtilities;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -92,6 +92,11 @@ public final class FakeKeyboard {
   public void pressAndRelease(int keyCode) {
     press(keyCode);
     release(keyCode);
+  }
+
+  public void pressAndRelease(Key key) {
+    press(key);
+    release(key);
   }
 
   /**

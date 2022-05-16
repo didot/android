@@ -48,9 +48,9 @@ import com.intellij.ui.treeStructure.Tree
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import javax.swing.JPanel
 
 class TreeSettingsActionsTest {
@@ -65,13 +65,6 @@ class TreeSettingsActionsTest {
   private var isConnected = false
 
   @Test
-  fun testFilterGroupAction() {
-    val event = createEvent()
-    FilterGroupAction.testActionVisibility(event, Capability.SUPPORTS_SYSTEM_NODES)
-    FilterGroupAction.testActionVisibility(event, Capability.SUPPORTS_SEMANTICS)
-  }
-
-  @Test
   fun testFilterSystemNodeAction() {
     val event = createEvent()
     SystemNodeFilterAction.testActionVisibility(event, Capability.SUPPORTS_SYSTEM_NODES)
@@ -79,17 +72,10 @@ class TreeSettingsActionsTest {
   }
 
   @Test
-  fun testMergedSemanticsFilterAction() {
+  fun testHighlightSemanticsFilterAction() {
     val event = createEvent()
-    MergedSemanticsFilterAction.testActionVisibility(event, Capability.SUPPORTS_SEMANTICS)
-    MergedSemanticsFilterAction.testToggleAction(event) { treeSettings.mergedSemanticsTree }
-  }
-
-  @Test
-  fun testUnmergedSemanticsFilterAction() {
-    val event = createEvent()
-    UnmergedSemanticsFilterAction.testActionVisibility(event, Capability.SUPPORTS_SEMANTICS)
-    UnmergedSemanticsFilterAction.testToggleAction(event) { treeSettings.unmergedSemanticsTree }
+    HighlightSemanticsAction.testActionVisibility(event, Capability.SUPPORTS_SEMANTICS)
+    HighlightSemanticsAction.testToggleAction(event, LayoutInspectorTreePanel::updateSemanticsFiltering) { treeSettings.highlightSemantics }
   }
 
   @Test
@@ -161,15 +147,19 @@ class TreeSettingsActionsTest {
     assertThat(event.presentation.isVisible).isTrue()
   }
 
-  private fun ToggleAction.testToggleAction(event: AnActionEvent, value: () -> Boolean) {
+  private fun ToggleAction.testToggleAction(
+    event: AnActionEvent,
+    update: (LayoutInspectorTreePanel) -> Unit = LayoutInspectorTreePanel::refresh,
+    value: () -> Boolean
+  ) {
     val defaultValue = value()
     assertThat(isSelected(event)).isEqualTo(defaultValue)
     setSelected(event, !defaultValue)
     assertThat(value()).isEqualTo(!defaultValue)
-    verify(event.treePanel())!!.refresh()
+    update(verify(event.treePanel())!!)
     setSelected(event, defaultValue)
     assertThat(value()).isEqualTo(defaultValue)
-    verify(event.treePanel(), times(2))!!.refresh()
+    update(verify(event.treePanel(), times(2))!!)
   }
 
   private fun createEvent(): AnActionEvent {

@@ -17,7 +17,6 @@ package com.android.tools.idea.gradle.project;
 
 import org.jetbrains.plugins.gradle.importing.GradleDependenciesImportingTest;
 import org.jetbrains.plugins.gradle.importing.GradleFoldersImportingTest;
-import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 

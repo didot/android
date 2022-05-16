@@ -15,29 +15,25 @@
  */
 package com.android.tools.idea.gradle.project;
 
-import static java.util.stream.Collectors.toList;
-
 import com.intellij.ide.util.projectWizard.ModuleWizardStep;
 import com.intellij.ide.util.projectWizard.WizardContext;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.containers.ContainerUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Importers for different project types, e.g. ADT, Gradle.
  */
 public abstract class ModuleImporter {
   private static final Logger LOG = Logger.getInstance(ModuleImporter.class);
-
   private static final Key<ModuleImporter[]> KEY_IMPORTERS = new Key<>("com.android.tools.importers");
   private static final Key<ModuleImporter> KEY_CURRENT_IMPORTER = new Key<>("com.android.tools.currentImporter");
   private static final ModuleImporter NONE = new ModuleImporter() {

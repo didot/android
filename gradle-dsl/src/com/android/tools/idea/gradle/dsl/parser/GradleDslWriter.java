@@ -15,8 +15,16 @@
  */
 package com.android.tools.idea.gradle.dsl.parser;
 
+import static com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter.Kind.NONE;
+
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
-import com.android.tools.idea.gradle.dsl.parser.elements.*;
+import com.android.tools.idea.gradle.dsl.model.BuildModelContext;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslLiteral;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslMethodCall;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 
@@ -69,6 +77,15 @@ public interface GradleDslWriter extends GradleDslNameConverter {
   void applyDslPropertiesElement(@NotNull GradlePropertiesDslElement element);
 
   class Adapter implements GradleDslWriter {
+    @NotNull private final BuildModelContext context;
+
+    public Adapter(@NotNull BuildModelContext context) {
+      this.context = context;
+    }
+
+    @Override
+    public @NotNull Kind getKind() { return NONE; }
+
     @Override
     public PsiElement moveDslElement(@NotNull GradleDslElement element) { return null; }
 
@@ -109,13 +126,7 @@ public interface GradleDslWriter extends GradleDslNameConverter {
     public void applyDslPropertiesElement(@NotNull GradlePropertiesDslElement element) { }
 
     @Override
-    public boolean isGroovy() {
-      return false;
-    }
-
-    @Override
-    public boolean isKotlin() {
-      return false;
-    }
+    @NotNull
+    public BuildModelContext getContext() { return context; }
   }
 }

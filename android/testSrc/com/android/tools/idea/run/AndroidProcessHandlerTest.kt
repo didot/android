@@ -33,15 +33,15 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
-import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.ArgumentMatchers.argThat
 import org.mockito.Mock
-import org.mockito.Mockito.`when`
+import org.mockito.Mockito.anyBoolean
 import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.timeout
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations.initMocks
 
 /**
@@ -252,6 +252,24 @@ class AndroidProcessHandlerTest {
 
     verify(mockProcessListener, never()).processWillTerminate(any(), anyBoolean())
     assertThat(handler.isProcessTerminated).isFalse()
+  }
+
+  @Test
+  fun ProcessHandlerShouldBeDetachedAfterAllTargetDeviceIsDetached() {
+    val targetDevice = createMockDevice(28)
+
+    handler.addTargetDevice(targetDevice)
+    `when`(mockMonitorManager.isEmpty()).thenReturn(true)
+    handler.detachDevice(targetDevice)
+
+    assertThat(handler.isProcessTerminating || handler.isProcessTerminated).isTrue()
+    inOrder(mockProcessListener).apply {
+      verify(mockProcessListener).processWillTerminate(any(), /*willBeDestroyed=*/eq(false))
+      verify(mockProcessListener, timeout(1000)).processTerminated(any())
+      verifyNoMoreInteractions()
+    }
+
+    assertThat(handler.isProcessTerminated).isTrue()
   }
 
   private fun createMockDevice(apiVersion: Int): IDevice {

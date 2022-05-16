@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.profilers.capture;
 
-import com.android.tools.idea.flags.StudioFlags;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorPolicy;
 import com.intellij.openapi.fileEditor.FileEditorProvider;
@@ -40,7 +39,7 @@ public class AndroidProfilerCaptureEditorProvider implements FileEditorProvider,
             fileType instanceof MemoryAllocationFileType ||
             fileType instanceof MemoryCaptureFileType ||
             PerfettoCaptureFileType.EXTENSIONS.contains(extension) ||
-           (StudioFlags.PROFILER_ENABLE_NATIVE_SAMPLE.get() && fileType instanceof HeapProfdMemoryCaptureFileType));
+            fileType instanceof HeapProfdMemoryCaptureFileType);
   }
 
   @NotNull

@@ -18,7 +18,8 @@ package com.android.tools.idea.uibuilder.palette;
 import static com.android.SdkConstants.CONSTRAINT_LAYOUT;
 
 import com.android.annotations.concurrency.Slow;
-import com.android.tools.idea.project.AndroidProjectBuildNotifications;
+import com.android.tools.idea.projectsystem.ProjectSystemBuildManager;
+import com.android.tools.idea.projectsystem.ProjectSystemService;
 import com.android.tools.idea.uibuilder.api.ViewGroupHandler;
 import com.android.tools.idea.uibuilder.api.ViewHandler;
 import com.android.tools.idea.uibuilder.handlers.ActionMenuViewHandler;
@@ -34,7 +35,6 @@ import com.android.tools.idea.uibuilder.model.NlComponentHelper;
 import com.android.tools.idea.uibuilder.type.LayoutEditorFileType;
 import com.android.tools.idea.uibuilder.type.LayoutFileType;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
@@ -58,6 +58,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -179,9 +180,21 @@ public class NlPaletteModel implements Disposable {
   private void registerAdditionalComponents(@NotNull LayoutEditorFileType type) {
     loadAdditionalComponents(type, VIEW_CLASSES_QUERY);
 
-    // Reload the additional components after every build to find new custom components
-    AndroidProjectBuildNotifications
-      .subscribe(myModule.getProject(), this, context -> loadAdditionalComponents(type, VIEW_CLASSES_QUERY));
+    ProjectSystemService.getInstance(myModule.getProject()).getProjectSystem().getBuildManager().addBuildListener(
+      this, new ProjectSystemBuildManager.BuildListener() {
+        @Override
+        public void buildStarted(@NotNull ProjectSystemBuildManager.BuildMode mode) {
+        }
+
+        @Override
+        public void beforeBuildCompleted(@NotNull ProjectSystemBuildManager.BuildResult result) {
+        }
+
+        @Override
+        public void buildCompleted(@NotNull ProjectSystemBuildManager.BuildResult result) {
+          loadAdditionalComponents(type, VIEW_CLASSES_QUERY);
+        }
+      });
   }
 
   public void addUpdateListener(@Nullable UpdateListener updateListener) {
@@ -192,13 +205,12 @@ public class NlPaletteModel implements Disposable {
     myListeners.remove(updateListener);
   }
 
+  @Slow
   private void notifyUpdateListener(@NotNull LayoutEditorFileType layoutType) {
     if (!myListeners.isEmpty()) {
-      myListeners.forEach(listener -> ApplicationManager.getApplication().invokeLater(() -> {
-        if (!myDisposed) {
-          listener.update(this, layoutType);
-        }
-      }));
+      if (!myDisposed) {
+        myListeners.forEach(listener -> listener.update(NlPaletteModel.this, layoutType));
+      }
     }
   }
 
@@ -221,7 +233,7 @@ public class NlPaletteModel implements Disposable {
       URL url = NlPaletteModel.class.getResource(getPaletteFileNameFromId(id));
       URLConnection connection = url.openConnection();
 
-      try (Reader reader = new InputStreamReader(connection.getInputStream(), Charsets.UTF_8)) {
+      try (Reader reader = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)) {
         return Palette.parse(reader, ViewHandlerManager.get(myModule.getProject()));
       }
     }
@@ -235,8 +247,7 @@ public class NlPaletteModel implements Disposable {
    * components from the project.
    */
   @VisibleForTesting
-  void loadAdditionalComponents(@NotNull LayoutEditorFileType type,
-                                              @NotNull Function<Project, Query<PsiClass>> viewClasses) {
+  void loadAdditionalComponents(@NotNull LayoutEditorFileType type, @NotNull Function<Project, Query<PsiClass>> viewClasses) {
     Application application = ApplicationManager.getApplication();
     Project project = myModule.getProject();
     ReadAction

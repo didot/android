@@ -17,9 +17,13 @@ package com.android.tools.idea.gradle.dsl.parser.android;
 
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.ABORT_ON_ERROR;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.ABSOLUTE_PATHS;
+import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.BASELINE;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.CHECK;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.CHECK_ALL_WARNINGS;
+import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.CHECK_DEPENDENCIES;
+import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.CHECK_GENERATED_SOURCES;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.CHECK_RELEASE_BUILDS;
+import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.CHECK_TEST_SOURCES;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.DISABLE;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.ENABLE;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.ERROR;
@@ -28,11 +32,14 @@ import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelIm
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.HTML_OUTPUT;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.HTML_REPORT;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.IGNORE;
+import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.IGNORE_TEST_SOURCES;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.IGNORE_WARNINGS;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.INFORMATIONAL;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.LINT_CONFIG;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.NO_LINES;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.QUIET;
+import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.SARIF_OUTPUT;
+import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.SARIF_REPORT;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.SHOW_ALL;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.TEXT_OUTPUT;
 import static com.android.tools.idea.gradle.dsl.model.android.LintOptionsModelImpl.TEXT_REPORT;
@@ -46,49 +53,50 @@ import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.pro
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.AUGMENT_LIST;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.SET;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelMapCollector.toModelMap;
-import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAL;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR;
 
 import com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslBlockElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
+import com.android.tools.idea.gradle.dsl.parser.semantics.VersionConstraint;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
 public class LintOptionsDslElement extends GradleDslBlockElement {
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelNameMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap ktsToModelNameMap = Stream.of(new Object[][]{
     {"isAbortOnError", property, ABORT_ON_ERROR, VAR},
     {"isAbsolutePaths", property, ABSOLUTE_PATHS, VAR},
     {"isCheckAllWarnings", property, CHECK_ALL_WARNINGS, VAR},
-    // TODO(b/144403889): {"isCheckDependencies", property, CHECK_DEPENDENCIES, VAR},
-    // TODO(b/144403889): {"isCheckGeneratedSources", property, CHECK_GENERATED_SOURCES, VAR},
+    {"isCheckDependencies", property, CHECK_DEPENDENCIES, VAR},
+    {"isCheckGeneratedSources", property, CHECK_GENERATED_SOURCES, VAR},
     {"isCheckReleaseBuilds", property, CHECK_RELEASE_BUILDS, VAR},
-    // TODO(b/144403889): {"isCheckTestSources", property, CHECK_TEST_SOURCES, VAR},
+    {"isCheckTestSources", property, CHECK_TEST_SOURCES, VAR},
     {"isExplainIssues", property, EXPLAIN_ISSUES, VAR},
-    // TODO(b/144403889): {"isIgnoreTestSources", property, IGNORE_TEST_SOURCES, VAR},
+    {"isIgnoreTestSources", property, IGNORE_TEST_SOURCES, VAR},
     {"isIgnoreWarnings", property, IGNORE_WARNINGS, VAR},
     {"isNoLines", property, NO_LINES, VAR},
     {"isQuiet", property, QUIET, VAR},
     {"isShowAll", property, SHOW_ALL, VAR},
     {"isWarningsAsErrors", property, WARNINGS_AS_ERRORS, VAR},
 
-    // TODO(b/144403889): {"baselineFile", property, BASELINE, VAR},
-    // TODO(b/144403889): {"baseline", exactly(1), BASELINE, SET},
+    {"baselineFile", property, BASELINE, VAR},
+    {"baseline", exactly(1), BASELINE, SET},
     {"lintConfig", property, LINT_CONFIG, VAR},
     {"htmlOutput", property, HTML_OUTPUT, VAR},
     {"htmlReport", property, HTML_REPORT, VAR},
-    {"textOutput", property, TEXT_OUTPUT, VAL},
+    {"sarifOutput", property, SARIF_OUTPUT, VAR},
+    {"sarifReport", property, SARIF_REPORT, VAR},
+    {"textOutput", property, TEXT_OUTPUT, VAR},
     {"textOutput", exactly(1), TEXT_OUTPUT, SET}, // special-case String method as well as File
     {"textReport", property, TEXT_REPORT, VAR},
     {"xmlOutput", property, XML_OUTPUT, VAR},
     {"xmlReport", property, XML_REPORT, VAR},
 
     // There are also exactly(1) variants of these with the same name, but they are redundant for our purposes
+    {"checkOnly", atLeast(0), CHECK, AUGMENT_LIST, VersionConstraint.agpFrom("4.1.0")},
     {"check", atLeast(0), CHECK, AUGMENT_LIST},
     {"disable", atLeast(0), DISABLE, AUGMENT_LIST},
     {"enable", atLeast(0), ENABLE, AUGMENT_LIST},
@@ -99,25 +107,25 @@ public class LintOptionsDslElement extends GradleDslBlockElement {
     {"warning", atLeast(0), WARNING, AUGMENT_LIST},
   }).collect(toModelMap());
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelNameMap = Stream.of(new Object[][]{
+  public static final ExternalToModelMap groovyToModelNameMap = Stream.of(new Object[][]{
     {"abortOnError", property, ABORT_ON_ERROR, VAR},
     {"abortOnError", exactly(1), ABORT_ON_ERROR, SET},
     {"absolutePaths", property, ABSOLUTE_PATHS, VAR},
     {"absolutePaths", exactly(1), ABSOLUTE_PATHS, SET},
     {"checkAllWarnings", property, CHECK_ALL_WARNINGS, VAR},
     {"checkAllWarnings", exactly(1), CHECK_ALL_WARNINGS, SET},
-    // TODO(b/144403889): {"checkDependencies", property, CHECK_DEPENDENCIES, VAR},
-    // TODO(b/144403889): {"checkDependencies", exactly(1), CHECK_DEPENDENCIES, SET},
-    // TODO(b/144403889): {"checkGeneratedSources", property, CHECK_GENERATED_SOURCES, VAR},
-    // TODO(b/144403889): {"checkGeneratedSources", exactly(1), CHECK_GENERATED_SOURCES, SET},
+    {"checkDependencies", property, CHECK_DEPENDENCIES, VAR},
+    {"checkDependencies", exactly(1), CHECK_DEPENDENCIES, SET},
+    {"checkGeneratedSources", property, CHECK_GENERATED_SOURCES, VAR},
+    {"checkGeneratedSources", exactly(1), CHECK_GENERATED_SOURCES, SET},
     {"checkReleaseBuilds", property, CHECK_RELEASE_BUILDS, VAR},
     {"checkReleaseBuilds", exactly(1), CHECK_RELEASE_BUILDS, SET},
-    // TODO(b/144403889): {"checkTestSources", property, CHECK_TEST_SOURCES, VAR},
-    // TODO(b/144403889): {"checkTestSources", exactly(1), CHECK_TEST_SOURCES, SET},
+    {"checkTestSources", property, CHECK_TEST_SOURCES, VAR},
+    {"checkTestSources", exactly(1), CHECK_TEST_SOURCES, SET},
     {"explainIssues", property, EXPLAIN_ISSUES, VAR},
     {"explainIssues", exactly(1), EXPLAIN_ISSUES, SET},
-    // TODO(b/144403889): {"ignoreTestSources", property, IGNORE_TEST_SOURCES, VAR},
-    // TODO(b/144403889): {"ignoreTestSources", exactly(1), IGNORE_TEST_SOURCES, SET},
+    {"ignoreTestSources", property, IGNORE_TEST_SOURCES, VAR},
+    {"ignoreTestSources", exactly(1), IGNORE_TEST_SOURCES, SET},
     {"ignoreWarnings", property, IGNORE_WARNINGS, VAR},
     {"ignoreWarnings", exactly(1), IGNORE_WARNINGS, SET},
     {"noLines", property, NO_LINES, VAR},
@@ -129,17 +137,19 @@ public class LintOptionsDslElement extends GradleDslBlockElement {
     {"warningsAsErrors", property, WARNINGS_AS_ERRORS, VAR},
     {"warningsAsErrors", exactly(1), WARNINGS_AS_ERRORS, SET},
 
-    // TODO(b/144403889): {"baselineFile", property, BASELINE, VAR},
-    // TODO(b/144403889): {"baseline", exactly(1), BASELINE, SET},
+    {"baseline", exactly(1), BASELINE, SET},
     {"lintConfig", exactly(1), LINT_CONFIG, SET},
     {"htmlOutput", exactly(1), HTML_OUTPUT, SET},
     {"htmlReport", exactly(1), HTML_REPORT, SET},
+    {"sarifOutput", exactly(1), SARIF_OUTPUT, SET},
+    {"sarifReport", exactly(1), SARIF_REPORT, SET},
     {"textOutput", exactly(1), TEXT_OUTPUT, SET},
     {"textReport", exactly(1), TEXT_REPORT, SET},
     {"xmlOutput", exactly(1), XML_OUTPUT, SET},
     {"xmlReport", exactly(1), XML_REPORT, SET},
 
     // There are also exactly(1) variants of these with the same name, but they are redundant for our purposes
+    {"checkOnly", atLeast(0), CHECK, AUGMENT_LIST, VersionConstraint.agpFrom("4.1.0")},
     {"check", atLeast(0), CHECK, AUGMENT_LIST},
     {"disable", atLeast(0), DISABLE, AUGMENT_LIST},
     {"enable", atLeast(0), ENABLE, AUGMENT_LIST},
@@ -153,16 +163,8 @@ public class LintOptionsDslElement extends GradleDslBlockElement {
     new PropertiesElementDescription<>("lintOptions", LintOptionsDslElement.class, LintOptionsDslElement::new);
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter.isKotlin()) {
-      return ktsToModelNameMap;
-    }
-    else if (converter.isGroovy()) {
-      return groovyToModelNameMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelNameMap, ktsToModelNameMap);
   }
 
 

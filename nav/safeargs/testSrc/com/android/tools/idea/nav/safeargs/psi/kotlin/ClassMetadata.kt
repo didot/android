@@ -36,11 +36,9 @@ import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.idea.refactoring.fqName.fqName
 import org.jetbrains.kotlin.resolve.MemberComparator
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
-import org.jetbrains.kotlin.resolve.descriptorUtil.getAllSuperclassesWithoutAny
-import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperInterfaces
 import org.jetbrains.kotlin.resolve.scopes.ResolutionScope
-import org.jetbrains.kotlin.types.error.ErrorType
 import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.error.ErrorType
 import org.jetbrains.kotlin.types.typeUtil.isAnyOrNullableAny
 
 // This class contains data collected by visiting Kotlin class descriptors, making it easy to
@@ -83,7 +81,8 @@ internal class ClassMetadata(
   var companionObject: ClassMetadata? = null,
   var constructors: MutableList<FunctionMetadata> = mutableListOf(),
   var properties: MutableList<PropertyMetadata> = mutableListOf(),
-  var functions: MutableList<FunctionMetadata> = mutableListOf()
+  var functions: MutableList<FunctionMetadata> = mutableListOf(),
+  var classifiers: MutableList<ClassMetadata> = mutableListOf()
 ) {
   companion object {
     private val visitor = MetadataVisitor()
@@ -92,7 +91,14 @@ internal class ClassMetadata(
         file = descriptor.source.containingFile.name.orEmpty()
         descriptor.accept(visitor, this)
         descriptor.unsubstitutedPrimaryConstructor?.accept(visitor, this)
-        descriptor.unsubstitutedMemberScope.getContributedDescriptors().forEach { desc -> desc.accept(visitor, this) }
+        descriptor.unsubstitutedMemberScope.getContributedDescriptors().forEach { desc ->
+          if (desc is ClassDescriptor) {
+            classifiers.add(fromDescriptor(desc))
+          }
+          else {
+            desc.accept(visitor, this)
+          }
+        }
         descriptor.companionObjectDescriptor?.let { companionObjectDescriptor ->
           companionObject = fromDescriptor(companionObjectDescriptor)
         }

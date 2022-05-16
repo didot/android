@@ -15,25 +15,28 @@
  */
 package com.android.tools.idea.gradle.project.sync
 
-import com.android.tools.idea.gradle.model.IdeAndroidProject
-import com.android.tools.idea.gradle.model.IdeAndroidProjectType
-import com.android.tools.idea.gradle.model.IdeVariant
-import com.android.tools.idea.gradle.project.sync.ModelCache.Companion.safeGet
-import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeAndroidProject
-import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeVariantAbi
-import com.android.tools.idea.gradle.model.ndk.v2.IdeNativeModule
 import com.android.ide.common.repository.GradleCoordinate
 import com.android.ide.common.repository.GradleVersion
 import com.android.ide.gradle.model.ArtifactIdentifier
 import com.android.ide.gradle.model.ArtifactIdentifierImpl
 import com.android.ide.gradle.model.artifacts.AdditionalClassifierArtifactsModel
-import com.android.tools.idea.gradle.project.sync.Modules.createUniqueModuleId
+import com.android.tools.idea.gradle.model.IdeAndroidProject
+import com.android.tools.idea.gradle.model.IdeAndroidProjectType
 import com.android.tools.idea.gradle.model.IdeSyncIssue
+import com.android.tools.idea.gradle.model.IdeUnresolvedDependencies
+import com.android.tools.idea.gradle.model.IdeVariant
+import com.android.tools.idea.gradle.model.impl.IdeVariantImpl
+import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeAndroidProject
+import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeVariantAbi
+import com.android.tools.idea.gradle.model.ndk.v2.IdeNativeModule
+import com.android.tools.idea.gradle.project.sync.Modules.createUniqueModuleId
 import org.gradle.tooling.model.Model
 import org.gradle.tooling.model.gradle.BasicGradleProject
+import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.kotlin.idea.gradleTooling.KotlinGradleModel
 import org.jetbrains.kotlin.idea.gradleTooling.model.kapt.KaptGradleModel
 import org.jetbrains.plugins.gradle.model.ProjectImportModelProvider
+import java.io.File
 
 @UsedInBuildAction
 abstract class GradleModule(val gradleProject: BasicGradleProject) {
@@ -74,14 +77,18 @@ class JavaModule(
  * The container class for Android module, containing its Android model, Variant models, and dependency modules.
  */
 @UsedInBuildAction
-class AndroidModule internal constructor(
+@VisibleForTesting
+class AndroidModule constructor(
   val modelVersion: GradleVersion?,
+  val buildName: String?,
+  val buildNameMap: Map<String, File>?,
   gradleProject: BasicGradleProject,
   val androidProject: IdeAndroidProject,
   /** All configured variant names if supported by the AGP version. */
   val allVariantNames: Set<String>?,
   val defaultVariantName: String?,
-  private val prefetchedVariants: List<IdeVariant>?,
+  // The list of partial IdeVariant models populated from V2 models only.
+  val v2Variants: List<IdeVariantImpl>?,
   /** Old V1 model. It's only set if [nativeModule] is not set. */
   private val nativeAndroidProject: IdeNativeAndroidProject?,
   /** New V2 model. It's only set if [nativeAndroidProject] is not set. */
@@ -89,13 +96,9 @@ class AndroidModule internal constructor(
 ) : GradleModule(gradleProject) {
   val projectType: IdeAndroidProjectType get() = androidProject.projectType
 
-  /** Names of all currently fetch variants (currently pre single-variant-sync only). */
-  val fetchedVariantNames: Collection<String> = prefetchedVariants?.map { it.name }?.toSet().orEmpty()
-
   fun getVariantAbiNames(variantName: String): Collection<String>? {
-    fun unsafeGet() = nativeModule?.variants?.firstOrNull { it.name == variantName }?.abis?.map { it.name }
+    return nativeModule?.variants?.firstOrNull { it.name == variantName }?.abis?.map { it.name }
                       ?: nativeAndroidProject?.variantInfos?.get(variantName)?.abiNames
-    return safeGet(::unsafeGet, null)
   }
 
 
@@ -110,19 +113,19 @@ class AndroidModule internal constructor(
   var syncedVariant: IdeVariant? = null
   var syncedNativeVariantAbiName: String? = null
   var syncedNativeVariant: IdeNativeVariantAbi? = null
+  var allVariants: List<IdeVariant>? = null
 
   var additionalClassifierArtifacts: AdditionalClassifierArtifactsModel? = null
   var kotlinGradleModel: KotlinGradleModel? = null
   var kaptGradleModel: KaptGradleModel? = null
 
+  var unresolvedDependencies: List<IdeUnresolvedDependencies> = emptyList()
+
   /** Returns the list of all libraries this currently selected variant depends on (and temporarily maybe some of the
    * libraries other variants depend on.
    **/
   fun getLibraryDependencies(): Collection<ArtifactIdentifier> {
-    // Get variants from AndroidProject if it's not empty, otherwise get from VariantGroup.
-    // The first case indicates full-variants sync and the later single-variant sync.
-    val variants = prefetchedVariants ?: listOfNotNull(syncedVariant)
-    return collectIdentifiers(variants)
+    return collectIdentifiers(listOfNotNull(syncedVariant))
   }
 
   override fun deliverModels(consumer: ProjectImportModelProvider.BuildModelConsumer) {
@@ -131,23 +134,23 @@ class AndroidModule internal constructor(
     // are moved out of `IdeAndroidProject` and delivered to the IDE separately.
     val selectedVariantName =
       syncedVariant?.name
-      ?: prefetchedVariants?.map { it.name }?.getDefaultOrFirstItem("debug")
+      ?: allVariants?.map { it.name }?.getDefaultOrFirstItem("debug")
       ?: throw AndroidSyncException("No variants found for '${gradleProject.path}'. Check build files to ensure at least one variant exists.")
 
     val ideAndroidModels = IdeAndroidModels(
       androidProject,
-      syncedVariant?.let { listOf(it) } ?: prefetchedVariants.orEmpty(),
+      syncedVariant?.let { listOf(it) } ?: allVariants.orEmpty(),
       selectedVariantName,
       syncedNativeVariantAbiName,
       projectSyncIssues.orEmpty(),
       nativeModule,
       nativeAndroidProject,
-      syncedNativeVariant
+      syncedNativeVariant,
+      kaptGradleModel
     )
     with(ModelConsumer(consumer)) {
       ideAndroidModels.deliver()
       kotlinGradleModel?.deliver()
-      kaptGradleModel?.deliver()
       additionalClassifierArtifacts?.deliver()
     }
   }
@@ -156,7 +159,7 @@ class AndroidModule internal constructor(
 data class ModuleConfiguration(val id: String, val variant: String, val abi: String?)
 
 @UsedInBuildAction
-class NativeVariantsAndroidModule private constructor(
+class  NativeVariantsAndroidModule private constructor(
   gradleProject: BasicGradleProject,
   private val nativeVariants: List<IdeNativeVariantAbi>? // Null means V2.
 ) : GradleModule(gradleProject) {
@@ -180,7 +183,7 @@ fun Collection<String>.getDefaultOrFirstItem(defaultValue: String): String? =
 @UsedInBuildAction
 private fun collectIdentifiers(variants: Collection<IdeVariant>): List<ArtifactIdentifier> {
   return variants.asSequence()
-    .flatMap { sequenceOf(it.mainArtifact, it.androidTestArtifact, it.unitTestArtifact).filterNotNull() }
+    .flatMap { sequenceOf(it.mainArtifact, it.androidTestArtifact, it.unitTestArtifact, it.testFixturesArtifact).filterNotNull() }
     .flatMap { it.level2Dependencies.androidLibraries.asSequence() + it.level2Dependencies.javaLibraries.asSequence() }
     .mapNotNull { GradleCoordinate.parseCoordinateString(it.artifactAddress) }
     .map { ArtifactIdentifierImpl(it.groupId, it.artifactId, it.version?.toString().orEmpty()) }

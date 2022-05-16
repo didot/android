@@ -15,70 +15,59 @@
  */
 package com.android.tools.idea.logcat;
 
+import static com.android.ddmlib.IDevice.CHANGE_STATE;
+import static com.google.common.truth.Truth.assertThat;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.android.ddmlib.IDevice;
+import com.android.ddmlib.Log;
 import com.android.ddmlib.MultiLineReceiver;
+import com.android.ddmlib.logcat.LogCatHeader;
 import com.android.ddmlib.logcat.LogCatMessage;
 import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
-
 public class AndroidLogcatServiceTest {
-  private static class TestLogcatListener implements AndroidLogcatService.LogcatListener {
+  private static final ImmutableList<String> LOG_LINES = ImmutableList.of(
+    "[ 1534635551.439 1493:1595 W/Tag1     ]",
+    "First Line1",
+    "First Line2",
+    "First Line3",
+    "",
+    "[ 1537486751.439 1493:1595 W/Tag2     ]",
+    "Second Line1",
+    ""
+  );
 
-    private static final List<String> EXPECTED_LOGS = ImmutableList.of(
-      "1534635551.439: W/DummyFirst(1493): First Line1",
-      "1534635551.439: W/DummyFirst(1493): First Line2",
-      "1534635551.439: W/DummyFirst(1493): First Line3",
-      "1537486751.439: W/DummySecond(1493): Second Line1");
-
-    private final List<String> myReceivedMessages = new ArrayList<String>();
-    private boolean myCleared;
-
-    @Override
-    public void onLogLineReceived(@NotNull LogCatMessage line) {
-      myReceivedMessages.add(line.toString());
-    }
-
-    @Override
-    public void onCleared() {
-      myCleared = true;
-      myReceivedMessages.clear();
-    }
-
-    public void reset() {
-      myCleared = false;
-      myReceivedMessages.clear();
-    }
-
-    public void assertAllReceived() {
-      assertEquals(EXPECTED_LOGS, myReceivedMessages);
-    }
-
-    public void assertNothingReceived() {
-      assertEquals(0, myReceivedMessages.size());
-    }
-
-    private void assertCleared() {
-      assertTrue(myCleared);
-    }
-  }
+  private static final ImmutableList<LogCatMessage> EXPECTED_LOG_MESSAGES = ImmutableList.of(
+    new LogCatMessage(
+      new LogCatHeader(Log.LogLevel.WARN, 1493, 1595, "?", "Tag1", Instant.ofEpochMilli(1534635551439L)),
+      "First Line1\nFirst Line2\nFirst Line3"),
+    new LogCatMessage(
+      new LogCatHeader(Log.LogLevel.WARN, 1493, 1595, "?", "Tag2", Instant.ofEpochMilli(1537486751439L)),
+      "Second Line1")
+  );
 
   private TestLogcatListener myLogcatListener;
-  private IDevice mockDevice = mock(IDevice.class);
+  private final IDevice mockDevice = mock(IDevice.class);
   private AndroidLogcatService myLogcatService;
   private volatile CountDownLatch myExecuteShellCommandLatch;
 
@@ -96,36 +85,7 @@ public class AndroidLogcatServiceTest {
 
     myBufferSize = System.setProperty("idea.cycle.buffer.size", "disabled");
     myProject = mock(Project.class);
-  }
-
-  private void stubExecuteLogcatHelp() throws Exception {
-    Answer answer = invocation -> {
-      ((MultiLineReceiver)invocation.getArgument(1)).processNewLines(new String[]{"epoch"});
-      myExecuteShellCommandLatch.countDown();
-
-      return null;
-    };
-
-    doAnswer(answer).when(mockDevice).executeShellCommand(eq("logcat --help"), any(), eq(10L), eq(TimeUnit.SECONDS));
-  }
-
-  private void stubExecuteLogcatVLongVEpoch() throws Exception {
-    Answer answer = invocation -> {
-      AndroidLogcatReceiver receiver = invocation.getArgument(1);
-
-      receiver.processNewLine("[ 1534635551.439 1493:1595 W/DummyFirst     ]");
-      receiver.processNewLine("First Line1");
-      receiver.processNewLine("First Line2");
-      receiver.processNewLine("First Line3");
-      receiver.processNewLine("[ 1537486751.439 1493:1595 W/DummySecond     ]");
-      receiver.processNewLine("Second Line1");
-      receiver.cancel();
-
-      myExecuteShellCommandLatch.countDown();
-      return null;
-    };
-
-    doAnswer(answer).when(mockDevice).executeShellCommand(eq("logcat -v long -v epoch"), any(), eq(0L), eq(TimeUnit.MILLISECONDS));
+    Disposer.register(myProject, myLogcatService);
   }
 
   @After
@@ -204,7 +164,7 @@ public class AndroidLogcatServiceTest {
   }
 
   @Test
-  public void testDeviceChanged() throws Exception {
+  public void testDeviceChanged_stateChanged() throws Exception {
 
     when(mockDevice.isOnline()).thenReturn(true);
     myLogcatService.deviceConnected(mockDevice);
@@ -215,12 +175,32 @@ public class AndroidLogcatServiceTest {
     myExecuteShellCommandLatch = new CountDownLatch(2);
     myLogcatListener.reset();
     when(mockDevice.isOnline()).thenReturn(false);
-    myLogcatService.deviceChanged(mockDevice, 0);
+    myLogcatService.deviceChanged(mockDevice, CHANGE_STATE);
     when(mockDevice.isOnline()).thenReturn(true);
-    myLogcatService.deviceChanged(mockDevice, 0);
+    myLogcatService.deviceChanged(mockDevice, CHANGE_STATE);
 
+    assertThat(myExecuteShellCommandLatch.await(10, SECONDS)).isTrue();
+    myLogcatListener.assertAllReceived();
+  }
+
+  @Test
+  public void testDeviceChanged_stateDidNotChange() throws Exception {
+
+    when(mockDevice.isOnline()).thenReturn(true);
+    myLogcatService.deviceConnected(mockDevice);
+    myLogcatService.addListener(mockDevice, myLogcatListener, true);
     myExecuteShellCommandLatch.await();
     myLogcatListener.assertAllReceived();
+
+    myExecuteShellCommandLatch = new CountDownLatch(2);
+    myLogcatListener.reset();
+    when(mockDevice.isOnline()).thenReturn(false);
+    int stateDidNotChangeMask = 0xffff - CHANGE_STATE;
+    myLogcatService.deviceChanged(mockDevice, stateDidNotChangeMask);
+    when(mockDevice.isOnline()).thenReturn(true);
+    myLogcatService.deviceChanged(mockDevice, stateDidNotChangeMask);
+
+    assertThat(myExecuteShellCommandLatch.await(10, SECONDS)).isFalse();
   }
 
   @Test
@@ -276,5 +256,65 @@ public class AndroidLogcatServiceTest {
     myLogcatService.clearLogcat(mockDevice, myProject);
 
     myLogcatListener.assertCleared();
+  }
+
+  private void stubExecuteLogcatHelp() throws Exception {
+    Answer<Void> answer = invocation -> {
+      ((MultiLineReceiver)invocation.getArgument(1)).processNewLines(new String[]{"epoch"});
+      myExecuteShellCommandLatch.countDown();
+
+      return null;
+    };
+
+    doAnswer(answer).when(mockDevice).executeShellCommand(eq("logcat --help"), any(), eq(10L), eq(SECONDS));
+  }
+
+  private void stubExecuteLogcatVLongVEpoch() throws Exception {
+    Answer<Void> answer = invocation -> {
+      AndroidLogcatReceiver receiver = invocation.getArgument(1);
+
+      receiver.processNewLines(LOG_LINES);
+      receiver.cancel();
+
+      myExecuteShellCommandLatch.countDown();
+      return null;
+    };
+
+    doAnswer(answer).when(mockDevice).executeShellCommand(eq("logcat -v long -v epoch"), any(), eq(0L), eq(TimeUnit.MILLISECONDS));
+  }
+
+  private class TestLogcatListener implements AndroidLogcatService.LogcatListener {
+
+    private final List<LogCatMessage> myReceivedMessages = new ArrayList<>();
+    private boolean myCleared;
+
+    @Override
+    public void onLogLineReceived(@NotNull LogCatMessage logCatMessage) {
+      myReceivedMessages.add(logCatMessage);
+    }
+
+    @Override
+    public void onCleared() {
+      myCleared = true;
+      myReceivedMessages.clear();
+    }
+
+    public void reset() {
+      myCleared = false;
+      myReceivedMessages.clear();
+    }
+
+    public void assertAllReceived() throws InterruptedException {
+      myLogcatService.waitForIdle(mockDevice);
+      assertThat(myReceivedMessages).containsAllIn(EXPECTED_LOG_MESSAGES);
+    }
+
+    public void assertNothingReceived() {
+      assertEquals(0, myReceivedMessages.size());
+    }
+
+    private void assertCleared() {
+      assertTrue(myCleared);
+    }
   }
 }

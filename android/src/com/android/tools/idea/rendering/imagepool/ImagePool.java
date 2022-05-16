@@ -15,13 +15,14 @@
  */
 package com.android.tools.idea.rendering.imagepool;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.awt.*;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
 import java.util.function.Consumer;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Class that offers a pool of {@link BufferedImage}s. The returned {@link Image} do not offer a direct access
@@ -53,9 +54,6 @@ public interface ImagePool {
     public BufferedImage getCopy(@Nullable GraphicsConfiguration gc, int x, int y, int w, int h) {
       return null;
     }
-
-    @Override
-    public void dispose() {}
 
     @Override
     public boolean isValid() {
@@ -208,14 +206,6 @@ public interface ImagePool {
     default BufferedImage getCopy() {
       return getCopy(null, 0, 0, getWidth(), getHeight());
     }
-
-    /**
-     * Manually disposes the current image. After calling this method, the image can not be used anymore.
-     * <p>
-     * This method does not need to be called directly as the images will be eventually collected anyway. However, using this method, you can
-     * speed up the collection process to avoid generating extra images.
-     */
-    void dispose();
 
     /**
      * Returns true if the image is valid. It will return false after the image has been disposed

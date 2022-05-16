@@ -20,6 +20,7 @@ import com.android.tools.idea.nav.safeargs.SafeArgsMode
 import com.android.tools.idea.nav.safeargs.SafeArgsRule
 import com.android.tools.idea.nav.safeargs.project.SafeArgsKtPackageProviderExtension
 import com.android.tools.idea.nav.safeargs.project.SafeArgsSyntheticPackageProvider
+import com.android.tools.idea.nav.safeargs.psi.SafeArgsFeatureVersions
 import com.android.tools.idea.res.ResourceRepositoryManager
 import com.google.common.truth.Truth.assertThat
 import com.intellij.testFramework.RunsInEdt
@@ -98,6 +99,9 @@ class DirectionsClassKtDescriptorsTest {
       .first()
 
     assertThat(directionsClassMetadata.constructors).isEmpty()
+    assertThat(directionsClassMetadata.classifiers.map { it.toString() }).containsExactly(
+      "test.safeargs.Fragment1Directions.Companion"
+    )
     assertThat(directionsClassMetadata.companionObject!!.functions.map { it.toString() }).containsExactly(
       "actionFragment1ToFragment2(): androidx.navigation.NavDirections",
       "actionFragment1ToMain(): androidx.navigation.NavDirections"
@@ -106,7 +110,8 @@ class DirectionsClassKtDescriptorsTest {
   }
 
   @Test
-  fun testOverriddenArguments() {
+  fun testOverriddenArguments_After_AdjustParamsWithDefaultsFix() {
+    safeArgsRule.addFakeNavigationDependency(SafeArgsFeatureVersions.ADJUST_PARAMS_WITH_DEFAULTS)
     safeArgsRule.fixture.addFileToProject(
       "res/navigation/main.xml",
       //language=XML
@@ -124,13 +129,12 @@ class DirectionsClassKtDescriptorsTest {
               android:id="@+id/action_fragment1_to_fragment2"
               app:destination="@id/fragment2" >
               <argument
-                android:name="overriddenArg"
-                app:argType="string" />
-                
-              <argument
                   android:name="overriddenArgWithDefaultValue"
                   app:argType="integer"
                   android:defaultValue="1" />
+              <argument
+                android:name="overriddenArg"
+                app:argType="string" />
             </action>
           </fragment>
           
@@ -186,8 +190,11 @@ class DirectionsClassKtDescriptorsTest {
 
     directionsClassMetadata[0].let { directionsClass ->
       assertThat(directionsClass.constructors).isEmpty()
+      assertThat(directionsClass.classifiers.map { it.toString() }).containsExactly(
+        "test.safeargs.Fragment1Directions.Companion"
+      )
       assertThat(directionsClass.companionObject!!.functions.map { it.toString() }).containsExactly(
-        "actionFragment1ToFragment2(overriddenArg: kotlin.String, overriddenArgWithDefaultValue: kotlin.Int, arg: kotlin.String)" +
+        "actionFragment1ToFragment2(overriddenArg: kotlin.String, arg: kotlin.String, overriddenArgWithDefaultValue: kotlin.Int)" +
         ": androidx.navigation.NavDirections"
       )
       assertThat(directionsClass.functions).isEmpty()
@@ -195,6 +202,9 @@ class DirectionsClassKtDescriptorsTest {
 
     directionsClassMetadata[1].let { directionsClass ->
       assertThat(directionsClass.constructors).isEmpty()
+      assertThat(directionsClass.classifiers.map { it.toString() }).containsExactly(
+        "test.safeargs.Fragment2Directions.Companion"
+      )
       assertThat(directionsClass.companionObject!!.functions.map { it.toString() }).containsExactly(
         "actionFragment2ToMain(overriddenArgWithDefaultValue: kotlin.Int): androidx.navigation.NavDirections"
       )
@@ -253,6 +263,9 @@ class DirectionsClassKtDescriptorsTest {
 
     directionsClassMetadata[0].let { directionsClass ->
       assertThat(directionsClass.constructors).isEmpty()
+      assertThat(directionsClass.classifiers.map { it.toString() }).containsExactly(
+        "test.safeargs.Fragment2Directions.Companion"
+      )
       assertThat(directionsClass.companionObject!!.functions.map { it.toString() }).containsExactly(
         "actionFragment2ToIncludedGraph(): androidx.navigation.NavDirections"
       )
@@ -330,6 +343,9 @@ class DirectionsClassKtDescriptorsTest {
 
     directionsClassMetadata[0].let { directionsClass ->
       assertThat(directionsClass.constructors).isEmpty()
+      assertThat(directionsClass.classifiers.map { it.toString() }).containsExactly(
+        "test.safeargs.Fragment2Directions.Companion"
+      )
       assertThat(directionsClass.companionObject!!.functions.map { it.toString() }).containsExactly(
         "actionFragment2ToIncludedGraph(): androidx.navigation.NavDirections",
         "actionToIncludedGraph(): androidx.navigation.NavDirections",
@@ -340,6 +356,9 @@ class DirectionsClassKtDescriptorsTest {
 
     directionsClassMetadata[1].let { directionsClass ->
       assertThat(directionsClass.constructors).isEmpty()
+      assertThat(directionsClass.classifiers.map { it.toString() }).containsExactly(
+        "test.safeargs.InnerNavigationDirections.Companion"
+      )
       assertThat(directionsClass.companionObject!!.functions.map { it.toString() }).containsExactly(
         "actionToIncludedGraph(): androidx.navigation.NavDirections",
         "actionInnerNavigationToIncludedGraph(): androidx.navigation.NavDirections"
@@ -349,6 +368,9 @@ class DirectionsClassKtDescriptorsTest {
 
     directionsClassMetadata[2].let { directionsClass ->
       assertThat(directionsClass.constructors).isEmpty()
+      assertThat(directionsClass.classifiers.map { it.toString() }).containsExactly(
+        "test.safeargs.MainDirections.Companion"
+      )
       assertThat(directionsClass.companionObject!!.functions.map { it.toString() }).containsExactly(
         "actionToIncludedGraph(): androidx.navigation.NavDirections"
       )
@@ -411,6 +433,9 @@ class DirectionsClassKtDescriptorsTest {
       .first()
 
     assertThat(directionsClassMetadata.constructors).isEmpty()
+    assertThat(directionsClassMetadata.classifiers.map { it.toString() }).containsExactly(
+      "test.safeargs.Fragment2Directions.Companion"
+    )
     assertThat(directionsClassMetadata.companionObject!!.functions.map { it.toString() }).containsExactly(
       "actionFragment2ToFragment1(): androidx.navigation.NavDirections"
     )

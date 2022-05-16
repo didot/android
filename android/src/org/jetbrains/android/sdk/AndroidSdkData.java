@@ -31,8 +31,8 @@ import com.android.sdklib.IAndroidTarget;
 import com.android.sdklib.devices.DeviceManager;
 import com.android.sdklib.repository.AndroidSdkHandler;
 import com.android.tools.idea.io.FilePaths;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.sdk.IdeSdks;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
 import com.google.common.collect.Maps;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.module.Module;
@@ -46,6 +46,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -53,7 +54,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class AndroidSdkData {
-  private final Map<String, SoftReference<AndroidTargetData>> myTargetDataByTarget = Maps.newHashMap();
+  private final Map<String, SoftReference<AndroidTargetData>> myTargetDataByTarget = new HashMap<>();
 
   private final DeviceManager myDeviceManager;
 
@@ -159,15 +160,6 @@ public class AndroidSdkData {
   @NotNull
   public String getPath() {
     return getLocation().toString();
-  }
-
-  /**
-   * @link Use {#getLatestBuildTool(boolean)}
-   */
-  @Deprecated
-  @Nullable
-  public BuildToolInfo getLatestBuildTool() {
-    return getLatestBuildTool(false);
   }
 
   @Nullable

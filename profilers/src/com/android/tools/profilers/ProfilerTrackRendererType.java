@@ -60,6 +60,18 @@ public enum ProfilerTrackRendererType {
    */
   RSS_MEMORY,
   /**
+   * For Android frame lifecycle event.
+   */
+  ANDROID_FRAME_EVENT,
+  /**
+   * For shared timeline event
+   */
+  ANDROID_FRAME_TIMELINE_EVENT,
+  /**
+   * For deadline text
+   */
+  ANDROID_FRAME_DEADLINE_TEXT,
+  /**
    * For Custom Event Visualization user events.
    */
   CUSTOM_EVENTS

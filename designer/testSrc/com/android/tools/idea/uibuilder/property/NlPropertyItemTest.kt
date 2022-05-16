@@ -55,9 +55,9 @@ import com.android.tools.adtui.model.stdui.EDITOR_NO_ERROR
 import com.android.tools.adtui.model.stdui.EditingErrorCategory
 import com.android.tools.idea.common.fixtures.ComponentDescriptor
 import com.android.tools.idea.testing.AndroidProjectRule
+import com.android.tools.idea.uibuilder.MinApiLayoutTestCase
 import com.android.tools.idea.uibuilder.property.NlPropertiesModelTest.Companion.waitUntilLastSelectionUpdateCompleted
 import com.android.tools.idea.uibuilder.property.support.ToggleShowResolvedValueAction
-import com.android.tools.idea.uibuilder.MinApiLayoutTestCase
 import com.android.tools.idea.uibuilder.property.testutils.SupportTestUtil
 import com.android.tools.idea.uibuilder.scene.SyncLayoutlibSceneManager
 import com.android.tools.property.panel.api.PropertiesModel
@@ -89,8 +89,8 @@ import org.junit.rules.TestName
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import java.awt.Color
 
 private const val HELLO_WORLD = "Hello World"
@@ -648,6 +648,8 @@ class NlPropertyItemTest {
     val fileManager = mock(FileEditorManager::class.java)
     `when`(fileManager.selectedEditors).thenReturn(FileEditor.EMPTY_ARRAY)
     `when`(fileManager.openFiles).thenReturn(VirtualFile.EMPTY_ARRAY)
+    @Suppress("UnstableApiUsage")
+    `when`(fileManager.openFilesWithRemotes).thenReturn(VirtualFile.EMPTY_ARRAY)
     `when`(fileManager.allEditors).thenReturn(FileEditor.EMPTY_ARRAY)
     componentStack!!.registerComponentInstance(FileEditorManager::class.java, fileManager)
     val file = ArgumentCaptor.forClass(OpenFileDescriptor::class.java)

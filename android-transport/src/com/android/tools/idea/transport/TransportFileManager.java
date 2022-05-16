@@ -17,7 +17,6 @@ package com.android.tools.idea.transport;
 
 
 import com.android.annotations.NonNull;
-import com.android.annotations.VisibleForTesting;
 import com.android.ddmlib.AdbCommandRejectedException;
 import com.android.ddmlib.IDevice;
 import com.android.ddmlib.MultiLineReceiver;
@@ -31,6 +30,7 @@ import com.android.tools.idea.run.AndroidRunConfigurationBase;
 import com.android.tools.profiler.proto.Agent;
 import com.android.tools.profiler.proto.Common.CommonConfig;
 import com.android.tools.profiler.proto.Transport;
+import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.util.messages.MessageBus;
@@ -398,5 +398,19 @@ public final class TransportFileManager implements TransportFileCopier {
       }
     }
     return bestAbis;
+  }
+
+  /**
+   * A wrapper to convert long ABI name to a short one, e.g., from "arm64-v8a" to "arm64".
+   *
+   * It's designed for modules that cannot directly depend on com.android.sdklib.devices.Abi.
+   */
+  @NotNull
+  public static String getShortAbiName(@NotNull String longAbi) {
+    Abi abi = Abi.getEnum(longAbi);
+    if (abi == null) {
+      return "invalid_abi";
+    }
+    return abi.getCpuArch();
   }
 }

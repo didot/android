@@ -15,6 +15,13 @@
  */
 package com.android.tools.idea.gradle.dsl.model.dependencies;
 
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.NONE;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.iStr;
+import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR;
+import static com.android.tools.idea.gradle.dsl.model.dependencies.DependencyConfigurationModelImpl.EXCLUDE;
+import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.resolveElement;
+import static com.android.tools.idea.gradle.dsl.parser.dependencies.FakeArtifactElement.shouldInterpolate;
+
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
 import com.android.tools.idea.gradle.dsl.api.dependencies.DependencyConfigurationModel;
@@ -22,22 +29,23 @@ import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.FakeElementTransform;
 import com.android.tools.idea.gradle.dsl.parser.dependencies.FakeArtifactElement;
-import com.android.tools.idea.gradle.dsl.parser.elements.*;
+import com.android.tools.idea.gradle.dsl.parser.elements.FakeElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslClosure;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslLiteral;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement;
 import com.google.common.collect.Lists;
 import com.intellij.psi.PsiElement;
+import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-
-import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.NONE;
-import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.iStr;
-import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.*;
-import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.resolveElement;
 
 /**
  * A Gradle artifact dependency. There are two notations supported for declaring a dependency on an external module. One is a string
@@ -56,8 +64,7 @@ import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.resolveEl
  * DependencyHandler</a></li>
  * </ol>
  */
-public abstract class ArtifactDependencyModelImpl extends DependencyModelImpl implements
-                                                                              ArtifactDependencyModel {
+public abstract class ArtifactDependencyModelImpl extends DependencyModelImpl implements ArtifactDependencyModel {
   @Nullable private GradleDslClosure myConfigurationElement;
   protected boolean mySetThrough = false;
 
@@ -77,11 +84,7 @@ public abstract class ArtifactDependencyModelImpl extends DependencyModelImpl im
   public ArtifactDependencySpec getSpec() {
     String name = name().toString();
     assert name != null;
-    return new ArtifactDependencySpecImpl(name,
-                                          group().toString(),
-                                          version().toString(),
-                                          classifier().toString(),
-                                          extension().toString());
+    return new ArtifactDependencySpecImpl(name, group().toString(), version().toString(), classifier().toString(), extension().toString());
   }
 
   @Override
@@ -143,9 +146,22 @@ public abstract class ArtifactDependencyModelImpl extends DependencyModelImpl im
     literal.setValue(createCompactNotationForLiterals(literal, dependency));
 
     if (!excludes.isEmpty()) {
-      PsiElement configBlock = parent.getDslFile().getParser().convertToExcludesBlock(excludes);
-      assert configBlock != null;
-      literal.setConfigBlock(configBlock);
+      GradleDslClosure closure = new GradleDslClosure(parent, null, name);
+      for (ArtifactDependencySpec exclude : excludes) {
+        GradleDslExpressionMap map = new GradleDslExpressionMap(closure, GradleNameElement.create(EXCLUDE));
+        String group = exclude.getGroup();
+        if (group != null) {
+          GradleDslLiteral groupEntry = new GradleDslLiteral(map, GradleNameElement.create("group"));
+          groupEntry.setValue(shouldInterpolate(group) ? iStr(group) : group);
+          map.setNewElement(groupEntry);
+        }
+        GradleDslLiteral moduleEntry = new GradleDslLiteral(map, GradleNameElement.create("module"));
+        String module = exclude.getName();
+        moduleEntry.setValue(shouldInterpolate(module) ? iStr(module) : module);
+        map.setNewElement(moduleEntry);
+        closure.setNewElement(map);
+      }
+      literal.setNewClosureElement(closure);
     }
 
     parent.setNewElement(literal);
@@ -167,7 +183,7 @@ public abstract class ArtifactDependencyModelImpl extends DependencyModelImpl im
       if (segment != null) {
         if (currentElementIdx == 4) compactNotation.append("@");
         else if (currentElementIdx > 0) compactNotation.append(":");
-        if (FakeArtifactElement.shouldInterpolate(segment)) {
+        if (shouldInterpolate(segment)) {
           shouldInterpolate = true;
           Matcher wrappedValueMatcher = WRAPPED_VARIABLE_FORM.matcher(segment);
           Matcher unwrappedValueMatcher = UNWRAPPED_VARIABLE_FORM.matcher(segment);
@@ -200,25 +216,32 @@ public abstract class ArtifactDependencyModelImpl extends DependencyModelImpl im
     return shouldInterpolate ? iStr(dependencySpec.compactNotation()) : dependencySpec.compactNotation();
   }
 
-  static final class MapNotation extends ArtifactDependencyModelImpl {
+  static class MapNotation extends ArtifactDependencyModelImpl {
     @NotNull private GradleDslExpressionMap myDslElement;
 
     @Nullable
     static MapNotation create(@NotNull String configurationName,
                               @NotNull GradleDslExpressionMap dslElement,
                               @Nullable GradleDslClosure configurationElement,
-                              @NotNull Maintainer maintainer) {
+                              @NotNull Maintainer maintainer,
+                              @Nullable String platformMethodName) {
       if (dslElement.getLiteral("name", String.class) == null) {
         return null; // not a artifact dependency element.
       }
 
-      return new MapNotation(configurationName, dslElement, configurationElement, maintainer);
+      if (platformMethodName == null) {
+        return new MapNotation(configurationName, dslElement, configurationElement, maintainer);
+      }
+      else {
+        return new PlatformArtifactDependencyModelImpl.MapNotation(
+          configurationName, dslElement, configurationElement, maintainer, platformMethodName);
+      }
     }
 
-    private MapNotation(@NotNull String configurationName,
-                        @NotNull GradleDslExpressionMap dslElement,
-                        @Nullable GradleDslClosure configurationElement,
-                        @NotNull Maintainer maintainer) {
+    MapNotation(@NotNull String configurationName,
+                @NotNull GradleDslExpressionMap dslElement,
+                @Nullable GradleDslClosure configurationElement,
+                @NotNull Maintainer maintainer) {
       super(configurationElement, configurationName, maintainer);
       myDslElement = dslElement;
     }
@@ -271,27 +294,35 @@ public abstract class ArtifactDependencyModelImpl extends DependencyModelImpl im
     }
   }
 
-  static final class CompactNotation extends ArtifactDependencyModelImpl {
+  static class CompactNotation extends ArtifactDependencyModelImpl {
     @NotNull private GradleDslSimpleExpression myDslExpression;
 
     @Nullable
     static CompactNotation create(@NotNull String configurationName,
                                   @NotNull GradleDslSimpleExpression dslExpression,
                                   @Nullable GradleDslClosure configurationElement,
-                                  @NotNull Maintainer maintainer) {
+                                  @NotNull Maintainer maintainer,
+                                  @Nullable String platformMethodName) {
       String value = dslExpression.getValue(String.class);
       if (value == null || value.trim().isEmpty()) {
         return null;
       }
-      CompactNotation notation = new CompactNotation(configurationName, dslExpression, configurationElement, maintainer);
+      CompactNotation notation;
+      if (platformMethodName == null) {
+        notation = new CompactNotation(configurationName, dslExpression, configurationElement, maintainer);
+      }
+      else {
+        notation = new PlatformArtifactDependencyModelImpl.CompactNotation(
+          configurationName, dslExpression, configurationElement, maintainer, platformMethodName);
+      }
       // Check if the create notation is valid i.e it has a name
       return (notation.name().getValueType() != NONE) ? notation : null;
     }
 
-    private CompactNotation(@NotNull String configurationName,
-                            @NotNull GradleDslSimpleExpression dslExpression,
-                            @Nullable GradleDslClosure configurationElement,
-                            @NotNull Maintainer maintainer) {
+    CompactNotation(@NotNull String configurationName,
+                    @NotNull GradleDslSimpleExpression dslExpression,
+                    @Nullable GradleDslClosure configurationElement,
+                    @NotNull Maintainer maintainer) {
       super(configurationElement, configurationName, maintainer);
       myDslExpression = dslExpression;
     }

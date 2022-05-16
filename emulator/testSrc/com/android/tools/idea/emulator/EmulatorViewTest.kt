@@ -16,38 +16,40 @@
 package com.android.tools.idea.emulator
 
 import com.android.emulator.control.FoldedDisplay
-import com.android.emulator.control.ImageFormat
+import com.android.emulator.control.ThemingStyle
 import com.android.testutils.ImageDiffUtil
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
-import com.android.testutils.TestUtils.resolveWorkspacePath
+import com.android.testutils.TestUtils
 import com.android.tools.adtui.actions.ZoomType
 import com.android.tools.adtui.swing.FakeUi
 import com.android.tools.adtui.swing.replaceKeyboardFocusManager
 import com.android.tools.idea.concurrency.waitForCondition
 import com.android.tools.idea.emulator.FakeEmulator.GrpcCallRecord
-import com.android.tools.idea.io.IdeFileUtils
 import com.android.tools.idea.protobuf.TextFormat.shortDebugString
 import com.android.tools.idea.testing.mockStatic
 import com.google.common.truth.Truth.assertThat
+import com.intellij.ide.ui.LafManager
+import com.intellij.ide.ui.laf.darcula.DarculaLookAndFeelInfo
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
+import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.registerComponentInstance
-import com.intellij.util.SystemProperties
-import com.intellij.util.ui.UIUtil.dispatchAllInvocationEvents
+import com.intellij.testFramework.replaceService
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.anyBoolean
-import org.mockito.Mockito.`when`
+import org.mockito.Mockito.anyBoolean
 import org.mockito.Mockito.atLeast
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.KeyboardFocusManager
@@ -63,14 +65,10 @@ import java.awt.event.KeyEvent.VK_ENTER
 import java.awt.event.KeyEvent.VK_PAGE_DOWN
 import java.awt.event.KeyEvent.VK_SHIFT
 import java.awt.event.KeyEvent.VK_TAB
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import java.util.regex.Pattern
 import javax.swing.JScrollPane
-import kotlin.streams.toList
 
 /**
  * Tests for [EmulatorView] and some of the emulator toolbar actions.
@@ -94,6 +92,8 @@ class EmulatorViewTest {
     }
     `when`(fileEditorManager.selectedEditors).thenReturn(FileEditor.EMPTY_ARRAY)
     `when`(fileEditorManager.openFiles).thenReturn(VirtualFile.EMPTY_ARRAY)
+    @Suppress("UnstableApiUsage")
+    `when`(fileEditorManager.openFilesWithRemotes).thenReturn(VirtualFile.EMPTY_ARRAY)
     `when`(fileEditorManager.allEditors).thenReturn(FileEditor.EMPTY_ARRAY)
     emulatorViewRule.project.registerComponentInstance(FileEditorManager::class.java, fileEditorManager, testRootDisposable)
   }
@@ -139,7 +139,9 @@ class EmulatorViewTest {
     view.zoom(ZoomType.IN)
     ui.layoutAndDispatchEvents()
     call = getStreamScreenshotCallAndWaitForFrame(view, ++frameNumber)
-    assertThat(shortDebugString(call.request)).isEqualTo("format: RGB888 width: 423 height: 740")
+    assertThat(shortDebugString(call.request)).isEqualTo(
+      // Available space is slightly wider on Mac due to a narrower scrollbar.
+      if (SystemInfo.isMac) "format: RGB888 width: 427 height: 740" else "format: RGB888 width: 423 height: 740")
     assertThat(view.canZoomIn()).isTrue()
     assertThat(view.canZoomOut()).isTrue()
     assertThat(view.canZoomToActual()).isTrue()
@@ -266,7 +268,7 @@ class EmulatorViewTest {
     assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")
     assertThat(shortDebugString(call.request)).isEqualTo("x: 33 y: 41")
 
-    // Mouse events outside of the display image should be ignored.
+    // Mouse events outside the display image should be ignored.
     ui.mouse.press(50, 7)
     ui.mouse.release()
 
@@ -336,12 +338,47 @@ class EmulatorViewTest {
     assertThat(shortDebugString(call.request)).isEqualTo("x: 829 y: 2098")
 
     // Check EmulatorShowFoldingControlsAction.
+    val mockLafManager = mock<LafManager>()
+    `when`(mockLafManager.currentLookAndFeel).thenReturn(DarculaLookAndFeelInfo())
+    ApplicationManager.getApplication().replaceService(LafManager::class.java, mockLafManager, emulatorViewRule.testRootDisposable)
+
     emulatorViewRule.executeAction("android.emulator.folding.controls", view)
     call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
     assertThat(call.methodName).isEqualTo("android.emulation.control.UiController/setUiTheme")
+    assertThat(call.request).isEqualTo(ThemingStyle.newBuilder().setStyle(ThemingStyle.Style.DARK).build())
     call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
     assertThat(call.methodName).isEqualTo("android.emulation.control.UiController/showExtendedControls")
     assertThat(shortDebugString(call.request)).isEqualTo("index: VIRT_SENSORS")
+  }
+
+  /** Checks that the mouse button release event is sent when the mouse leaves the device display. */
+  @Test
+  fun testSwipe() {
+    val view = emulatorViewRule.newEmulatorView()
+    val emulator = emulatorViewRule.getFakeEmulator(view)
+
+    val container = createScrollPane(view)
+    val ui = FakeUi(container, 1.5)
+
+    var frameNumber = view.frameNumber
+    assertThat(frameNumber).isEqualTo(0)
+    container.size = Dimension(200, 300)
+    ui.layoutAndDispatchEvents()
+    getStreamScreenshotCallAndWaitForFrame(view, ++frameNumber)
+    ui.render()
+
+    ui.mouse.press(100, 100)
+    var call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
+    assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")
+    assertThat(shortDebugString(call.request)).isEqualTo("x: 731 y: 1011 buttons: 1")
+    ui.mouse.dragTo(140, 100)
+    call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
+    assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")
+    assertThat(shortDebugString(call.request)).isEqualTo("x: 1165 y: 1011 buttons: 1")
+    ui.mouse.dragTo(180, 100)
+    call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
+    assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")
+    assertThat(shortDebugString(call.request)).isEqualTo("x: 1439 y: 1011")
   }
 
   @Test
@@ -376,7 +413,7 @@ class EmulatorViewTest {
     assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendTouch")
     assertThat(shortDebugString(call.request)).isEqualTo(
         "touches { x: 1272 y: 741 pressure: 1 expiration: NEVER_EXPIRE }" +
-        " touches { x: 168 y: 2219 identifier: 1 pressure: 1 expiration: NEVER_EXPIRE }")
+        " touches { x: 167 y: 2218 identifier: 1 pressure: 1 expiration: NEVER_EXPIRE }")
 
     mousePosition.x -= 20
     mousePosition.y += 20
@@ -386,20 +423,20 @@ class EmulatorViewTest {
     assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendTouch")
     assertThat(shortDebugString(call.request)).isEqualTo(
         "touches { x: 1056 y: 958 pressure: 1 expiration: NEVER_EXPIRE }" +
-        " touches { x: 384 y: 2002 identifier: 1 pressure: 1 expiration: NEVER_EXPIRE }")
+        " touches { x: 383 y: 2001 identifier: 1 pressure: 1 expiration: NEVER_EXPIRE }")
 
     ui.mouse.release()
     call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
     assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendTouch")
     assertThat(shortDebugString(call.request)).isEqualTo(
-        "touches { x: 1056 y: 958 expiration: NEVER_EXPIRE } touches { x: 384 y: 2002 identifier: 1 expiration: NEVER_EXPIRE }")
+        "touches { x: 1056 y: 958 expiration: NEVER_EXPIRE } touches { x: 383 y: 2001 identifier: 1 expiration: NEVER_EXPIRE }")
 
     ui.keyboard.release(VK_CONTROL)
     assertAppearance(ui, "MultiTouch4")
   }
 
   @Test
-  fun testActions() {
+  fun testDeviceButtonActions() {
     val view = emulatorViewRule.newEmulatorView()
     val emulator = emulatorViewRule.getFakeEmulator(view)
 
@@ -420,22 +457,6 @@ class EmulatorViewTest {
     call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
     assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendKey")
     assertThat(shortDebugString(call.request)).isEqualTo("""eventType: keypress key: "AppSwitch"""")
-
-    // Check EmulatorScreenshotAction.
-    emulatorViewRule.executeAction("android.emulator.screenshot", view)
-    call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
-    assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/getScreenshot")
-    assertThat((call.request as ImageFormat).format).isEqualTo(ImageFormat.ImgFormat.PNG)
-    call.waitForCompletion(5, TimeUnit.SECONDS) // Use longer timeout for PNG creation.
-    waitForCondition(2, TimeUnit.SECONDS) {
-      dispatchAllInvocationEvents()
-      val dir = IdeFileUtils.getDesktopDirectory() ?: Paths.get(SystemProperties.getUserHome())
-      Files.list(dir).use { stream ->
-        stream.filter { Pattern.matches("Screenshot_.*\\.png", it.fileName.toString()) }.toList()
-      }.isNotEmpty()
-    }
-    waitForCondition(2, TimeUnit.SECONDS) { filesOpened.isNotEmpty() }
-    assertThat(Pattern.matches("Screenshot_.*\\.png", filesOpened[0].name)).isTrue()
   }
 
   private fun createScrollPane(view: EmulatorView): JScrollPane {
@@ -465,7 +486,7 @@ class EmulatorViewTest {
   }
 
   private fun getGoldenFile(name: String): Path {
-    return resolveWorkspacePath("${GOLDEN_FILE_PATH}/${name}.png")
+    return TestUtils.resolveWorkspacePath("${GOLDEN_FILE_PATH}/${name}.png")
   }
 }
 

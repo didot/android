@@ -4,6 +4,7 @@ package org.jetbrains.android.dom.converters;
 import static com.android.tools.idea.projectsystem.SourceProvidersKt.isTestFile;
 
 import com.android.tools.idea.AndroidTextUtils;
+import com.android.tools.idea.imports.MavenClassRegistryManager;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.intellij.codeInsight.completion.JavaLookupElementBuilder;
 import com.intellij.codeInsight.daemon.EmptyResolveMessageProvider;
@@ -49,6 +50,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
+import org.jetbrains.android.dom.inspections.MavenClassResolverUtils;
 import org.jetbrains.android.dom.manifest.AndroidManifestUtils;
 import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -146,10 +148,10 @@ public class PackageClassConverter extends Converter<PsiClass> implements Custom
   @Nullable
   private String getManifestPackage(@NotNull ConvertContext context) {
     DomElement domElement = context.getInvocationElement();
-    Manifest manifest = domElement.getParentOfType(Manifest.class, true);
+    Manifest manifest = domElement.getParentOfType(Manifest.class, false);
     String manifestPackage = manifest != null ? manifest.getPackage().getValue() : null;
 
-    if (manifestPackage == null && myUseManifestBasePackage) {
+    if ((manifest != null && manifestPackage == null) || myUseManifestBasePackage) {
       Module module = context.getModule();
       if (module != null) {
         manifestPackage = AndroidManifestUtils.getPackageName(module);
@@ -349,7 +351,7 @@ public class PackageClassConverter extends Converter<PsiClass> implements Custom
   @Nullable
   public String toString(@Nullable PsiClass psiClass, ConvertContext context) {
     DomElement domElement = context.getInvocationElement();
-    Manifest manifest = domElement.getParentOfType(Manifest.class, true);
+    Manifest manifest = domElement.getParentOfType(Manifest.class, false);
     final String packageName = manifest == null ? null : manifest.getPackage().getValue();
     return classToString(psiClass, packageName, "");
   }
@@ -404,6 +406,7 @@ public class PackageClassConverter extends Converter<PsiClass> implements Custom
     private final boolean myCompleteLibraryClasses;
     private final boolean myIncludeTests;
     private final boolean myIncludeDynamicFeatures;
+    private final MavenClassRegistryManager myMavenClassRegistryManager = MavenClassRegistryManager.getInstance();
 
     private MyReference(PsiElement element,
                        TextRange range,
@@ -573,8 +576,15 @@ public class PackageClassConverter extends Converter<PsiClass> implements Custom
     @NotNull
     @Override
     public LocalQuickFix[] getQuickFixes() {
-      if (myIsPackage || myModule == null) {
+      if (myModule == null) {
         return LocalQuickFix.EMPTY_ARRAY;
+      }
+
+      if (myIsPackage) {
+        // This is to suggest fixes if users are pointing in the middle of the fully qualified name - package
+        // segment.
+        String value = ((XmlAttributeValue)myElement).getValue();
+        return collectFixesFromMavenClassRegistry(value, myModule.getProject());
       }
 
       String value = getCurrentValue();
@@ -592,10 +602,22 @@ public class PackageClassConverter extends Converter<PsiClass> implements Custom
 
       final PsiPackage aPackage = JavaPsiFacade.getInstance(myModule.getProject()).findPackage(value.substring(0, dot));
       if (aPackage == null) {
-        return LocalQuickFix.EMPTY_ARRAY;
+        return collectFixesFromMavenClassRegistry(value, myModule.getProject());
       }
       final String baseClassFqcn = myExtendsClasses.length == 0 ? null : myExtendsClasses[0];
       return new LocalQuickFix[]{new CreateMissingClassQuickFix(aPackage, value.substring(dot + 1), myModule, baseClassFqcn)};
+    }
+
+    @NotNull
+    private LocalQuickFix[] collectFixesFromMavenClassRegistry(@NotNull String className, @NotNull Project project) {
+      Collection<LocalQuickFix> fixes =
+        MavenClassResolverUtils.collectFixesFromMavenClassRegistry(
+          myMavenClassRegistryManager,
+          className,
+          project
+        );
+
+      return fixes.toArray(LocalQuickFix.EMPTY_ARRAY);
     }
   }
 }

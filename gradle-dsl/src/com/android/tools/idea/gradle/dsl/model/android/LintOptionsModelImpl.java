@@ -24,18 +24,21 @@ import com.android.tools.idea.gradle.dsl.parser.android.LintOptionsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class LintOptionsModelImpl extends GradleDslBlockModel implements LintOptionsModel {
   @NonNls public static final String ABORT_ON_ERROR = "mAbortOnError";
   @NonNls public static final String ABSOLUTE_PATHS = "mAbsolutePaths";
+  @NonNls public static final String BASELINE = "mBaseline";
   // A note for the unwary: the CHECK property (and similar below) can be modelled for our purposes as a mutable set, given that the
   // only entries for it in our property tables is for the varargs augmenting method.  Behind the scenes, it is implemented as a set of
   // entries in a hash table, keyed by the individual values passed to the check() Dsl function, so assignment (or augmented assignment)
   // will not work.
   @NonNls public static final ModelPropertyDescription CHECK = new ModelPropertyDescription("mCheck", MUTABLE_SET);
   @NonNls public static final String CHECK_ALL_WARNINGS = "mCheckAllWarnings";
+  @NonNls public static final String CHECK_DEPENDENCIES = "mCheckDependencies";
+  @NonNls public static final String CHECK_GENERATED_SOURCES = "mCheckGeneratedSources";
   @NonNls public static final String CHECK_RELEASE_BUILDS = "mCheckReleaseBuilds";
+  @NonNls public static final String CHECK_TEST_SOURCES  ="mCheckTestSources";
   @NonNls public static final ModelPropertyDescription DISABLE = new ModelPropertyDescription("mDisable", MUTABLE_SET);
   @NonNls public static final ModelPropertyDescription ENABLE = new ModelPropertyDescription("mEnable", MUTABLE_SET);
   @NonNls public static final ModelPropertyDescription ERROR = new ModelPropertyDescription("mError", MUTABLE_SET);
@@ -44,11 +47,14 @@ public class LintOptionsModelImpl extends GradleDslBlockModel implements LintOpt
   @NonNls public static final String HTML_OUTPUT = "mHtmlOutput";
   @NonNls public static final String HTML_REPORT = "mHtmlReport";
   @NonNls public static final ModelPropertyDescription IGNORE = new ModelPropertyDescription("mIgnore", MUTABLE_SET);
+  @NonNls public static final String IGNORE_TEST_SOURCES = "mIgnoreTestSources";
   @NonNls public static final String IGNORE_WARNINGS = "mIgnoreWarnings";
   @NonNls public static final ModelPropertyDescription INFORMATIONAL = new ModelPropertyDescription("mInformational", MUTABLE_SET);
   @NonNls public static final String LINT_CONFIG = "mLintConfig";
   @NonNls public static final String NO_LINES = "mNoLines";
   @NonNls public static final String QUIET = "mQuiet";
+  @NonNls public static final String SARIF_OUTPUT = "mSarifOutput";
+  @NonNls public static final String SARIF_REPORT = "mSarifReport";
   @NonNls public static final String SHOW_ALL = "mShowAll";
   @NonNls public static final String TEXT_OUTPUT = "mTextOutput";
   @NonNls public static final String TEXT_REPORT = "mTextReport";
@@ -74,7 +80,12 @@ public class LintOptionsModelImpl extends GradleDslBlockModel implements LintOpt
   }
 
   @Override
-  @Nullable
+  public @NotNull ResolvedPropertyModel baseline() {
+    return getFileModelForProperty(BASELINE);
+  }
+
+  @Override
+  @NotNull
   public ResolvedPropertyModel check() {
     return getModelForProperty(CHECK);
   }
@@ -86,9 +97,24 @@ public class LintOptionsModelImpl extends GradleDslBlockModel implements LintOpt
   }
 
   @Override
+  public @NotNull ResolvedPropertyModel checkDependencies() {
+    return getModelForProperty(CHECK_DEPENDENCIES);
+  }
+
+  @Override
+  public @NotNull ResolvedPropertyModel checkGeneratedSources() {
+    return getModelForProperty(CHECK_GENERATED_SOURCES);
+  }
+
+  @Override
   @NotNull
   public ResolvedPropertyModel checkReleaseBuilds() {
     return getModelForProperty(CHECK_RELEASE_BUILDS);
+  }
+
+  @Override
+  public @NotNull ResolvedPropertyModel checkTestSources() {
+    return getModelForProperty(CHECK_TEST_SOURCES);
   }
 
   @Override
@@ -140,6 +166,11 @@ public class LintOptionsModelImpl extends GradleDslBlockModel implements LintOpt
   }
 
   @Override
+  public @NotNull ResolvedPropertyModel ignoreTestSources() {
+    return getModelForProperty(IGNORE_TEST_SOURCES);
+  }
+
+  @Override
   @NotNull
   public ResolvedPropertyModel ignoreWarnings() {
     return getModelForProperty(IGNORE_WARNINGS);
@@ -167,6 +198,18 @@ public class LintOptionsModelImpl extends GradleDslBlockModel implements LintOpt
   @NotNull
   public ResolvedPropertyModel quiet() {
     return getModelForProperty(QUIET);
+  }
+
+  @Override
+  @NotNull
+  public ResolvedPropertyModel sarifOutput() {
+    return getFileModelForProperty(SARIF_OUTPUT);
+  }
+
+  @Override
+  @NotNull
+  public ResolvedPropertyModel sarifReport() {
+    return getModelForProperty(SARIF_REPORT);
   }
 
   @Override

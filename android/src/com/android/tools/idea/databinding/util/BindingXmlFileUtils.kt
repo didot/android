@@ -21,6 +21,7 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlFile
 import com.intellij.psi.xml.XmlTag
+import org.jetbrains.android.util.firstNotNullResult
 
 /**
  * This file contains extension methods that help the data binding codebase search an [XmlFile] for
@@ -100,7 +101,7 @@ private fun XmlTag.findIdAttribute(name: String): XmlAttribute? {
   }?.let { validAttribute ->
     return validAttribute
   }
-  return subTags.firstNotNullOfOrNull { tag ->
+  return subTags.firstNotNullResult { tag ->
     tag.findIdAttribute(name)
   }
 }

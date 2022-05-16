@@ -18,11 +18,11 @@ package com.android.tools.adtui.workbench;
 import static com.android.tools.adtui.workbench.AttachedToolWindow.TOOL_WINDOW_PROPERTY_PREFIX;
 import static com.android.tools.adtui.workbench.AttachedToolWindow.TOOL_WINDOW_TOOLBAR_PLACE;
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -52,7 +52,9 @@ import com.intellij.openapi.project.DumbServiceImpl;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.wm.impl.InternalDecorator;
 import com.intellij.ui.SearchTextField;
-import java.awt.*;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.KeyboardFocusManager;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.InputEvent;
@@ -62,7 +64,11 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.util.Objects;
-import javax.swing.*;
+import javax.swing.AbstractButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPopupMenu;
+import javax.swing.KeyStroke;
 import org.jetbrains.annotations.NotNull;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -111,12 +117,10 @@ public class AttachedToolWindowTest extends WorkBenchTestCase {
     try {
       KeyboardFocusManager.setCurrentKeyboardFocusManager(null);
       myMocks.close();
+      super.tearDown();
     }
     catch (Throwable e) {
       addSuppressedException(e);
-    }
-    finally {
-      super.tearDown();
     }
   }
 
@@ -570,6 +574,15 @@ public class AttachedToolWindowTest extends WorkBenchTestCase {
     assertThat(searchField.isVisible()).isFalse();
 
     ActionButton button = findRequiredButtonByName(myToolWindow.getComponent(), "Search");
+    PalettePanelToolContent panel = (PalettePanelToolContent)myToolWindow.getContent();
+    assertThat(panel).isNotNull();
+    panel.setFilteringActive(false);
+    button.update();
+    assertThat(button.isEnabled()).isFalse();
+    panel.setFilteringActive(true);
+    button.update();
+    assertThat(button.isEnabled()).isTrue();
+
     button.click();
 
     assertThat(header.isVisible()).isFalse();

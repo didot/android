@@ -24,7 +24,8 @@ import org.jetbrains.jps.model.java.JavaModuleSourceRootTypes;
 public class LegacyNewAndroidComponentAction extends AnAction {
   protected LegacyNewAndroidComponentAction() {
     super(AndroidBundle.messagePointer("android.new.component.action.title.non.gradle"),
-          AndroidBundle.messagePointer("android.new.component.action.description"), StudioIcons.Common.ANDROID_HEAD);
+          AndroidBundle.messagePointer("android.new.component.action.description"),
+          StudioIcons.Common.ANDROID_HEAD);
   }
 
   @Override

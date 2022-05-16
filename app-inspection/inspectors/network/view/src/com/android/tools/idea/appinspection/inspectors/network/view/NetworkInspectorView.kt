@@ -39,6 +39,7 @@ import com.android.tools.adtui.model.SeriesData
 import com.android.tools.adtui.model.TooltipModel
 import com.android.tools.adtui.model.ViewBinder
 import com.android.tools.adtui.model.axis.ResizingAxisComponentModel
+import com.android.tools.adtui.model.formatter.TimeAxisFormatter
 import com.android.tools.adtui.model.formatter.TimeFormatter
 import com.android.tools.adtui.stdui.CommonTabbedPane
 import com.android.tools.adtui.stdui.StreamingScrollbar
@@ -46,6 +47,9 @@ import com.android.tools.adtui.stdui.TooltipLayeredPane
 import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorAspect
 import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorModel
 import com.android.tools.idea.appinspection.inspectors.network.model.NetworkTrafficTooltipModel
+import com.android.tools.idea.appinspection.inspectors.network.model.analytics.NetworkInspectorTracker
+import com.android.tools.idea.appinspection.inspectors.network.model.httpdata.HttpData
+import com.android.tools.idea.appinspection.inspectors.network.model.httpdata.SelectionRangeDataListener
 import com.android.tools.idea.appinspection.inspectors.network.view.constants.DEFAULT_BACKGROUND
 import com.android.tools.idea.appinspection.inspectors.network.view.constants.DEFAULT_STAGE_BACKGROUND
 import com.android.tools.idea.appinspection.inspectors.network.view.constants.H3_FONT
@@ -91,9 +95,12 @@ private const val CARD_INFO = "Info"
 /**
  * The main view of network inspector.
  */
-class NetworkInspectorView(val model: NetworkInspectorModel,
-                           val componentsProvider: UiComponentsProvider,
-                           private val parentPane: TooltipLayeredPane) : AspectObserver() {
+class NetworkInspectorView(
+  val model: NetworkInspectorModel,
+  val componentsProvider: UiComponentsProvider,
+  private val parentPane: TooltipLayeredPane,
+  usageTracker: NetworkInspectorTracker
+) : AspectObserver() {
 
   val component = JPanel(BorderLayout())
 
@@ -111,22 +118,27 @@ class NetworkInspectorView(val model: NetworkInspectorModel,
    * A common component for showing the current selection range.
    */
   private val selectionTimeLabel = createSelectionTimeLabel()
+
   @VisibleForTesting
   val connectionsView = ConnectionsView(model, parentPane)
+
   @VisibleForTesting
-  val connectionDetails = ConnectionDetailsView(this)
+  val connectionDetails = ConnectionDetailsView(this, usageTracker)
   private val mainPanel = JPanel(TabularLayout("*,Fit-", "Fit-,*"))
   private val tooltipBinder = ViewBinder<NetworkInspectorView, TooltipModel, TooltipView>()
 
   init {
     // Use FlowLayout instead of the usual BorderLayout since BorderLayout doesn't respect min/preferred sizes.
     tooltipPanel.background = TOOLTIP_BACKGROUND
-    model.services.addDependency(this).onChange(NetworkInspectorAspect.TOOLTIP) { tooltipChanged() }
+    model.addDependency(this).onChange(NetworkInspectorAspect.TOOLTIP) { tooltipChanged() }
     model.timeline.selectionRange.addDependency(this).onChange(Range.Aspect.RANGE) { selectionChanged() }
     selectionChanged()
 
     model.aspect.addDependency(this)
-      .onChange(NetworkInspectorAspect.SELECTED_CONNECTION) { updateConnectionDetailsView() }
+      .onChange(NetworkInspectorAspect.SELECTED_CONNECTION) {
+        usageTracker.trackConnectionDetailsSelected()
+        updateConnectionDetailsView()
+      }
     tooltipBinder.bind(NetworkTrafficTooltipModel::class.java) { view: NetworkInspectorView, tooltip ->
       NetworkTrafficTooltipView(view, tooltip)
     }
@@ -167,10 +179,21 @@ class NetworkInspectorView(val model: NetworkInspectorModel,
     mainPanel.add(connectionsPanel, TabularLayout.Constraint(0, 0, 2, 2))
     mainPanel.isVisible = false
     leftSplitter.secondComponent = mainPanel
-    model.timeline.selectionRange.addDependency(this).onChange(Range.Aspect.RANGE) {
-      val cardLayout = connectionsPanel.layout as CardLayout
-      cardLayout.show(connectionsPanel, if (selectionHasTrafficUsageWithNoConnection()) CARD_INFO else CARD_CONNECTIONS)
-    }
+
+    model.selectionRangeDataFetcher.addListener(object : SelectionRangeDataListener {
+      override fun onUpdate(data: List<HttpData>) {
+        val cardLayout = connectionsPanel.layout as CardLayout
+        if (data.isEmpty()) {
+          val detailedNetworkUsage = model.networkUsage
+          if (hasTrafficUsage(detailedNetworkUsage.rxSeries, model.timeline.selectionRange) ||
+              hasTrafficUsage(detailedNetworkUsage.txSeries, model.timeline.selectionRange)) {
+            cardLayout.show(connectionsPanel, CARD_INFO)
+            return
+          }
+        }
+        cardLayout.show(connectionsPanel, CARD_CONNECTIONS)
+      }
+    })
     val splitter = JBSplitter(false, 0.6f)
     splitter.firstComponent = leftSplitter
     splitter.secondComponent = connectionDetails
@@ -246,7 +269,6 @@ class NetworkInspectorView(val model: NetworkInspectorModel,
   }
 
   private fun buildMonitorUi(): JPanel {
-    val services = model.services
     val timeline = model.timeline
     val selection = RangeSelectionComponent(model.rangeSelectionModel)
     selection.setCursorSetter(AdtUiUtils::setTooltipCursor)
@@ -262,7 +284,9 @@ class NetworkInspectorView(val model: NetworkInspectorModel,
     // that attempts to read the same range instance.
     val sb = StreamingScrollbar(timeline, panel)
     panel.add(sb, TabularLayout.Constraint(3, 0))
-    val timeAxis = buildTimeAxis(services.viewAxis)
+    val viewAxis = ResizingAxisComponentModel.Builder(timeline.viewRange, TimeAxisFormatter.DEFAULT)
+      .setGlobalRange(timeline.dataRange).build()
+    val timeAxis = buildTimeAxis(viewAxis)
     panel.add(timeAxis, TabularLayout.Constraint(2, 0))
     val monitorPanel = JBPanel<Nothing>(TabularLayout("*", "*"))
     monitorPanel.isOpaque = false
@@ -323,18 +347,6 @@ class NetworkInspectorView(val model: NetworkInspectorModel,
 
   private fun updateConnectionDetailsView() {
     connectionDetails.setHttpData(model.selectedConnection)
-  }
-
-  private fun selectionHasTrafficUsageWithNoConnection(): Boolean {
-    val range = model.timeline.selectionRange
-    val hasNoConnection = !range.isEmpty && model.connectionsModel.getData(range).isEmpty()
-    return if (hasNoConnection) {
-      val detailedNetworkUsage = model.networkUsage
-      hasTrafficUsage(detailedNetworkUsage.rxSeries, range) || hasTrafficUsage(detailedNetworkUsage.txSeries, range)
-    }
-    else {
-      false
-    }
   }
 
   private fun hasTrafficUsage(series: RangedContinuousSeries, range: Range): Boolean {

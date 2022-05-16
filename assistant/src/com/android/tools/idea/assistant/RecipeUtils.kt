@@ -18,8 +18,8 @@ package com.android.tools.idea.assistant
 import com.android.SdkConstants
 import com.android.tools.idea.npw.model.actuallyRender
 import com.android.tools.idea.npw.model.findReferences
+import com.android.tools.idea.npw.template.getExistingModuleTemplateDataBuilder
 import com.android.tools.idea.templates.TemplateUtils.openEditors
-import com.android.tools.idea.templates.getExistingModuleTemplateDataBuilder
 import com.android.tools.idea.templates.recipe.RenderingContext
 import com.android.tools.idea.wizard.template.Recipe
 import com.google.common.collect.ImmutableList

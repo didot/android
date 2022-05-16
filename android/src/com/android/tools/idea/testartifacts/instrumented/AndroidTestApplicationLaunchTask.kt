@@ -35,6 +35,7 @@ import com.android.tools.idea.testartifacts.instrumented.AndroidTestApplicationL
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestApplicationLaunchTask.Companion.allInPackageTest
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestApplicationLaunchTask.Companion.classTest
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestApplicationLaunchTask.Companion.methodTest
+import com.android.tools.idea.testartifacts.instrumented.configuration.AndroidTestConfiguration
 import com.android.tools.idea.testartifacts.instrumented.testsuite.adapter.DdmlibTestRunListenerAdapter
 import com.android.tools.idea.testartifacts.instrumented.testsuite.api.ANDROID_TEST_RESULT_LISTENER_KEY
 import com.intellij.execution.process.ProcessHandler
@@ -55,6 +56,7 @@ class AndroidTestApplicationLaunchTask(
   private val myInstrumentationOptions: String,
   private val myTestListeners: List<ITestRunListener>,
   private val myBackgroundTaskExecutor: (Runnable) -> Future<*> = ApplicationManager.getApplication()::executeOnPooledThread,
+  private val myAndroidTestConfigurationProvider: () -> AndroidTestConfiguration = { AndroidTestConfiguration.getInstance() },
   private val myAndroidTestRunnerConfigurator: (RemoteAndroidTestRunner) -> Unit) : AppLaunchTask() {
 
   companion object {
@@ -184,6 +186,11 @@ class AndroidTestApplicationLaunchTask(
     val device = launchContext.device
     val launchStatus = launchContext.launchStatus
 
+    if (myAndroidTestConfigurationProvider().RUN_ANDROID_TEST_USING_GRADLE) {
+      printer.stderr(
+        "\"Run Android instrumented tests using Gradle\" option was ignored because this module type is not supported yet.")
+    }
+
     printer.stdout("Running tests\n")
 
     val runner = createRemoteAndroidTestRunner(device)
@@ -235,9 +242,6 @@ class AndroidTestApplicationLaunchTask(
 
           // Detach the device from the android process handler manually as soon as "am instrument" command finishes.
           androidProcessHandler.detachDevice(device)
-          if (androidProcessHandler.isEmpty()) {
-            androidProcessHandler.detachProcess()
-          }
         }
       }
       catch (e: Exception) {

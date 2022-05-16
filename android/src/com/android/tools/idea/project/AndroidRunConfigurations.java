@@ -17,10 +17,9 @@ package com.android.tools.idea.project;
 
 import static com.android.AndroidProjectTypes.PROJECT_TYPE_INSTANTAPP;
 import static com.android.tools.idea.instantapp.InstantApps.getDefaultInstantAppUrl;
-import static com.android.tools.idea.run.AndroidRunConfiguration.DO_NOTHING;
 import static com.android.tools.idea.run.AndroidRunConfiguration.LAUNCH_DEFAULT_ACTIVITY;
-import static com.android.tools.idea.run.util.LaunchUtils.isWatchFaceApp;
 
+import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.android.tools.idea.run.AndroidRunConfiguration;
 import com.android.tools.idea.run.AndroidRunConfigurationType;
 import com.android.tools.idea.run.TargetSelectionMode;
@@ -63,19 +62,14 @@ public class AndroidRunConfigurations {
     Module module = facet.getModule();
     RunManager runManager = RunManager.getInstance(module.getProject());
     String projectNameInExternalSystemStyle = PathUtil.suggestFileName(module.getProject().getName(), true, false);
-    String configurationName = StringsKt.removePrefix(module.getName(), projectNameInExternalSystemStyle + ".");
+    String moduleName = ModuleSystemUtil.getHolderModule(module).getName();
+    String configurationName = StringsKt.removePrefix(moduleName, projectNameInExternalSystemStyle + ".");
     RunnerAndConfigurationSettings settings = runManager.createConfiguration(configurationName, AndroidRunConfigurationType.class);
     AndroidRunConfiguration configuration = (AndroidRunConfiguration)settings.getConfiguration();
     configuration.setModule(module);
 
     if (facet.getConfiguration().getProjectType() == PROJECT_TYPE_INSTANTAPP) {
       configuration.setLaunchUrl(getDefaultInstantAppUrl(facet));
-    }
-    else if (isWatchFaceApp(facet)) {
-      // In case of a watch face app, there is only a service and no default activity that can be launched
-      // Eventually, we'd need to support launching a service, but currently you cannot launch a watch face service as well.
-      // See https://code.google.com/p/android/issues/detail?id=151353
-      configuration.MODE = DO_NOTHING;
     }
     else {
       configuration.MODE = LAUNCH_DEFAULT_ACTIVITY;

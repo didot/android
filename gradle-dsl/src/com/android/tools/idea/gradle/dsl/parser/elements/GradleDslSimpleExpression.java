@@ -21,7 +21,6 @@ import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo;
 import com.android.tools.idea.gradle.dsl.model.CachedValue;
 import com.android.tools.idea.gradle.dsl.parser.GradleReferenceInjection;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Computable;
@@ -65,26 +64,6 @@ public abstract class GradleDslSimpleExpression extends GradleDslElementImpl imp
     myUnresolvedCachedValue = new CachedValue<>(this, GradleDslSimpleExpression::produceUnresolvedValue);
     myRawCachedValue = new CachedValue<>(this, GradleDslSimpleExpression::produceRawValue);
   }
-
-  @Nullable
-  public PsiElement getUnsavedConfigBlock() {
-    return myUnsavedConfigBlock;
-  }
-
-  public void setUnsavedConfigBlock(@Nullable PsiElement configBlock) {
-    myUnsavedConfigBlock = configBlock;
-  }
-
-  public void setConfigBlock(@NotNull PsiElement block) {
-    // For now we only support setting the config block on literals for newly created dependencies.
-    Preconditions.checkState(getPsiElement() == null, "Can't add configuration block to an existing DSL literal.");
-
-    // TODO: Use com.android.tools.idea.gradle.dsl.parser.dependencies.DependencyConfigurationDslElement to add a dependency configuration.
-
-    myUnsavedConfigBlock = block;
-    setModified();
-  }
-
 
   @Override
   @Nullable
@@ -204,9 +183,7 @@ public abstract class GradleDslSimpleExpression extends GradleDslElementImpl imp
   @Nullable
   public static GradlePropertiesDslElement dereferencePropertiesElement(@NotNull GradlePropertiesDslElement element, @NotNull String index) {
     GradleDslElement result = dereference(element, index);
-    if (result instanceof GradleDslLiteral && ((GradleDslLiteral)result).isReference()) {
-      result = followElement((GradleDslLiteral)result);
-    }
+    result = followElement(result);
     if (result instanceof GradlePropertiesDslElement) {
       return (GradlePropertiesDslElement)result;
     }

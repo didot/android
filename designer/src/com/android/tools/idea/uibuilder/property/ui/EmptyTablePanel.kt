@@ -27,7 +27,7 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.StartupUiUtil
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
-import java.util.*
+import java.util.Locale
 import javax.swing.JEditorPane
 import javax.swing.JPanel
 import javax.swing.event.HyperlinkEvent

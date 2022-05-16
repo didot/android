@@ -23,7 +23,7 @@ import com.android.repository.api.Downloader;
 import com.android.repository.api.ProgressIndicator;
 import com.android.repository.api.SettingsController;
 import com.android.sdklib.devices.Storage;
-import com.android.tools.idea.sdk.progress.StudioProgressIndicatorAdapter;
+import com.android.tools.idea.progress.StudioProgressIndicatorAdapter;
 import com.android.utils.PathUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.util.io.FileUtil;
@@ -203,7 +203,7 @@ public class StudioDownloader implements Downloader {
       // If the range is specified, then the returned content length will be the length of the remaining content to download.
       // To simplify calculations, regard content length invariant: always keep the value as the full content length.
       long startOffset = interimExists ? CancellableFileIo.size(interimDownload) : 0;
-      long contentLength = startOffset  + request.getConnection().getContentLength();
+      long contentLength = startOffset + request.getConnection().getContentLengthLong();
       DownloadProgressIndicator downloadProgressIndicator = new DownloadProgressIndicator(indicator, target.getFileName().toString(),
                                                                                           contentLength, startOffset);
       Files.createDirectories(interimDownload.getParent());

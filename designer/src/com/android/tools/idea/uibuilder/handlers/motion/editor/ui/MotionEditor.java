@@ -27,7 +27,6 @@ import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.MEScroll
 import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.METabbedPane;
 import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.MEUI;
 import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.MTag;
-import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.MotionSceneAttrs;
 import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.MotionSceneAttrs.Tags;
 import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.Track;
 import com.android.tools.idea.uibuilder.handlers.motion.editor.createDialogs.CreateConstraintSet;
@@ -324,6 +323,12 @@ public class MotionEditor extends JPanel {
   public void selectTag(MTag tag, int flags) {
     mFlags = flags;
     String tagName = tag != null ? tag.getTagName() : null;
+    if (tagName != null && tagName.equals("Transition")) {
+      if (mTransitionPanel.mTimeLinePanel.isPlaying()) {
+        return;
+      }
+      mTransitionPanel.mTimeLinePanel.resetMotionProgress();
+    }
     if (tag != null && tagName != null && tag.equals(mSelectedTag)) {
       mConstraintSetPanel.clearSelection();
       mLayoutPanel.clearSelection();

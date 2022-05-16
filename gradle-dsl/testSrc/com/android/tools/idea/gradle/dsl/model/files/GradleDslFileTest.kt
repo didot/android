@@ -27,7 +27,9 @@ import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.S
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType.PROPERTIES_FILE
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType.VARIABLE
+import com.android.tools.idea.gradle.dsl.model.GradleBuildModelImpl
 import com.android.tools.idea.gradle.dsl.model.GradleFileModelTestCase
+import com.android.utils.FileUtils.toSystemIndependentPath
 import com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.annotations.SystemDependent
 import org.junit.Test
@@ -169,14 +171,13 @@ class GradleDslFileTest : GradleFileModelTestCase() {
   }
 
   @Test
-  fun testDelete() {
-    writeToBuildFile(TestFile.DELETE)
-
-    val buildModel = gradleBuildModel
-
-    buildModel.delete()
-    applyChanges(buildModel)
-    verifyFileContents(myBuildFile, "")
+  fun testGetContext() {
+    val projectBuildModel = projectBuildModel
+    val buildModel = projectBuildModel.getModuleBuildModel(myModule) as GradleBuildModelImpl
+    buildModel.dslFile.run {
+      assertEquals(context, parser.context)
+      assertEquals(context, writer.context)
+    }
   }
 
   fun getFile(file: VirtualFile, files: Set<GradleFileModel>) = files.first { toSystemIndependentPath(file.path) == it.virtualFile.path }
@@ -203,13 +204,4 @@ class GradleDslFileTest : GradleFileModelTestCase() {
     }
   }
 
-
-  companion object {
-    fun toSystemIndependentPath(path: String): String {
-      if (File.separatorChar != '/') {
-        return path.replace(File.separatorChar, '/')
-      }
-      return path
-    }
-  }
 }

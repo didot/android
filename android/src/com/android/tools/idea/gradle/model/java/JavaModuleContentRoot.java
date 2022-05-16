@@ -66,7 +66,7 @@ public class JavaModuleContentRoot implements Serializable {
     Collection<File> excludeDirPaths = Collections.emptySet();
     Set<File> exclude = original.getExcludeDirectories();
     if (exclude != null) {
-      excludeDirPaths = new HashSet<File>();
+      excludeDirPaths = new HashSet<>();
       for (File path : exclude) {
         if (path != null) {
           excludeDirPaths.add(path);
@@ -82,7 +82,7 @@ public class JavaModuleContentRoot implements Serializable {
     if (directories == null) {
       return Collections.emptySet();
     }
-    Set<File> paths = new HashSet<File>();
+    Set<File> paths = new HashSet<>();
     for (IdeaSourceDirectory directory : directories) {
       if (generated == directory.isGenerated()) {
         paths.add(directory.getDirectory());
@@ -116,19 +116,6 @@ public class JavaModuleContentRoot implements Serializable {
     myGenTestDirPaths = genTestDirPaths;
     myTestResourceDirPaths = testResourceDirPaths;
     myExcludeDirPaths = excludeDirPaths;
-  }
-
-  // for serialization
-  @SuppressWarnings({"unused", "ConstantConditions"})
-  private JavaModuleContentRoot() {
-    myRootDirPath = null;
-    mySourceDirPaths = null;
-    myGenSourceDirPaths = null;
-    myResourceDirPaths = null;
-    myTestDirPaths = null;
-    myGenTestDirPaths = null;
-    myTestResourceDirPaths = null;
-    myExcludeDirPaths = null;
   }
 
   @NotNull

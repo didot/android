@@ -55,8 +55,7 @@ final class ModuleResourceRepository extends MultiResourceRepository implements 
   /**
    * Creates a new resource repository for the given module, <b>not</b> including its dependent modules.
    *
-   * <p>The returned repository is registered as root disposable, and needs to be re-registered with a
-   * {@link com.intellij.openapi.Disposable} parent. Caller is responsible for proper disposing of the returned object.
+   * <p>The returned repository needs to be registered with a {@link com.intellij.openapi.Disposable} parent.
    *
    * @param facet the facet for the module
    * @param namespace the namespace for the repository
@@ -102,8 +101,7 @@ final class ModuleResourceRepository extends MultiResourceRepository implements 
   /**
    * Creates a new resource repository for the given module, <b>not</b> including its dependent modules.
    *
-   * <p>The returned repository is registered as root disposable, and needs to be re-registered with a
-   * {@link com.intellij.openapi.Disposable} parent. Caller is responsible for proper disposing of the returned object.
+   * <p>The returned repository needs to be registered with a {@link com.intellij.openapi.Disposable} parent.
    *
    * @param facet the facet for the module
    * @param namespace the namespace for the repository
@@ -155,7 +153,6 @@ final class ModuleResourceRepository extends MultiResourceRepository implements 
                                    @NotNull List<? extends LocalResourceRepository> delegates,
                                    @NotNull SourceSet sourceSet) {
     super(facet.getModule().getName());
-
     myFacet = facet;
     myNamespace = namespace;
     mySourceSet = sourceSet;
@@ -163,22 +160,22 @@ final class ModuleResourceRepository extends MultiResourceRepository implements 
 
     setChildren(delegates, ImmutableList.of(), ImmutableList.of());
 
-    // Note that ".connect(this)" will register "this" as root disposable if it has not been registered yet
-    myFacet.getModule().getProject().getMessageBus().connect(this).subscribe(ResourceFolderManager.TOPIC, new ResourceFolderListener() {
+    ResourceFolderListener resourceFolderListener = new ResourceFolderListener() {
       @Override
-      public void mainResourceFoldersChanged(@NotNull AndroidFacet facet1, @NotNull List<? extends VirtualFile> folders) {
-        if (mySourceSet == SourceSet.MAIN && facet1.getModule() == myFacet.getModule()) {
+      public void mainResourceFoldersChanged(@NotNull AndroidFacet facet, @NotNull List<? extends VirtualFile> folders) {
+        if (mySourceSet == SourceSet.MAIN && facet.getModule() == myFacet.getModule()) {
           updateRoots(folders);
         }
       }
 
       @Override
-      public void testResourceFoldersChanged(@NotNull AndroidFacet facet1, @NotNull List<? extends VirtualFile> folders) {
-        if (mySourceSet == SourceSet.TEST && facet1.getModule() == myFacet.getModule()) {
+      public void testResourceFoldersChanged(@NotNull AndroidFacet facet, @NotNull List<? extends VirtualFile> folders) {
+        if (mySourceSet == SourceSet.TEST && facet.getModule() == myFacet.getModule()) {
           updateRoots(folders);
         }
       }
-    });
+    };
+    myFacet.getModule().getProject().getMessageBus().connect(this).subscribe(ResourceFolderManager.TOPIC, resourceFolderListener);
   }
 
   @VisibleForTesting

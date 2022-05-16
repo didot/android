@@ -15,6 +15,15 @@
  */
 package com.android.tools.idea.gradle.dsl.model.android;
 
+import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR;
+import static com.android.tools.idea.gradle.dsl.parser.android.productFlavors.ExternalNativeBuildOptionsDslElement.EXTERNAL_NATIVE_BUILD_OPTIONS;
+import static com.android.tools.idea.gradle.dsl.parser.android.productFlavors.NdkOptionsDslElement.NDK_OPTIONS;
+import static com.android.tools.idea.gradle.dsl.parser.android.productFlavors.VectorDrawablesOptionsDslElement.VECTOR_DRAWABLES_OPTIONS;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.OTHER;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_MAP;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_SET;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelSemanticsDescription.CREATE_WITH_VALUE;
+
 import com.android.tools.idea.gradle.dsl.api.android.ProductFlavorModel;
 import com.android.tools.idea.gradle.dsl.api.android.productFlavors.ExternalNativeBuildOptionsModel;
 import com.android.tools.idea.gradle.dsl.api.android.productFlavors.NdkOptionsModel;
@@ -25,6 +34,7 @@ import com.android.tools.idea.gradle.dsl.model.android.productFlavors.NdkOptions
 import com.android.tools.idea.gradle.dsl.model.android.productFlavors.VectorDrawablesOptionsModelImpl;
 import com.android.tools.idea.gradle.dsl.model.ext.GradlePropertyModelBuilder;
 import com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil;
+import com.android.tools.idea.gradle.dsl.model.ext.transforms.SdkOrPreviewTransform;
 import com.android.tools.idea.gradle.dsl.parser.android.AbstractProductFlavorDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.ProductFlavorDslElement;
 import com.android.tools.idea.gradle.dsl.parser.android.productFlavors.ExternalNativeBuildOptionsDslElement;
@@ -36,18 +46,12 @@ import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-
+import com.android.tools.idea.gradle.dsl.parser.semantics.VersionConstraint;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR;
-import static com.android.tools.idea.gradle.dsl.parser.android.productFlavors.ExternalNativeBuildOptionsDslElement.EXTERNAL_NATIVE_BUILD_OPTIONS;
-import static com.android.tools.idea.gradle.dsl.parser.android.productFlavors.NdkOptionsDslElement.NDK_OPTIONS;
-import static com.android.tools.idea.gradle.dsl.parser.android.productFlavors.VectorDrawablesOptionsDslElement.VECTOR_DRAWABLES_OPTIONS;
-import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.OTHER;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
 
 public final class ProductFlavorModelImpl extends FlavorTypeModelImpl implements ProductFlavorModel {
   /**
@@ -57,19 +61,20 @@ public final class ProductFlavorModelImpl extends FlavorTypeModelImpl implements
   @NonNls public static final String DEFAULT = "mDefault";
   @NonNls public static final String DIMENSION = "mDimension";
   @NonNls public static final String MAX_SDK_VERSION = "mMaxSdkVersion";
-  @NonNls public static final String MIN_SDK_VERSION = "mMinSdkVersion";
+  @NonNls public static final ModelPropertyDescription MIN_SDK_VERSION = new ModelPropertyDescription("mMinSdkVersion");
   @NonNls public static final String MISSING_DIMENSION_STRATEGY = "mMissingDimensionStrategy";
   @NonNls public static final String RENDER_SCRIPT_TARGET_API = "mRenderscriptTargetApi";
   @NonNls public static final String RENDER_SCRIPT_SUPPORT_MODE_ENABLED = "mRenderscriptSupportModeEnabled";
   @NonNls public static final String RENDER_SCRIPT_SUPPORT_MODE_BLAS_ENABLED = "mRenderscriptSupportModeBlasEnabled";
   @NonNls public static final String RENDER_SCRIPT_NDK_MODE_ENABLED = "mRenderscriptNdkModeEnabled";
-  @NonNls public static final String RES_CONFIGS = "mResConfigs";
-  @NonNls public static final String TARGET_SDK_VERSION = "mTargetSdkVersion";
+  @NonNls public static final ModelPropertyDescription RES_CONFIGS = new ModelPropertyDescription("mResConfigs", MUTABLE_SET);
+  @NonNls public static final ModelPropertyDescription TARGET_SDK_VERSION = new ModelPropertyDescription("mTargetSdkVersion");
   @NonNls public static final String TEST_APPLICATION_ID = "mTestApplicationId";
   @NonNls public static final String TEST_FUNCTIONAL_TEST = "mTestFunctionalTest";
   @NonNls public static final String TEST_HANDLE_PROFILING = "mTestHandleProfiling";
   @NonNls public static final String TEST_INSTRUMENTATION_RUNNER = "mTestInstrumentationRunner";
-  @NonNls public static final String TEST_INSTRUMENTATION_RUNNER_ARGUMENTS = "mTestInstrumentationRunnerArguments";
+  @NonNls public static final ModelPropertyDescription TEST_INSTRUMENTATION_RUNNER_ARGUMENTS =
+    new ModelPropertyDescription("mTestInstrumentationRunnerArguments", MUTABLE_MAP);
   @NonNls public static final String VERSION_CODE = "mVersionCode";
   @NonNls public static final String VERSION_NAME = "mVersionName";
   @NonNls public static final String WEAR_APP_UNBUNDLED = "mWearAppUnbundled";
@@ -119,7 +124,10 @@ public final class ProductFlavorModelImpl extends FlavorTypeModelImpl implements
   @Override
   @NotNull
   public ResolvedPropertyModel minSdkVersion() {
-    return getModelForProperty(MIN_SDK_VERSION);
+    VersionConstraint agp410plus = VersionConstraint.agpFrom("4.1.0");
+    return GradlePropertyModelBuilder.create(myDslElement, MIN_SDK_VERSION)
+      .addTransform(new SdkOrPreviewTransform(MIN_SDK_VERSION, "minSdkVersion", "minSdk", "minSdkPreview", agp410plus))
+      .buildResolved();
   }
 
   @NotNull
@@ -214,7 +222,10 @@ public final class ProductFlavorModelImpl extends FlavorTypeModelImpl implements
   @Override
   @NotNull
   public ResolvedPropertyModel targetSdkVersion() {
-    return getModelForProperty(TARGET_SDK_VERSION);
+    VersionConstraint agp410plus = VersionConstraint.agpFrom("4.1.0");
+    return GradlePropertyModelBuilder.create(myDslElement, TARGET_SDK_VERSION)
+      .addTransform(new SdkOrPreviewTransform(TARGET_SDK_VERSION, "targetSdkVersion", "targetSdk", "targetSdkPreview", agp410plus))
+      .buildResolved();
   }
 
   @Override
@@ -246,7 +257,12 @@ public final class ProductFlavorModelImpl extends FlavorTypeModelImpl implements
   public ResolvedPropertyModel testInstrumentationRunnerArguments() {
     GradleDslExpressionMap testInstrumentationRunnerArguments = myDslElement.getPropertyElement(GradleDslExpressionMap.TEST_INSTRUMENTATION_RUNNER_ARGUMENTS);
     if (testInstrumentationRunnerArguments == null) {
-      myDslElement.addDefaultProperty(new GradleDslExpressionMap(myDslElement, GradleNameElement.fake(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS)));
+      testInstrumentationRunnerArguments =
+        new GradleDslExpressionMap(myDslElement, GradleNameElement.fake(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS.name));
+      ModelEffectDescription effect = new ModelEffectDescription(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, CREATE_WITH_VALUE);
+      testInstrumentationRunnerArguments.setModelEffect(effect);
+      testInstrumentationRunnerArguments.setElementType(REGULAR);
+      myDslElement.addDefaultProperty(testInstrumentationRunnerArguments);
     }
     return getModelForProperty(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS);
   }

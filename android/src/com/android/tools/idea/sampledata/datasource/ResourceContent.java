@@ -18,7 +18,6 @@ package com.android.tools.idea.sampledata.datasource;
 import com.android.ide.common.util.PathString;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.util.StudioPathManager;
-import com.google.common.base.Charsets;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.io.FileUtil;
@@ -27,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
@@ -90,7 +90,7 @@ public class ResourceContent implements Function<OutputStream, Exception> {
       }
     }
 
-    return new ResourceContent(content.toString().getBytes(Charsets.UTF_8));
+    return new ResourceContent(content.toString().getBytes(StandardCharsets.UTF_8));
   }
 
   @NotNull

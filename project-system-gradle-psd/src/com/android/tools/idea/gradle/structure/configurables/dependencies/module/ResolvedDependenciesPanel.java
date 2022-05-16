@@ -44,16 +44,17 @@ import com.intellij.openapi.util.ActionCallback;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.wm.ToolWindowAnchor;
 import com.intellij.ui.PopupHandler;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.ui.treeStructure.Tree;
-import com.intellij.util.ui.JBUI;
 import icons.StudioIcons;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.JScrollPane;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
@@ -102,7 +103,7 @@ public class ResolvedDependenciesPanel extends ToolWindowPanel implements Depend
         super.processMouseEvent(e);
       }
     };
-    myTree.setRowHeight(JBUI.scale(24));
+    myTree.setRowHeight(JBUIScale.scale(24));
 
     setHeaderActions();
     getHeader().setPreferredFocusedComponent(myTree);

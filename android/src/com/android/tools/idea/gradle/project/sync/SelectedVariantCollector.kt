@@ -40,7 +40,7 @@ class SelectedVariantCollector(project: Project) {
     val ndkFacet = NdkFacet.getInstance(module)
     if (ndkFacet != null && ndkModuleModel != null) {
       // Note, we lose ABI selection if cached models are not available.
-      val (variant, abi) = ndkFacet.selectedVariantAbi ?: return null
+      val (variant, abi) = ndkFacet.configuration.selectedVariantAbi ?: return null
       return SelectedVariant(moduleId, variant, abi, variantDetails)
     }
     return SelectedVariant(moduleId, properties.SELECTED_BUILD_VARIANT, null, variantDetails)
@@ -59,6 +59,8 @@ fun getSelectedVariantDetails(androidModel: AndroidModuleModel, ndkModel: NdkMod
 }
 
 private fun Module.getModuleId(): String? {
-  val gradleProjectPath = getGradleProjectPath() ?: return null
+  // Android Studio internally use paths as they are returned by models, however to avoid ambiguity communication between
+  // the code injected into the Gradle process and the IDE uses canonical paths.
+  val gradleProjectPath = getGradleProjectPath(useCanonicalPath = true) ?: return null
   return Modules.createUniqueModuleId(gradleProjectPath.projectRoot, gradleProjectPath.gradleProjectPath)
 }

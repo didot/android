@@ -36,7 +36,10 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTree;
 import javax.swing.tree.DefaultMutableTreeNode;
 import kotlin.Unit;
 import org.jdesktop.swingx.JXLabel;
@@ -44,7 +47,7 @@ import org.jetbrains.annotations.NotNull;
 
 class ModuleDependenciesForm {
   @NotNull private final CheckboxTree myPossibleDependenciesTree;
-  @NotNull private final Set<PsModule> mySelectedModules = new HashSet<PsModule>();
+  @NotNull private final Set<PsModule> mySelectedModules = new HashSet<>();
 
   private JPanel myMainPanel;
   private JBScrollPane myModulesScrollPane;

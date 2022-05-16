@@ -15,8 +15,11 @@
  */
 package com.android.tools.idea.appinspection.inspectors.network.model.httpdata
 
+import com.android.tools.idea.protobuf.ByteString
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPOutputStream
 
 class HttpDataTest {
   @Test
@@ -66,6 +69,20 @@ class HttpDataTest {
   @Test(expected = AssertionError::class)
   fun invalidResponseFields() {
     createFakeHttpData(1, responseFields = "Invalid response fields")
+  }
+
+  @Test
+  fun responseFieldsWithDuplicateKey() {
+    val data = createFakeHttpData(1, responseFields = """status line =  HTTP/1.1 302 Found
+    first=1
+    second  = 2
+    equation=x+y=10
+    second =5""")
+
+    val header = data.responseHeader
+    assertThat(header.getField("first")).isEqualTo("1")
+    assertThat(header.getField("second")).isEqualTo("2;5")
+    assertThat(header.getField("equation")).isEqualTo("x+y=10")
   }
 
   @Test
@@ -175,5 +192,27 @@ class HttpDataTest {
   fun statusCodeFromFields() {
     val data = createFakeHttpData(1, responseFields = "content-length = 10000 \n  response-status-code = 200")
     assertThat(data.responseHeader.statusCode).isEqualTo(200)
+  }
+
+  @Test
+  fun decodesGzippedResponsePayload() {
+    val byteOutput = ByteArrayOutputStream()
+    GZIPOutputStream(byteOutput).use { stream ->
+      stream.write("test".encodeToByteArray())
+    }
+    byteOutput.toByteArray()
+    val data = createFakeHttpData(1,
+                                  responseFields = "content-length = 10000 \n  response-status-code = 200 \n content-encoding = gzip",
+                                  responsePayload = ByteString.copyFrom(byteOutput.toByteArray()))
+    assertThat(data.responsePayload.toStringUtf8()).isEqualTo("test")
+  }
+
+  @Test
+  fun decodeMalformedGzipResponsePayload_showRawPayload() {
+    val malformedBytes = "Not a gzip".toByteArray()
+    val data = createFakeHttpData(1,
+                                  responseFields = "content-length = 10000 \n  response-status-code = 200 \n content-encoding = gzip",
+                                  responsePayload = ByteString.copyFrom(malformedBytes))
+    assertThat(data.responsePayload.toByteArray()).isEqualTo(malformedBytes)
   }
 }

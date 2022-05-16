@@ -20,10 +20,26 @@ import com.android.tools.idea.editors.layoutInspector.actions.LoadOverlayAction;
 import com.android.tools.idea.editors.layoutInspector.actions.SetOverlayAlphaAction;
 import com.android.tools.idea.flags.StudioFlags;
 import com.google.common.annotations.VisibleForTesting;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.ActionGroup;
+import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.actionSystem.ActionStub;
+import com.intellij.openapi.actionSystem.ActionToolbar;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.Anchor;
+import com.intellij.openapi.actionSystem.Constraints;
+import com.intellij.openapi.actionSystem.DataProvider;
+import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.ui.IdeBorderFactory;
 import com.intellij.ui.ScrollPaneFactory;
 import com.intellij.ui.SideBorder;
+import java.awt.BorderLayout;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
+import java.util.Objects;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
 import org.intellij.images.editor.ImageZoomModel;
 import org.intellij.images.editor.actionSystem.ImageEditorActions;
 import org.intellij.images.editor.actions.ActualSizeAction;
@@ -38,11 +54,6 @@ import org.intellij.images.ui.ImageComponentDecorator;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
-import java.util.Objects;
 
 /**
  * The middle section of Layout Inspector that displays active ViewNode selected by the Layout Tree.
@@ -84,13 +95,17 @@ public class LayoutInspectorPanel extends JPanel implements DataProvider, ImageC
     ActionManager actionManager = ActionManager.getInstance();
 
     DefaultActionGroup liActionGroup = getInspectorActionGroup();
-    ActionToolbar liActionToolbar = actionManager.createActionToolbar("LiActionsToolbar", liActionGroup, true);
+    ActionToolbar liActionToolbar = actionManager.createActionToolbar(
+      "LiActionsToolbar", liActionGroup, true
+    );
     liActionToolbar.setTargetComponent(this);
     JComponent actionToolbarPanel = liActionToolbar.getComponent();
     actionToolbarPanel.setName("LiActionsToolbar");
 
     ActionGroup actionGroup = getZoomActionGroup(actionManager);
-    ActionToolbar actionToolbar = actionManager.createActionToolbar(ImageEditorActions.ACTION_PLACE, actionGroup, true);
+    ActionToolbar actionToolbar = actionManager.createActionToolbar(
+      ImageEditorActions.ACTION_PLACE, actionGroup, true
+    );
     actionToolbar.setTargetComponent(this);
     JComponent toolbarPanel = actionToolbar.getComponent();
 

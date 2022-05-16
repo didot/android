@@ -22,6 +22,7 @@ import com.android.emulator.snapshot.SnapshotOuterClass;
 import com.android.emulator.snapshot.SnapshotOuterClass.Image;
 import com.android.sdklib.internal.avd.AvdInfo;
 import com.android.tools.idea.run.AndroidDevice;
+import com.android.tools.idea.run.deployment.Device.Type;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -54,7 +55,6 @@ public final class VirtualDevicesTaskTest {
     AsyncSupplier<Collection<VirtualDevice>> task = new VirtualDevicesTask.Builder()
       .setExecutorService(MoreExecutors.newDirectExecutorService())
       .setGetAvds(() -> avds)
-      .setFileSystem(myFileSystem)
       .setNewLaunchableAndroidDevice(avd -> myAndroidDevice)
       .build();
 
@@ -64,6 +64,7 @@ public final class VirtualDevicesTaskTest {
     // Assert
     Object device = new VirtualDevice.Builder()
       .setName("Pixel 4 API 30")
+      .setType(Type.PHONE)
       .setKey(new VirtualDevicePath("/home/juancnuno/.android/avd/Pixel_4_API_30.avd"))
       .setAndroidDevice(myAndroidDevice)
       .setNameKey(new VirtualDeviceName("Pixel_4_API_30"))
@@ -72,13 +73,13 @@ public final class VirtualDevicesTaskTest {
     assertEquals(Collections.singletonList(device), future.get());
   }
 
-  private static @NotNull AvdInfo mockAvd(@NotNull @SuppressWarnings("SameParameterValue") String displayName,
-                                          @NotNull @SuppressWarnings("SameParameterValue") String path,
-                                          @NotNull @SuppressWarnings("SameParameterValue") String name) {
+  private @NotNull AvdInfo mockAvd(@NotNull @SuppressWarnings("SameParameterValue") String displayName,
+                                   @NotNull @SuppressWarnings("SameParameterValue") String path,
+                                   @NotNull @SuppressWarnings("SameParameterValue") String name) {
     AvdInfo avd = Mockito.mock(AvdInfo.class);
 
     Mockito.when(avd.getDisplayName()).thenReturn(displayName);
-    Mockito.when(avd.getDataFolderPath()).thenReturn(path);
+    Mockito.when(avd.getDataFolderPath()).thenReturn(myFileSystem.getPath(path));
     Mockito.when(avd.getName()).thenReturn(name);
 
     return avd;
@@ -90,7 +91,6 @@ public final class VirtualDevicesTaskTest {
     VirtualDevicesTask task = new VirtualDevicesTask.Builder()
       .setExecutorService(MoreExecutors.newDirectExecutorService())
       .setGetAvds(Collections::emptyList)
-      .setFileSystem(myFileSystem)
       .setNewLaunchableAndroidDevice(avd -> myAndroidDevice)
       .build();
 
@@ -109,7 +109,6 @@ public final class VirtualDevicesTaskTest {
     VirtualDevicesTask task = new VirtualDevicesTask.Builder()
       .setExecutorService(MoreExecutors.newDirectExecutorService())
       .setGetAvds(Collections::emptyList)
-      .setFileSystem(myFileSystem)
       .setNewLaunchableAndroidDevice(avd -> myAndroidDevice)
       .build();
 
@@ -129,7 +128,6 @@ public final class VirtualDevicesTaskTest {
     VirtualDevicesTask task = new VirtualDevicesTask.Builder()
       .setExecutorService(MoreExecutors.newDirectExecutorService())
       .setGetAvds(Collections::emptyList)
-      .setFileSystem(myFileSystem)
       .setNewLaunchableAndroidDevice(avd -> myAndroidDevice)
       .build();
 
@@ -152,7 +150,6 @@ public final class VirtualDevicesTaskTest {
     VirtualDevicesTask task = new VirtualDevicesTask.Builder()
       .setExecutorService(MoreExecutors.newDirectExecutorService())
       .setGetAvds(Collections::emptyList)
-      .setFileSystem(myFileSystem)
       .setNewLaunchableAndroidDevice(avd -> myAndroidDevice)
       .build();
 

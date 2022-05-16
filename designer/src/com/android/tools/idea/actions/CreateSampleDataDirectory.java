@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.actions;
 
+import static com.intellij.openapi.actionSystem.LangDataKeys.MODULE;
 import static com.intellij.openapi.actionSystem.LangDataKeys.MODULE_CONTEXT_ARRAY;
-import static com.intellij.openapi.actionSystem.PlatformCoreDataKeys.MODULE;
 
 import com.android.ide.common.util.PathString;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
@@ -42,7 +42,8 @@ public class CreateSampleDataDirectory extends AnAction {
 
   public CreateSampleDataDirectory() {
     super(AndroidBundle.messagePointer("new.sampledata.dir.action.title"),
-          AndroidBundle.messagePointer("new.sampledata.dir.action.description"), PlatformIcons.FOLDER_ICON);
+          AndroidBundle.messagePointer("new.sampledata.dir.action.description"),
+          PlatformIcons.FOLDER_ICON);
   }
 
   @Nullable

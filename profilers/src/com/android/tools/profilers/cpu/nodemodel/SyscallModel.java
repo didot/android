@@ -18,7 +18,23 @@ package com.android.tools.profilers.cpu.nodemodel;
  */
 public class SyscallModel extends NativeNodeModel {
 
+  private final String myTag;
+
   public SyscallModel(String name) {
+    this("", name);
+  }
+
+  /**
+   * @param tag a tag as a coarser specification of this node, used for collapsing
+   * @param name the name to display this symbol by
+   */
+  public SyscallModel(String tag, String name) {
+    myTag = tag;
     myName = name;
+  }
+
+  @Override
+  public String getTag() {
+    return myTag;
   }
 }

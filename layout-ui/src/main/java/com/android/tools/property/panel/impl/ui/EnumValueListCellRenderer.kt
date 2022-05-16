@@ -27,6 +27,7 @@ import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Component
 import javax.swing.BorderFactory
+import javax.swing.Icon
 import javax.swing.JComponent
 import javax.swing.JList
 import javax.swing.JPanel
@@ -71,7 +72,7 @@ open class EnumValueListCellRenderer : ColoredListCellRenderer<EnumValue>() {
     return separator
   }
 
-  private fun updateBorder(panel: JPanel, line: JSeparator) {
+  protected fun updateBorder(panel: JPanel, line: JComponent) {
     val rowHeight = UIManager.getInt("List.rowHeight")
     val spacing = (rowHeight - line.preferredSize.height) / 2 - JBUI.scale(OUTER_BORDER_UNSCALED)
     panel.border = BorderFactory.createEmptyBorder(spacing, 0, spacing, 0)
@@ -84,13 +85,14 @@ open class EnumValueListCellRenderer : ColoredListCellRenderer<EnumValue>() {
     when (item) {
       null -> return this
       EnumValue.SEPARATOR -> return separator
-      is HeaderEnumValue -> return getHeaderRenderer(item.header)
+      is HeaderEnumValue -> return getHeaderRenderer(item.header, item.headerIcon)
       else -> return super.getListCellRendererComponent(list, item, index, selected, hasFocus)
     }
   }
 
-  private fun getHeaderRenderer(header: String): Component {
+  protected open fun getHeaderRenderer(header: String, headerIcon: Icon?): Component {
     headerLabel.text = header
+    headerLabel.icon = headerIcon
     return headerLabel
   }
 

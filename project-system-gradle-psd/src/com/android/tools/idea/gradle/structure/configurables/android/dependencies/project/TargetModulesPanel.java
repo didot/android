@@ -37,13 +37,14 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.wm.ToolWindowAnchor;
 import com.intellij.ui.PopupHandler;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.ui.treeStructure.Tree;
-import com.intellij.util.ui.JBUI;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.JScrollPane;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import org.jetbrains.annotations.NotNull;
@@ -76,7 +77,7 @@ class TargetModulesPanel extends ToolWindowPanel {
         super.processMouseEvent(e);
       }
     };
-    myTree.setRowHeight(JBUI.scale(24));
+    myTree.setRowHeight(JBUIScale.scale(24));
     myTree.addMouseListener(new PopupHandler() {
       @Override
       public void invokePopup(Component comp, int x, int y) {

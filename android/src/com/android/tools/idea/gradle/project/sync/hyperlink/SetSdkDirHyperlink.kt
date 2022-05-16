@@ -26,13 +26,13 @@ import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.command.undo.GlobalUndoableAction
 import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.project.Project
-import com.intellij.util.ModalityUiUtil.invokeLaterIfNeeded
+import com.intellij.util.ModalityUiUtil
 import org.jetbrains.android.sdk.AndroidSdkData
 import java.io.File
 
 class SetSdkDirHyperlink(
   val project: Project,
-  @VisibleForTesting val localPropertiesPaths: List<String>
+  @get:VisibleForTesting val localPropertiesPaths: List<String>
 ) : NotificationHyperlink("set.sdkdir", "Set sdk.dir in local.properties and sync project") {
   companion object {
     private const val SDK_DIR_UNDO_NAME = "Setup Sdk Location"
@@ -76,15 +76,16 @@ class SetSdkDirHyperlink(
   private fun setSdkDirsAndRequestSync(localProperties: List<LocalProperties>) {
     val sdkData = AndroidSdks.getInstance().tryToChooseAndroidSdk()
     if (sdkData != null) {
-      invokeLaterIfNeeded(
-        ModalityState.defaultModalityState()) {
-        CommandProcessor.getInstance().executeCommand(project, {
-          val undoableAction = SetSdkDirUndoableAction(localProperties, sdkData)
-          undoableAction.redo()
-          UndoManager.getInstance(project).undoableActionPerformed(undoableAction)
-          GradleSyncInvoker.getInstance().requestProjectSync(project, GradleSyncInvoker.Request(TRIGGER_QF_SDK_PATH_CHANGED))
-        }, SDK_DIR_UNDO_NAME, null)
-      }
+      ModalityUiUtil.invokeLaterIfNeeded(
+        ModalityState.defaultModalityState())
+        {
+          CommandProcessor.getInstance().executeCommand(project, {
+            val undoableAction = SetSdkDirUndoableAction(localProperties, sdkData)
+            undoableAction.redo()
+            UndoManager.getInstance(project).undoableActionPerformed(undoableAction)
+            GradleSyncInvoker.getInstance().requestProjectSync(project, GradleSyncInvoker.Request(TRIGGER_QF_SDK_PATH_CHANGED))
+          }, SDK_DIR_UNDO_NAME, null)
+        }
     }
   }
 }

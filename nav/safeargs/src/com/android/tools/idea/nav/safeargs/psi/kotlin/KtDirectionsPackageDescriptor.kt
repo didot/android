@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.nav.safeargs.psi.kotlin
 
+import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.nav.safeargs.index.NavDestinationData
 import com.android.tools.idea.nav.safeargs.index.NavXmlData
 import com.android.tools.idea.nav.safeargs.module.SafeArgsModuleInfo
@@ -39,6 +40,7 @@ import org.jetbrains.kotlin.utils.alwaysTrue
  */
 class KtDirectionsPackageDescriptor(
   private val containingModuleInfo: SafeArgsModuleInfo,
+  private val navigationVersion: GradleVersion,
   fqName: FqName,
   val className: Name,
   private val destination: NavDestinationData,
@@ -57,20 +59,24 @@ class KtDirectionsPackageDescriptor(
   private val safeArgsPackageDescriptor = this@KtDirectionsPackageDescriptor
 
   private inner class SafeArgsModuleScope : MemberScopeImpl() {
-    private val lightClass = storageManager.createLazyValue {
-      LightDirectionsKtClass(className, destination, navResourceData, sourceElement, safeArgsPackageDescriptor, storageManager)
+    private val classes = storageManager.createLazyValue {
+      val directionsClass = LightDirectionsKtClass(
+        navigationVersion,
+        className,
+        destination,
+        navResourceData,
+        sourceElement,
+        safeArgsPackageDescriptor,
+        storageManager
+      )
+      listOfNotNull(directionsClass)
     }
 
     override fun getContributedDescriptors(
       kindFilter: DescriptorKindFilter,
       nameFilter: (Name) -> Boolean
     ): Collection<DeclarationDescriptor> {
-      return if ((kindFilter.acceptsKinds(DescriptorKindFilter.CLASSIFIERS_MASK) && nameFilter(lightClass().name))) {
-        listOf(lightClass())
-      }
-      else {
-        emptyList()
-      }
+      return classes().filter { kindFilter.acceptsKinds(DescriptorKindFilter.NON_SINGLETON_CLASSIFIERS_MASK) && nameFilter(it.name) }
     }
 
     override fun getClassifierNames(): Set<Name> {
@@ -80,7 +86,7 @@ class KtDirectionsPackageDescriptor(
     }
 
     override fun getContributedClassifier(name: Name, location: LookupLocation): ClassifierDescriptor? {
-      return if (lightClass().name == name) lightClass() else null
+      return classes().firstOrNull { it.name == name }
     }
 
     override fun printScopeStructure(p: Printer) {

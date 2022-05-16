@@ -15,13 +15,12 @@
  */
 package com.android.tools.idea.testartifacts.scopes;
 
+import static com.intellij.openapi.util.io.FileUtil.getTempDirectory;
+import static com.intellij.openapi.util.io.FileUtilRt.createIfNotExists;
+
 import com.google.common.collect.ImmutableList;
 import com.intellij.testFramework.HeavyPlatformTestCase;
-
 import java.io.File;
-
-import static com.intellij.openapi.util.io.FileUtil.createIfNotExists;
-import static com.intellij.openapi.util.io.FileUtil.getTempDirectory;
 
 public class FileRootSearchScopeTest extends HeavyPlatformTestCase {
   public void testAcceptFileCreatedLater() {

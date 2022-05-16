@@ -20,11 +20,11 @@ import static com.android.tools.idea.avdmanager.HardwareAccelerationCheck.isChro
 import com.android.prefs.AndroidLocationsSingleton;
 import com.android.repository.api.ProgressIndicator;
 import com.android.sdklib.repository.AndroidSdkHandler;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
-import com.android.tools.idea.sdk.wizard.legacy.LicenseAgreementStep;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.welcome.config.AndroidFirstRunPersistentData;
 import com.android.tools.idea.welcome.config.FirstRunWizardMode;
 import com.android.tools.idea.welcome.install.FirstRunWizardDefaults;
+import com.android.tools.idea.welcome.wizard.ConfirmFirstRunWizardCloseDialog;
 import com.android.tools.idea.welcome.wizard.StudioFirstRunWelcomeScreen;
 import com.android.tools.idea.wizard.dynamic.DynamicWizard;
 import com.android.tools.idea.wizard.dynamic.DynamicWizardHost;
@@ -93,9 +93,6 @@ public class FirstRunWizard extends DynamicWizard {
     addPath(myComponentsPath);
     conditionallyAddEmulatorSettingsStep();
 
-    if (myMode != FirstRunWizardMode.INSTALL_HANDOFF) {
-      addPath(new SingleStepPath(new LicenseAgreementStep(getDisposable())));
-    }
     addPath(new SingleStepPath(progressStep));
     super.init();
   }
@@ -118,7 +115,7 @@ public class FirstRunWizard extends DynamicWizard {
 
   @Override
   public void doCancelAction() {
-    ConfirmFirstRunWizardCloseDialog.Result result = new ConfirmFirstRunWizardCloseDialog().open();
+    ConfirmFirstRunWizardCloseDialog.Result result = ConfirmFirstRunWizardCloseDialog.show();
     switch (result) {
       case Skip:
         AndroidFirstRunPersistentData.getInstance().markSdkUpToDate(myMode.getInstallerTimestamp());

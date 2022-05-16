@@ -28,7 +28,7 @@ import icons.StudioIcons;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.Icon;
 import junit.framework.TestCase;
 
 @SuppressWarnings("javadoc")
@@ -131,7 +131,7 @@ public class FlagManagerTest extends TestCase {
     }
 
     Set<String> unused = Sets.newHashSet(LocaleManager.getRegionCodes(false));
-    Set<String> reachable = new HashSet<String>();
+    Set<String> reachable = new HashSet<>();
     Multimap<String,String> regionToLanguages = ArrayListMultimap.create();
     for (String language : LocaleManager.getLanguageCodes(false)) {
       for (String region : LocaleManager.getRelevantRegions(language)) {
@@ -151,7 +151,7 @@ public class FlagManagerTest extends TestCase {
         for (String language : regionToLanguages.get(region)) {
           sb.append(language).append("(").append(LocaleManager.getLanguageName(language)).append(") ");
         }
-        System.out.println(sb);
+        System.out.println(sb.toString());
       }
     }
 
@@ -170,7 +170,7 @@ public class FlagManagerTest extends TestCase {
         sb.append(code.toLowerCase(Locale.US)).append(DOT_PNG).append(" (");
         sb.append(LocaleManager.getRegionName(code)).append(") ");
       }
-      System.out.println(sb);
+      System.out.println(sb.toString());
     }
   }
 

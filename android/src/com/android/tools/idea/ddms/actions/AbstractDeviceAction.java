@@ -20,10 +20,9 @@ import com.android.ddmlib.IDevice;
 import com.android.tools.idea.ddms.DeviceContext;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 
 public abstract class AbstractDeviceAction extends AnAction {
   @NotNull protected final DeviceContext myDeviceContext;
@@ -47,9 +46,9 @@ public abstract class AbstractDeviceAction extends AnAction {
   public void actionPerformed(@NotNull AnActionEvent e) {
     IDevice device = myDeviceContext.getSelectedDevice();
     if (device != null) {
-      performAction(device);
+      performAction(e, device);
     }
   }
 
-  protected abstract void performAction(@NotNull IDevice device);
+  protected abstract void performAction(@NotNull AnActionEvent e, @NotNull IDevice device);
 }

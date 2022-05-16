@@ -22,13 +22,13 @@ import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet;
 import com.android.tools.idea.gradle.project.facet.java.JavaFacet;
 import com.android.tools.idea.gradle.project.model.NdkModuleModel;
 import com.android.tools.idea.model.AndroidModel;
+import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ex.ProjectRootManagerEx;
-import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.util.Objects;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -41,8 +41,6 @@ import org.jetbrains.plugins.gradle.util.GradleConstants;
  * Utility methods for {@link Project}s.
  */
 public final class GradleProjects {
-  private static final Key<Boolean> SYNC_REQUESTED_DURING_BUILD = Key.create("project.sync.requested.during.build");
-
   private GradleProjects() {
   }
 
@@ -98,7 +96,8 @@ public final class GradleProjects {
     if (!isExternalSystemAwareModule(GradleConstants.SYSTEM_ID, module)) {
       return null;
     }
-    ExternalSystemModulePropertyManager moduleProperties = ExternalSystemModulePropertyManager.getInstance(module);
+    Module holderModule = ModuleSystemUtil.getHolderModule(module);
+    ExternalSystemModulePropertyManager moduleProperties = ExternalSystemModulePropertyManager.getInstance(holderModule);
     String linkedProjectId = moduleProperties.getLinkedProjectId();
     if (linkedProjectId == null) {
       return null;
@@ -118,14 +117,6 @@ public final class GradleProjects {
     VirtualFile target = findGradleTarget(importSource);
     return target != null && (GradleConstants.EXTENSION.equals(target.getExtension()) ||
                               target.getName().endsWith(GradleConstants.KOTLIN_DSL_SCRIPT_EXTENSION));
-  }
-
-  public static void setSyncRequestedDuringBuild(@NotNull Project project, @Nullable Boolean value) {
-    project.putUserData(SYNC_REQUESTED_DURING_BUILD, value);
-  }
-
-  public static boolean isSyncRequestedDuringBuild(@NotNull Project project) {
-    return SYNC_REQUESTED_DURING_BUILD.get(project, false);
   }
 
   public static boolean isIdeaAndroidModule(@NotNull Module module) {

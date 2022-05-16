@@ -34,7 +34,6 @@ import static org.mockito.Mockito.when;
 import com.android.sdklib.IAndroidTarget;
 import com.android.tools.idea.sdk.AndroidSdks;
 import com.android.tools.idea.sdk.IdeSdks;
-import com.android.tools.idea.sdk.Jdks;
 import com.android.tools.idea.testing.Sdks;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;

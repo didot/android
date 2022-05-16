@@ -484,6 +484,31 @@ public class GradleFiles {
     }
 
     @Override
+    public void beforeChildAddition(@NotNull PsiTreeChangeEvent event) {
+      processEvent(event, event.getChild());
+    }
+
+    @Override
+    public void beforeChildRemoval(@NotNull PsiTreeChangeEvent event) {
+      processEvent(event, event.getChild());
+    }
+
+    @Override
+    public void beforeChildReplacement(@NotNull PsiTreeChangeEvent event) {
+      processEvent(event, event.getNewChild(), event.getOldChild());
+    }
+
+    @Override
+    public void beforeChildMovement(@NotNull PsiTreeChangeEvent event) {
+      processEvent(event, event.getChild());
+    }
+
+    @Override
+    public void beforeChildrenChange(@NotNull PsiTreeChangeEvent event) {
+      processEvent(event, event.getOldChild(), event.getNewChild());
+    }
+
+    @Override
     public void childAdded(@NotNull PsiTreeChangeEvent event) {
       processEvent(event, event.getChild());
     }

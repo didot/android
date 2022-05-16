@@ -24,7 +24,7 @@ import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.I
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.INTERPOLATED
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.STRING
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR
-import com.android.tools.idea.gradle.dsl.model.GradleFileModelTestCase.runWriteAction
+import com.android.tools.idea.gradle.dsl.parser.semantics.AndroidGradlePluginVersion
 import org.hamcrest.CoreMatchers.hasItems
 import org.hamcrest.MatcherAssert.assertThat
 import org.jetbrains.annotations.SystemDependent
@@ -342,6 +342,58 @@ class ProjectBuildModelTest : GradleFileModelTestCase() {
     assertEquals(listOf(1 to null, 2 to null, 3 to 4, 4 to 4), args)
   }
 
+  @Test
+  fun testGetContext() {
+    val pbm = projectBuildModel
+    val settingsModel = pbm.projectSettingsModel!!
+    val buildModel = pbm.projectBuildModel!!
+
+    assertEquals(pbm.context, settingsModel.context)
+    assertEquals(pbm.context, buildModel.context)
+    buildModel.involvedFiles.forEach {
+      assertEquals(pbm.context, it.context)
+    }
+  }
+
+  @Test
+  fun testContextAgpVersion() {
+    writeToBuildFile(TestFile.CONTEXT_AGP_VERSION)
+    writeToSettingsFile("")
+
+    val pbm = projectBuildModel
+    val settingsModel = pbm.projectSettingsModel!!
+    val buildModel = pbm.projectBuildModel!!
+
+    // The test here is not only that the initial version for agpVersion is null, but also that that null
+    // is unaffected by the presence of an AGP declaration in a build file.  Any version-dependent behaviour
+    // needs to be explicitly requested by client code, by setting a non-null agpVersion in the context.
+    assertEquals(null, pbm.context.agpVersion)
+    assertEquals(null, buildModel.context.agpVersion)
+    assertEquals(null, settingsModel.context.agpVersion)
+    buildModel.involvedFiles.forEach {
+      assertEquals(null, it.context.agpVersion)
+    }
+  }
+
+  @Test
+  fun testContextAgpVersionSetExplicitly() {
+    writeToBuildFile(TestFile.CONTEXT_AGP_VERSION)
+    writeToSettingsFile("")
+
+    val pbm = projectBuildModel
+    val settingsModel = pbm.projectSettingsModel!!
+    val buildModel = pbm.projectBuildModel!!
+
+    val version = AndroidGradlePluginVersion.parse("3.5.0")
+    pbm.context.agpVersion = version
+    assertEquals(version, pbm.context.agpVersion)
+    assertEquals(version, buildModel.context.agpVersion)
+    assertEquals(version, settingsModel.context.agpVersion)
+    buildModel.involvedFiles.forEach {
+      assertEquals(version, it.context.agpVersion)
+    }
+  }
+
   enum class TestFile(val path: @SystemDependent String): TestFileName {
     APPLIED_FILES_SHARED("appliedFilesShared"),
     APPLIED_FILES_SHARED_APPLIED("appliedFilesSharedApplied"),
@@ -374,6 +426,7 @@ class ProjectBuildModelTest : GradleFileModelTestCase() {
     REPARSE_THEN_CHANGE_EXPECTED_TWO("reparseThenChangeExpectedTwo"),
     BUILD_SRC_ANDROID_GRADLE_PLUGIN_DEPENDENCY("buildSrcAndroidGradlePluginDependency"),
     BUILD_SRC_ANDROID_GRADLE_PLUGIN_DEPENDENCY_EXPECTED("buildSrcAndroidGradlePluginDependencyExpected"),
+    CONTEXT_AGP_VERSION("contextAgpVersion"),
     ;
 
     override fun toFile(basePath: @SystemDependent String, extension: String): File {

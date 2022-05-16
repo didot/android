@@ -15,24 +15,24 @@
  */
 package com.android.tools.idea.tests.gui.uibuilder;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.android.tools.idea.tests.gui.framework.GuiTestRule;
 import com.android.tools.idea.tests.gui.framework.RunIn;
 import com.android.tools.idea.tests.gui.framework.TestGroup;
 import com.android.tools.idea.tests.gui.framework.fixture.EditorFixture;
 import com.android.tools.idea.tests.gui.framework.fixture.IdeFrameFixture;
 import com.intellij.testGuiFramework.framework.GuiTestRemoteRunner;
+import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.concurrent.TimeUnit;
-
-import static com.google.common.truth.Truth.assertThat;
-
 @RunWith(GuiTestRemoteRunner.class)
 public class CreateNewMobileProjectTest {
-  @Rule public final GuiTestRule guiTest = new GuiTestRule().withTimeout(5, TimeUnit.MINUTES);
+  // We need to increase timeout to 7 minutes, since 5 minutes will have a flake rate of ~0.5%, timing out on indexing.
+  @Rule public final GuiTestRule guiTest = new GuiTestRule().withTimeout(7, TimeUnit.MINUTES);
   @Rule public final RenderTaskLeakCheckRule renderTaskLeakCheckRule = new RenderTaskLeakCheckRule();
 
   /**
@@ -56,7 +56,8 @@ public class CreateNewMobileProjectTest {
   @Test
   public void createNewMobileProject() {
     IdeFrameFixture ideFrame = newProject("Test Application").create(guiTest);
-    assertThat(ideFrame.getModuleNames()).containsExactly("Test_Application", "Test_Application.app");
+    assertThat(ideFrame.getModuleNames()).containsExactly("Test_Application", "Test_Application.app", "Test_Application.app.main",
+                                                          "Test_Application.app.unitTest", "Test_Application.app.androidTest");
 
     // Make sure that the activity registration uses the relative syntax
     // (regression test for https://code.google.com/p/android/issues/detail?id=76716)

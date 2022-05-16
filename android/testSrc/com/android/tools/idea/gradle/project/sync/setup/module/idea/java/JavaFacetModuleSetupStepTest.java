@@ -17,7 +17,6 @@ package com.android.tools.idea.gradle.project.sync.setup.module.idea.java;
 
 import static com.android.tools.idea.testing.Facets.createAndAddGradleFacet;
 import static com.android.tools.idea.testing.Facets.createAndAddJavaFacet;
-import static com.intellij.openapi.util.io.FileUtil.toSystemIndependentName;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;

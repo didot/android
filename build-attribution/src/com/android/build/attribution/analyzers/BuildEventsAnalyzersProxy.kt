@@ -58,15 +58,19 @@ interface BuildEventsAnalysisResult {
   fun getAppliedPlugins(): Map<String, List<PluginData>>
 
   /**
-   * TODO documentation
+   * Result of configuration cache compatibility analysis, describes the state and incompatible plugins if any.
    */
   fun getConfigurationCachingCompatibility(): ConfigurationCachingCompatibilityProjectResult
+
+  /**
+   * Result Jetifier usage analyzer, describes the state of jetifier flags and AndroidX incompatible libraries if any.
+   */
+  fun getJetifierUsageResult(): JetifierUsageAnalyzerResult
 
   /**
    * List of garbage collection data for this build.
    */
   fun getGarbageCollectionData(): List<GarbageCollectionData>
-
   /**
    * Total time spent in garbage collection for this build.
    */
@@ -92,6 +96,7 @@ class BuildEventsAnalyzersProxy(
   private val projectConfigurationAnalyzer = ProjectConfigurationAnalyzer(pluginContainer)
   private val tasksConfigurationIssuesAnalyzer = TasksConfigurationIssuesAnalyzer(taskContainer)
   private val configurationCachingCompatibilityAnalyzer = ConfigurationCachingCompatibilityAnalyzer()
+  private val jetifierUsageAnalyzer = JetifierUsageAnalyzer()
 
 
   val buildAnalyzers: List<BaseAnalyzer<*>>
@@ -103,7 +108,8 @@ class BuildEventsAnalyzersProxy(
       garbageCollectionAnalyzer,
       projectConfigurationAnalyzer,
       tasksConfigurationIssuesAnalyzer,
-      configurationCachingCompatibilityAnalyzer
+      configurationCachingCompatibilityAnalyzer,
+      jetifierUsageAnalyzer
     )
 
   override fun getAnnotationProcessorsData(): List<AnnotationProcessorData> {
@@ -149,7 +155,7 @@ class BuildEventsAnalyzersProxy(
   }
 
   override fun getTotalGarbageCollectionTimeMs(): Long {
-    return getGarbageCollectionData().sumByLong { it.collectionTimeMs }
+    return garbageCollectionAnalyzer.result.totalGarbageCollectionTimeMs
   }
 
   override fun getJavaVersion(): Int? {
@@ -188,6 +194,10 @@ class BuildEventsAnalyzersProxy(
 
   override fun buildUsesConfigurationCache(): Boolean = configurationCachingCompatibilityAnalyzer.result.let {
     it == ConfigurationCachingTurnedOn || it == ConfigurationCacheCompatibilityTestFlow
+  }
+
+  override fun getJetifierUsageResult(): JetifierUsageAnalyzerResult {
+    return jetifierUsageAnalyzer.result
   }
 
   override fun getAlwaysRunTasks(): List<AlwaysRunTaskData> {

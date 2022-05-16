@@ -26,13 +26,12 @@ import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.actions.CreateClassAction;
 import com.android.tools.idea.actions.MakeIdeaModuleAction;
 import com.android.tools.idea.analytics.IdeBrandProviderKt;
+import com.android.tools.idea.diagnostics.AndroidStudioSystemHealthMonitor;
 import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.io.FilePaths;
-import com.android.tools.idea.run.deployment.RunOnMultipleDevicesAction;
-import com.android.tools.idea.run.deployment.SelectMultipleDevicesAction;
 import com.android.tools.idea.serverflags.ServerFlagDownloader;
-import com.android.tools.idea.serverflags.ServerFlagInitializer;
 import com.android.tools.idea.stats.AndroidStudioUsageTracker;
+import com.android.tools.idea.stats.ConsentDialog;
 import com.android.tools.idea.stats.GcPauseWatcher;
 import com.google.common.base.Predicates;
 import com.intellij.concurrency.JobScheduler;
@@ -84,7 +83,6 @@ public class AndroidStudioInitializer implements ActionConfigurationCustomizer {
       replaceNewClassDialog(actionManager);
     }
 
-    ServerFlagInitializer.initializeService();
     ScheduledExecutorService scheduler = JobScheduler.getScheduler();
     scheduler.execute(ServerFlagDownloader::downloadServerFlagList);
 
@@ -95,7 +93,15 @@ public class AndroidStudioInitializer implements ActionConfigurationCustomizer {
       tweakDefaultColorScheme();
     }
 
-    setUpDeviceComboBoxActions(actionManager);
+    // Initialize System Health Monitor after Analytics and ServerFlag.
+    // AndroidStudioSystemHealthMonitor requires ActionManager to be ready, but this code is a part
+    // of its initialization. By pushing initialization to background thread, the thread will
+    // block until ActionManager is ready and use its instance, instead of making another one.
+    ApplicationManager.getApplication().executeOnPooledThread(() -> {
+      if (AndroidStudioSystemHealthMonitor.getInstance() == null) {
+        new AndroidStudioSystemHealthMonitor().start();
+      }
+    });
   }
 
   private static void tweakDefaultColorScheme() {
@@ -105,11 +111,6 @@ public class AndroidStudioInitializer implements ActionConfigurationCustomizer {
     TextAttributes textAttributes = colorsScheme.getAttributes(HighlighterColors.TEXT);
     TextAttributes xmlTagAttributes = colorsScheme.getAttributes(XmlHighlighterColors.XML_TAG);
     xmlTagAttributes.setBackgroundColor(textAttributes.getBackgroundColor());
-  }
-
-  private static void setUpDeviceComboBoxActions(@NotNull ActionManager manager) {
-    String id = StudioFlags.RUN_ON_MULTIPLE_DEVICES_ACTION_ENABLED.get() ? SelectMultipleDevicesAction.ID : RunOnMultipleDevicesAction.ID;
-    Actions.hideAction(manager, id);
   }
 
   private static void setupResourceManagerActions(ActionManager actionManager) {
@@ -127,19 +128,23 @@ public class AndroidStudioInitializer implements ActionConfigurationCustomizer {
   private static void setupAnalytics() {
     //AndroidStudioAnalytics.getInstance().initializeAndroidStudioUsageTrackerAndPublisher();
 
-    // If the user hasn't opted in, we will ask IJ to check if the user has
-    // provided a decision on the statistics consent. If the user hasn't made a
-    // choice, a modal dialog will be shown asking for a decision
-    // before the regular IDE ui components are shown.
-    if (!AnalyticsSettings.getOptedIn()) {
-      Application application = ApplicationManager.getApplication();
-      // If we're running in a test or headless mode, do not show the dialog
-      // as it would block the test & IDE from proceeding.
-      // NOTE: in this case the metrics logic will be left in the opted-out state
-      // and no metrics are ever sent.
-      if (!application.isUnitTestMode() && !application.isHeadlessEnvironment() &&
-          !Boolean.getBoolean("disable.android.analytics.consent.dialog.for.test")) {
-        ApplicationManager.getApplication().invokeLater(() -> AppUIUtil.showConsentsAgreementIfNeeded(getLog(), Predicates.alwaysTrue()));
+    if (StudioFlags.NEW_CONSENT_DIALOG.get()) {
+      ConsentDialog.showConsentDialogIfNeeded();
+    }
+    else {
+      // If the user hasn't opted in, we will ask IJ to check if the user has
+      // provided a decision on the statistics consent. If the user hasn't made a
+      // choice, a modal dialog will be shown asking for a decision
+      // before the regular IDE ui components are shown.
+      if (!AnalyticsSettings.getOptedIn()) {
+        Application application = ApplicationManager.getApplication();
+        // If we're running in a test or headless mode, do not show the dialog
+        // as it would block the test & IDE from proceeding.
+        // NOTE: in this case the metrics logic will be left in the opted-out state
+        // and no metrics are ever sent.
+        if (!application.isUnitTestMode() && !application.isHeadlessEnvironment()) {
+          ApplicationManager.getApplication().invokeLater(() -> AppUIUtil.showConsentsAgreementIfNeeded(getLog(), Predicates.alwaysTrue()));
+        }
       }
     }
 

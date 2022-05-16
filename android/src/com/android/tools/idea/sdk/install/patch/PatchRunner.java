@@ -20,12 +20,12 @@ import com.android.repository.api.LocalPackage;
 import com.android.repository.api.ProgressIndicator;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.util.lang.UrlClassLoader;
-import java.awt.*;
+import java.awt.Component;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 import org.jetbrains.annotations.NotNull;
@@ -186,8 +186,9 @@ public class PatchRunner {
   /**
    * Gets a class loader for the given jar.
    */
-  private static @NotNull ClassLoader getClassLoader(@NotNull Path patcherJar) {
-    return UrlClassLoader.build().files(List.of(patcherJar)).allowLock(false).parent(PatchInstaller.class.getClassLoader()).get();
+  @NotNull
+  private static ClassLoader getClassLoader(@NotNull Path patcherJar) {
+    return UrlClassLoader.build().files(Collections.singletonList(patcherJar)).allowLock(false).parent(PatchInstaller.class.getClassLoader()).get();
   }
 
   @NotNull

@@ -20,10 +20,15 @@ import com.android.ide.common.resources.ResourceRepository;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.*;
 
 /**
  * A project-wide registry for class lookup of resource classes (R classes).
@@ -39,7 +44,7 @@ public class ResourceClassRegistry {
    *
    * <p>Note that the {@link ResourceClassRegistry} is a project-level component, so the same R class may be generated in different ways
    * depending on the repository used. In non-namespaced project, the repository is the full {@link AppResourceRepository} of the module
-   * in question. In namespaced projects the repository is a {@link com.android.tools.idea.resources.aar.AarResourceRepository} of just
+   * in question. In namespaced projects the repository is a {@link com.android.ide.common.resources.aar.AarResourceRepository} of just
    * the AAR contents.
    */
   public void addLibrary(@NotNull ResourceRepository repo,

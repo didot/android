@@ -108,6 +108,15 @@ class ConstraintSetPanel extends JPanel {
     }
   };
 
+  AbstractAction createAllConstraints = new AbstractAction("Create All Constraints") {
+    @Override
+    public void actionPerformed(ActionEvent e) {
+      Track.createConstraint(mMeModel.myTrack);
+      ConstraintSetPanelCommands.createAllConstraints(mDisplayedRows, mConstraintSet);
+      buildTable();
+    }
+  };
+
   AbstractAction createSectionedConstraint = new AbstractAction("Create Sectioned Constraint") {
     @Override
     public void actionPerformed(ActionEvent e) {
@@ -288,6 +297,12 @@ class ConstraintSetPanel extends JPanel {
       moveConstraint.setEnabled(false);
       overrideConstraint.setEnabled(false);
     }
+    if (tags.length == mDisplayedRows.size()) {
+      createAllConstraints.setEnabled(false);
+    }
+    else {
+      createAllConstraints.setEnabled(true);
+    }
   }
 
   private void copy() {
@@ -379,6 +394,7 @@ class ConstraintSetPanel extends JPanel {
     right.add(mModifyMenu);
     mModifyMenu.setEnabled(false);
     myPopupMenu.add(createConstraint);
+    myPopupMenu.add(createAllConstraints);
     myPopupMenu.add(clearConstraint);
     if (DEBUG) {
       myPopupMenu.add(moveConstraint);
@@ -483,9 +499,11 @@ class ConstraintSetPanel extends JPanel {
         .forEach(ids::add);
     }
 
-    //noinspection unchecked,rawtypes,RedundantCast
-    Set<String> found = (Set)mConstraintSetModel.getDataVector().stream()
-      .map(row -> ((Vector)row).get(1))
+    // As of JDK 11 DefaultTableModel.getDataVector has generic type Vector<Vector>, so we need to cast the resulting element to String,
+    // such that the outer unchecked cast to Set<String> succeeds.
+    //noinspection unchecked
+    Set<String> found = (Set<String>)mConstraintSetModel.getDataVector().stream()
+      .map(row -> (String)((Vector)row).get(1))
       .collect(Collectors.toSet());
 
     if (!ids.equals(found)) {
@@ -595,7 +613,7 @@ class ConstraintSetPanel extends JPanel {
         }
       }
     }
-    return new ArrayList<MTag>();
+    return new ArrayList<>();
   }
 
   public void setListeners(MotionEditorSelector listeners) {

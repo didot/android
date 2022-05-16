@@ -19,6 +19,7 @@ import com.android.utils.reflection.qualifiedName
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.application.ex.ApplicationUtil
 import com.intellij.openapi.application.ex.ApplicationUtil.CannotRunReadActionException
 import com.intellij.openapi.diagnostic.Logger
@@ -30,7 +31,6 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.util.UserDataHolderEx
-import kotlinx.coroutines.*
 import com.intellij.util.concurrency.AppExecutorUtil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -42,6 +42,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -219,9 +221,9 @@ suspend fun <T> Deferred<T>.getCompletedOrNull(): T? {
  * @see [com.intellij.openapi.application.smartReadAction]. This method is equivalent and will be replaced by it once is out of experimental.
  */
 // TODO(b/190691270): Migrate to com.intellij.openapi.application.smartReadAction once is not experimental
-suspend fun <T> runInSmartReadAction(project: Project, compute: Computable<T>): T {
+suspend fun <T> runInSmartReadAction(project: Project, compute: Computable<T>): T = coroutineScope {
   val result = CompletableDeferred<T>()
-  while (!result.isCompleted) {
+  while (!result.isCompleted && isActive) {
     val waitingForSmart = CompletableDeferred<Boolean>()
     runReadAction {
       val dumbService = DumbService.getInstance(project)
@@ -238,7 +240,7 @@ suspend fun <T> runInSmartReadAction(project: Project, compute: Computable<T>): 
     // We could not run in this loop, wait until we are in smart mode
     waitingForSmart.await()
   }
-  return result.await()
+  return@coroutineScope result.await()
 }
 
 /**
@@ -246,12 +248,12 @@ suspend fun <T> runInSmartReadAction(project: Project, compute: Computable<T>): 
  * @see [com.intellij.openapi.application.readAction]. This method is equivalent and will be replaced by it once is out of experimental.
  */
 // TODO(b/190691270): Migrate to com.intellij.openapi.application.readAction once is not experimental
-suspend fun <T> runReadAction(compute: Computable<T>): T {
-  while (true) {
+suspend fun <T> runReadAction(compute: Computable<T>): T = coroutineScope {
+  while (isActive) {
     try {
-      return ApplicationUtil.tryRunReadAction(Computable<T> {
-        return@Computable compute.compute()
-      })
+      return@coroutineScope ApplicationUtil.tryRunReadAction {
+        return@tryRunReadAction compute.compute()
+      }
     }
     catch (_: CannotRunReadActionException) {
       // Wait until the current write finishes
@@ -261,4 +263,20 @@ suspend fun <T> runReadAction(compute: Computable<T>): T {
       writeFinished.await()
     }
   }
+  throw CancellationException()
+}
+
+/**
+ * Suspendable method that will suspend until the given [compute] can be executed in a write action in the UI thread.
+ */
+suspend fun <T> runWriteActionAndWait(compute: Computable<T>): T = coroutineScope {
+  val result = CompletableDeferred<T>()
+  ApplicationManager.getApplication().invokeLater {
+    if (isActive) {
+      WriteAction.run<Throwable> {
+        if (isActive) result.complete(compute.compute())
+      }
+    }
+  }
+  return@coroutineScope result.await()
 }

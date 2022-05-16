@@ -40,7 +40,8 @@ class BuildAttributionUiAnalytics(
   enum class TabOpenEventSource {
     WNA_BUTTON,
     BUILD_OUTPUT_LINK,
-    TAB_HEADER
+    TAB_HEADER,
+    AUTO_OPEN
   }
 
   private val unknownPage: BuildAttributionUiEvent.Page = BuildAttributionUiEvent.Page.newBuilder()
@@ -79,8 +80,10 @@ class BuildAttributionUiAnalytics(
       TabOpenEventSource.WNA_BUTTON -> BuildAttributionUiEvent.EventType.TAB_OPENED_WITH_WNA_BUTTON
       TabOpenEventSource.BUILD_OUTPUT_LINK -> BuildAttributionUiEvent.EventType.TAB_OPENED_WITH_BUILD_OUTPUT_LINK
       TabOpenEventSource.TAB_HEADER -> BuildAttributionUiEvent.EventType.TAB_OPENED_WITH_TAB_CLICK
+      // Not opened by direct user action so don't report.
+      TabOpenEventSource.AUTO_OPEN -> null
     }
-    doLog(newUiEventBuilder().setCurrentPage(currentPage).setEventType(eventType))
+    if (eventType != null) doLog(newUiEventBuilder().setCurrentPage(currentPage).setEventType(eventType))
   }
 
   /**
@@ -176,6 +179,24 @@ class BuildAttributionUiAnalytics(
     newUiEventBuilder()
       .setEventType(BuildAttributionUiEvent.EventType.UPDATE_PLUGIN_BUTTON_CLICKED)
       .setEventProcessingTimeMs(duration.toMillis())
+  )
+
+  fun runCheckJetifierTaskClicked(duration: Duration) = doLog(
+    newUiEventBuilder()
+      .setEventType(BuildAttributionUiEvent.EventType.RUN_CHECK_JETIFIER_TASK_CLICKED)
+      .setEventProcessingTimeMs(duration.toMillis())
+  )
+
+  fun turnJetifierOffClicked(duration: Duration) = doLog(
+    newUiEventBuilder()
+      .setEventType(BuildAttributionUiEvent.EventType.REMOVE_JETIFIER_PROPERTY_CLICKED)
+      .setEventProcessingTimeMs(duration.toMillis())
+  )
+
+  fun findLibraryVersionDeclarationActionUsed(duration: Duration) = doLog(
+  newUiEventBuilder()
+  .setEventType(BuildAttributionUiEvent.EventType.FIND_LIBRARY_DECLARATION_CLICKED)
+  .setEventProcessingTimeMs(duration.toMillis())
   )
 
   fun warningsFilterApplied(filter: WarningsFilter, duration: Duration) = doLog(
@@ -289,6 +310,7 @@ class BuildAttributionUiAnalytics(
       if (filter.showAnnotationProcessorWarnings) add(BuildAttributionUiEvent.FilterItem.SHOW_ANNOTATION_PROCESSOR_WARNINGS)
       if (filter.showNonCriticalPathTasks) add(BuildAttributionUiEvent.FilterItem.SHOW_WARNINGS_FOR_TASK_NOT_FROM_CRITICAL_PATH)
       if (filter.showConfigurationCacheWarnings) add(BuildAttributionUiEvent.FilterItem.SHOW_CONFIGURATION_CACHE_WARNINGS)
+      if (filter.showJetifierWarnings) add(BuildAttributionUiEvent.FilterItem.SHOW_JETIFIER_USAGE_WARNINGS)
     }.sorted()
   }
 

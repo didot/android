@@ -15,29 +15,31 @@
  */
 package com.android.tools.idea.gradle.dsl.parser.elements;
 
-import com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax;
-import com.android.tools.idea.gradle.dsl.parser.apply.ApplyDslElement;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SemanticsDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
-import com.google.common.collect.ImmutableMap;
-import com.intellij.psi.PsiElement;
-import java.util.Map;
-import java.util.Objects;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.ASSIGNMENT;
 import static com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax.AUGMENTED_ASSIGNMENT;
 import static com.android.tools.idea.gradle.dsl.parser.apply.ApplyDslElement.APPLY_BLOCK_NAME;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.property;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.ADD_AS_LIST;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.AUGMENT_LIST;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.AUGMENT_MAP;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.CLEAR_AND_AUGMENT_LIST;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_LIST;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_MAP;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType.MUTABLE_SET;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VWO;
+
+import com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo.ExternalNameSyntax;
+import com.android.tools.idea.gradle.dsl.parser.apply.ApplyDslElement;
+import com.android.tools.idea.gradle.dsl.parser.files.GradleScriptFile;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.SemanticsDescription;
+import com.intellij.psi.PsiElement;
+import java.util.Objects;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Base class for all the {@link GradleDslElement}s that represent blocks like android, productFlavors, buildTypes etc.
@@ -87,22 +89,25 @@ public class GradleDslBlockElement extends GradlePropertiesDslElement {
 
   private ModelEffectDescription getModelEffect(@NotNull GradleDslElement element) {
     String name = element.getName();
-    @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> nameMapper = getExternalToModelMap(element.getDslFile().getParser());
+    @NotNull ExternalToModelMap nameMapper = getExternalToModelMap(element.getDslFile().getParser());
     ExternalNameSyntax syntax = element.getExternalSyntax();
     if (syntax == ASSIGNMENT || syntax == AUGMENTED_ASSIGNMENT) {
-      ModelEffectDescription value = nameMapper.get(new SurfaceSyntaxDescription(name, null));
-      if (value != null) {
-        return value;
+      for (ExternalToModelMap.Entry entry : nameMapper.getEntrySet()) {
+        String entryName = entry.surfaceSyntaxDescription.name;
+        Integer arity = entry.surfaceSyntaxDescription.arity;
+        if (entryName.equals(name) && Objects.equals(arity, property)) {
+          return entry.modelEffectDescription;
+        }
       }
     }
     else {
-      for (Map.Entry<SurfaceSyntaxDescription, ModelEffectDescription> entry : nameMapper.entrySet()) {
-        String entryName = entry.getKey().name;
-        Integer arity = entry.getKey().arity;
+      for (ExternalToModelMap.Entry entry : nameMapper.getEntrySet()) {
+        String entryName = entry.surfaceSyntaxDescription.name;
+        Integer arity = entry.surfaceSyntaxDescription.arity;
         // TODO(xof): distinguish between semantics based on expressed arities (at the moment we return the first method entry we find,
         //  whether or not the arity is compatible.
         if (entryName.equals(name) && !Objects.equals(arity, property)) {
-          return entry.getValue();
+          return entry.modelEffectDescription;
         }
       }
     }
@@ -131,7 +136,7 @@ public class GradleDslBlockElement extends GradlePropertiesDslElement {
       }
     }
     else if (syntax == AUGMENTED_ASSIGNMENT) {
-      if (effect.property.type != MUTABLE_SET && effect.property.type != MUTABLE_LIST) {
+      if (effect.property.type != MUTABLE_SET && effect.property.type != MUTABLE_LIST && effect.property.type != MUTABLE_MAP) {
         return;
       }
     }
@@ -142,10 +147,11 @@ public class GradleDslBlockElement extends GradlePropertiesDslElement {
 
   @Override
   public void addParsedElement(@NotNull GradleDslElement element) {
-    if (APPLY_BLOCK_NAME.equals(element.getFullName())) {
+    if (APPLY_BLOCK_NAME.equals(element.getFullName()) && element.getDslFile() instanceof GradleScriptFile) {
+      GradleScriptFile scriptFile = (GradleScriptFile) element.getDslFile();
       ApplyDslElement applyDslElement = getPropertyElement(APPLY_BLOCK_NAME, ApplyDslElement.class);
       if (applyDslElement == null) {
-        applyDslElement = new ApplyDslElement(this);
+        applyDslElement = new ApplyDslElement(this, scriptFile);
         super.addParsedElement(applyDslElement);
       }
       applyDslElement.addParsedElement(element);
@@ -155,11 +161,18 @@ public class GradleDslBlockElement extends GradlePropertiesDslElement {
     if (effect != null) {
       SemanticsDescription description = effect.semantics;
       if (description == ADD_AS_LIST && element instanceof GradleDslSimpleExpression) {
-        addAsParsedDslExpressionList(effect.property.name, (GradleDslSimpleExpression) element);
+        addAsParsedDslExpressionList(effect, (GradleDslSimpleExpression) element);
         return;
       }
-      if (description == AUGMENT_LIST) {
-        addToParsedExpressionList(effect.property, element);
+      if (description == AUGMENT_LIST || description == CLEAR_AND_AUGMENT_LIST) {
+        if (description == CLEAR_AND_AUGMENT_LIST) {
+          removeProperty(effect.property.name);
+        }
+        addToParsedExpressionList(effect, element);
+        return;
+      }
+      if (description == AUGMENT_MAP) {
+        addToParsedExpressionMap(effect, element);
         return;
       }
       maybeCanonizeElement(element); // NOTYPO

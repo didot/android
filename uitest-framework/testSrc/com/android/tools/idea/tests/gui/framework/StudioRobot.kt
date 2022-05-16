@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.tests.gui.framework
 
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.ide.CopyPasteManager
 import org.fest.swing.annotation.RunsInEDT
 import org.fest.swing.core.Robot
@@ -26,8 +25,6 @@ import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.event.KeyEvent
-
-// FIXME-ank: intellij.android.guiTestFramework.iml
 
 /**
  * Wrapper class around a [Robot]. This class implements some logic

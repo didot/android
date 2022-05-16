@@ -1,4 +1,3 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.android.importDependencies;
 
 import com.intellij.openapi.application.ApplicationManager;
@@ -8,26 +7,26 @@ import com.intellij.openapi.module.ModuleWithNameAlreadyExists;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.InvalidDataException;
-import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Paths;
+import org.jdom.JDOMException;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
 
-final class ImportModuleTask extends ModuleProvidingTask {
+class ImportModuleTask extends ModuleProvidingTask {
   private final Project myProject;
   private final String myModuleFilePath;
   private final VirtualFile myContentRoot;
 
-  ImportModuleTask(@NotNull Project project,
-                   @NotNull String moduleFilePath,
-                   @NotNull VirtualFile contentRoot) {
+  public ImportModuleTask(@NotNull Project project,
+                          @NotNull String moduleFilePath,
+                          @NotNull VirtualFile contentRoot) {
     myModuleFilePath = moduleFilePath;
     myContentRoot = contentRoot;
     myProject = project;
@@ -35,17 +34,20 @@ final class ImportModuleTask extends ModuleProvidingTask {
 
   @Override
   public Exception perform() {
-    Ref<Module> moduleWrapper = new Ref<>();
-    final Exception exception = ApplicationManager.getApplication().runWriteAction(new Computable<Exception>() {
+    final Module[] moduleWrapper = {null};
+    final Exception exception = ApplicationManager.getApplication().runWriteAction(new Computable<>() {
       @Override
       public Exception compute() {
         try {
-          moduleWrapper.set(ModuleManager.getInstance(myProject).loadModule(Paths.get(myModuleFilePath)));
+          moduleWrapper[0] = ModuleManager.getInstance(myProject).loadModule(myModuleFilePath);
         }
         catch (InvalidDataException e) {
           return e;
         }
         catch (IOException e) {
+          return e;
+        }
+        catch (JDOMException e) {
           return e;
         }
         catch (ModuleWithNameAlreadyExists e) {
@@ -58,12 +60,12 @@ final class ImportModuleTask extends ModuleProvidingTask {
     if (exception != null) {
       return exception;
     }
-    Module module = moduleWrapper.get();
-    if (AndroidFacet.getInstance(module) == null) {
-      AndroidUtils.addAndroidFacetInWriteAction(module, myContentRoot, true);
+    assert moduleWrapper[0] != null;
+    if (AndroidFacet.getInstance(moduleWrapper[0]) == null) {
+      AndroidUtils.addAndroidFacetInWriteAction(moduleWrapper[0], myContentRoot, true);
     }
-    AndroidSdkUtils.setupAndroidPlatformIfNecessary(module, false);
-    setDepModule(module);
+    AndroidSdkUtils.setupAndroidPlatformIfNecessary(moduleWrapper[0], false);
+    setDepModule(moduleWrapper[0]);
     return null;
   }
 
@@ -71,7 +73,7 @@ final class ImportModuleTask extends ModuleProvidingTask {
   @Override
   public String getTitle() {
     return AndroidBundle
-      .message("android.import.dependencies.import.module.task.title", getModuleName(), FileUtil.toSystemDependentName(myModuleFilePath));
+      .message("android.import.dependencies.import.module.task.title", getModuleName(), FileUtilRt.toSystemDependentName(myModuleFilePath));
   }
 
   @Override

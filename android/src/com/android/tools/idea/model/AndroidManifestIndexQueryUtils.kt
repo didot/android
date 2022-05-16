@@ -35,7 +35,7 @@ import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import org.jetbrains.android.facet.AndroidFacet
-import java.util.*
+import java.util.LinkedList
 import java.util.stream.Stream
 import kotlin.streams.asSequence
 

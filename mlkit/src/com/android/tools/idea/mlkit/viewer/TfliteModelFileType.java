@@ -17,7 +17,7 @@ package com.android.tools.idea.mlkit.viewer;
 
 import com.intellij.openapi.fileTypes.FileType;
 import icons.StudioIcons;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 
 /**

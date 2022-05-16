@@ -371,7 +371,6 @@ public class RenderService implements Disposable {
     private boolean isShadowEnabled = true;
     private boolean useHighQualityShadows = true;
     private boolean enableLayoutScanner = false;
-    private boolean enableLayoutScannerOptimization = false;
     private SessionParams.RenderingMode myRenderingMode = null;
     private boolean useTransparentBackground = false;
     @NotNull private Function<Module, MergedManifestSnapshot> myManifestProvider =
@@ -430,6 +429,11 @@ public class RenderService implements Disposable {
     @NotNull
     private Runnable myOnNewModuleClassLoader = () -> {};
 
+    /**
+     * If true, the {@link RenderTask#render()} will report when the user classes loaded by this class loader are out of date.
+     */
+    private boolean reportOutOfDateUserClasses = true;
+
     private RenderTaskBuilder(@NotNull RenderService service,
                               @NotNull AndroidFacet facet,
                               @NotNull Configuration configuration,
@@ -481,11 +485,6 @@ public class RenderService implements Disposable {
 
     public RenderTaskBuilder withLayoutScanner(Boolean enableLayoutScanner) {
       this.enableLayoutScanner = enableLayoutScanner;
-      return this;
-    }
-
-    public RenderTaskBuilder withLayoutScannerOptimization(Boolean enableScannerOptimization) {
-      this.enableLayoutScannerOptimization = enableScannerOptimization;
       return this;
     }
 
@@ -617,6 +616,15 @@ public class RenderService implements Disposable {
     }
 
     /**
+     * Stops the render calls from reporting out of date user classes as a warning in the issues.
+     */
+    @NotNull
+    public RenderTaskBuilder doNotReportOutOfDateUserClasses() {
+      reportOutOfDateUserClasses = false;
+      return this;
+    }
+
+    /**
      * Builds a new {@link RenderTask}. The returned future always completes successfully but the value might be null if the RenderTask
      * can not be created.
      */
@@ -677,7 +685,7 @@ public class RenderService implements Disposable {
                            device, myCredential, StudioCrashReporter.getInstance(), myImagePool,
                            myParserFactory, isSecurityManagerEnabled, myDownscaleFactor, stackTraceCaptureElement, myManifestProvider,
                            privateClassLoader, myAdditionalProjectTransform, myAdditionalNonProjectTransform, myOnNewModuleClassLoader,
-                           classesToPreload);
+                           classesToPreload, reportOutOfDateUserClasses);
           if (myPsiFile instanceof XmlFile) {
             task.setXmlFile((XmlFile)myPsiFile);
           }
@@ -687,8 +695,7 @@ public class RenderService implements Disposable {
             .setHighQualityShadows(useHighQualityShadows)
             .setShadowEnabled(isShadowEnabled)
             .setShowWithToolsVisibilityAndPosition(showWithToolsVisibilityAndPosition)
-            .setEnableLayoutScanner(enableLayoutScanner)
-            .setEnableLayoutScannerOptimization(enableLayoutScannerOptimization);
+            .setEnableLayoutScanner(enableLayoutScanner);
 
           if (myMaxRenderWidth != -1 && myMaxRenderHeight != -1) {
             task.setMaxRenderSize(myMaxRenderWidth, myMaxRenderHeight);

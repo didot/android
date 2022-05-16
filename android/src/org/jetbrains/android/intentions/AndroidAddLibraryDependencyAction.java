@@ -24,9 +24,9 @@ import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
 import com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames;
+import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.android.tools.idea.gradle.util.GradleUtil;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
-import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.intellij.codeInsight.intention.AbstractIntentionAction;
@@ -43,7 +43,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.ui.components.JBList;
 import com.intellij.util.IncorrectOperationException;
 import java.util.HashSet;
-import javax.swing.*;
+import javax.swing.JList;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
@@ -84,7 +84,7 @@ public class AndroidAddLibraryDependencyAction extends AbstractIntentionAction i
    */
   @NotNull
   private static ImmutableCollection<String> findAllDependencies(@NotNull GradleBuildModel buildModel) {
-    HashSet<String> existingDependencies = new HashSet<String>();
+    HashSet<String> existingDependencies = new HashSet<>();
     for (ArtifactDependencyModel dependency : buildModel.dependencies().artifacts()) {
       existingDependencies.add(dependency.group().toString() + ":" + dependency.name().toString());
     }

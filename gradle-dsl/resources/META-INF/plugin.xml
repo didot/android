@@ -1,4 +1,6 @@
-<idea-plugin implementation-detail="true">
+<!-- Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license. -->
+<idea-plugin implementation-detail="true"
+             xmlns:xi="http://www.w3.org/2001/XInclude">
   <id>org.jetbrains.idea.gradle.dsl</id>
   <name>Gradle DSL API</name>
   <vendor>JetBrains, Google</vendor>
@@ -8,24 +10,9 @@
     ]]>
   </description>
 
+  <xi:include href="/META-INF/gradle-dsl.xml" xpointer="xpointer(/idea-plugin/*)"/>
+
   <depends optional="true" config-file="gradle-dsl-groovy-support.xml">org.intellij.groovy</depends>
   <depends optional="true" config-file="gradle-dsl-kotlin-support.xml">org.jetbrains.kotlin</depends>
-
-  <extensions defaultExtensionNs="com.intellij">
-    <applicationService serviceInterface="com.android.tools.idea.gradle.dsl.api.GradleModelProvider"
-                        serviceImplementation="com.android.tools.idea.gradle.dsl.GradleModelSource"/>
-    <applicationService serviceImplementation="com.android.tools.idea.gradle.dsl.model.GradleBlockModelMap"/>
-  </extensions>
-
-  <extensions defaultExtensionNs="org.jetbrains.idea.gradle.dsl">
-    <blockModel implementation="com.android.tools.idea.gradle.dsl.model.GradleDefaultBlockModels"/>
-  </extensions>
-
-  <extensionPoints>
-    <extensionPoint interface="com.android.tools.idea.gradle.dsl.parser.GradleDslConverterFactory" dynamic="true" name="parserFactory"/>
-    <extensionPoint interface="com.android.tools.idea.gradle.dsl.model.GradleBlockModelMap$BlockModelProvider" dynamic="true"
-                    name="blockModel"/>
-  </extensionPoints>
-
 
 </idea-plugin>

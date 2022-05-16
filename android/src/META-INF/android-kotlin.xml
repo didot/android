@@ -31,8 +31,6 @@
         </intentionAction>
 
 
-        <externalProjectDataService implementation="org.jetbrains.kotlin.android.configure.KotlinGradleAndroidModuleModelProjectDataService"/>
-
         <intentionAction>
             <className>org.jetbrains.kotlin.android.intention.AddActivityToManifest</className>
             <category>Kotlin Android</category>
@@ -69,22 +67,15 @@
 
         <externalAnnotator language="kotlin" implementationClass="org.jetbrains.kotlin.android.AndroidKotlinResourceExternalAnnotator" />
 
-        <externalProjectDataService implementation="org.jetbrains.kotlin.android.configure.KotlinAndroidGradleMPPModuleDataService"/>
-
         <registryKey key="kotlin.android.import.mpp.all.transitive"
                      description="Add all transitive dependencies on MPP modules when Android project is imported"
                      defaultValue="true"
                      restartRequired="false"/>
     </extensions>
 
-    <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
-        <projectResolve implementation="org.jetbrains.kotlin.android.configure.KotlinAndroidMPPGradleProjectResolver"/>
-    </extensions>
-
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <quickFixContributor implementation="org.jetbrains.kotlin.android.quickfix.AndroidQuickFixRegistrar"/>
         <projectConfigurator implementation="org.jetbrains.kotlin.android.configure.KotlinAndroidGradleModuleConfigurator"/>
-        <gradleModelFacade implementation="org.jetbrains.kotlin.android.configure.AndroidGradleModelFacade"/>
 
         <androidDexer implementation="org.jetbrains.kotlin.android.debugger.AndroidDexerImpl"/>
 

@@ -25,8 +25,8 @@ import com.intellij.ide.IdeEventQueue
 import junit.framework.TestCase
 import org.jetbrains.android.AndroidTestCase
 import org.junit.Test
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
 

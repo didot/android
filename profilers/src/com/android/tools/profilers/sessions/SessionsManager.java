@@ -157,9 +157,7 @@ public class SessionsManager extends AspectModel<SessionAspect> {
     myArtifactsFetchers.add(HprofSessionArtifact::getSessionArtifacts);
     myArtifactsFetchers.add(LegacyAllocationsSessionArtifact::getSessionArtifacts);
     myArtifactsFetchers.add(CpuCaptureSessionArtifact::getSessionArtifacts);
-    if (profilers.getIdeServices().getFeatureConfig().isNativeMemorySampleEnabled()) {
-      myArtifactsFetchers.add(HeapProfdSessionArtifact::getSessionArtifacts);
-    }
+    myArtifactsFetchers.add(HeapProfdSessionArtifact::getSessionArtifacts);
     myArtifactsFetchers.add(AllocationSessionArtifact::getSessionArtifacts);
   }
 
@@ -249,7 +247,7 @@ public class SessionsManager extends AspectModel<SessionAspect> {
     // So the new session should have one event, while completed sessions have two events. The order of completed
     // sessions usually doesn't matter, but when a new project is loaded, every session is perceived as new and we
     // want to select the last imported one.
-    Collections.sort(sortedGroups, Comparator.comparing(EventGroup::getEventsCount, Comparator.reverseOrder())
+    sortedGroups.sort(Comparator.comparing(EventGroup::getEventsCount, Comparator.reverseOrder())
       .thenComparingLong(g -> g.getEventsCount() > 0 ? g.getEvents(0).getSession().getSessionStarted().getStartTimestampEpochMs() : 0));
     sortedGroups.forEach(group -> {
       SessionItem sessionItem = mySessionItems.get(group.getGroupId());
@@ -322,7 +320,6 @@ public class SessionsManager extends AspectModel<SessionAspect> {
       .setProcessAbi(sessionData.getProcessAbi())
       .setJvmtiEnabled(sessionData.getJvmtiEnabled())
       .setSessionName(sessionData.getSessionName())
-      .setLiveAllocationEnabled(sessionData.getLiveAllocationEnabled())
       .build();
     SessionItem sessionItem = new SessionItem(myProfilers, session, metadata);
     mySessionItems.put(session.getSessionId(), sessionItem);
@@ -399,8 +396,9 @@ public class SessionsManager extends AspectModel<SessionAspect> {
         .setSessionName(buildSessionName(device, process))
         .setRequestTimeEpochMs(System.currentTimeMillis())
         .setProcessAbi(process.getAbiCpuArch());
-      // Attach agent for advanced profiling if JVMTI is enabled
-      if (device.getFeatureLevel() >= AndroidVersion.VersionCodes.O) {
+      // Attach agent for advanced profiling if JVMTI is enabled and the process is debuggable
+      if (device.getFeatureLevel() >= AndroidVersion.VersionCodes.O &&
+          process.getExposureLevel() == Common.Process.ExposureLevel.DEBUGGABLE) {
         // If an agent has been previously attached, Perfd will only re-notify the existing agent of the updated grpc target instead
         // of re-attaching an agent. See ProfilerService::AttachAgent on the Perfd side for more details.
         requestBuilder.setJvmtiConfig(
@@ -409,7 +407,6 @@ public class SessionsManager extends AspectModel<SessionAspect> {
             .setAgentLibFileName(String.format("libjvmtiagent_%s.so", process.getAbiCpuArch()))
             // TODO remove hard-coded path by sharing what's used in TransportFileManager
             .setAgentConfigPath("/data/local/tmp/perfd/agent.config")
-            .setLiveAllocationEnabled(myProfilers.getIdeServices().getFeatureConfig().isLiveAllocationsEnabled())
             .build());
       }
 
@@ -438,7 +435,6 @@ public class SessionsManager extends AspectModel<SessionAspect> {
             .setAgentLibFileName(String.format("libjvmtiagent_%s.so", process.getAbiCpuArch()))
             // TODO remove hard-coded path by sharing what's used in TransportFileManager
             .setAgentConfigPath("/data/local/tmp/perfd/agent.config")
-            .setLiveAllocationEnabled(myProfilers.getIdeServices().getFeatureConfig().isLiveAllocationsEnabled())
             .build());
       }
 

@@ -36,13 +36,8 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.gradle.settings.DistributionType;
 import org.jetbrains.plugins.gradle.settings.GradleProjectSettings;
 
-public final class GradleVersions {
-  private static final Pattern GRADLE_JAR_NAME_PATTERN = Pattern.compile("gradle-core-(.*)\\.jar");
-  private final GradleProjectSettingsFinder mySettingsFinder;
-
-  public GradleVersions() {
-    mySettingsFinder = GradleProjectSettingsFinder.getInstance();
-  }
+public class GradleVersions {
+  private static final Pattern GRADLE_JAR_NAME_PATTERN = Pattern.compile("gradle-core-(\\d+(\\.\\d+)*).*\\.jar");
 
   @NotNull
   public static GradleVersions getInstance() {

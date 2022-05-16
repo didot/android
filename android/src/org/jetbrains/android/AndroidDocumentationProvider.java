@@ -5,9 +5,13 @@ import static com.android.SdkConstants.CLASS_R;
 
 import com.android.SdkConstants;
 import com.android.ide.common.rendering.api.ResourceReference;
+import com.android.ide.common.resources.configuration.FolderConfiguration;
 import com.android.resources.ResourceType;
 import com.android.tools.idea.AndroidPsiUtils;
+import com.android.tools.idea.configurations.Configuration;
+import com.android.tools.idea.configurations.ConfigurationManager;
 import com.android.tools.idea.javadoc.AndroidJavaDocRenderer;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.res.psi.ResourceReferencePsiElement;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.codeInsight.javadoc.JavaDocExternalFilter;
@@ -18,7 +22,6 @@ import com.intellij.lang.java.JavaDocumentationProvider;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
@@ -40,6 +43,12 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Provides documentation for Android R field references eg R.color.colorPrimary in Java and Kotlin files.
+ *
+ * Despite the fact that AndroidDocumentationProvider is only registered for Java, since the light classes for resources are as Java
+ * classes, the documentation provider works for kotlin files.
+ */
 public class AndroidDocumentationProvider implements DocumentationProvider, ExternalDocumentationProvider {
   private static final Logger LOG = Logger.getInstance("#org.jetbrains.android.AndroidDocumentationProvider");
 
@@ -59,7 +68,15 @@ public class AndroidDocumentationProvider implements DocumentationProvider, Exte
     }
 
     ResourceReference resourceReference = referencePsiElement.getResourceReference();
-    return AndroidJavaDocRenderer.render(module, resourceReference.getResourceUrl());
+    AndroidFacet androidFacet = AndroidFacet.getInstance(originalElement);
+    if (androidFacet == null) {
+      return AndroidJavaDocRenderer.render(module, null, resourceReference.getResourceUrl());
+    }
+
+    // Creating a basic configuration in case rendering of webp or xml drawables.
+    Configuration configuration =
+      Configuration.create(ConfigurationManager.getOrCreateInstance(androidFacet), null, FolderConfiguration.createDefault());
+    return AndroidJavaDocRenderer.render(module, configuration, resourceReference.getResourceUrl());
   }
 
   @Override
@@ -69,7 +86,7 @@ public class AndroidDocumentationProvider implements DocumentationProvider, Exte
     // field is recognized by an earlier documentation provider (the generic Java javadoc one?) as
     // something we have documentation for. We do however get a chance to fetch documentation for it;
     // that's this call, so in that case we insert our javadoc rendering into the fetched documentation.
-    String doc = ApplicationManager.getApplication().runReadAction(new Computable<String>() {
+    String doc = ApplicationManager.getApplication().runReadAction(new Computable<>() {
       @Override
       public String compute() {
         if (isFrameworkFieldDeclaration(element)) {
@@ -102,19 +119,12 @@ public class AndroidDocumentationProvider implements DocumentationProvider, Exte
   @Nullable
   private static Module guessAndroidModule(Project project, PsiElement element) {
     Module module = ModuleUtilCore.findModuleForPsiElement(element);
-    if (module == null) {
-      Module[] modules = ModuleManager.getInstance(project).getModules();
-      for (Module m : modules) {
-        if (AndroidFacet.getInstance(m) != null) {
-          module = m;
-          break;
-        }
-      }
-      if (module == null) {
-        return null;
-      }
+    if (module != null) {
+      return module;
     }
-    return module;
+    return ProjectSystemUtil.getAndroidFacets(project).stream()
+      .map(AndroidFacet::getModule)
+      .findFirst().orElse(null);
   }
 
   private static boolean isFrameworkFieldDeclaration(PsiElement element) {
@@ -125,7 +135,6 @@ public class AndroidDocumentationProvider implements DocumentationProvider, Exte
         PsiClass rClass = typeClass.getContainingClass();
         return rClass != null && CLASS_R.equals(AndroidPsiUtils.getQualifiedNameSafely(rClass));
       }
-
     }
     return false;
   }
@@ -146,26 +155,23 @@ public class AndroidDocumentationProvider implements DocumentationProvider, Exte
 
   private static boolean isMyContext(@NotNull final PsiElement element, @NotNull final Project project) {
     if (element instanceof PsiClass) {
-      return ApplicationManager.getApplication().runReadAction(new Computable<Boolean>() {
-        @Override
-        public Boolean compute() {
-          PsiFile file = element.getContainingFile();
-          if (file == null) {
-            return false;
-          }
-          VirtualFile vFile = file.getVirtualFile();
-          if (vFile == null) {
-            return false;
-          }
-          String path = FileUtil.toSystemIndependentName(vFile.getPath());
-          if (StringUtil.toLowerCase(path).contains("/" + SdkConstants.FN_FRAMEWORK_LIBRARY + "!/")) {
-            if (!ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID).isEmpty()) {
-              VirtualFile jarFile = JarFileSystem.getInstance().getVirtualFileForJar(vFile);
-              return jarFile != null && SdkConstants.FN_FRAMEWORK_LIBRARY.equals(jarFile.getName());
-            }
-          }
+      return ApplicationManager.getApplication().runReadAction((Computable<Boolean>)() -> {
+        PsiFile file = element.getContainingFile();
+        if (file == null) {
           return false;
         }
+        VirtualFile vFile = file.getVirtualFile();
+        if (vFile == null) {
+          return false;
+        }
+        String path = FileUtil.toSystemIndependentName(vFile.getPath());
+        if (StringUtil.toLowerCase(path).contains("/" + SdkConstants.FN_FRAMEWORK_LIBRARY + "!/")) {
+          if (!ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID).isEmpty()) {
+            VirtualFile jarFile = JarFileSystem.getInstance().getVirtualFileForJar(vFile);
+            return jarFile != null && SdkConstants.FN_FRAMEWORK_LIBRARY.equals(jarFile.getName());
+          }
+        }
+        return false;
       });
     }
     return false;

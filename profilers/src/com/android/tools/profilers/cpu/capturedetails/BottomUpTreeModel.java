@@ -16,13 +16,16 @@
 package com.android.tools.profilers.cpu.capturedetails;
 
 import com.android.tools.adtui.model.Range;
+import com.android.tools.perflib.vmtrace.ClockType;
+import javax.swing.tree.DefaultMutableTreeNode;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.tree.DefaultMutableTreeNode;
-
 public class BottomUpTreeModel extends CpuTreeModel<BottomUpNode> {
-  public BottomUpTreeModel(@NotNull Range range, @NotNull BottomUpNode node) {
-    super(range, node);
+  @NotNull ClockType myClockType;
+
+  public BottomUpTreeModel(@NotNull ClockType clockType, @NotNull Range range, @NotNull BottomUpNode node) {
+    super(clockType, range, node);
+    myClockType = clockType;
   }
 
   @Override
@@ -54,7 +57,7 @@ public class BottomUpTreeModel extends CpuTreeModel<BottomUpNode> {
 
     for (BottomUpNode child: bottomUpNode.getChildren()) {
       if (child.inRange(getRange())) {
-        child.update(getRange());
+        child.update(myClockType, getRange());
         insertNodeInto(new DefaultMutableTreeNode(child), node, 0);
       }
       else {

@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.gradle;
 
-import static com.android.ide.gradle.model.artifacts.AdditionalClassifierArtifactsModel.SAMPLE_SOURCE_CLASSIFIER;
 import static com.android.tools.idea.gradle.project.sync.AdditionalClassifierArtifactsModelCollectorKt.idToString;
 import static com.android.tools.idea.gradle.project.sync.setup.module.dependency.LibraryDependency.NAME_PREFIX;
 import static com.intellij.openapi.util.io.FileUtil.getNameWithoutExtension;
@@ -76,24 +75,6 @@ public class LibraryFilePaths {
     return myPathsMap.getOrDefault(libraryId, null);
   }
 
-  @Nullable
-  public File findSourceJarPath(@NotNull String libraryName, @NotNull File libraryPath) {
-    String libraryId = getLibraryId(libraryName);
-    if (myPathsMap.containsKey(libraryId)) {
-      return myPathsMap.get(libraryId).sources;
-    }
-    return findArtifactFilePathInRepository(libraryPath, "-sources.jar", true);
-  }
-
-  @Nullable
-  public File findSampleSourcesJarPath(@NotNull String libraryName, @NotNull File libraryPath) {
-    String libraryId = getLibraryId(libraryName);
-    if (myPathsMap.containsKey(libraryId)) {
-      return myPathsMap.get(libraryId).sampleSource;
-    }
-    return findArtifactFilePathInRepository(libraryPath, SAMPLE_SOURCE_CLASSIFIER, true);
-  }
-
   /**
    * libraryName is in the format of "Gradle: junit:junit:4.12@jar", the internal map uses the core part
    * "junit:junit:4.12" as key, this method extracts the map key from libraryName.
@@ -107,15 +88,6 @@ public class LibraryFilePaths {
       libraryName = libraryName.substring(0, libraryName.indexOf('@'));
     }
     return libraryName.trim();
-  }
-
-  @Nullable
-  public File findJavadocJarPath(@NotNull String libraryName, @NotNull File libraryPath) {
-    String libraryId = getLibraryId(libraryName);
-    if (myPathsMap.containsKey(libraryId)) {
-      return myPathsMap.get(libraryId).javaDoc;
-    }
-    return findArtifactFilePathInRepository(libraryPath, "-javadoc.jar", true);
   }
 
   @Nullable

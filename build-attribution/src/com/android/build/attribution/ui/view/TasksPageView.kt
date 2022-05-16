@@ -32,7 +32,6 @@ import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.components.panels.VerticalLayout
-import com.intellij.ui.render.RenderingHelper.SHRINK_LONG_RENDERER
 import com.intellij.ui.treeStructure.Tree
 import com.intellij.util.ui.ColorIcon
 import com.intellij.util.ui.JBUI

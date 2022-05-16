@@ -21,10 +21,9 @@ import static com.android.SdkConstants.TAG_STYLE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.android.ide.common.repository.GradleCoordinate;
-import com.android.repository.io.FileOpUtils;
+import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.sdk.AndroidSdks;
-import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.android.tools.idea.ui.GuiTestingService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
@@ -46,6 +45,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URLConnection;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -167,7 +167,8 @@ public class AppCompatPublicDotTxtLookup {
       return null;
     }
     GradleCoordinate coordinate = artifactId.getCoordinate(appCompatVersion);
-    File appCompatAarFile = RepositoryUrlManager.get().getArchiveForCoordinate(coordinate, sdkData.getLocationFile(), FileOpUtils.create());
+    File appCompatAarFile = RepositoryUrlManager.get().getArchiveForCoordinate(coordinate, sdkData.getLocationFile(),
+                                                                               FileSystems.getDefault());
     if (appCompatAarFile == null || !appCompatAarFile.exists()) {
       return null;
     }

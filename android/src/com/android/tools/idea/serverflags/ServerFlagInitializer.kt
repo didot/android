@@ -16,7 +16,10 @@
 package com.android.tools.idea.serverflags
 
 import com.android.tools.analytics.AnalyticsSettings
-import com.android.tools.idea.ServerFlagData
+import com.android.tools.analytics.CommonMetricsData
+import com.android.tools.idea.serverflags.protos.OSType
+import com.android.tools.idea.serverflags.protos.ServerFlag
+import com.android.tools.idea.serverflags.protos.ServerFlagData
 import com.google.common.hash.Hashing
 import com.intellij.openapi.diagnostic.Logger
 import java.nio.file.Path
@@ -30,18 +33,20 @@ private const val ENABLED_OVERRIDE_KEY = "studio.server.flags.enabled.override"
  * from the specified URL. If it succeeds it will save the file to a local path, then initialize the service.
  * If the download fails, it will use the last successful download to initialize the service
  */
+
+data class ServerFlagInitializationData(val configurationVersion: Long, val flags: Map<String, ServerFlag>)
 class ServerFlagInitializer {
   companion object {
     @JvmStatic
-    fun initializeService() {
+    fun initializeService(): ServerFlagInitializationData {
       val experiments = System.getProperty(ENABLED_OVERRIDE_KEY)?.split(',') ?: emptyList()
-
-      initializeService(localCacheDirectory, flagsVersion, experiments)
+      val data = initializeService(localCacheDirectory, flagsVersion, CommonMetricsData.osName, experiments)
 
       val logger = Logger.getInstance(ServerFlagInitializer::class.java)
-      val names = ServerFlagService.instance.names
-      val string = names.joinToString()
+      val string = data.flags.keys.toList().joinToString()
       logger.info("Enabled server flags: $string")
+
+      return data
     }
 
     /**
@@ -52,29 +57,51 @@ class ServerFlagInitializer {
      * a given flag is enabled.
      */
     @JvmStatic
-    fun initializeService(localCacheDirectory: Path, version: String, enabled: Collection<String>) {
+    fun initializeService(localCacheDirectory: Path,
+                          version: String,
+                          osName: String,
+                          enabled: Collection<String>): ServerFlagInitializationData {
       val localFilePath = buildLocalFilePath(localCacheDirectory, version)
       val serverFlagList = unmarshalFlagList(localFilePath.toFile())
       val configurationVersion = serverFlagList?.configurationVersion ?: -1
       val list = serverFlagList?.serverFlagsList ?: emptyList()
+      val osType = getOsType(osName)
 
       val filter = if (enabled.isEmpty()) {
-        { flag: ServerFlagData -> flag.isEnabled }
+        { flag: ServerFlagData -> flag.isOSEnabled(osType) }
       }
       else {
         { flag: ServerFlagData -> enabled.contains(flag.name) }
       }
 
-      val map = list.filter(filter).map { it.name to it.serverFlag }.toMap()
-      ServerFlagService.instance = ServerFlagServiceImpl(configurationVersion, map)
+      val flags = list.filter(filter)
+
+      val map = flags.associate { it.name to it.serverFlag }
+      return ServerFlagInitializationData(configurationVersion, map)
     }
   }
 }
 
-private val ServerFlagData.isEnabled: Boolean
-  get() {
-    val key = AnalyticsSettings.userId + this.name
-    val hash = Hashing.farmHashFingerprint64().hashString(key, Charsets.UTF_8)
-    return (abs(hash.asLong()) % 100).toInt() < this.serverFlag.percentEnabled
+private fun ServerFlagData.isOSEnabled(osType: OSType): Boolean {
+  if (this.serverFlag.osTypeCount > 0 && !this.serverFlag.osTypeList.contains(osType)) {
+    return false
   }
 
+  val key = AnalyticsSettings.userId + this.name
+  val hash = Hashing.farmHashFingerprint64().hashString(key, Charsets.UTF_8)
+  return (abs(hash.asLong()) % 100).toInt() < this.serverFlag.percentEnabled
+}
+
+private fun getOsType(osName: String): OSType {
+  if (osName.startsWith(CommonMetricsData.OS_NAME_FREE_BSD)) {
+    return OSType.OS_TYPE_FREE_BSD
+  }
+
+  return when (osName) {
+    CommonMetricsData.OS_NAME_LINUX -> OSType.OS_TYPE_LINUX
+    CommonMetricsData.OS_NAME_CHROMIUM -> OSType.OS_TYPE_CHROMIUM
+    CommonMetricsData.OS_NAME_WINDOWS -> OSType.OS_TYPE_WIN
+    CommonMetricsData.OS_NAME_MAC -> OSType.OS_TYPE_MAC
+    else -> OSType.OS_TYPE_UNKNOWN
+  }
+}

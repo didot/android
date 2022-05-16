@@ -17,31 +17,34 @@ package com.android.tools.profilers.cpu;
 
 import com.android.tools.adtui.chart.linechart.LineChart;
 import com.android.tools.adtui.chart.linechart.LineConfig;
-import com.android.tools.adtui.common.DataVisualizationColors;
 import com.android.tools.adtui.model.trackgroup.TrackModel;
 import com.android.tools.adtui.trackgroup.TrackRenderer;
-import com.android.tools.profilers.ProfilerTrackRendererType;
+import com.android.tools.profilers.DataVisualizationColors;
 import com.android.tools.profilers.cpu.systemtrace.VsyncTrackModel;
-import java.awt.BorderLayout;
+import java.util.function.BooleanSupplier;
 import javax.swing.JComponent;
-import javax.swing.JPanel;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Track renderer for Atrace VSYNC signals.
  */
-public class VsyncTrackRenderer implements TrackRenderer<VsyncTrackModel, ProfilerTrackRendererType> {
+public class VsyncTrackRenderer implements TrackRenderer<VsyncTrackModel> {
+  private final BooleanSupplier myVsyncEnabler;
+  public VsyncTrackRenderer(BooleanSupplier vsyncEnabler) {
+    myVsyncEnabler = vsyncEnabler;
+  }
+
   @NotNull
   @Override
-  public JComponent render(@NotNull TrackModel<VsyncTrackModel, ProfilerTrackRendererType> trackModel) {
+  public JComponent render(@NotNull TrackModel<VsyncTrackModel, ?> trackModel) {
     VsyncTrackModel lineChartModel = trackModel.getDataModel();
     LineChart lineChart = new LineChart(lineChartModel);
-    lineChart.configure(lineChartModel.getVsyncCounterSeries(),
-                        new LineConfig(DataVisualizationColors.INSTANCE.getColor(DataVisualizationColors.BACKGROUND_DATA_COLOR, 0))
-                          .setStepped(true));
+    lineChart.configure(
+      lineChartModel.getVsyncCounterSeries(),
+      new LineConfig(
+        DataVisualizationColors.getPaletteManager().getBackgroundColor(DataVisualizationColors.BACKGROUND_DATA_COLOR_NAME, 0))
+        .setStepped(true));
     lineChart.setFillEndGap(true);
-    JPanel panel = new JPanel(new BorderLayout());
-    panel.add(lineChart);
-    return panel;
+    return VsyncPanel.of(lineChart, trackModel.getDataModel().getVsyncCounterSeries(), myVsyncEnabler);
   }
 }

@@ -17,6 +17,7 @@ package com.android.tools.idea.updater.configure;
 
 import static com.android.repository.util.RepoPackageUtilKt.getRepoPackagePrefix;
 import static com.android.tools.idea.avdmanager.HardwareAccelerationCheck.isChromeOSAndIsNotHWAccelerated;
+
 import com.android.SdkConstants;
 import com.android.repository.Revision;
 import com.android.repository.api.RepoPackage;
@@ -32,22 +33,24 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import com.intellij.CommonBundle;
+import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.ui.dualView.TreeTableView;
 import com.intellij.ui.treeStructure.treetable.ListTreeTableModelOnColumns;
 import com.intellij.ui.treeStructure.treetable.TreeColumnInfo;
 import com.intellij.util.ui.AsyncProcessIcon;
 import com.intellij.util.ui.ColumnInfo;
 import com.intellij.util.ui.tree.TreeUtil;
-import java.awt.*;
+import java.awt.CardLayout;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
-import javax.swing.*;
+import javax.swing.JCheckBox;
+import javax.swing.JPanel;
 import javax.swing.event.ChangeListener;
-import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -65,6 +68,8 @@ public class ToolComponentsPanel {
   // TODO: Add more fine-grained support for ChromeOS to SDK repo infrastructure (b/131738330)
   private static final Set<String> CHROME_OS_INCOMPATIBLE_PATHS =
     ImmutableSet.of(SdkConstants.FD_EMULATOR, Haxm.InstallerInfo.getRepoPackagePath(), Gvm.InstallerInfo.getRepoPackagePath());
+
+  private static final String TOOLS_DETAILS_CHECKBOX_SELECTED = "updater.configure.tools.details.checkbox.selected";
 
   private TreeTableView myToolsSummaryTable;
   private JCheckBox myToolsDetailsCheckbox;
@@ -89,14 +94,26 @@ public class ToolComponentsPanel {
   @VisibleForTesting
   UpdaterTreeNode myToolsSummaryRootNode;
 
-  Set<PackageNodeModel> myStates = new HashSet<PackageNodeModel>();
+  Set<PackageNodeModel> myStates = new HashSet<>();
 
   private boolean myModified = false;
   private final ChangeListener myModificationListener = e -> refreshModified();
   private SdkUpdaterConfigurable myConfigurable;
 
-  public ToolComponentsPanel() {
-    myToolsDetailsCheckbox.addActionListener(e -> updateToolsTable());
+  @SuppressWarnings("unused")
+  ToolComponentsPanel() {
+    this(PropertiesComponent.getInstance());
+  }
+
+  @VisibleForTesting
+  ToolComponentsPanel(@NotNull PropertiesComponent propertiesComponent) {
+    myToolsDetailsCheckbox.setSelected(propertiesComponent.getBoolean(TOOLS_DETAILS_CHECKBOX_SELECTED, false));
+    myToolsDetailsCheckbox.addActionListener(e -> {
+      propertiesComponent.setValue(TOOLS_DETAILS_CHECKBOX_SELECTED, myToolsDetailsCheckbox.isSelected());
+      updateToolsTable();
+    });
+    updateToolsTable();
+
     myHideObsoletePackagesCheckbox.addActionListener(e -> updateToolsItems());
   }
 
@@ -238,7 +255,7 @@ public class ToolComponentsPanel {
   }
 
   private void createUIComponents() {
-    myToolsLoadingIcon = new AsyncProcessIcon(AndroidBundle.message("text.loading"));
+    myToolsLoadingIcon = new AsyncProcessIcon(CommonBundle.getLoadingTreeNodeText());
 
     myToolsSummaryRootNode = new RootNode();
     myToolsDetailsRootNode = new RootNode();

@@ -17,7 +17,8 @@ package com.android.tools.idea.material.icons.common
 
 import com.android.ide.common.vectordrawable.VdIcon
 import com.android.tools.idea.material.icons.utils.MaterialIconsUtils
-import com.android.tools.idea.material.icons.utils.MaterialIconsUtils.MATERIAL_ICONS_PATH
+import com.android.tools.idea.material.icons.utils.MaterialIconsUtils.getBundledIconPath
+import com.android.tools.idea.material.icons.utils.MaterialIconsUtils.getBundledStyleDirectoryPath
 import com.android.tools.idea.material.icons.utils.MaterialIconsUtils.toDirFormat
 import com.android.utils.SdkUtils.fileToUrl
 import java.io.File
@@ -42,21 +43,13 @@ interface MaterialIconsUrlProvider {
 /**
  * The default [MaterialIconsUrlProvider] for [VdIcon] files bundled with Android Studio.
  */
-internal class BundledIconsUrlProvider : MaterialIconsUrlProvider {
+class BundledIconsUrlProvider : MaterialIconsUrlProvider {
   override fun getStyleUrl(style: String): URL? {
-    return javaClass.classLoader.getResource(getStyleDirectoryPath(style))
+    return javaClass.classLoader.getResource(getBundledStyleDirectoryPath(style))
   }
 
   override fun getIconUrl(style: String, iconName: String, iconFileName: String): URL? {
-    return javaClass.classLoader.getResource(getIconDirectoryPath(style, iconName) + iconFileName)
-  }
-
-  private fun getIconDirectoryPath(style: String, name: String): String {
-    return getStyleDirectoryPath(style) + name + "/"
-  }
-
-  private fun getStyleDirectoryPath(style: String): String {
-    return MATERIAL_ICONS_PATH + style.toDirFormat() + "/"
+    return javaClass.classLoader.getResource(getBundledIconPath(style, iconName, iconFileName))
   }
 }
 
@@ -65,7 +58,7 @@ internal class BundledIconsUrlProvider : MaterialIconsUrlProvider {
  *
  * @see MaterialIconsUtils.getIconsSdkTargetPath
  */
-internal class SdkMaterialIconsUrlProvider: MaterialIconsUrlProvider {
+class SdkMaterialIconsUrlProvider: MaterialIconsUrlProvider {
   private val iconsSdkPath = MaterialIconsUtils.getIconsSdkTargetPath()
 
   override fun getStyleUrl(style: String): URL? {

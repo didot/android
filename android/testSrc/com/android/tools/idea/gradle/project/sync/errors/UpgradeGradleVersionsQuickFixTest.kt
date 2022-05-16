@@ -30,10 +30,10 @@ import com.intellij.testFramework.TestDataProvider
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.any
 import org.mockito.Mockito.eq
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 
 class UpgradeGradleVersionsQuickFixTest {
   @JvmField

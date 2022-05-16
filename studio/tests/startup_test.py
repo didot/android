@@ -61,7 +61,6 @@ class StartUpTest(unittest.TestCase):
           "-Didea.plugins.path=%s/config/plugins\n" % work_dir,
           "-Didea.system.path=%s/system\n" % work_dir,
           "-Didea.log.path=%s/system/log\n" % work_dir,
-          "-Ddisable.android.analytics.consent.dialog.for.test=true\n"
           "-Duser.home=%s/home\n" % work_dir
       ])
 
@@ -80,6 +79,7 @@ class StartUpTest(unittest.TestCase):
 
       # Wait for idea.log to be created
       retry = 60  # 30s / 0.5s
+      descs = []
       while retry > 0:
         if os.path.exists(logpath):
           break
@@ -99,75 +99,78 @@ class StartUpTest(unittest.TestCase):
               plugins = line[60 + len(marker):].split(",")
               descs = [re.match(" *(.*) \\(.*\\)", pl).group(1) for pl in plugins]
               descs.sort()
-              self.assertEqual([
-                  "Android",
-                  "Android APK Support",
-                  "Android NDK Support",
-                  "App Links Assistant",
-                  "C/C++ Language Support",
-                  "CIDR Base",
-                  "ChangeReminder",
-                  "Clangd support",
-                  "Code Coverage for Java",
-                  "Compose",
-                  "Configuration Script",
-                  "Copyright",
-                  "EditorConfig",
-                  "Emoji Picker",
-                  "Firebase App Indexing",
-                  "Firebase Services",
-                  "Firebase Testing",
-                  "Git",
-                  "GitHub",
-                  "Google Cloud Tools Core",
-                  "Google Cloud Tools For Android Studio",
-                  "Google Developers Samples",
-                  "Google Login",
-                  "Gradle",
-                  "Gradle-Java",
-                  "Groovy",
-                  "IDEA CORE",
-                  "IntelliLang",
-                  "JUnit",
-                  "Java",
-                  "Java Bytecode Decompiler",
-                  "Java IDE Customization",
-                  "Java Internationalization",
-                  "Java Stream Debugger",
-                  "JetBrains Repository Search",
-                  "JetBrains maven model api classes",
-                  "Kotlin",
-                  "Layoutlib",
-                  "Layoutlib Legacy",
-                  "Machine Learning Code Completion",
-                  "Mercurial",
-                  "Next File Prediction",
-                  "Properties",
-                  "Resource Bundle Editor",
-                  "Settings Repository",
-                  "Shell Script",
-                  "Smali Support",
-                  "Subversion",
-                  "Task Management",
-                  "Terminal",
-                  "Test Recorder",
-                  "TestNG",
-                  "TextMate Bundles",
-                  "WebP Support",
-                  "YAML",
-                  "com.intellij.platform.images"
-              ], descs)
               break
           else:
             retry = retry - 1
             time.sleep(0.5)
-        if retry == 0:
-          self.fail("Cannot find marker \"%s\" in idea.log" % marker)
 
       process.kill()
 
     shutil.copy(logpath, os.path.join(undeclared_outputs, "idea.log"))
     xvfb.kill()
+
+    if retry == 0:
+      self.fail("Cannot find marker \"%s\" in idea.log" % marker)
+    self.assertEqual([
+      "Android",
+      "Android APK Support",
+      "Android NDK Support",
+      "App Links Assistant",
+      "C/C++ Language Support",
+      "CIDR Base",
+      "CIDR Debugger",
+      "ChangeReminder",
+      "Clangd Support",
+      "Clangd-CLion Bridge",
+      "Code Coverage for Java",
+      "Compose",
+      "Configuration Script",
+      "Copyright",
+      "Design Tools",
+      "EditorConfig",
+      "Emoji Picker",
+      "Firebase App Indexing",
+      "Firebase Services",
+      "Firebase Testing",
+      "Git",
+      "GitHub",
+      "Google Cloud Tools Core",
+      "Google Cloud Tools For Android Studio",
+      "Google Developers Samples",
+      "Google Login",
+      "Gradle",
+      "Gradle-Java",
+      "Groovy",
+      "IDEA CORE",
+      "Images",
+      "IntelliLang",
+      "JUnit",
+      "Java",
+      "Java Bytecode Decompiler",
+      "Java IDE Customization",
+      "Java Internationalization",
+      "Java Stream Debugger",
+      "JetBrains Repository Search",
+      "JetBrains maven model api classes",
+      "Kotlin",
+      "Machine Learning Code Completion",
+      "Markdown",
+      "Mercurial",
+      "Properties",
+      "Settings Repository",
+      "Shell Script",
+      "Smali Support",
+      "Subversion",
+      "Task Management",
+      "Terminal",
+      "Test Recorder",
+      "TestNG",
+      "TextMate Bundles",
+      "Toml",
+      "WebP Support",
+      "YAML",
+  ], descs)
+
 
 if __name__ == "__main__":
   unittest.main()

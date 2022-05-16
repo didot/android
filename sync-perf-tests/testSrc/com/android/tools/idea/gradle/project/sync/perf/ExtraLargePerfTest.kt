@@ -15,10 +15,17 @@
  */
 package com.android.tools.idea.gradle.project.sync.perf
 
-class ExtraLargePerfTest(useSingleVariantSyncInfrastructure: Boolean, gradleVersion: String?, agpVersion: String?) :
-  AbstractGradleSyncPerfTestCase(useSingleVariantSyncInfrastructure, gradleVersion, agpVersion) {
+class ExtraLargePerfTestV1 : AbstractGradleSyncPerfTestCase() {
   override val relativePath: String = TestProjectPaths.EXTRA_LARGE
-  override val projectName: String = "ExtraLarge"
+  override val projectName: String = "ExtraLarge_V1"
   override val initialDrops: Int = 0
   override val numSamples: Int = 1
+}
+
+class ExtraLargePerfTestV2 : AbstractGradleSyncPerfTestCase() {
+  override val relativePath: String = TestProjectPaths.EXTRA_LARGE
+  override val projectName: String = "ExtraLarge_V2"
+  override val initialDrops: Int = 0
+  override val numSamples: Int = 1
+  override val useModelV2: Boolean  = true
 }

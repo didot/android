@@ -15,10 +15,14 @@
  */
 package com.android.tools.idea.gradle.dsl.model;
 
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.BOOLEAN_TYPE;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.BOOLEAN;
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.NONE;
 import static com.android.tools.idea.gradle.dsl.parser.apply.ApplyDslElement.APPLY_BLOCK_NAME;
 import static com.android.tools.idea.gradle.dsl.parser.plugins.PluginsDslElement.PLUGINS;
 import static com.android.tools.idea.gradle.dsl.parser.repositories.RepositoriesDslElement.REPOSITORIES;
 
+import com.android.tools.idea.gradle.dsl.api.BuildModelNotification;
 import com.android.tools.idea.gradle.dsl.api.BuildScriptModel;
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
 import com.android.tools.idea.gradle.dsl.api.GradleFileModel;
@@ -29,7 +33,9 @@ import com.android.tools.idea.gradle.dsl.api.configurations.ConfigurationsModel;
 import com.android.tools.idea.gradle.dsl.api.crashlytics.CrashlyticsModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.DependenciesModel;
 import com.android.tools.idea.gradle.dsl.api.ext.ExtModel;
+import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType;
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType;
+import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
 import com.android.tools.idea.gradle.dsl.api.java.JavaModel;
 import com.android.tools.idea.gradle.dsl.api.repositories.RepositoriesModel;
 import com.android.tools.idea.gradle.dsl.api.util.GradleDslModel;
@@ -44,6 +50,7 @@ import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleBuildFile;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile;
 import com.android.tools.idea.gradle.dsl.parser.files.GradlePropertiesFile;
+import com.android.tools.idea.gradle.dsl.parser.files.GradleScriptFile;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleSettingsFile;
 import com.android.tools.idea.gradle.dsl.parser.plugins.PluginsDslElement;
 import com.android.tools.idea.gradle.dsl.parser.repositories.RepositoriesDslElement;
@@ -51,9 +58,11 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -67,8 +76,11 @@ public class GradleBuildModelImpl extends GradleFileModelImpl implements GradleB
   @NonNls private static final String VERSION = "version";
   @NonNls private static final String APPLY = "apply";
 
+  @NotNull protected GradleBuildFile myGradleBuildFile;
+
   public GradleBuildModelImpl(@NotNull GradleBuildFile buildDslFile) {
     super(buildDslFile);
+    myGradleBuildFile = buildDslFile;
   }
 
   @Override
@@ -88,6 +100,28 @@ public class GradleBuildModelImpl extends GradleFileModelImpl implements GradleB
 
     return new ArrayList<>(PluginModelImpl.deduplicatePlugins(plugins).values());
   }
+
+  @Override
+  public @NotNull List<PluginModel> appliedPlugins() {
+    Predicate<PluginModel> appliedPredicate = (plugin) -> {
+      ResolvedPropertyModel apply = plugin.apply();
+      ValueType valueType = apply.getValueType();
+      if (valueType == NONE) {
+        // Plugin declarations in build files default to `apply true`, which is also the correct meaning for syntactic forms
+        // which cannot express an apply property, such as `apply plugin: 'foo'`.
+        return true;
+      }
+      else if (valueType == BOOLEAN) {
+        return apply.getValue(BOOLEAN_TYPE);
+      }
+      else {
+        // not understood: default to not applied.
+        return false;
+      }
+    };
+    return plugins().stream().filter(appliedPredicate).collect(Collectors.toList());
+  }
+
 
   @NotNull
   @Override
@@ -116,7 +150,7 @@ public class GradleBuildModelImpl extends GradleFileModelImpl implements GradleB
       applyMap.setNewElement(literal);
       applyDslElement.setNewElement(applyMap);
 
-      return new PluginModelImpl(applyMap, literal);
+      return new PluginModelImpl(applyMap);
     }
 
     Map<String, PluginModelImpl> models = PluginModelImpl.deduplicatePlugins(PluginModelImpl.create(pluginsDslElement));
@@ -136,11 +170,11 @@ public class GradleBuildModelImpl extends GradleFileModelImpl implements GradleB
     literal.setValue(plugin.trim());
     pluginsDslElement.setNewElement(literal);
 
-    return new PluginModelImpl(literal, literal);
+    return new PluginModelImpl(literal);
   }
 
   @Override
-  public @NotNull PluginModel applyPlugin(@NotNull String plugin, @NotNull String version, boolean apply) {
+  public @NotNull PluginModel applyPlugin(@NotNull String plugin, @NotNull String version, @Nullable Boolean apply) {
     // For this method, the existence of an apply block is irrelevant, as the features of the plugins Dsl are not supported
     // with an apply operator; we must always find the plugins block.
 
@@ -153,16 +187,17 @@ public class GradleBuildModelImpl extends GradleFileModelImpl implements GradleB
     GradleDslInfixExpression expression = new GradleDslInfixExpression(pluginsElement, null);
 
     // id '<plugin>'
-    GradleDslLiteral idLiteral = expression.setNewLiteral(ID, plugin);
+    expression.setNewLiteral(ID, plugin);
     // ... version '<version>'
     expression.setNewLiteral(VERSION, version);
     // ... apply <boolean>
-    expression.setNewLiteral(APPLY, apply);
+    if (apply != null) {
+      expression.setNewLiteral(APPLY, apply);
+    }
     // link everything up
     pluginsElement.setNewElement(expression);
 
-    // TODO(xof): how should we handle the case where we already have a plugin declaration for this plugin?
-    return new PluginModelImpl(expression, idLiteral);
+    return new PluginModelImpl(expression);
   }
 
   @Override
@@ -264,7 +299,7 @@ public class GradleBuildModelImpl extends GradleFileModelImpl implements GradleB
       return new GradleSettingsModelImpl((GradleSettingsFile)file);
     }
     else if (file instanceof GradlePropertiesFile) {
-      return new GradlePropertiesModel(file);
+      return new GradlePropertiesModel((GradlePropertiesFile)file);
     }
     throw new IllegalStateException("Unknown GradleDslFile type found!");
   }
@@ -288,6 +323,54 @@ public class GradleBuildModelImpl extends GradleFileModelImpl implements GradleB
       return myGradleDslFile.getDirectoryPath();
     }
     return directory;
+  }
+
+  @Override
+  public @NotNull Set<GradleDslFile> getAllInvolvedFiles() {
+    Set<GradleDslFile> files = new HashSet<>();
+    files.add(myGradleBuildFile);
+    // Add all parent dsl files.
+    files.addAll(getParentFiles());
+
+    List<GradleScriptFile> currentFiles = new ArrayList<>();
+    currentFiles.add(myGradleBuildFile);
+    // TODO: Generalize cycle detection in GradleDslSimpleExpression and reuse here.
+    // Attempting to parse a cycle of applied files will fail in GradleDslFile#mergeAppliedFiles;
+    while (!currentFiles.isEmpty()) {
+      GradleScriptFile currentFile = currentFiles.remove(0);
+      files.addAll(currentFile.getApplyDslElement());
+      currentFiles.addAll(currentFile.getApplyDslElement());
+    }
+
+    // Get all the properties files.
+    for (GradleDslFile file : new ArrayList<>(files)) {
+      if (file instanceof GradleBuildFile) {
+        GradleBuildFile buildFile = (GradleBuildFile)file;
+        GradleDslFile sibling = buildFile.getPropertiesFile();
+        if (sibling != null) {
+          files.add(sibling);
+        }
+      }
+    }
+
+    return files;
+  }
+
+  private Set<GradleBuildFile> getParentFiles() {
+    Set<GradleBuildFile> files = new HashSet<>();
+    GradleBuildFile file = myGradleBuildFile.getParentModuleBuildFile();
+    while (file != null) {
+      files.add(file);
+      file = file.getParentModuleBuildFile();
+    }
+    return files;
+  }
+
+  @Override
+  @NotNull
+  public Map<String, List<BuildModelNotification>> getNotifications() {
+    return getAllInvolvedFiles().stream().filter(e -> !e.getPublicNotifications().isEmpty())
+      .collect(Collectors.toMap(e -> e.getFile().getPath(), e -> e.getPublicNotifications()));
   }
 
   /**

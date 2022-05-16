@@ -16,6 +16,7 @@
 package com.android.tools.idea.layoutinspector.model
 
 import com.android.tools.layoutinspector.SkiaViewNode
+import java.awt.Shape
 import java.util.LinkedList
 
 /**
@@ -25,29 +26,38 @@ import java.util.LinkedList
  * `skiaRoot` are different, images will be added to other nodes such that order is preserved.
  */
 class ComponentImageLoader(
-  private val nodeMap: Map<Long, ViewNode>, skiaRoot: SkiaViewNode,
-  private val drawChildren: ViewNode.() -> MutableList<DrawViewNode>
+  private val nodeMap: Map<Long, ViewNode>, skiaRoot: SkiaViewNode
 ) {
   private val skiaNodes = LinkedList(skiaRoot.flatten().filter { it.image != null }.toList())
   val checkedTreeIds = mutableSetOf<Long>()
 
-  fun loadImages(viewRoot: ViewNode) {
-    viewRoot.drawChildren().clear()
-    addImages(viewRoot)
-    var firstImage = skiaNodes.peek()
-    viewRoot.children.forEach { child ->
-      viewRoot.drawChildren().add(DrawViewChild(child))
-      loadImages(child)
-      // If the child consumed any images, check again to see whether we can add.
-      if (skiaNodes.size > 0 && skiaNodes[0] != firstImage) {
-        addImages(viewRoot)
-        firstImage = skiaNodes.peek()
-      }
-    }
-    checkedTreeIds.add(viewRoot.drawId)
+  /**
+   * Load images from skia parser
+   */
+  fun loadImages(window: AndroidWindow) {
+    loadImages(window.root, window.deviceClip)
+    window.skpLoadingComplete()
   }
 
-  private fun addImages(viewRoot: ViewNode) {
+  private fun loadImages(viewRoot: ViewNode, clip: Shape?) {
+    ViewNode.writeAccess {
+      viewRoot.drawChildren.clear()
+      addImages(viewRoot, clip)
+      var firstImage = skiaNodes.peek()
+      viewRoot.children.forEach { child ->
+        viewRoot.drawChildren.add(DrawViewChild(child))
+        loadImages(child, clip)
+        // If the child consumed any images, check again to see whether we can add.
+        if (skiaNodes.size > 0 && skiaNodes[0] != firstImage) {
+          addImages(viewRoot, clip)
+          firstImage = skiaNodes.peek()
+        }
+      }
+      checkedTreeIds.add(viewRoot.drawId)
+    }
+  }
+
+  private fun ViewNode.WriteAccess.addImages(viewRoot: ViewNode, clip: Shape?) {
     while (skiaNodes.isNotEmpty() &&
            // The next image is drawn by this node, or some previous node but postponed until now.
            (skiaNodes.peek().id in checkedTreeIds.plus(viewRoot.drawId) ||
@@ -59,7 +69,7 @@ class ComponentImageLoader(
             (skiaNodes.any { it.id == viewRoot.drawId } && viewRoot.flatten().none { it.drawId == skiaNodes.peek().id }))) {
       val skiaNode = skiaNodes.poll()
       val correspondingNode = nodeMap[skiaNode.id]
-      viewRoot.drawChildren().add(DrawViewImage(skiaNode.image ?: continue, correspondingNode ?: continue))
+      viewRoot.drawChildren.add(DrawViewImage(skiaNode.image ?: continue, correspondingNode ?: continue, clip))
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.android.tools.idea.stats;
 
 import com.android.ddmlib.IDevice;
 import com.android.tools.analytics.UsageTracker;
+import com.android.tools.deployer.model.component.ComponentType;
 import com.android.tools.idea.run.ApkFileUnit;
 import com.android.tools.idea.run.ApkInfo;
 import com.android.tools.idea.run.tasks.LaunchTask;
@@ -144,6 +145,27 @@ public class RunStats {
     myEvent.setProjectId(AnonymizerUtil.anonymizeUtf8(packageName)).setRawProjectId(packageName);
   }
 
+  public void setAppComponentType(ComponentType type) {
+    RunEvent.AppComponent runEventType;
+    switch (type) {
+      case TILE:
+        runEventType = RunEvent.AppComponent.TILE;
+        break;
+      case ACTIVITY:
+        runEventType = RunEvent.AppComponent.ACTIVITY;
+        break;
+      case WATCH_FACE:
+        runEventType = RunEvent.AppComponent.WATCH_FACE;
+        break;
+      case COMPLICATION:
+        runEventType = RunEvent.AppComponent.COMPLICATION;
+        break;
+      default:
+        runEventType = RunEvent.AppComponent.UNKNOWN;
+    }
+    myEvent.getRunEventBuilder().setAppComponentType(runEventType);
+  }
+
   public void setExecutor(String executorId) {
     myEvent.getRunEventBuilder().setExecutor(executorId);
   }
@@ -188,6 +210,10 @@ public class RunStats {
 
   public void setApplyCodeChangesFallbackToRun(boolean fallback) {
     myEvent.getRunEventBuilder().setApplyCodeChangesFallbackToRun(fallback);
+  }
+
+  public void setRunAlwaysInstallWithPm(boolean alwaysUsesPackageManager) {
+    myEvent.getRunEventBuilder().setRunAlwaysInstallWithPm(alwaysUsesPackageManager);
   }
 
   public static RunStats from(ExecutionEnvironment env) {

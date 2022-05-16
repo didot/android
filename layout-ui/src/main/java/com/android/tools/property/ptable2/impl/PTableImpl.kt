@@ -15,6 +15,7 @@
  */
 package com.android.tools.property.ptable2.impl
 
+import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.stdui.KeyStrokes
 import com.android.tools.adtui.stdui.registerActionKey
 import com.android.tools.property.ptable2.PTable
@@ -40,6 +41,7 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import java.awt.Color
 import java.awt.Component
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Font
 import java.awt.Rectangle
@@ -48,6 +50,7 @@ import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.event.MouseMotionAdapter
 import java.util.EventObject
 import javax.swing.AbstractAction
 import javax.swing.JComponent
@@ -105,27 +108,31 @@ class PTableImpl(
   override var wrap = false
 
   init {
-    super.setShowColumns(false)
-    super.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+    setShowColumns(false)
+    setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
 
-    super.setShowGrid(false)
-    super.setShowHorizontalLines(true)
-    super.setIntercellSpacing(Dimension(0, JBUI.scale(1)))
-    super.setGridColor(JBColor(Gray._224, Gray._44))
+    setShowGrid(false)
+    setShowHorizontalLines(true)
+    intercellSpacing = Dimension(0, JBUI.scale(1))
+    setGridColor(JBColor(Gray._224, Gray._44))
 
-    super.setColumnSelectionAllowed(false)
-    super.setCellSelectionEnabled(false)
-    super.setRowSelectionAllowed(true)
+    columnSelectionAllowed = false
+    setCellSelectionEnabled(false)
+    setRowSelectionAllowed(true)
 
-    super.addMouseListener(MouseTableListener())
-    super.addKeyListener(PTableKeyListener())
+    addMouseListener(MouseTableListener())
+    addKeyListener(PTableKeyListener())
 
     // We want expansion for the property names but not of the editors. This disables expansion for both columns.
     // TODO: Provide expansion of the left column only.
-    super.setExpandableItemsEnabled(false)
+    setExpandableItemsEnabled(false)
+
+    transferHandler = PTableTransferHandler()
 
     getColumnModel().getColumn(0).resizable = false
     getColumnModel().getColumn(1).resizable = false
+
+    installHoverListener()
 
     initialized = true
   }
@@ -374,7 +381,7 @@ class PTableImpl(
     actionMap.put(TableActions.CtrlShiftEnd.ID, MyKeyAction {  moveToLastRow() })
 
     // Setup additional actions for the table
-    registerKey(KeyStrokes.ENTER) { smartEnter(toggleOnly = false) }
+                  registerKey(KeyStrokes.ENTER) { smartEnter(toggleOnly = false) }
     registerKey(KeyStrokes.SPACE) { smartEnter(toggleOnly = true) }
     registerKey(KeyStrokes.NUM_LEFT) { modifyGroup(expand = false) }
     registerKey(KeyStrokes.NUM_RIGHT) { modifyGroup(expand = true) }
@@ -605,6 +612,41 @@ class PTableImpl(
 
     selectRow(rowCount - 1)
   }
+
+  // TODO: Change this from MouseMoveListener to TableHoverListener when the latter is a stable API
+  private fun installHoverListener() {
+    addMouseMotionListener(object : MouseMotionAdapter() {
+      override fun mouseMoved(event: MouseEvent) {
+        val point = event.point
+        val row = rowAtPoint(point)
+        val column = PTableColumn.fromColumn(columnAtPoint(point))
+        val renderer = if (
+          !(row == editingRow && column.ordinal == editingColumn) && // this cell is not being edited
+          tableModel.hasCustomCursor(item(row), column)
+        ) getRenderer(row, column) else null
+
+        // Replace the cursor of the table to the cursor of the component in the renderer the mouse event points to.
+        cursor = renderer?.let {
+          val rect = getCellRect(row, column.ordinal, true)
+          val component = SwingUtilities.getDeepestComponentAt(renderer, event.x - rect.x, event.y - rect.y)
+          // The property panel is using text editors to display text.
+          // Ignore the I-beam from those components.
+          if (component is JTextComponent) null else component?.cursor
+        } ?: Cursor.getDefaultCursor()
+      }
+    })
+  }
+
+  /**
+   * Lookup the renderer for the given [row] and [column].
+   */
+  private fun getRenderer(row: Int, column: PTableColumn): Component =
+    prepareRenderer(getCellRenderer(row, column.ordinal), row, column.ordinal).also { renderer ->
+      if (renderer.preferredSize.height > rowHeight) {
+        // Variable height renders needs to be resized
+        TreeWalker(renderer).descendantStream().forEach(Component::doLayout)
+      }
+    }
 
   // ========== Group Expansion on Mouse Click =================================
 

@@ -17,10 +17,13 @@ package org.jetbrains.android.uipreview
 
 import com.android.SdkConstants
 import com.android.tools.idea.model.AndroidModel
+import com.android.tools.idea.projectsystem.ProjectSyncModificationTracker
 import com.google.common.io.Files
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.facet.AndroidRootUtil
 import java.io.File
@@ -29,27 +32,29 @@ import java.nio.file.Path
 /**
  * Returns a stream of JAR files of the referenced libraries for the [Module] of this class loader.
  */
-private fun getExternalLibraryJars(module: Module): Sequence<File> {
-  val facet = AndroidFacet.getInstance(module)
+private fun Module.getExternalLibraryJars(): Sequence<File> {
+  val facet = AndroidFacet.getInstance(this)
   if (facet != null && AndroidModel.isRequired(facet)) {
     val model = AndroidModel.get(facet)
     if (model != null) {
-      return model.classJarProvider.getModuleExternalLibraries(module).asSequence()
+      return model.classJarProvider.getModuleExternalLibraries(this).asSequence()
     }
   }
-  return AndroidRootUtil.getExternalLibraries(module).asSequence().map { file: VirtualFile? -> VfsUtilCore.virtualToIoFile(file!!) }
+  return AndroidRootUtil.getExternalLibraries(this).asSequence().map { file: VirtualFile? -> VfsUtilCore.virtualToIoFile(file!!) }
 }
 
 /**
- * Returns the list of external JAR files referenced by the class loader.
+ * Returns the list of [Path]s to external JAR files referenced by the class loader.
  */
-internal fun getLibraryDependenciesJars(module: Module?): List<Path> {
-  if (module == null || module.isDisposed) {
+fun Module?.getLibraryDependenciesJars(): List<Path> {
+  if (this == null || this.isDisposed) {
     return emptyList()
   }
-
-  return getExternalLibraryJars(module)
-    .filter { SdkConstants.EXT_JAR == Files.getFileExtension(it.name) && it.exists() }
-    .map { it.toPath() }
-    .toList()
+  return CachedValuesManager.getManager(project).getCachedValue(this) {
+    val libraries = getExternalLibraryJars()
+      .filter { file: File -> SdkConstants.EXT_JAR == Files.getFileExtension(file.name) && file.exists() }
+      .mapNotNull { it.toPath() }
+      .toList()
+    CachedValueProvider.Result.create(libraries, ProjectSyncModificationTracker.getInstance(project))
+  }
 }

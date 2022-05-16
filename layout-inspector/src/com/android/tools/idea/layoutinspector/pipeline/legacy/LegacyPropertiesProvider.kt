@@ -23,10 +23,10 @@ import com.android.ide.common.rendering.api.ResourceReference
 import com.android.resources.ResourceType
 import com.android.resources.ResourceUrl
 import com.android.tools.idea.layoutinspector.model.ViewNode
-import com.android.tools.idea.layoutinspector.properties.ViewNodeAndResourceLookup
 import com.android.tools.idea.layoutinspector.properties.InspectorPropertyItem
 import com.android.tools.idea.layoutinspector.properties.PropertiesProvider
 import com.android.tools.idea.layoutinspector.properties.PropertySection
+import com.android.tools.idea.layoutinspector.properties.ViewNodeAndResourceLookup
 import com.android.tools.idea.layoutinspector.properties.addInternalProperties
 import com.android.tools.property.panel.api.PropertiesTable
 import com.google.common.annotations.VisibleForTesting
@@ -69,7 +69,7 @@ class LegacyPropertiesProvider : PropertiesProvider {
     }
 
     fun parseProperties(view: ViewNode, data: String) {
-      val parent = view.parent
+      val parent = ViewNode.readAccess { view.parent }
       var start = 0
       var stop: Boolean
       val table = HashBasedTable.create<String, String, InspectorPropertyItem>()

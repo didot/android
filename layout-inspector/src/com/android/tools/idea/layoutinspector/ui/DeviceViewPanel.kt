@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.layoutinspector.ui
 
+import com.android.sdklib.AndroidVersion
 import com.android.tools.adtui.PANNABLE_KEY
 import com.android.tools.adtui.Pannable
 import com.android.tools.adtui.ZOOMABLE_KEY
@@ -26,7 +27,13 @@ import com.android.tools.adtui.common.AdtUiCursorsProvider
 import com.android.tools.adtui.common.helpText
 import com.android.tools.adtui.util.ActionToolbarUtil
 import com.android.tools.idea.appinspection.api.process.ProcessesModel
+import com.android.tools.idea.appinspection.ide.ui.ICON_EMULATOR
+import com.android.tools.idea.appinspection.ide.ui.ICON_PHONE
 import com.android.tools.idea.appinspection.ide.ui.SelectProcessAction
+import com.android.tools.idea.appinspection.ide.ui.buildDeviceName
+import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescriptor
+import com.android.tools.idea.concurrency.AndroidExecutors
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.layoutinspector.LayoutInspector
 import com.android.tools.idea.layoutinspector.model.REBOOT_FOR_LIVE_INSPECTOR_MESSAGE_KEY
 import com.android.tools.idea.layoutinspector.model.ViewNode
@@ -34,7 +41,9 @@ import com.android.tools.idea.layoutinspector.pipeline.DisconnectedClient
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClient.Capability
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClientSettings
+import com.android.tools.idea.layoutinspector.snapshots.CaptureSnapshotAction
 import com.google.common.annotations.VisibleForTesting
+import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
@@ -49,6 +58,7 @@ import com.intellij.openapi.actionSystem.ex.TooltipDescriptionProvider
 import com.intellij.openapi.actionSystem.ex.TooltipLinkProvider
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.JBColor
+import com.intellij.ui.LayeredIcon
 import com.intellij.ui.components.JBLoadingPanel
 import com.intellij.ui.components.JBLoadingPanelListener
 import com.intellij.ui.components.JBScrollPane
@@ -70,6 +80,7 @@ import java.awt.event.KeyEvent
 import java.awt.event.KeyEvent.VK_SPACE
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors.newSingleThreadExecutor
 import javax.swing.BorderFactory
 import javax.swing.JComponent
@@ -85,6 +96,12 @@ private const val MIN_ZOOM = 10
 
 private const val TOOLBAR_INSET = 14
 
+@VisibleForTesting
+val ICON_LEGACY_PHONE = LayeredIcon(ICON_PHONE, AllIcons.General.WarningDecorator)
+
+@VisibleForTesting
+val ICON_LEGACY_EMULATOR = LayeredIcon(ICON_EMULATOR, AllIcons.General.WarningDecorator)
+
 @TestOnly
 const val DEVICE_VIEW_ACTION_TOOLBAR_NAME = "DeviceViewPanel.ActionToolbar"
 
@@ -92,10 +109,11 @@ const val DEVICE_VIEW_ACTION_TOOLBAR_NAME = "DeviceViewPanel.ActionToolbar"
  * Panel that shows the device screen in the layout inspector.
  */
 class DeviceViewPanel(
-  private val processes: ProcessesModel,
+  val processes: ProcessesModel?,
   private val layoutInspector: LayoutInspector,
   private val viewSettings: DeviceViewSettings,
-  disposableParent: Disposable
+  disposableParent: Disposable,
+  @TestOnly private val backgroundExecutor: Executor = AndroidExecutors.getInstance().workerThreadExecutor
 ) : JPanel(BorderLayout()), Zoomable, DataProvider, Pannable {
 
   override val scale
@@ -104,18 +122,57 @@ class DeviceViewPanel(
   override val screenScalingFactor = 1.0
 
   override var isPanning = false
+    get() = field || isMiddleMousePressed || isSpacePressed
+
   private var isSpacePressed = false
+  private var isMiddleMousePressed = false
   private var lastPanMouseLocation: Point? = null
+
+  private val selectProcessAction: SelectProcessAction? = if (processes != null) {
+    SelectProcessAction(
+      model = processes,
+      supportsOffline = false,
+      createProcessLabel = (SelectProcessAction)::createCompactProcessLabel,
+      stopPresentation = SelectProcessAction.StopPresentation(
+        "Stop inspector",
+        "Stop running the layout inspector against the current process"),
+      onStopAction = { stopInspectors() },
+      customDeviceAttribution = ::deviceAttribution
+    )
+  }
+  else null
 
   private val contentPanel = DeviceViewContentPanel(
     layoutInspector.layoutInspectorModel, layoutInspector.stats, layoutInspector.treeSettings, viewSettings,
-    { layoutInspector.currentClient }, disposableParent
+    { layoutInspector.currentClient }, this, selectProcessAction, disposableParent
   )
 
-  private val panMouseListener: MouseAdapter = object : MouseAdapter() {
-    private fun currentlyPanning(e: MouseEvent) = isPanning || SwingUtilities.isMiddleMouseButton(e) ||
-                                                  (SwingUtilities.isLeftMouseButton(e) && isSpacePressed)
+  private fun deviceAttribution(device: DeviceDescriptor, event: AnActionEvent) = when {
+    device.apiLevel < AndroidVersion.VersionCodes.M -> {
+      event.presentation.isEnabled = false
+      event.presentation.text = "${device.buildDeviceName()} (Unsupported for API < ${AndroidVersion.VersionCodes.M})"
+    }
+    device.apiLevel < AndroidVersion.VersionCodes.Q -> {
+      event.presentation.icon = device.toLegacyIcon()
+      event.presentation.text = "${device.buildDeviceName()} (Live inspection disabled for API < ${AndroidVersion.VersionCodes.Q})"
+    }
+    else -> {
+    }
+  }
 
+  private fun DeviceDescriptor?.toLegacyIcon() =
+    if (this?.isEmulator == true) ICON_LEGACY_EMULATOR else ICON_LEGACY_PHONE
+
+  private fun showGrab() {
+    cursor = if (isPanning) {
+      AdtUiCursorsProvider.getInstance().getCursor(AdtUiCursorType.GRAB)
+    }
+    else {
+      Cursor.getDefaultCursor()
+    }
+  }
+
+  private val panMouseListener: MouseAdapter = object : MouseAdapter() {
     override fun mouseEntered(e: MouseEvent) {
       showGrab()
     }
@@ -124,18 +181,10 @@ class DeviceViewPanel(
       showGrab()
     }
 
-    private fun showGrab() {
-      cursor = if (isPanning) {
-        AdtUiCursorsProvider.getInstance().getCursor(AdtUiCursorType.GRAB)
-      }
-      else {
-        Cursor.getDefaultCursor()
-      }
-    }
-
     override fun mousePressed(e: MouseEvent) {
       contentPanel.requestFocus()
-      if (currentlyPanning(e)) {
+      isMiddleMousePressed = SwingUtilities.isMiddleMouseButton(e)
+      if (isPanning) {
         cursor = AdtUiCursorsProvider.getInstance().getCursor(AdtUiCursorType.GRABBING)
         lastPanMouseLocation = SwingUtilities.convertPoint(e.component, e.point, this@DeviceViewPanel)
         e.consume()
@@ -147,7 +196,7 @@ class DeviceViewPanel(
       // convert to non-scrollable coordinates, otherwise as soon as the scroll is changed the mouse position also changes.
       val newLocation = SwingUtilities.convertPoint(e.component, e.point, this@DeviceViewPanel)
       lastPanMouseLocation = newLocation
-      if (currentlyPanning(e) && lastLocation != null) {
+      if (isPanning && lastLocation != null) {
         cursor = AdtUiCursorsProvider.getInstance().getCursor(AdtUiCursorType.GRABBING)
         val extent = scrollPane.viewport.extentSize
         val view = scrollPane.viewport.viewSize
@@ -164,6 +213,7 @@ class DeviceViewPanel(
     }
 
     override fun mouseReleased(e: MouseEvent) {
+      isMiddleMousePressed = false
       if (lastPanMouseLocation != null) {
         cursor = if (isPanning) AdtUiCursorsProvider.getInstance().getCursor(AdtUiCursorType.GRAB) else Cursor.getDefaultCursor()
         lastPanMouseLocation = null
@@ -174,16 +224,16 @@ class DeviceViewPanel(
 
   private val scrollPane = JBScrollPane(contentPanel)
   private val layeredPane = JLayeredPane()
-  private val loadingPane: JBLoadingPanel
+  private val loadingPane: JBLoadingPanel = JBLoadingPanel(BorderLayout(), disposableParent)
   private val deviceViewPanelActionsToolbar: DeviceViewPanelActionsToolbarProvider
   private val viewportLayoutManager = MyViewportLayoutManager(scrollPane.viewport, { contentPanel.model.layerSpacing },
                                                               { contentPanel.rootLocation })
 
-  private val actionToolbar: ActionToolbar
+  private val actionToolbar: ActionToolbar = createToolbar(selectProcessAction)
 
   private val bubbleLabel = JLabel()
 
-  private val bubble = object: JPanel(FlowLayout()) {
+  private val bubble = object : JPanel(FlowLayout()) {
     init {
       add(JLabel(StudioIcons.Common.INFO_INLINE))
       add(bubbleLabel)
@@ -208,8 +258,7 @@ class DeviceViewPanel(
     }
 
   init {
-    loadingPane = JBLoadingPanel(BorderLayout(), disposableParent)
-    loadingPane.addListener(object: JBLoadingPanelListener {
+    loadingPane.addListener(object : JBLoadingPanelListener {
       override fun onLoadingStart() {
         contentPanel.showEmptyText = false
       }
@@ -218,14 +267,6 @@ class DeviceViewPanel(
         contentPanel.showEmptyText = true
       }
     })
-    val selectProcessAction = SelectProcessAction(processes,
-                                                  supportsOffline = false,
-                                                  createProcessLabel = (SelectProcessAction)::createCompactProcessLabel,
-                                                  stopPresentation = SelectProcessAction.StopPresentation(
-                                                    "Stop inspector",
-                                                    "Stop running the layout inspector against the current process"),
-                                                  onStopAction = { stopInspectors() })
-    contentPanel.selectProcessAction = selectProcessAction
     scrollPane.viewport.layout = viewportLayoutManager
     contentPanel.isFocusable = true
 
@@ -241,12 +282,14 @@ class DeviceViewPanel(
       override fun keyPressed(e: KeyEvent) {
         if (e.keyCode == VK_SPACE) {
           isSpacePressed = true
+          showGrab()
         }
       }
 
       override fun keyReleased(e: KeyEvent) {
         if (e.keyCode == VK_SPACE) {
           isSpacePressed = false
+          showGrab()
         }
       }
     })
@@ -256,17 +299,19 @@ class DeviceViewPanel(
 
     scrollPane.border = JBUI.Borders.empty()
 
-    actionToolbar = createToolbar(selectProcessAction)
     val toolbarComponent = createToolbarPanel(actionToolbar)
     add(toolbarComponent, BorderLayout.NORTH)
     loadingPane.add(layeredPane, BorderLayout.CENTER)
     add(loadingPane, BorderLayout.CENTER)
     val model = layoutInspector.layoutInspectorModel
-    processes.addSelectedProcessListeners(newSingleThreadExecutor()) {
+    processes?.addSelectedProcessListeners(newSingleThreadExecutor()) {
       if (processes.selectedProcess?.isRunning == true) {
         if (model.isEmpty) {
           loadingPane.startLoading()
         }
+      }
+      if (processes.selectedProcess == null) {
+        loadingPane.stopLoading()
       }
     }
     model.modificationListeners.add { old, new, _ ->
@@ -333,7 +378,7 @@ class DeviceViewPanel(
         client.updateScreenshotType(null, viewSettings.scaleFraction.toFloat())
       }
       if (prevZoom != viewSettings.scalePercent) {
-        ApplicationManager.getApplication().executeOnPooledThread {
+        backgroundExecutor.execute {
           deviceViewPanelActionsToolbar.zoomChanged(prevZoom / 100.0, viewSettings.scalePercent / 100.0)
           prevZoom = viewSettings.scalePercent
           model.windows.values.forEach {
@@ -347,7 +392,7 @@ class DeviceViewPanel(
 
   fun stopInspectors() {
     loadingPane.stopLoading()
-    processes.stop()
+    processes?.stop()
   }
 
   private fun updateLayeredPaneSize() {
@@ -424,23 +469,32 @@ class DeviceViewPanel(
 
   override val isPannable: Boolean
     get() = contentPanel.width > scrollPane.viewport.width || contentPanel.height > scrollPane.viewport.height
+  override var scrollPosition: Point
+    get() = scrollPane.viewport.viewPosition
+    set(_) {}
 
-  private fun createToolbar(selectProcessAction: AnAction): ActionToolbar {
+  private fun createToolbar(selectProcessAction: AnAction?): ActionToolbar {
     val leftGroup = DefaultActionGroup()
-    leftGroup.add(selectProcessAction)
+    selectProcessAction?.let { leftGroup.add(it) }
     leftGroup.add(Separator.getInstance())
     leftGroup.add(ViewMenuAction)
     leftGroup.add(ToggleOverlayAction)
+    if (StudioFlags.DYNAMIC_LAYOUT_INSPECTOR_ENABLE_SNAPSHOTS.get() && !layoutInspector.isSnapshot) {
+      leftGroup.add(CaptureSnapshotAction)
+    }
     leftGroup.add(AlphaSliderAction)
-    leftGroup.add(Separator.getInstance())
-    leftGroup.add(PauseLayoutInspectorAction)
-    leftGroup.add(RefreshAction)
+    if (!layoutInspector.isSnapshot) {
+      leftGroup.add(Separator.getInstance())
+      leftGroup.add(PauseLayoutInspectorAction)
+      leftGroup.add(RefreshAction)
+    }
     leftGroup.add(Separator.getInstance())
     leftGroup.add(LayerSpacingSliderAction)
     val actionToolbar = ActionManager.getInstance().createActionToolbar("DynamicLayoutInspectorLeft", leftGroup, true)
     ActionToolbarUtil.makeToolbarNavigable(actionToolbar)
     actionToolbar.component.name = DEVICE_VIEW_ACTION_TOOLBAR_NAME
     actionToolbar.setTargetComponent(this)
+    actionToolbar.updateActionsImmediately()
     return actionToolbar
   }
 
@@ -527,14 +581,14 @@ class MyViewportLayoutManager(
             Point((size.width - bounds.width).coerceAtLeast(0) / 2, (size.height - bounds.height).coerceAtLeast(0) / 2)
           }
           else -> {
-            val position = SwingUtilities.convertPoint(viewport, Point(viewport.width/2, viewport.height/2), viewport.view)
+            val position = SwingUtilities.convertPoint(viewport, Point(viewport.width / 2, viewport.height / 2), viewport.view)
             val xPercent = position.x.toDouble() / viewport.view.width.toDouble()
             val yPercent = position.y.toDouble() / viewport.view.height.toDouble()
 
             origLayout.layoutContainer(parent)
 
             val newPosition = Point((viewport.view.width * xPercent).toInt(), (viewport.view.height * yPercent).toInt())
-            newPosition.translate(-viewport.extentSize.width/2, -viewport.extentSize.height/2)
+            newPosition.translate(-viewport.extentSize.width / 2, -viewport.extentSize.height / 2)
             newPosition
           }
         }
@@ -556,4 +610,3 @@ class MyViewportLayoutManager(
     lastViewSize = viewport.view.size
   }
 }
-

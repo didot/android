@@ -15,15 +15,16 @@
  */
 package com.android.tools.idea.testing
 
+import com.android.tools.idea.gradle.model.IdeCustomSourceDirectory
 import com.android.tools.idea.gradle.model.IdeSourceProvider
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.projectsystem.IdeaSourceProvider
 import com.android.tools.idea.projectsystem.NamedIdeaSourceProvider
+import com.android.tools.idea.projectsystem.getAndroidFacets
 import com.android.utils.FileUtils
-import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.io.systemIndependentPath
 import com.intellij.openapi.vfs.VirtualFile
-import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.facet.SourceProviderManager
 import org.jetbrains.android.facet.getManifestFiles
 import java.io.File
@@ -70,6 +71,13 @@ fun Project.dumpSourceProviders(): String {
     fun IdeaSourceProvider.dumpPaths(name: String, getter: (IdeaSourceProvider) -> Iterable<VirtualFile?>) =
       dumpPathsCore(name, getter) { it?.url }
 
+    fun IdeCustomSourceDirectory.dump() {
+      nest("CustomSourceDirectory") {
+        out(sourceTypeName)
+        out(directory.systemIndependentPath.toPrintablePath())
+      }
+    }
+
     fun IdeSourceProvider.dump() {
       out(name)
       nest {
@@ -84,6 +92,7 @@ fun Project.dumpSourceProviders(): String {
         dumpPaths("ResourcesDirectories") { it.resourcesDirectories }
         dumpPaths("ShadersDirectories") { it.shadersDirectories }
         dumpPaths("MlModelsDirectories") { it.mlModelsDirectories }
+        customSourceDirectories.forEach { it.dump() }
       }
     }
 
@@ -122,48 +131,50 @@ fun Project.dumpSourceProviders(): String {
       dump(name)
     }
 
-    ModuleManager
-      .getInstance(this@dumpSourceProviders)
-      .modules
-      .sortedBy { it.name }
-      .forEach { module ->
-        out("MODULE: ${module.name}")
-        val androidFacet = AndroidFacet.getInstance(module)
-        if (androidFacet != null) {
-          nest {
-            nest("by Facet:") {
-              val sourceProviderManager = SourceProviderManager.getInstance(androidFacet)
-              sourceProviderManager.mainIdeaSourceProvider.dump()
-            }
-            val model = AndroidModuleModel.get(module)
+    this@dumpSourceProviders.getAndroidFacets()
+      .sortedBy { it.holderModule.name }
+      .forEach { facet ->
+        out("MODULE: ${facet.holderModule.name}")
+        nest {
+          nest("by Facet:") {
+            val sourceProviderManager = SourceProviderManager.getInstance(facet)
+            sourceProviderManager.mainIdeaSourceProvider.dump()
+          }
+          val model = GradleAndroidModel.get(facet)
 
-            fun IdeSourceProvider.adjustedName() =
-              if (name == "main") "_" else name
+          fun IdeSourceProvider.adjustedName() =
+            if (name == "main") "_" else name
 
-            fun NamedIdeaSourceProvider.adjustedName() =
-              if (name == "main") "_" else name
+          fun NamedIdeaSourceProvider.adjustedName() =
+            if (name == "main") "_" else name
 
-            if (model != null) {
-              nest("by AndroidModel:") {
-                model.defaultSourceProvider.dump()
-                nest("Active:") { model.activeSourceProviders.forEach { it.dump() } }
-                nest("All:") { model.allSourceProviders.sortedBy { it.adjustedName() }.forEach { it.dump() } }
-                nest("UnitTest:") { model.unitTestSourceProviders.forEach { it.dump() } }
-                nest("AndroidTest:") { model.androidTestSourceProviders.forEach { it.dump() } }
-              }
+          if (model != null) {
+            nest("by AndroidModel:") {
+              model.defaultSourceProvider.dump()
+              nest("Active:") { model.activeSourceProviders.forEach { it.dump() } }
+              nest("All:") { model.allSourceProviders.sortedBy { it.adjustedName() }.forEach { it.dump() } }
+              nest("UnitTest:") { model.unitTestSourceProviders.forEach { it.dump() } }
+              nest("AndroidTest:") { model.androidTestSourceProviders.forEach { it.dump() } }
+              nest("TestFixtures:") { model.testFixturesSourceProviders.forEach { it.dump() } }
             }
-            nest("by IdeaSourceProviders:") {
-              val sourceProviderManager = SourceProviderManager.getInstance(androidFacet)
-              dumpPathsCore("Manifests", { getManifestFiles(androidFacet) }, { it.url })
-              nest("Sources:") { sourceProviderManager.sources.dump("Sources") }
-              nest("UnitTestSources:") { sourceProviderManager.unitTestSources.dump("UnitTestSources") }
-              nest("AndroidTestSources:") { sourceProviderManager.androidTestSources.dump("AndroidTestSources") }
-              nest(
-                "CurrentAndSomeFrequentlyUsedInactiveSourceProviders:") { sourceProviderManager.currentAndSomeFrequentlyUsedInactiveSourceProviders.sortedBy { it.adjustedName() }.forEach { it.dump() } }
-              nest("CurrentSourceProviders:") { sourceProviderManager.currentSourceProviders.forEach { it.dump() } }
-              nest("CurrentUnitTestSourceProviders:") { sourceProviderManager.currentUnitTestSourceProviders.forEach { it.dump() } }
-              nest("CurrentAndroidTestSourceProviders:") { sourceProviderManager.currentAndroidTestSourceProviders.forEach { it.dump() } }
-            }
+          }
+          nest("by IdeaSourceProviders:") {
+            val sourceProviderManager = SourceProviderManager.getInstance(facet)
+            dumpPathsCore("Manifests", { getManifestFiles(facet) }, { it.url })
+            nest("Sources:") { sourceProviderManager.sources.dump("Sources") }
+            nest("UnitTestSources:") { sourceProviderManager.unitTestSources.dump("UnitTestSources") }
+            nest("AndroidTestSources:") { sourceProviderManager.androidTestSources.dump("AndroidTestSources") }
+            nest("TestFixturesSources:") { sourceProviderManager.testFixturesSources.dump("TestFixturesSources") }
+            nest("GeneratedSources:") { sourceProviderManager.generatedSources.dump("GeneratedSources") }
+            nest("GeneratedUnitTestSources:") { sourceProviderManager.generatedUnitTestSources.dump("GeneratedUnitTestSources") }
+            nest("GeneratedAndroidTestSources:") { sourceProviderManager.generatedAndroidTestSources.dump("GeneratedAndroidTestSources") }
+            nest("GeneratedTestFixturesSources:") { sourceProviderManager.generatedTestFixturesSources.dump("GeneratedTestFixturesSources") }
+            nest(
+              "CurrentAndSomeFrequentlyUsedInactiveSourceProviders:") { sourceProviderManager.currentAndSomeFrequentlyUsedInactiveSourceProviders.sortedBy { it.adjustedName() }.forEach { it.dump() } }
+            nest("CurrentSourceProviders:") { sourceProviderManager.currentSourceProviders.forEach { it.dump() } }
+            nest("CurrentUnitTestSourceProviders:") { sourceProviderManager.currentUnitTestSourceProviders.forEach { it.dump() } }
+            nest("CurrentAndroidTestSourceProviders:") { sourceProviderManager.currentAndroidTestSourceProviders.forEach { it.dump() } }
+            nest("CurrentTestFixturesSourceProviders:") { sourceProviderManager.currentTestFixturesSourceProviders.forEach { it.dump() } }
           }
         }
       }

@@ -16,5 +16,6 @@
 package com.android.layoutlib;
 
 public class NativeCrashHandling {
-    // FIXME-ank: depends on modified intellij platform (does not compile with the canonical intellij)
+  // FIXME-ank: depends on modified intellij platform (does not compile with the canonical intellij)
 }
+

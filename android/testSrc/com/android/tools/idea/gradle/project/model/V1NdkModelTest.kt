@@ -15,13 +15,14 @@
  */
 package com.android.tools.idea.gradle.project.model
 
-import com.android.builder.model.NativeAndroidProject
-import com.android.builder.model.NativeArtifact
 import com.android.builder.model.NativeSettings
 import com.android.builder.model.NativeToolchain
-import com.android.builder.model.NativeVariantAbi
-import com.android.builder.model.NativeVariantInfo
-import com.android.tools.idea.gradle.project.sync.ModelCache
+import com.android.tools.idea.gradle.model.impl.ndk.v1.IdeNativeAndroidProjectImpl
+import com.android.tools.idea.gradle.model.impl.ndk.v1.IdeNativeArtifactImpl
+import com.android.tools.idea.gradle.model.impl.ndk.v1.IdeNativeSettingsImpl
+import com.android.tools.idea.gradle.model.impl.ndk.v1.IdeNativeToolchainImpl
+import com.android.tools.idea.gradle.model.impl.ndk.v1.IdeNativeVariantAbiImpl
+import com.android.tools.idea.gradle.model.impl.ndk.v1.IdeNativeVariantInfoImpl
 import com.google.common.truth.Truth
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.serialization.ObjectSerializer
@@ -29,13 +30,13 @@ import com.intellij.serialization.ReadConfiguration
 import com.intellij.serialization.SkipNullAndEmptySerializationFilter
 import com.intellij.serialization.WriteConfiguration
 import junit.framework.TestCase
-import org.apache.commons.lang.builder.EqualsBuilder
+import org.apache.commons.lang3.builder.EqualsBuilder
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 import org.mockito.Mock
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import java.io.File
 
 @RunWith(JUnit4::class)
@@ -77,125 +78,102 @@ class V1NdkModelTest {
     writeText("whatever")
   }
 
-  private val modelCache = ModelCache.createForTesting()
+  private val mockDebugX86Artifact =
+    IdeNativeArtifactImpl("artifact1", "toolchain1", "debug", emptyList(), emptyList(), x86SoFile, "x86", "target1")
 
-  @Mock
-  private val _mockDebugX86Artifact = mock(NativeArtifact::class.java).apply {
-      `when`(name).thenReturn("artifact1")
-      `when`(groupName).thenReturn("debug")
-      `when`(abi).thenReturn("x86")
-      `when`(outputFile).thenReturn(x86SoFile)
-      `when`(toolChain).thenReturn("toolchain1")
-      `when`(targetName).thenReturn("target1")
-    }
+  private val mockDebugArm64Artifact =
+    IdeNativeArtifactImpl("artifact2", "toolchain2", "debug", emptyList(), emptyList(), arm64V8aSoFile, "arm64-v8a", "target2")
 
-  @Mock
-  private val mockDebugX86Artifact = modelCache.nativeArtifactFrom(_mockDebugX86Artifact)
-
-  @Mock
-  private val _mockDebugArm64Artifact = mock(NativeArtifact::class.java).apply {
-      `when`(name).thenReturn("artifact2")
-      `when`(groupName).thenReturn("debug")
-      `when`(abi).thenReturn("arm64-v8a")
-      `when`(outputFile).thenReturn(arm64V8aSoFile)
-      `when`(toolChain).thenReturn("toolchain2")
-      `when`(targetName).thenReturn("target2")
-    }
-
-  @Mock
-  private val mockDebugArm64Artifact = modelCache.nativeArtifactFrom(_mockDebugArm64Artifact)
-
-  private val fullSyncV1NdkModel = V1NdkModel(
-    modelCache.nativeAndroidProjectFrom(object : NativeAndroidProject {
-      override fun getBuildFiles(): Collection<File> = listOf(File("buildFile1"), File("buildFile2"))
-      override fun getSettings(): Collection<NativeSettings> = listOf(mockNativeSettings1, mockNativeSettings2)
-      override fun getName() = "" // not needed
-      override fun getFileExtensions(): Map<String, String> = emptyMap() // not needed
-      override fun getArtifacts(): Collection<NativeArtifact> = listOf(_mockDebugX86Artifact, _mockDebugArm64Artifact)
-      override fun getDefaultNdkVersion(): String = "21.1.12345"
-      override fun getBuildSystems(): Collection<String> = listOf("cmake")
-      override fun getApiVersion(): Int = 0 // not needed
-      override fun getModelVersion(): String = "4.2.0-alpha02"
-      override fun getToolChains(): Collection<NativeToolchain> = listOf(mockNativeToolchain1, mockNativeToolchain2)
-      override fun getVariantInfos(): Map<String, NativeVariantInfo> = mapOf(
-        "debug" to object : NativeVariantInfo {
-          override fun getAbiNames(): List<String> = listOf("x86", "arm64-v8a")
-          override fun getBuildRootFolderMap(): Map<String, File> = emptyMap() // not needed
-        },
-        "release" to object : NativeVariantInfo {
-          override fun getAbiNames(): List<String> = listOf("x86", "arm64-v8a")
-          override fun getBuildRootFolderMap(): Map<String, File> = emptyMap() // not needed
-        }
-      )
-    }), emptyList()
+  private val allVariantsSyncV1NdkModel = V1NdkModel(
+    IdeNativeAndroidProjectImpl(
+      "4.2.0-alpha02",
+      "moduleName",
+      listOf(File("buildFile1"), File("buildFile2")),
+      mapOf(
+        "debug" to IdeNativeVariantInfoImpl(listOf("x86", "arm64-v8a"), emptyMap()),
+        "release" to IdeNativeVariantInfoImpl(listOf("x86", "arm64-v8a"), emptyMap())
+      ),
+      listOf(mockDebugX86Artifact, mockDebugArm64Artifact),
+      listOf(IdeNativeToolchainImpl(
+        mockNativeToolchain1.name,
+        mockNativeToolchain1.cCompilerExecutable,
+        mockNativeToolchain1.cppCompilerExecutable
+      ), IdeNativeToolchainImpl(
+        mockNativeToolchain2.name,
+        mockNativeToolchain2.cCompilerExecutable,
+        mockNativeToolchain2.cppCompilerExecutable
+      )),
+      listOf(IdeNativeSettingsImpl(mockNativeSettings1.name, mockNativeSettings1.compilerFlags),
+             IdeNativeSettingsImpl(mockNativeSettings2.name, mockNativeSettings2.compilerFlags)),
+      emptyMap(),
+      listOf("cmake"),
+      "21.1.12345",
+      "21.1.12345",
+      12),
+    emptyList()
   )
 
   private val singleVariantSyncV1NdkModel = V1NdkModel(
-    modelCache.nativeAndroidProjectFrom(object : NativeAndroidProject {
-      override fun getBuildFiles(): Collection<File> = listOf(File("buildFile1"), File("buildFile2"))
-      override fun getSettings(): Collection<NativeSettings> = emptyList()
-      override fun getName() = "" // not needed
-      override fun getFileExtensions(): Map<String, String> = emptyMap() // not needed
-      override fun getArtifacts(): Collection<NativeArtifact> = emptyList()
-      override fun getDefaultNdkVersion(): String = "21.1.12345"
-      override fun getBuildSystems(): Collection<String> = listOf("cmake")
-      override fun getApiVersion(): Int = 0 // not needed
-      override fun getModelVersion(): String = "4.2.0-alpha02"
-      override fun getToolChains(): Collection<NativeToolchain> = emptyList()
-      override fun getVariantInfos(): Map<String, NativeVariantInfo> = mapOf(
-        "debug" to object : NativeVariantInfo {
-          override fun getAbiNames(): List<String> = listOf("x86", "arm64-v8a")
-          override fun getBuildRootFolderMap(): Map<String, File> = emptyMap() // not needed
-        },
-        "release" to object : NativeVariantInfo {
-          override fun getAbiNames(): List<String> = listOf("x86", "arm64-v8a")
-          override fun getBuildRootFolderMap(): Map<String, File> = emptyMap() // not needed
-        }
-      )
-    }),
+    IdeNativeAndroidProjectImpl(
+      "4.2.0-alpha02",
+      "moduleName",
+      listOf(File("buildFile1"), File("buildFile2")),
+      mapOf(
+        "debug" to IdeNativeVariantInfoImpl(listOf("x86", "arm64-v8a"), emptyMap()),
+        "release" to IdeNativeVariantInfoImpl(listOf("x86", "arm64-v8a"), emptyMap())
+      ),
+      emptyList(),
+      emptyList(),
+      emptyList(),
+      emptyMap(),
+      listOf("cmake"),
+      "21.1.12345",
+      "21.1.12345",
+      12),
     listOf(
-      modelCache.nativeVariantAbiFrom(object : NativeVariantAbi {
-        override fun getBuildFiles(): Collection<File> = emptyList()
-        override fun getAbi(): String = "x86"
-        override fun getSettings(): Collection<NativeSettings> = listOf(
-          mockNativeSettings1)
-
-        override fun getFileExtensions(): Map<String, String> = emptyMap()
-        override fun getVariantName(): String = "debug"
-        override fun getToolChains(): Collection<NativeToolchain> = listOf(
-          mockNativeToolchain1)
-
-        override fun getArtifacts(): Collection<NativeArtifact> = listOf(_mockDebugX86Artifact)
-      })
+      IdeNativeVariantAbiImpl(
+        emptyList(),
+        listOf(mockDebugX86Artifact),
+        listOf(
+          IdeNativeToolchainImpl(
+            mockNativeToolchain1.name,
+            mockNativeToolchain1.cCompilerExecutable,
+            mockNativeToolchain1.cppCompilerExecutable
+          )),
+        listOf(IdeNativeSettingsImpl(mockNativeSettings1.name, mockNativeSettings1.compilerFlags)),
+        emptyMap(),
+        "debug",
+        "x86"
+      )
     )
   )
 
   @Test
   fun `full sync - test accessors`() {
     // Accessors declared in INdkModel
-    Truth.assertThat(fullSyncV1NdkModel.features.isGroupNameSupported).isTrue()
-    Truth.assertThat(fullSyncV1NdkModel.allVariantAbis).containsExactly(
+    Truth.assertThat(allVariantsSyncV1NdkModel.features.isGroupNameSupported).isTrue()
+    Truth.assertThat(allVariantsSyncV1NdkModel.allVariantAbis).containsExactly(
       VariantAbi("debug", "arm64-v8a"),
       VariantAbi("debug", "x86"),
       VariantAbi("release", "arm64-v8a"),
       VariantAbi("release", "x86")
     ).inOrder()
-    Truth.assertThat(fullSyncV1NdkModel.syncedVariantAbis).containsExactly(
+    Truth.assertThat(allVariantsSyncV1NdkModel.syncedVariantAbis).containsExactly(
       VariantAbi("debug", "arm64-v8a"),
       VariantAbi("debug", "x86")
     )
-    Truth.assertThat(fullSyncV1NdkModel.symbolFolders).containsExactly(
+    Truth.assertThat(allVariantsSyncV1NdkModel.symbolFolders).containsExactly(
       VariantAbi("debug", "x86"), setOf(x86SoFolder),
       VariantAbi("debug", "arm64-v8a"), setOf(arm64V8aSoFolder)
     )
-    Truth.assertThat(fullSyncV1NdkModel.buildFiles).containsExactly(File("buildFile1"), File("buildFile2"))
-    Truth.assertThat(fullSyncV1NdkModel.buildSystems).containsExactly("cmake")
-    Truth.assertThat(fullSyncV1NdkModel.defaultNdkVersion).isEqualTo("21.1.12345")
+    Truth.assertThat(allVariantsSyncV1NdkModel.buildFiles).containsExactly(File("buildFile1"), File("buildFile2"))
+    Truth.assertThat(allVariantsSyncV1NdkModel.buildSystems).containsExactly("cmake")
+    Truth.assertThat(allVariantsSyncV1NdkModel.defaultNdkVersion).isEqualTo("21.1.12345")
 
     // Accessors only available from V1NdkModel
-    Truth.assertThat(fullSyncV1NdkModel.getNdkVariant(VariantAbi("debug", "x86"))!!.artifacts)
+    Truth.assertThat(allVariantsSyncV1NdkModel.getNdkVariant(VariantAbi("debug", "x86"))!!.artifacts)
       .containsExactly(mockDebugX86Artifact)
-    Truth.assertThat(fullSyncV1NdkModel.getNdkVariant(VariantAbi("debug", "arm64-v8a"))!!.artifacts)
+    Truth.assertThat(allVariantsSyncV1NdkModel.getNdkVariant(VariantAbi("debug", "arm64-v8a"))!!.artifacts)
       .containsExactly(mockDebugArm64Artifact)
   }
 
@@ -226,12 +204,12 @@ class V1NdkModelTest {
 
   @Test
   fun `symbolFolders should reflect changes in filesystem`() {
-    Truth.assertThat(fullSyncV1NdkModel.symbolFolders).containsExactly(
+    Truth.assertThat(allVariantsSyncV1NdkModel.symbolFolders).containsExactly(
       VariantAbi("debug", "x86"), setOf(x86SoFolder),
       VariantAbi("debug", "arm64-v8a"), setOf(arm64V8aSoFolder)
     )
     arm64V8aSoFolder.deleteRecursively()
-    Truth.assertThat(fullSyncV1NdkModel.symbolFolders).containsExactly(
+    Truth.assertThat(allVariantsSyncV1NdkModel.symbolFolders).containsExactly(
       VariantAbi("debug", "x86"), setOf(x86SoFolder),
       VariantAbi("debug", "arm64-v8a"), emptySet<File>()
     )
@@ -239,7 +217,7 @@ class V1NdkModelTest {
 
   @Test
   fun `test serialization`() {
-    assertSerializable(fullSyncV1NdkModel)
+    assertSerializable(allVariantsSyncV1NdkModel)
     assertSerializable(singleVariantSyncV1NdkModel)
   }
 

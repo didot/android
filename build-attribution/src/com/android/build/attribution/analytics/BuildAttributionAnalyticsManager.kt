@@ -16,12 +16,18 @@
 package com.android.build.attribution.analytics
 
 import com.android.build.attribution.analyzers.AGPUpdateRequired
+import com.android.build.attribution.analyzers.AnalyzerNotRun
 import com.android.build.attribution.analyzers.BuildEventsAnalysisResult
 import com.android.build.attribution.analyzers.ConfigurationCacheCompatibilityTestFlow
 import com.android.build.attribution.analyzers.ConfigurationCachingCompatibilityProjectResult
 import com.android.build.attribution.analyzers.ConfigurationCachingTurnedOff
 import com.android.build.attribution.analyzers.ConfigurationCachingTurnedOn
 import com.android.build.attribution.analyzers.IncompatiblePluginsDetected
+import com.android.build.attribution.analyzers.JetifierCanBeRemoved
+import com.android.build.attribution.analyzers.JetifierNotUsed
+import com.android.build.attribution.analyzers.JetifierRequiredForLibraries
+import com.android.build.attribution.analyzers.JetifierUsageAnalyzerResult
+import com.android.build.attribution.analyzers.JetifierUsedCheckRequired
 import com.android.build.attribution.analyzers.NoIncompatiblePlugins
 import com.android.build.attribution.data.AlwaysRunTaskData
 import com.android.build.attribution.data.AnnotationProcessorData
@@ -44,6 +50,7 @@ import com.google.wireless.android.sdk.stats.BuildAttributionPluginIdentifier
 import com.google.wireless.android.sdk.stats.BuildAttributionStats
 import com.google.wireless.android.sdk.stats.ConfigurationCacheCompatibilityData
 import com.google.wireless.android.sdk.stats.CriticalPathAnalyzerData
+import com.google.wireless.android.sdk.stats.JetifierUsageData
 import com.google.wireless.android.sdk.stats.ProjectConfigurationAnalyzerData
 import com.google.wireless.android.sdk.stats.TasksConfigurationIssuesAnalyzerData
 import com.intellij.openapi.project.Project
@@ -61,14 +68,15 @@ class BuildAttributionAnalyticsManager(
 
   private val attributionStatsBuilder = BuildAttributionStats.newBuilder().setBuildAttributionReportSessionId(buildSessionId)
 
-  fun logBuildAttributionPerformanceStats(toolingApiLatencyMs: Long, postBuildAnalysis: () -> Unit) {
+  fun <T> logBuildAttributionPerformanceStats(toolingApiLatencyMs: Long, postBuildAnalysis: () -> T): T {
     val watch = Stopwatch.createStarted()
-    postBuildAnalysis()
-    attributionStatsBuilder.setBuildAttributionPerformanceStats(
-      BuildAttributionPerformanceStats.newBuilder()
-        .setPostBuildAnalysisDurationMs(watch.stop().elapsed(TimeUnit.MILLISECONDS))
-        .setToolingApiBuildFinishedEventLatencyMs(toolingApiLatencyMs)
-    )
+    return postBuildAnalysis().also {
+      attributionStatsBuilder.setBuildAttributionPerformanceStats(
+        BuildAttributionPerformanceStats.newBuilder()
+          .setPostBuildAnalysisDurationMs(watch.stop().elapsed(TimeUnit.MILLISECONDS))
+          .setToolingApiBuildFinishedEventLatencyMs(toolingApiLatencyMs)
+      )
+    }
   }
 
   fun logAnalyzersData(analysisResult: BuildEventsAnalysisResult) {
@@ -91,7 +99,8 @@ class BuildAttributionAnalyticsManager(
     analyzersDataBuilder.tasksConfigurationIssuesAnalyzerData =
       transformTasksConfigurationIssuesAnalyzerData(analysisResult.getTasksSharingOutput())
     analyzersDataBuilder.configurationCacheCompatibilityData =
-      transformConfiguratnionCacheCompatibilityDat(analysisResult.getConfigurationCachingCompatibility())
+      transformConfigurationCacheCompatibilityData(analysisResult.getConfigurationCachingCompatibility())
+    analyzersDataBuilder.jetifierUsageData = transformJetifierUsageData(analysisResult.getJetifierUsageResult())
     attributionStatsBuilder.setBuildAttributionAnalyzersData(analyzersDataBuilder)
   }
 
@@ -123,8 +132,10 @@ class BuildAttributionAnalyticsManager(
     .addAllPluginsCriticalPath(pluginsCriticalPath.map(::transformPluginBuildData))
     .build()
 
-  private fun transformProjectConfigurationAnalyzerData(projectConfigurationData: List<ProjectConfigurationData>,
-                                                        totalConfigurationData: ProjectConfigurationData) =
+  private fun transformProjectConfigurationAnalyzerData(
+    projectConfigurationData: List<ProjectConfigurationData>,
+    totalConfigurationData: ProjectConfigurationData
+  ) =
     ProjectConfigurationAnalyzerData.newBuilder()
       .addAllProjectConfigurationData(projectConfigurationData.map(::transformProjectConfigurationData))
       .setOverallConfigurationData(transformProjectConfigurationData(totalConfigurationData))
@@ -227,7 +238,7 @@ class BuildAttributionAnalyticsManager(
       .addAllTasksSharingOutput(tasksSharingOutputData.taskList.map(::transformTaskData))
       .build()
 
-  private fun transformConfiguratnionCacheCompatibilityDat(configurationCachingCompatibilityState: ConfigurationCachingCompatibilityProjectResult) =
+  private fun transformConfigurationCacheCompatibilityData(configurationCachingCompatibilityState: ConfigurationCachingCompatibilityProjectResult) =
     ConfigurationCacheCompatibilityData.newBuilder().apply {
       compatibilityState = when (configurationCachingCompatibilityState) {
         is AGPUpdateRequired -> ConfigurationCacheCompatibilityData.CompatibilityState.AGP_NOT_COMPATIBLE
@@ -243,4 +254,23 @@ class BuildAttributionAnalyticsManager(
       }
     }
       .build()
+
+
+  private fun transformJetifierUsageData(jetifierUsageResult: JetifierUsageAnalyzerResult) =
+    JetifierUsageData.newBuilder().apply {
+      checkJetifierTaskBuild = jetifierUsageResult.checkJetifierBuild
+      when (jetifierUsageResult.projectStatus) {
+        AnalyzerNotRun -> null
+        JetifierCanBeRemoved -> JetifierUsageData.JetifierUsageState.JETIFIER_CAN_BE_REMOVED
+        JetifierNotUsed -> JetifierUsageData.JetifierUsageState.JETIFIER_NOT_USED
+        JetifierUsedCheckRequired -> JetifierUsageData.JetifierUsageState.JETIFIER_USED_CHECK_REQUIRED
+        is JetifierRequiredForLibraries -> JetifierUsageData.JetifierUsageState.JETIFIER_REQUIRED_FOR_LIBRARIES
+      }?.let { jetifierUsageState = it }
+
+      if (jetifierUsageResult.projectStatus is JetifierRequiredForLibraries) {
+        numberOfLibrariesRequireJetifier = jetifierUsageResult.projectStatus.checkJetifierResult.dependenciesDependingOnSupportLibs.size
+      }
+    }
+      .build()
+
 }

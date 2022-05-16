@@ -34,4 +34,8 @@ public abstract class AndroidExecutionTarget extends ExecutionTarget {
   @NotNull
   public abstract Collection<IDevice> getRunningDevices();
 
+  @Override
+  public boolean isExternallyManaged() {
+    return true;
+  }
 }

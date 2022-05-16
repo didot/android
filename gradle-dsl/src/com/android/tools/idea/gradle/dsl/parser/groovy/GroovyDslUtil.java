@@ -27,7 +27,6 @@ import static org.jetbrains.plugins.groovy.lang.psi.util.GrStringUtil.escapeStri
 import com.android.tools.idea.gradle.dsl.api.ext.InterpolatedText;
 import com.android.tools.idea.gradle.dsl.api.ext.RawText;
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo;
-import com.android.tools.idea.gradle.dsl.api.util.GradleNameElementUtil;
 import com.android.tools.idea.gradle.dsl.parser.ExternalNameInfo;
 import com.android.tools.idea.gradle.dsl.parser.GradleReferenceInjection;
 import com.android.tools.idea.gradle.dsl.parser.build.BuildScriptDslElement;
@@ -36,14 +35,14 @@ import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslInfixExpression;
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslMethodCall;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSettableExpression;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import com.android.tools.idea.gradle.dsl.parser.ext.ExtDslElement;
 import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile;
-import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.intellij.extapi.psi.ASTDelegatePsiElement;
 import com.intellij.lang.ASTNode;
@@ -107,34 +106,6 @@ public final class GroovyDslUtil {
       return (GroovyPsiElement)element;
     }
     throw new IllegalArgumentException("Wrong PsiElement type for writer! Must be of type GroovyPsiElement");
-  }
-
-  static void addConfigBlock(@NotNull GradleDslSettableExpression expression) {
-    PsiElement unsavedConfigBlock = expression.getUnsavedConfigBlock();
-    if (unsavedConfigBlock == null) {
-      return;
-    }
-
-    GroovyPsiElement psiElement = ensureGroovyPsi(expression.getPsiElement());
-    if (psiElement == null) {
-      return;
-    }
-
-    GroovyPsiElementFactory factory = getPsiElementFactory(expression);
-    if (factory == null) {
-      return;
-    }
-
-    // For now, this is only reachable for newly added dependencies, which means psiElement is an application statement with three children:
-    // the configuration name, whitespace, dependency in compact notation. Let's add some more: comma, whitespace and finally the config
-    // block.
-    GrApplicationStatement methodCallStatement = (GrApplicationStatement)factory.createStatementFromText("foo 1, 2");
-    PsiElement comma = methodCallStatement.getArgumentList().getFirstChild().getNextSibling();
-
-    psiElement.addAfter(comma, psiElement.getLastChild());
-    psiElement.addAfter(factory.createWhiteSpace(), psiElement.getLastChild());
-    psiElement.addAfter(unsavedConfigBlock, psiElement.getLastChild());
-    expression.setUnsavedConfigBlock(null);
   }
 
   @Nullable
@@ -254,10 +225,12 @@ public final class GroovyDslUtil {
         element.delete();
       }
     }
-    else if (element instanceof GrCommandArgumentList) {
-      GrCommandArgumentList commandArgumentList = (GrCommandArgumentList)element;
-      if (commandArgumentList.getAllArguments().length == 0) {
-        commandArgumentList.delete();
+    else if (element instanceof GrArgumentList) {
+      GrArgumentList argumentList = (GrArgumentList)element;
+      if (argumentList.getAllArguments().length == 0) {
+        if (!(parent instanceof GrMethodCallExpression) || !((GrMethodCallExpression)parent).hasClosureArguments()) {
+          argumentList.delete();
+        }
       }
     }
     else if (element instanceof GrNamedArgument) {
@@ -531,7 +504,7 @@ public final class GroovyDslUtil {
         }
         String name = referenceExpression.getReferenceName();
         if (name != null) {
-          result.append(GradleNameElementUtil.escape(name));
+          result.append(GradleNameElement.escape(name));
         }
         else {
           allValid[0] = false;
@@ -771,8 +744,8 @@ public final class GroovyDslUtil {
       }
       expression.setExpression(added);
 
-      if (expression.getUnsavedConfigBlock() != null) {
-        addConfigBlock(expression);
+      if (expression.getUnsavedClosure() != null) {
+        createAndAddClosure(expression.getUnsavedClosure(), expression);
       }
     }
 
@@ -818,6 +791,21 @@ public final class GroovyDslUtil {
       GrNamedArgument addedNameArgument = (GrNamedArgument)added;
       expressionList.setPsiElement(addedNameArgument.getExpression());
       return expressionList.getPsiElement();
+    }
+    return null;
+  }
+
+  @Nullable
+  static PsiElement createMethodCallArgumentList(@NotNull GradleDslExpressionList expressionList) {
+    GradleDslElement parent = expressionList.getParent();
+    assert parent instanceof GradleDslMethodCall;
+
+    PsiElement parentPsiElement = parent.create();
+    if (parentPsiElement == null) {
+      return null;
+    }
+    if (parentPsiElement instanceof GrMethodCallExpression) {
+      return ((GrMethodCallExpression)parentPsiElement).getArgumentList();
     }
     return null;
   }
@@ -993,10 +981,10 @@ public final class GroovyDslUtil {
   static String quotePartIfNecessary(String part) {
     if(!GROOVY_NORMAL_IDENTIFIER.matcher(part).matches()) {
       // TODO(b/126937269): need to escape single quotes (and backslashes).  Also needs support from the parser
-      return "'" + part + "'";
+      return "\'" + part + "\'";
     }
     else if (GROOVY_KEYWORDS.contains(part)) {
-      return "'" + part + "'";
+      return "\'" + part + "\'";
     }
     else {
       return part;
@@ -1057,16 +1045,16 @@ public final class GroovyDslUtil {
 
     GradleDslElement parent = element.getParent();
     if (parent != null) {
-      ImmutableCollection<ModelEffectDescription> modelProperties = parent.getExternalToModelMap(writer).values();
-      for (ModelEffectDescription value : modelProperties) {
-        if (value.property.name.equals(nameElement.getOriginalName())) {
+      @NotNull Set<ExternalToModelMap.Entry> modelEntries = parent.getExternalToModelMap(writer).getEntrySet();
+      for (ExternalToModelMap.Entry entry : modelEntries) {
+        if (entry.modelEffectDescription.property.name.equals(nameElement.getOriginalName())) {
           Logger.getInstance(GroovyDslWriter.class)
             .warn(new UnsupportedOperationException("trying to update a property: " + nameElement.getOriginalName()));
           return;
         }
       }
     }
-    String newName = GradleNameElementUtil.unescape(localName);
+    String newName = GradleNameElement.unescape(localName);
 
     PsiElement newElement;
     if (oldName instanceof PsiNamedElement) {
@@ -1140,9 +1128,9 @@ public final class GroovyDslUtil {
     ApplicationManager.getApplication().assertReadAccessAllowed();
 
     if (psiElement instanceof GrReferenceExpression || psiElement instanceof GrIndexProperty) {
-      String text = psiElement.getText();
-      GradleDslElement element = context.resolveExternalSyntaxReference(text, true);
-      return ImmutableList.of(new GradleReferenceInjection(context, element, psiElement, text));
+      String name = context.getDslFile().getParser().convertReferencePsi(context, psiElement);
+      GradleDslElement element = context.resolveInternalSyntaxReference(name, true);
+      return ImmutableList.of(new GradleReferenceInjection(context, element, psiElement, name));
     }
 
     if (!(psiElement instanceof GrString)) {
@@ -1155,6 +1143,11 @@ public final class GroovyDslUtil {
       if (injection != null) {
         String name = getInjectionName(injection);
         if (name != null) {
+          // TODO(xof): It seems bizarre to need to get the injection content as a String, in order to resolve that string in the
+          //  external syntax to our internal data, but: although a GrStringInjection can in theory hold arbitrary Groovy code, the
+          //  Psi merely contains a ClosableBlock: there is no way to usefully visit the contents of the string injection.  It might
+          //  nevertheless be better to integrate that into psiToName rather than special-case getInjectionName, if only to be able
+          //  to remove this call to the String form of resolveExternalSyntaxReference.
           GradleDslElement referenceElement = context.resolveExternalSyntaxReference(name, true);
           if (includeUnresolved || referenceElement != null) {
             injections.add(new GradleReferenceInjection(context, referenceElement, injection, name));
@@ -1173,8 +1166,15 @@ public final class GroovyDslUtil {
 
     GroovyPsiElementFactory factory = GroovyPsiElementFactory.getInstance(psiElement.getProject());
     GrClosableBlock block = factory.createClosureFromText("{ }");
-    psiElement.addAfter(factory.createWhiteSpace(), psiElement.getLastChild());
-    PsiElement newElement = psiElement.addAfter(block, psiElement.getLastChild());
+    PsiElement newElement;
+    if (psiElement instanceof GrApplicationStatement) {
+      GrArgumentList argumentList = ((GrApplicationStatement)psiElement).getArgumentList();
+      newElement = argumentList.addAfter(block, argumentList.getLastChild());
+    }
+    else {
+      psiElement.addAfter(factory.createWhiteSpace(), psiElement.getLastChild());
+      newElement = psiElement.addAfter(block, psiElement.getLastChild());
+    }
     closure.setPsiElement(newElement);
     closure.applyChanges();
     element.setParsedClosureElement(closure);

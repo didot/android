@@ -18,16 +18,12 @@ package com.android.tools.idea.appinspection.inspectors.network.view
 import com.android.tools.adtui.common.AdtUiUtils.DEFAULT_BOTTOM_BORDER
 import com.android.tools.adtui.flat.FlatSeparator
 import com.android.tools.adtui.model.AspectObserver
-import com.android.tools.adtui.model.FpsTimer
-import com.android.tools.adtui.model.StopwatchTimer
 import com.android.tools.adtui.model.StreamingTimeline
 import com.android.tools.adtui.model.Timeline
 import com.android.tools.adtui.stdui.CommonButton
 import com.android.tools.adtui.stdui.CommonToggleButton
 import com.android.tools.adtui.stdui.DefaultContextMenuItem
 import com.android.tools.adtui.stdui.TooltipLayeredPane
-import com.android.tools.idea.appinspection.inspectors.network.model.CodeNavigationProvider
-import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorClient
 import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorDataSource
 import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorModel
 import com.android.tools.idea.appinspection.inspectors.network.model.NetworkInspectorServices
@@ -42,7 +38,6 @@ import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.ui.JBEmptyBorder
 import icons.StudioIcons
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -66,27 +61,20 @@ private const val ATTACH_LIVE = "Attach to live"
 private const val DETACH_LIVE = "Detach live"
 private val SHORTCUT_MODIFIER_MASK_NUMBER = if (SystemInfo.isMac) META_DOWN_MASK else CTRL_DOWN_MASK
 
-/**
- * The number of updates per second our simulated object models receive.
- */
-private const val UPDATE_RATE = 60
 
 class NetworkInspectorTab(
-  private val client: NetworkInspectorClient,
-  scope: CoroutineScope,
   private val componentsProvider: UiComponentsProvider,
-  private val codeNavigationProvider: CodeNavigationProvider,
   private val dataSource: NetworkInspectorDataSource,
-  private val uiDispatcher: CoroutineDispatcher,
+  private val services: NetworkInspectorServices,
+  scope: CoroutineScope,
   parentDisposable: Disposable,
-  private val timer: StopwatchTimer = FpsTimer(UPDATE_RATE)
 ) : AspectObserver(), Disposable {
-  private lateinit var inspectorServices: NetworkInspectorServices
 
   @VisibleForTesting
   lateinit var model: NetworkInspectorModel
   private lateinit var view: NetworkInspectorView
   val component: TooltipLayeredPane
+  private lateinit var goLiveButton: CommonToggleButton
 
   @VisibleForTesting
   lateinit var actionsToolBar: JPanel
@@ -107,8 +95,8 @@ class NetworkInspectorTab(
 
     component = TooltipLayeredPane(splitter)
     launchJob = scope.launch {
-      val deviceTime = client.getStartTimeStampNs()
-      withContext(uiDispatcher) {
+      val deviceTime = services.client.getStartTimeStampNs()
+      withContext(services.uiDispatcher) {
         val stagePanel = JPanel(BorderLayout())
         val toolbar = JPanel(BorderLayout())
         toolbar.border = DEFAULT_BOTTOM_BORDER
@@ -117,9 +105,8 @@ class NetworkInspectorTab(
         parentPanel.add(toolbar, BorderLayout.NORTH)
         parentPanel.add(stagePanel, BorderLayout.CENTER)
 
-        inspectorServices = NetworkInspectorServices(codeNavigationProvider, deviceTime, timer)
-        model = NetworkInspectorModel(inspectorServices, dataSource)
-        view = NetworkInspectorView(model, componentsProvider, component)
+        model = NetworkInspectorModel(services, dataSource, startTimeStampNs = deviceTime)
+        view = NetworkInspectorView(model, componentsProvider, component, services.usageTracker)
         stagePanel.add(view.component)
 
         actionsToolBar = JPanel(GridBagLayout())
@@ -185,44 +172,44 @@ class NetworkInspectorTab(
         val goLiveToolbar = JPanel(GridBagLayout())
         goLiveToolbar.add(FlatSeparator())
 
-        val goLive = CommonToggleButton("", StudioIcons.Profiler.Toolbar.GOTO_LIVE)
-        goLive.disabledIcon = IconLoader.getDisabledIcon(StudioIcons.Profiler.Toolbar.GOTO_LIVE)
-        goLive.font = H4_FONT
-        goLive.horizontalTextPosition = SwingConstants.LEFT
-        goLive.horizontalAlignment = SwingConstants.LEFT
-        goLive.border = JBEmptyBorder(3, 7, 3, 7)
+        goLiveButton = CommonToggleButton("", StudioIcons.Profiler.Toolbar.GOTO_LIVE)
+        goLiveButton.disabledIcon = IconLoader.getDisabledIcon(StudioIcons.Profiler.Toolbar.GOTO_LIVE)
+        goLiveButton.font = H4_FONT
+        goLiveButton.horizontalTextPosition = SwingConstants.LEFT
+        goLiveButton.horizontalAlignment = SwingConstants.LEFT
+        goLiveButton.border = JBEmptyBorder(3, 7, 3, 7)
         val attachAction = DefaultContextMenuItem.Builder(ATTACH_LIVE)
           .setContainerComponent(splitter)
-          .setActionRunnable { goLive.doClick(0) }
+          .setActionRunnable { goLiveButton.doClick(0) }
           .setEnableBooleanSupplier {
-            goLive.isEnabled &&
-            !goLive.isSelected
+            goLiveButton.isEnabled &&
+            !goLiveButton.isSelected
           }
           .setKeyStrokes(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, SHORTCUT_MODIFIER_MASK_NUMBER))
           .build()
         val detachAction = DefaultContextMenuItem.Builder(DETACH_LIVE)
           .setContainerComponent(splitter)
-          .setActionRunnable { goLive.doClick(0) }
+          .setActionRunnable { goLiveButton.doClick(0) }
           .setEnableBooleanSupplier {
-            goLive.isEnabled &&
-            goLive.isSelected
+            goLiveButton.isEnabled &&
+            goLiveButton.isSelected
           }
           .setKeyStrokes(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0)).build()
 
-        goLive.toolTipText = detachAction.defaultToolTipText
-        goLive.addActionListener {
+        goLiveButton.toolTipText = detachAction.defaultToolTipText
+        goLiveButton.addActionListener {
           val currentStageTimeline: Timeline = model.timeline
           assert(currentStageTimeline is StreamingTimeline)
           (currentStageTimeline as StreamingTimeline).toggleStreaming()
         }
-        goLive.addChangeListener {
-          val isSelected: Boolean = goLive.isSelected
-          goLive.icon = if (isSelected) StudioIcons.Profiler.Toolbar.PAUSE_LIVE else StudioIcons.Profiler.Toolbar.GOTO_LIVE
-          goLive.toolTipText = if (isSelected) detachAction.defaultToolTipText else attachAction.defaultToolTipText
+        goLiveButton.addChangeListener {
+          val isSelected: Boolean = goLiveButton.isSelected
+          goLiveButton.icon = if (isSelected) StudioIcons.Profiler.Toolbar.PAUSE_LIVE else StudioIcons.Profiler.Toolbar.GOTO_LIVE
+          goLiveButton.toolTipText = if (isSelected) detachAction.defaultToolTipText else attachAction.defaultToolTipText
         }
-        inspectorServices.timeline.addDependency(this@NetworkInspectorTab).onChange(
-          StreamingTimeline.Aspect.STREAMING) { goLive.isSelected = inspectorServices.timeline.isStreaming }
-        goLiveToolbar.add(goLive)
+        model.timeline.addDependency(this@NetworkInspectorTab)
+          .onChange(StreamingTimeline.Aspect.STREAMING) { goLiveButton.isSelected = model.timeline.isStreaming }
+        goLiveToolbar.add(goLiveButton)
         actionsToolBar.add(goLiveToolbar)
 
 
@@ -230,13 +217,18 @@ class NetworkInspectorTab(
         zoomIn.isEnabled = true
         resetZoom.isEnabled = true
         zoomToSelection.isEnabled = zoomToSelectionAction.isEnabled
-        goLive.isEnabled = true
-        goLive.isSelected = true
+        goLiveButton.isEnabled = true
+        goLiveButton.isSelected = true
       }
     }
   }
 
+  fun stopInspection() {
+    model.timeline.setIsPaused(true)
+    goLiveButton.isEnabled = false
+  }
+
   override fun dispose() {
-    timer.stop()
+    services.updater.stop()
   }
 }

@@ -18,7 +18,9 @@ package com.android.tools.idea.run.deployment;
 import static org.junit.Assert.assertArrayEquals;
 
 import com.android.tools.idea.adb.wireless.PairDevicesUsingWiFiAction;
+import com.android.tools.idea.avdmanager.actions.RunAndroidAvdManagerAction;
 import com.android.tools.idea.run.AndroidDevice;
+import com.android.tools.idea.run.deployment.Device.Type;
 import com.android.tools.idea.testing.AndroidProjectRule;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
@@ -30,7 +32,6 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import org.jetbrains.android.actions.RunAndroidAvdManagerAction;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,30 +59,12 @@ public final class PopupActionGroupTest {
   }
 
   @Test
-  public void popupActionGroupRunOnMultipleDevicesActionIsEnabled() {
-    // Arrange
-    Collection<Device> devices = Collections.emptyList();
-
-    // Act
-    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction, () -> true);
-
-    // Assert
-    Object[] children = {
-      myActionManager.getAction(RunOnMultipleDevicesAction.ID),
-      myActionManager.getAction(PairDevicesUsingWiFiAction.ID),
-      myActionManager.getAction(WearDevicePairingAction.ID),
-      myActionManager.getAction(RunAndroidAvdManagerAction.ID)};
-
-    assertArrayEquals(children, group.getChildren(null));
-  }
-
-  @Test
   public void popupActionGroup() {
     // Arrange
     Collection<Device> devices = Collections.emptyList();
 
     // Act
-    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction, () -> false);
+    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction);
 
     // Assert
     Object[] children = {
@@ -98,6 +81,7 @@ public final class PopupActionGroupTest {
     // Arrange
     Device device = new VirtualDevice.Builder()
       .setName("Pixel 4 API 30")
+      .setType(Type.PHONE)
       .setKey(new VirtualDevicePath("/home/user/.android/avd/Pixel_4_API_30.avd"))
       .setConnectionTime(Instant.parse("2018-11-28T01:15:27Z"))
       .setAndroidDevice(Mockito.mock(AndroidDevice.class))
@@ -107,7 +91,7 @@ public final class PopupActionGroupTest {
     Mockito.when(myComboBoxAction.areSnapshotsEnabled()).thenReturn(true);
 
     // Act
-    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction, () -> false);
+    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction);
 
     // Assert
     Object[] children = {
@@ -127,6 +111,7 @@ public final class PopupActionGroupTest {
     // Arrange
     Device runningDevice = new VirtualDevice.Builder()
       .setName("Pixel 4 API 30")
+      .setType(Type.PHONE)
       .setKey(new VirtualDevicePath("/home/user/.android/avd/Pixel_4_API_30.avd"))
       .setConnectionTime(Instant.parse("2018-11-28T01:15:27Z"))
       .setAndroidDevice(Mockito.mock(AndroidDevice.class))
@@ -134,6 +119,7 @@ public final class PopupActionGroupTest {
 
     Device availableDevice = new VirtualDevice.Builder()
       .setName("Pixel 3 API 30")
+      .setType(Type.PHONE)
       .setKey(new VirtualDevicePath("/home/user/.android/avd/Pixel_3_API_30.avd"))
       .setAndroidDevice(Mockito.mock(AndroidDevice.class))
       .build();
@@ -142,7 +128,7 @@ public final class PopupActionGroupTest {
     Mockito.when(myComboBoxAction.areSnapshotsEnabled()).thenReturn(true);
 
     // Act
-    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction, () -> false);
+    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction);
 
     // Assert
     Object[] children = {
@@ -167,6 +153,7 @@ public final class PopupActionGroupTest {
 
     Device device = new VirtualDevice.Builder()
       .setName("Pixel 4 API 30")
+      .setType(Type.PHONE)
       .setKey(new VirtualDevicePath("/home/user/.android/avd/Pixel_4_API_30.avd"))
       .setAndroidDevice(Mockito.mock(AndroidDevice.class))
       .addSnapshot(new Snapshot(fileSystem.getPath("/home/user/.android/avd/Pixel_4_API_30.avd/snapshots/snap_2020-12-07_16-36-58")))
@@ -176,7 +163,7 @@ public final class PopupActionGroupTest {
     Mockito.when(myComboBoxAction.areSnapshotsEnabled()).thenReturn(true);
 
     // Act
-    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction, () -> false);
+    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction);
 
     // Assert
     Object[] children = {
@@ -196,6 +183,7 @@ public final class PopupActionGroupTest {
     // Arrange
     Device device = new VirtualDevice.Builder()
       .setName("Pixel 3 API 29")
+      .setType(Type.PHONE)
       .setKey(new VirtualDeviceName("Pixel_3_API_29"))
       .setAndroidDevice(Mockito.mock(AndroidDevice.class))
       .build();
@@ -203,7 +191,7 @@ public final class PopupActionGroupTest {
     Collection<Device> devices = Collections.singletonList(device);
 
     // Act
-    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction, () -> false);
+    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction);
 
     // Assert
     Object[] children = {
@@ -223,6 +211,7 @@ public final class PopupActionGroupTest {
     // Arrange
     Device device = new VirtualDevice.Builder()
       .setName("Pixel 3 API 29")
+      .setType(Type.PHONE)
       .setKey(new VirtualDeviceName("Pixel_3_API_29"))
       .setConnectionTime(Instant.parse("2018-11-28T01:15:27Z"))
       .setAndroidDevice(Mockito.mock(AndroidDevice.class))
@@ -231,7 +220,7 @@ public final class PopupActionGroupTest {
     Collection<Device> devices = Collections.singletonList(device);
 
     // Act
-    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction, () -> false);
+    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction);
 
     // Assert
     Object[] children = {
@@ -251,6 +240,7 @@ public final class PopupActionGroupTest {
     // Arrange
     Device runningDevice = new VirtualDevice.Builder()
       .setName("Pixel 3 API 29")
+      .setType(Type.PHONE)
       .setKey(new VirtualDeviceName("Pixel_3_API_29"))
       .setConnectionTime(Instant.parse("2018-11-28T01:15:27Z"))
       .setAndroidDevice(Mockito.mock(AndroidDevice.class))
@@ -258,6 +248,7 @@ public final class PopupActionGroupTest {
 
     Device availableDevice = new VirtualDevice.Builder()
       .setName("Pixel 3 API 29")
+      .setType(Type.PHONE)
       .setKey(new VirtualDeviceName("Pixel_3_API_29"))
       .setAndroidDevice(Mockito.mock(AndroidDevice.class))
       .build();
@@ -265,7 +256,7 @@ public final class PopupActionGroupTest {
     Collection<Device> devices = Arrays.asList(runningDevice, availableDevice);
 
     // Act
-    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction, () -> false);
+    ActionGroup group = new PopupActionGroup(devices, myComboBoxAction);
 
     // Assert
     Object[] children = {

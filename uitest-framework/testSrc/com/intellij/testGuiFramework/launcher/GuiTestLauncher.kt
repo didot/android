@@ -18,7 +18,7 @@ package com.intellij.testGuiFramework.launcher
 import com.android.prefs.AbstractAndroidLocations
 import com.android.testutils.TestUtils
 import com.android.testutils.TestUtils.getWorkspaceRoot
-import com.android.testutils.TestUtils.resolveWorkspacePath
+import com.android.tools.idea.tests.gui.framework.AnalyticsTestUtils
 import com.android.tools.idea.tests.gui.framework.GuiTests
 import com.android.tools.idea.tests.gui.framework.aspects.AspectsAgentLogUtil
 import com.android.tools.tests.IdeaTestSuiteBase
@@ -160,9 +160,8 @@ object GuiTestLauncher {
       "-Didea.config.path=${GuiTests.getConfigDirPath()}",
       "-Didea.system.path=${GuiTests.getSystemDirPath()}",
       "-Dplugin.path=${GuiTestOptions.getPluginPath()}",
+      "-Didea.is.integration.test=true",
       "-Ddisable.android.first.run=true",
-      // Ensure UI tests do not block for analytics consent dialog, this will leave analytics at the default (opted-out) state.
-      "-Ddisable.android.analytics.consent.dialog.for.test=true",
       "-Ddisable.config.import=true",
       "-Didea.application.starter.command=${GuiTestStarter.COMMAND_NAME}",
       "-Didea.gui.test.port=$port"
@@ -181,7 +180,7 @@ object GuiTestLauncher {
       options += "-Denable.bleak=true"
       options += "-Xmx16g"
       val jvmtiAgent =
-          resolveWorkspacePath("bazel-bin/tools/adt/idea/bleak/src/com/android/tools/idea/bleak/agents/libjnibleakhelper.so")
+          TestUtils.resolveWorkspacePath("bazel-bin/tools/adt/idea/bleak/src/com/android/tools/idea/bleak/agents/libjnibleakhelper.so")
       if (Files.exists(jvmtiAgent)) {
         options += "-agentpath:$jvmtiAgent"
         options += "-Dbleak.jvmti.enabled=true"
@@ -196,14 +195,18 @@ object GuiTestLauncher {
       options += "-Xdebug"
       options += "-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=${GuiTestOptions.getDebugPort()}"
     }
+    /**
+     * Disable analytic consent dialog by default.
+     * For tests that require it, the system property "enable.android.analytics.consent.dialog.for.test"
+     * can be set in the Build file as one of the jvm_flags
+     */
+    options += AnalyticsTestUtils.vmDialogOption
+    options += AnalyticsTestUtils.vmLoggingOption
     /* options for tests with native libraries */
     if (!options.contains("-Djava.library.path=")) {
       options += "-Djava.library.path=${System.getProperty("java.library.path")}"
     }
     if (TestUtils.runningFromBazel()) {
-      if (!IdeaTestSuiteBase.isUnbundledBazelTestTarget()) {
-        options += "-Didea.home.path=${resolveWorkspacePath("tools/idea").toFile()}"
-      }
       options += "-Didea.system.path=${IdeaTestSuiteBase.createTmpDir("idea/system")}"
       options += "-Didea.config.path=${IdeaTestSuiteBase.createTmpDir("idea/config")}"
       options += "-Dgradle.user.home=${IdeaTestSuiteBase.createTmpDir("home")}"

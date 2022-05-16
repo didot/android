@@ -24,7 +24,6 @@ import com.android.tools.idea.gradle.project.ProjectStructure
 import com.android.tools.idea.gradle.project.sync.hyperlink.DoNotShowJdkHomeWarningAgainHyperlink
 import com.android.tools.idea.gradle.project.sync.hyperlink.OpenUrlHyperlink
 import com.android.tools.idea.gradle.project.sync.hyperlink.SelectJdkFromFileSystemHyperlink
-import com.android.tools.idea.gradle.project.sync.idea.GradleSyncExecutor
 import com.android.tools.idea.gradle.project.sync.messages.GradleSyncMessages
 import com.android.tools.idea.gradle.project.sync.projectsystem.GradleSyncResultPublisher
 import com.android.tools.idea.gradle.ui.SdkUiStrings.JDK_LOCATION_WARNING_URL
@@ -72,7 +71,7 @@ import kotlin.concurrent.withLock
 private val SYNC_NOTIFICATION_GROUP =
   NotificationGroup.logOnlyGroup("Gradle Sync", PluginId.getId("org.jetbrains.android"))
 
-data class ProjectSyncRequest(val projectRoot: String, val trigger: GradleSyncStats.Trigger, val fullSync: Boolean)
+data class ProjectSyncRequest(val projectRoot: String, val trigger: GradleSyncStats.Trigger)
 
 @JvmField
 val PROJECT_SYNC_REQUEST = Key.create<ProjectSyncRequest>("PROJECT_SYNC_REQUEST")
@@ -85,7 +84,7 @@ val PROJECT_SYNC_REQUEST = Key.create<ProjectSyncRequest>("PROJECT_SYNC_REQUEST"
  * events to any registered [GradleSyncListener]s via the projects messageBus or any one-time sync listeners passed into a specific
  * invocation of sync.
  */
-open class GradleSyncState @NonInjectable internal constructor (private val project: Project) {
+open class GradleSyncState @NonInjectable internal constructor(private val project: Project) {
   companion object {
     @JvmField
     val JDK_LOCATION_WARNING_NOTIFICATION_GROUP = NotificationGroup.logOnlyGroup("JDK Location different to JAVA_HOME")
@@ -158,7 +157,7 @@ open class GradleSyncState @NonInjectable internal constructor (private val proj
   /**
    * Triggered at the start of a sync.
    */
-  private fun syncStarted(trigger: GradleSyncStats.Trigger, fullSync: Boolean): Boolean {
+  private fun syncStarted(trigger: GradleSyncStats.Trigger): Boolean {
     lock.withLock {
       if (state.isInProgress) {
         // TODO: IDEA-270939: sync can be invoked multiple times (once per linked project). It is not correct to track sync state per IDE project,
@@ -170,10 +169,9 @@ open class GradleSyncState @NonInjectable internal constructor (private val proj
       state = LastSyncState.IN_PROGRESS
     }
 
-    val syncType = if (fullSync) "full-variants" else "single-variant"
-    LOG.info("Started $syncType ($trigger) sync with Gradle for project '${project.name}'.")
+    LOG.info("Started ($trigger) sync with Gradle for project '${project.name}'.")
 
-    eventLogger.syncStarted(getSyncType(fullSync), trigger)
+    eventLogger.syncStarted(GradleSyncStats.GradleSyncType.GRADLE_SYNC_TYPE_SINGLE_VARIANT, trigger)
 
     addToEventLog(SYNC_NOTIFICATION_GROUP, "Gradle sync started", MessageType.INFO, null)
 
@@ -281,7 +279,6 @@ open class GradleSyncState @NonInjectable internal constructor (private val proj
       externalSystemTaskId = null
     }
 
-    project.putUserData(GradleSyncExecutor.FULL_SYNC_KEY, null)
     PropertiesComponent.getInstance().setValue(ANDROID_GRADLE_SYNC_NEEDED_PROPERTY_NAME, !newState.isSuccessful)
 
     // TODO: Move out of GradleSyncState, create a ProjectCleanupTask to show this warning?
@@ -365,11 +362,6 @@ open class GradleSyncState @NonInjectable internal constructor (private val proj
     }
   }
 
-  private fun getSyncType(fullSync: Boolean): GradleSyncStats.GradleSyncType = when(fullSync) {
-    true -> GradleSyncStats.GradleSyncType.GRADLE_SYNC_TYPE_IDEA
-    else -> GradleSyncStats.GradleSyncType.GRADLE_SYNC_TYPE_SINGLE_VARIANT
-  }
-
   /**
    * A helper project level service to keep track of external system sync related tasks and to detect and report any mismatched or
    * unexpected events.
@@ -421,14 +413,9 @@ open class GradleSyncState @NonInjectable internal constructor (private val proj
 
   class DataImportListener(val project: Project) : ProjectDataImportListener {
     override fun onImportFinished(projectPath: String?) {
-      if (projectPath == null){
-        LOG.warn("onImportFinished with `projectPath = null`")
-        return
-      }
-
       LOG.info("onImportFinished($projectPath)")
       val syncStateUpdaterService = project.getService(SyncStateUpdaterService::class.java)
-      if (syncStateUpdaterService.stopTrackingTask(projectPath)) {
+      if (syncStateUpdaterService.stopTrackingTask(projectPath!!)) {
         GradleSyncState.getInstance(project).syncSucceeded()
       }
     }
@@ -453,11 +440,8 @@ open class GradleSyncState @NonInjectable internal constructor (private val proj
       val trigger =
         project.getUserData(PROJECT_SYNC_REQUEST)
           ?.takeIf { it.projectRoot == workingDir }
-      if (trigger != null) {
-        project.putUserData(PROJECT_SYNC_REQUEST, null)
-      }
       if (!GradleSyncState.getInstance(project)
-          .syncStarted(trigger?.trigger ?: GradleSyncStats.Trigger.TRIGGER_UNKNOWN, trigger?.fullSync ?: false)
+          .syncStarted(trigger?.trigger ?: GradleSyncStats.Trigger.TRIGGER_UNKNOWN)
       ) {
         stopTrackingTask(project, id)
         return

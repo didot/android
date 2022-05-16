@@ -15,8 +15,9 @@
  */
 package com.android.tools.profilers;
 
-import com.android.tools.inspectors.common.api.stacktrace.CodeNavigator;
+import com.android.tools.idea.codenavigation.CodeNavigator;
 import com.android.tools.profilers.analytics.FeatureTracker;
+import com.android.tools.profilers.appinspection.AppInspectionMigrationServices;
 import com.android.tools.profilers.cpu.config.ProfilingConfiguration;
 import com.android.tools.profilers.perfetto.traceprocessor.TraceProcessorService;
 import com.android.tools.profilers.stacktrace.NativeFrameSymbolizer;
@@ -124,7 +125,7 @@ public interface IdeProfilerServices {
   void openYesNoDialog(String message, String title, Runnable yesCallback, Runnable noCallback);
 
   /**
-   * Opens a dialog giving the user to select items from the listbox.
+   * Opens a dialog asking the user to select items from the listbox.
    *
    * @param title                      tile to be provided to the dialog box.
    * @param message                    optional message to be provided to the user about contents of listbox.
@@ -180,4 +181,9 @@ public interface IdeProfilerServices {
    * parse and query Perfetto traces.
    */
   @NotNull TraceProcessorService getTraceProcessorService();
+
+  /**
+   * Returns the API for app inspection migration preferences.
+   */
+  @NotNull AppInspectionMigrationServices getAppInspectionMigrationServices();
 }

@@ -34,7 +34,7 @@ import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.Value;
-import java.awt.*;
+import java.awt.Dimension;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;

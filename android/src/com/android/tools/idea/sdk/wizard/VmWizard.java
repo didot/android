@@ -19,8 +19,9 @@ import static com.intellij.util.PlatformUtils.getPlatformPrefix;
 
 import com.android.repository.api.ProgressIndicator;
 import com.android.sdklib.repository.AndroidSdkHandler;
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator;
 import com.android.tools.idea.sdk.AndroidSdks;
-import com.android.tools.idea.sdk.progress.StudioLoggerProgressIndicator;
+import com.android.tools.idea.sdk.install.VmType;
 import com.android.tools.idea.sdk.wizard.legacy.LicenseAgreementStep;
 import com.android.tools.idea.welcome.install.ComponentInstaller;
 import com.android.tools.idea.welcome.install.Gvm;
@@ -32,7 +33,6 @@ import com.android.tools.idea.welcome.install.InstallableComponent;
 import com.android.tools.idea.welcome.install.InstallationCancelledException;
 import com.android.tools.idea.welcome.install.InstallationIntention;
 import com.android.tools.idea.welcome.install.Vm;
-import com.android.tools.idea.welcome.install.VmType;
 import com.android.tools.idea.welcome.install.WizardException;
 import com.android.tools.idea.welcome.wizard.deprecated.ProgressStep;
 import com.android.tools.idea.wizard.dynamic.DynamicWizard;
@@ -222,6 +222,7 @@ public class VmWizard extends DynamicWizard {
     @NotNull SetupProgressStep mySetupProgressStep;
     @NotNull VmType myType;
     @NotNull Vm myVm;
+    private LicenseAgreementStep myLicenseAgreementStep;
 
     private VmPath(@NotNull VmType type) {
       myType = type;
@@ -241,7 +242,10 @@ public class VmWizard extends DynamicWizard {
         addStep(step);
       }
       if (!VmWizard.this.myInvokedToUninstall) {
-        addStep(new LicenseAgreementStep(getWizard().getDisposable()));
+        addStep(
+          myLicenseAgreementStep = new LicenseAgreementStep(getWizard().getDisposable(), () -> myVm.getRequiredSdkPackages(),
+                                                            AndroidSdks.getInstance()::tryToChooseSdkHandler)
+        );
       }
       mySetupProgressStep = new SetupProgressStep(getWizard().getDisposable(), myVm, VmWizard.this.myHost, myType);
       addStep(mySetupProgressStep);
@@ -259,6 +263,9 @@ public class VmWizard extends DynamicWizard {
 
     @Override
     public boolean performFinishingActions() {
+      if (myLicenseAgreementStep != null) {
+        myLicenseAgreementStep.performFinishingActions();
+      }
       return true;
     }
   }

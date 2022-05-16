@@ -16,25 +16,36 @@
 package com.android.tools.idea.gradle.dsl.api.android;
 
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
-import com.android.tools.idea.gradle.dsl.api.util.GradleDslModel;
+import com.android.tools.idea.gradle.dsl.api.util.GradleBlockModel;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-public interface LintOptionsModel extends GradleDslModel {
+public interface LintOptionsModel extends GradleBlockModel {
   @NotNull
   ResolvedPropertyModel abortOnError();
 
   @NotNull
   ResolvedPropertyModel absolutePaths();
 
-  @Nullable
+  @NotNull
+  ResolvedPropertyModel baseline();
+
+  @NotNull
   ResolvedPropertyModel check();
 
   @NotNull
   ResolvedPropertyModel checkAllWarnings();
 
   @NotNull
+  ResolvedPropertyModel checkDependencies();
+
+  @NotNull
+  ResolvedPropertyModel checkGeneratedSources();
+
+  @NotNull
   ResolvedPropertyModel checkReleaseBuilds();
+
+  @NotNull
+  ResolvedPropertyModel checkTestSources();
 
   @NotNull
   ResolvedPropertyModel disable();
@@ -61,6 +72,9 @@ public interface LintOptionsModel extends GradleDslModel {
   ResolvedPropertyModel ignore();
 
   @NotNull
+  ResolvedPropertyModel ignoreTestSources();
+
+  @NotNull
   ResolvedPropertyModel ignoreWarnings();
 
   @NotNull
@@ -74,6 +88,12 @@ public interface LintOptionsModel extends GradleDslModel {
 
   @NotNull
   ResolvedPropertyModel quiet();
+
+  @NotNull
+  ResolvedPropertyModel sarifOutput();
+
+  @NotNull
+  ResolvedPropertyModel sarifReport();
 
   @NotNull
   ResolvedPropertyModel showAll();

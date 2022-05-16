@@ -18,13 +18,13 @@ package org.jetbrains.android.dom.converters;
 import static com.android.SdkConstants.MANIFEST_PLACEHOLDER_PREFIX;
 
 import com.android.tools.idea.model.ManifestPlaceholderResolver;
-import com.google.common.collect.ImmutableSet;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.PsiReferenceBase;
 import com.intellij.psi.impl.FakePsiElement;
 import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.xml.ConvertContext;
 import com.intellij.util.xml.Converter;
 import com.intellij.util.xml.CustomReferenceConverter;
@@ -164,7 +164,7 @@ public class ManifestPlaceholderConverter extends ResolvingConverter implements 
     ManifestPlaceholderResolver resolver = new ManifestPlaceholderResolver(context.getModule());
     Collection<String> placeholders = resolver.getPlaceholders().keySet();
 
-    String[] placeholdersArray = ArrayUtil.toStringArray(placeholders);
+    String[] placeholdersArray = ArrayUtilRt.toStringArray(placeholders);
     ArrayList<PsiReference> result = new ArrayList<>();
     Matcher matcher = PLACEHOLDER_PATTERN.matcher(stringValue);
     while (matcher.find()) {

@@ -19,9 +19,13 @@ import com.android.testutils.TestUtils
 import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
+import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.repositories.IdeGoogleMavenRepository
 import com.android.tools.idea.gradle.repositories.OfflineIdeGoogleMavenRepository
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager
+import com.android.tools.idea.npw.model.RenderTemplateModel
+import com.android.tools.idea.npw.template.ModuleTemplateDataBuilder
+import com.android.tools.idea.npw.template.ProjectTemplateDataBuilder
 import com.android.tools.idea.npw.template.TemplateResolver
 import com.android.tools.idea.testing.AndroidGradleTestCase
 import com.android.tools.idea.testing.IdeComponents
@@ -43,9 +47,12 @@ import kotlin.system.measureTimeMillis
  * - Start using new NewProjectModel etc to initialise TemplateParameters and set parameter values.
  * - Fix clean model syncing, and hook up clean lint checks.
  */
-open class TemplateTest : AndroidGradleTestCase() {
+class TemplateTest(private val runTemplateCoverageOnly: Boolean = false) : AndroidGradleTestCase() {
   /** A UsageTracker implementation that allows introspection of logged metrics in tests. */
   private val usageTracker = TestUsageTracker(VirtualTimeScheduler())
+
+  // Set of templates tested with unit test - Used to detect templates without tests
+  private val templatesChecked = mutableSetOf<String>()
 
   override fun createDefaultProject() = false
 
@@ -82,7 +89,7 @@ open class TemplateTest : AndroidGradleTestCase() {
    * @param name              the template name
    * @param customizers        An instance of [ProjectStateCustomizer]s used for providing template and project overrides.
    */
-  protected open fun checkCreateTemplate(
+  private fun checkCreateTemplate(
     name: String,
     vararg customizers: ProjectStateCustomizer,
     templateStateCustomizer: TemplateStateCustomizer = mapOf(),
@@ -90,6 +97,10 @@ open class TemplateTest : AndroidGradleTestCase() {
     formFactor: FormFactor? = null,
     avoidModifiedModuleName: Boolean = false
   ) {
+    if (runTemplateCoverageOnly) {
+      templatesChecked.add(name)
+      return
+    }
     if (DISABLED || isBroken(name)) {
       return
     }
@@ -129,10 +140,10 @@ open class TemplateTest : AndroidGradleTestCase() {
   @Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER)
   annotation class TemplateCheck
 
-  private val withKotlin: ProjectStateCustomizer = { moduleData: ModuleTemplateDataBuilder, projectData: ProjectTemplateDataBuilder ->
+  private val withKotlin: ProjectStateCustomizer = { _: ModuleTemplateDataBuilder, projectData: ProjectTemplateDataBuilder ->
     projectData.language = Language.Kotlin
     // Use the Kotlin version for tests
-    projectData.kotlinVersion = TestUtils.getKotlinVersionForTests()
+    projectData.kotlinVersion = TestUtils.KOTLIN_VERSION_FOR_TESTS
   }
 
   private fun withNewLocation(location: String): TemplateStateCustomizer = mapOf(
@@ -148,6 +159,19 @@ open class TemplateTest : AndroidGradleTestCase() {
   @TemplateCheck
   fun testNewBasicActivityWithKotlin() {
     checkCreateTemplate("Basic Activity", withKotlin, avoidModifiedModuleName = true)
+  }
+
+  @TemplateCheck
+  fun testNewBasicActivityMaterial3() {
+    StudioFlags.NPW_MATERIAL3_ENABLED.override(true)
+    try {
+      val withMaterial3: ProjectStateCustomizer = { moduleData: ModuleTemplateDataBuilder, _: ProjectTemplateDataBuilder ->
+        moduleData.isMaterial3 = true
+      }
+      checkCreateTemplate("Basic Activity (Material3)", withKotlin, withMaterial3)
+    } finally {
+      StudioFlags.NPW_MATERIAL3_ENABLED.clearOverride()
+    }
   }
 
   @TemplateCheck
@@ -271,12 +295,39 @@ open class TemplateTest : AndroidGradleTestCase() {
   }
 
   @TemplateCheck
+  fun testGooglePayActivity() {
+    checkCreateTemplate("Google Pay Activity")
+  }
+
+  @TemplateCheck
+  fun testGooglePayActivityWithKotlin() {
+    checkCreateTemplate("Google Pay Activity", withKotlin)
+  }
+
+  @TemplateCheck
   fun testComposeActivity() {
-    val withOldKotlin: ProjectStateCustomizer = { moduleData: ModuleTemplateDataBuilder, projectData: ProjectTemplateDataBuilder ->
+    val withSpecificKotlin: ProjectStateCustomizer = { moduleData: ModuleTemplateDataBuilder, projectData: ProjectTemplateDataBuilder ->
       projectData.language = Language.Kotlin
-      projectData.kotlinVersion = "1.5.10"
+      projectData.kotlinVersion = RenderTemplateModel.getComposeKotlinVersion(isMaterial3 = false)
+      RenderTemplateModel.Companion.toString()
+      moduleData.category = Category.Compose
     }
-    checkCreateTemplate("Empty Compose Activity", withOldKotlin) // Compose is always Kotlin
+    checkCreateTemplate("Empty Compose Activity", withSpecificKotlin) // Compose is always Kotlin
+  }
+
+  @TemplateCheck
+  fun testComposeActivityMaterial3() {
+    StudioFlags.NPW_MATERIAL3_ENABLED.override(true)
+    try {
+      val withSpecificKotlin: ProjectStateCustomizer = { moduleData: ModuleTemplateDataBuilder, projectData: ProjectTemplateDataBuilder ->
+        projectData.language = Language.Kotlin
+        projectData.kotlinVersion = RenderTemplateModel.getComposeKotlinVersion(isMaterial3 = true)
+        moduleData.category = Category.Compose
+      }
+      checkCreateTemplate("Empty Compose Activity (Material3)", withSpecificKotlin) // Compose is always Kotlin
+    } finally {
+      StudioFlags.NPW_MATERIAL3_ENABLED.clearOverride()
+    }
   }
 
   @TemplateCheck
@@ -297,16 +348,6 @@ open class TemplateTest : AndroidGradleTestCase() {
   @TemplateCheck
   fun testNewBlankWearActivityWithKotlin() {
     checkCreateTemplate("Blank Activity", withKotlin, avoidModifiedModuleName = true)
-  }
-
-  @TemplateCheck
-  fun testGoogleMapsWearActivity() {
-    checkCreateTemplate("Google Maps Activity", formFactor = FormFactor.Wear)
-  }
-
-  @TemplateCheck
-  fun testGoogleMapsWearActivityWithKotlin() {
-    checkCreateTemplate("Google Maps Activity", withKotlin, formFactor = FormFactor.Wear, avoidModifiedModuleName = true)
   }
 
   @TemplateCheck
@@ -513,9 +554,10 @@ open class TemplateTest : AndroidGradleTestCase() {
   @TemplateCheck
   fun testNewFiles() {
     checkCreateTemplate("AIDL File")
-    checkCreateTemplate("App Actions XML File")
+    checkCreateTemplate("App Actions XML File (deprecated)")
     checkCreateTemplate("Layout XML File")
     checkCreateTemplate("Values XML File")
+    checkCreateTemplate("Shortcuts XML File")
   }
 
   @TemplateCheck
@@ -555,46 +597,25 @@ open class TemplateTest : AndroidGradleTestCase() {
     }
   }
 
-  open fun testAllTemplatesCovered() {
-    CoverageChecker().testAllTemplatesCovered()
-  }
+  fun testAllTemplatesCovered() {
+    // Create a placeholder version of this class that just collects all the templates it will test when it is run.
+    val templateTest = TemplateTest(runTemplateCoverageOnly = true)
 
-  // Create a dummy version of this class that just collects all the templates it will test when it is run.
-  // It is important that this class is not run by JUnit!
-  class CoverageChecker : TemplateTest() {
-    override fun shouldRunTest(): Boolean = false
+    // Find all methods annotated with @TemplateCheck and run them (will just add the template name to a list)
+    templateTest::class.memberFunctions
+      .filter { it.findAnnotation<TemplateCheck>() != null }
+      .forEach { it.call(templateTest) }
 
-    // Set of templates tested with unit test
-    private val templatesChecked = mutableSetOf<String>()
+    val templatesWhichShouldBeCovered = TemplateResolver.getAllTemplates().map { it.name }.toSet()
 
-    override fun checkCreateTemplate(
-      name: String,
-      vararg customizers: ProjectStateCustomizer,
-      templateStateCustomizer: TemplateStateCustomizer,
-      category: Category?,
-      formFactor: FormFactor?,
-      avoidModifiedModuleName: Boolean
-    ) {
-      templatesChecked.add(name)
-    }
+    val notCoveredTemplates = templatesWhichShouldBeCovered.minus(templateTest.templatesChecked)
 
-    // The actual implementation of the test
-    override fun testAllTemplatesCovered() {
-      this::class.memberFunctions
-        .filter { it.findAnnotation<TemplateCheck>() != null }
-        .forEach { it.call(this) }
-
-      val templatesWhichShouldBeCovered = TemplateResolver.getAllTemplates().map { it.name }.toSet()
-
-      val notCoveredTemplates = templatesWhichShouldBeCovered.minus(templatesChecked)
-
-      val failurePrefix = """
+    val failurePrefix = """
         The following templates were not covered by TemplateTest. Please ensure that tests are added to cover
         these templates and that they are annotated with @TemplateCheck.
         """.trimIndent()
 
-      assertWithMessage(failurePrefix).that(notCoveredTemplates).isEmpty()
-    }
+    assertWithMessage(failurePrefix).that(notCoveredTemplates).isEmpty()
   }
 }
 
@@ -606,7 +627,7 @@ private fun getBoolFromEnvironment(key: String) = System.getProperty(key).orEmpt
 /**
  * Whether we should run these tests or not.
  */
-internal val DISABLED = getBoolFromEnvironment("DISABLE_STUDIO_TEMPLATE_TESTS")
+private val DISABLED = getBoolFromEnvironment("DISABLE_STUDIO_TEMPLATE_TESTS")
 
 /**
  * Whether we should enforce that lint passes cleanly on the projects

@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.wearpairing
 
+import com.android.ddmlib.IDevice
 import com.android.tools.adtui.swing.FakeUi
 import com.android.tools.idea.concurrency.waitForCondition
 import com.android.tools.idea.observable.BatchInvoker
@@ -23,7 +24,9 @@ import com.android.tools.idea.wizard.model.ModelWizard
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.LightPlatform4TestCase
 import com.intellij.ui.components.JBLabel
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import org.mockito.Mockito
 import java.awt.Dimension
 import java.util.concurrent.TimeUnit
 
@@ -34,22 +37,21 @@ class NewConnectionAlertStepTest : LightPlatform4TestCase() {
   private val model = WearDevicePairingModel()
   private val phoneDevice = PairingDevice(
     deviceID = "id1", displayName = "My Phone", apiLevel = 30, isWearDevice = false, isEmulator = true, hasPlayStore = true,
-    state = ConnectionState.ONLINE, isPaired = false
+    state = ConnectionState.ONLINE
   )
   private val wearDevice = PairingDevice(
     deviceID = "id2", displayName = "Round Watch", apiLevel = 30, isEmulator = true, isWearDevice = true, hasPlayStore = true,
-    state = ConnectionState.ONLINE, isPaired = false
+    state = ConnectionState.ONLINE
   )
 
   override fun setUp() {
     super.setUp()
 
-    phoneDevice.launch = { throw RuntimeException("Can't launch on tests") }
-    wearDevice.launch = phoneDevice.launch
     model.selectedPhoneDevice.value = phoneDevice
     model.selectedWearDevice.value = wearDevice
 
     BatchInvoker.setOverrideStrategy(invokeStrategy)
+    WearPairingManager.setDataProviders({ emptyList() }, { emptyList() })
   }
 
   override fun tearDown() {
@@ -73,17 +75,26 @@ class NewConnectionAlertStepTest : LightPlatform4TestCase() {
 
   @Test
   fun shouldShowIfPreviousPairingIsActive() {
-    val previousPairedWear = wearDevice.copy(deviceID = "id3", isPaired = true).apply {
-      launch = wearDevice.launch
-    }
-    WearPairingManager.setPairedDevices(phoneDevice, previousPairedWear)
+    val previousPairedWear = wearDevice.copy(deviceID = "id3")
+    val iDevice = Mockito.mock(IDevice::class.java)
+    runBlocking { WearPairingManager.createPairedDeviceBridge(phoneDevice, iDevice, previousPairedWear, iDevice, connect = false) }
 
     val fakeUi = createNewConnectionAlertStepUi()
-    fakeUi.waitForText("Disconnecting existing devices")
+    fakeUi.waitForText("Shutting down other Wear virtual device")
+  }
+
+  @Test
+  fun shouldShowIfWearMayNeedFactoryReset() {
+    val previousPairedPhone = phoneDevice.copy(deviceID = "id4")
+    val iDevice = Mockito.mock(IDevice::class.java)
+    runBlocking { WearPairingManager.createPairedDeviceBridge(previousPairedPhone, iDevice, wearDevice, iDevice, connect = false) }
+
+    val fakeUi = createNewConnectionAlertStepUi()
+    fakeUi.waitForText("Wear OS Factory Reset")
   }
 
   private fun createNewConnectionAlertStepUi(): FakeUi {
-    val newConnectionAlertStep = NewConnectionAlertStep(model, project)
+    val newConnectionAlertStep = NewConnectionAlertStep(model)
     val modelWizard = ModelWizard.Builder().addStep(newConnectionAlertStep).build()
     Disposer.register(testRootDisposable, modelWizard)
     invokeStrategy.updateAllSteps()

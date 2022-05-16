@@ -18,14 +18,17 @@ package com.android.tools.idea.project;
 import static com.android.tools.idea.apk.debugging.ApkDebugging.isMarkedAsApkDebuggingProject;
 import static com.android.tools.idea.apk.debugging.ApkDebugging.markAsApkDebuggingProject;
 
+import com.android.AndroidProjectTypes;
 import com.android.tools.idea.apk.ApkFacet;
-import com.android.tools.idea.gradle.project.GradleProjectInfo;
 import com.android.tools.idea.model.AndroidModel;
+import com.android.tools.idea.projectsystem.ProjectSystemUtil;
+import com.intellij.facet.Facet;
 import com.intellij.facet.ProjectFacetManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.containers.ContainerUtil;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 
@@ -44,26 +47,22 @@ public class AndroidProjectInfo {
   /**
    * Returns all modules of a given type in the project
    *
-   * @param projectType the Project type as an integer given in {@link IdeAndroidProject}
+   * @param projectType the Project type as an integer given in {@link AndroidProjectTypes}
    * @return An array of all Modules in the project of that type
    */
   @NotNull
   public List<Module> getAllModulesOfProjectType(int projectType) {
-    List<Module> androidModules = ProjectFacetManager.getInstance(myProject).getModulesWithFacet(AndroidFacet.ID);
-    return ContainerUtil.filter(androidModules, module -> {
-      AndroidFacet facet = AndroidFacet.getInstance(module);
-      return facet != null && facet.getConfiguration().getProjectType() == projectType;
-    });
+    return ProjectSystemUtil.getAndroidFacets(myProject).stream()
+      .filter(f -> f.getConfiguration().getProjectType() == projectType)
+      .map(Facet::getModule)
+      .collect(Collectors.toList());
   }
 
   /**
-   * Indicates whether the given project has at least one module backed by an {@link IdeAndroidProject}. To check if a project is a
-   * "Gradle project," please use the method {@link GradleProjectInfo#isBuildWithGradle()}.
-   *
-   * @return {@code true} if the project has one or more modules backed by an {@link IdeAndroidProject}; {@code false} otherwise.
+   * Indicates whether the given project has at least one module backed by build models.
    */
   public boolean requiresAndroidModel() {
-    List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(myProject).getFacets(AndroidFacet.ID);
+    List<AndroidFacet> androidFacets = ProjectSystemUtil.getAndroidFacets(myProject);
     return ContainerUtil.exists(androidFacets, f -> AndroidModel.isRequired(f));
   }
 
@@ -93,7 +92,7 @@ public class AndroidProjectInfo {
    * @return {@code true} if the project is an Android project that does not contain any build system-based model.
    */
   public boolean requiredAndroidModelMissing() {
-    List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(myProject).getFacets(AndroidFacet.ID);
+    List<AndroidFacet> androidFacets = ProjectSystemUtil.getAndroidFacets(myProject);
     return ContainerUtil.exists(androidFacets, f -> AndroidModel.isRequired(f) && AndroidModel.get(f) == null);
   }
 
@@ -104,7 +103,7 @@ public class AndroidProjectInfo {
    */
   public boolean isLegacyIdeaAndroidProject() {
     // If a module has the Android facet, but it does not require a model from the build system, it is a legacy IDEA project.
-    List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(myProject).getFacets(AndroidFacet.ID);
+    List<AndroidFacet> androidFacets = ProjectSystemUtil.getAndroidFacets(myProject);
     return ContainerUtil.exists(androidFacets, f -> !AndroidModel.isRequired(f));
   }
 }

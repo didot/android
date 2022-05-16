@@ -15,16 +15,15 @@
  */
 package com.android.tools.idea.gradle.dsl.api.configurations;
 
-import com.android.tools.idea.gradle.dsl.api.util.GradleDslModel;
-import org.jetbrains.annotations.NotNull;
-
+import com.android.tools.idea.gradle.dsl.api.util.GradleBlockModel;
 import java.util.List;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Model for the configurations given within Gradle build files. This DOES NOT include configurations pulled in by other plugins
  * e.g compile, api, test, implementation, unless they are explictly mentioned in the configurations block.
  */
-public interface ConfigurationsModel extends GradleDslModel {
+public interface ConfigurationsModel extends GradleBlockModel {
   @NotNull
   List<ConfigurationModel> all();
 

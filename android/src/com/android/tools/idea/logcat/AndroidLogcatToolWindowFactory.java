@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.tools.idea.logcat;
 
 import com.android.ddmlib.AndroidDebugBridge;
@@ -43,6 +44,9 @@ import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentManager;
 import com.intellij.util.concurrency.EdtExecutorService;
 import com.intellij.util.messages.MessageBusConnection;
+import java.io.File;
+import java.util.List;
+import java.util.Objects;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidPlatform;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
@@ -50,15 +54,11 @@ import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.util.List;
-import java.util.Objects;
-
 public class AndroidLogcatToolWindowFactory implements ToolWindowFactory, DumbAware {
   public static final Key<DevicePanel> DEVICES_PANEL_KEY = Key.create("DevicePanel");
 
   @Override
-  public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
+  public void createToolWindowContent(@NotNull final Project project, @NotNull final ToolWindow toolWindow) {
     // In order to use the runner layout ui, the runner infrastructure needs to be initialized.
     // Otherwise it is not possible to for example drag one of the tabs out of the tool window.
     // The object that needs to be created is the content manager of the execution manager for this project.
@@ -74,7 +74,7 @@ public class AndroidLogcatToolWindowFactory implements ToolWindowFactory, DumbAw
     busConnection.subscribe(ToolWindowManagerListener.TOPIC, new MyToolWindowManagerListener(project, logcatView));
     busConnection.subscribe(ProjectTopics.PROJECT_ROOTS, new MyAndroidPlatformListener(logcatView));
 
-    ContentManager contentManager = toolWindow.getContentManager();
+    final ContentManager contentManager = toolWindow.getContentManager();
     Content c = contentManager.getFactory().createContent(logcatPanel, "", true);
 
     // Store references to the logcat & device panel views, so that these views can be retrieved directly from
@@ -86,7 +86,7 @@ public class AndroidLogcatToolWindowFactory implements ToolWindowFactory, DumbAw
 
     ApplicationManager.getApplication().invokeLater(() -> {
       logcatView.activate();
-      ToolWindow window = ToolWindowManager.getInstance(project).getToolWindow(getToolWindowId());
+      final ToolWindow window = ToolWindowManager.getInstance(project).getToolWindow(getToolWindowId());
       if (window != null && window.isVisible()) {
         ConsoleView console = logcatView.getLogConsole().getConsole();
         if (console != null) {
@@ -95,7 +95,7 @@ public class AndroidLogcatToolWindowFactory implements ToolWindowFactory, DumbAw
       }
     }, project.getDisposed());
 
-    File adb = AndroidSdkUtils.getAdb(project);
+    final File adb = AndroidSdkUtils.getAdb(project);
     if (adb == null) {
       return;
     }
@@ -104,7 +104,7 @@ public class AndroidLogcatToolWindowFactory implements ToolWindowFactory, DumbAw
     logcatPanel.startLoading();
 
     ListenableFuture<AndroidDebugBridge> future = AdbService.getInstance().getDebugBridge(adb);
-    Futures.addCallback(future, new FutureCallback<AndroidDebugBridge>() {
+    Futures.addCallback(future, new FutureCallback<>() {
       @Override
       public void onSuccess(@Nullable AndroidDebugBridge bridge) {
         Logger.getInstance(AndroidLogcatToolWindowFactory.class).info("Successfully obtained debug bridge");
@@ -135,11 +135,13 @@ public class AndroidLogcatToolWindowFactory implements ToolWindowFactory, DumbAw
     @Override
     public void stateChanged(@NotNull ToolWindowManager toolWindowManager) {
       ToolWindow window = toolWindowManager.getToolWindow("Logcat");
+
       if (window == null) {
         return;
       }
 
       boolean visible = window.isVisible();
+
       if (myToolWindowVisible == visible) {
         return;
       }

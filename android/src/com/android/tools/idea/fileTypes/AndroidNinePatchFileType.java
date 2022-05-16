@@ -19,7 +19,7 @@ package com.android.tools.idea.fileTypes;
 import com.android.SdkConstants;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.util.PlatformIcons;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
 

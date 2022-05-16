@@ -87,7 +87,7 @@ class TransportEventPoller(
           .filter { event -> event.timestamp >= startTimestamp && eventListener.filter(event) }
         filtered.forEach { event ->
           eventListener.executor.execute {
-            if (eventListener.callback(event)) {
+            if(eventListener.callback(event)) {
               // Previous code collected the flag and unregistered once in the main thread,
               // but there was a concurrency bug if the main thread finishes before the listeners.
               // We unregister from here instead. Unregistering the same listener multiple times is harmless.

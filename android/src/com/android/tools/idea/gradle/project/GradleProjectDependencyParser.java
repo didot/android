@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.gradle.project;
 
-import static com.android.SdkConstants.FN_BUILD_GRADLE;
 import static com.android.tools.idea.gradle.util.GradleUtil.findGradleBuildFile;
 
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel;
@@ -38,7 +37,7 @@ import org.jetbrains.annotations.NotNull;
 public class GradleProjectDependencyParser {
   @NotNull
   public static Function<VirtualFile, Iterable<String>> newInstance(@NotNull final Project project) {
-    return CacheBuilder.newBuilder().build(new CacheLoader<VirtualFile, Iterable<String>>() {
+    return CacheBuilder.newBuilder().build(new CacheLoader<>() {
       @Override
       public Iterable<String> load(@NotNull VirtualFile key) throws Exception {
         return parse(key, project);
@@ -53,7 +52,7 @@ public class GradleProjectDependencyParser {
       return Collections.emptySet();
     }
     else {
-      Set<String> result = new HashSet<String>();
+      Set<String> result = new HashSet<>();
       ProjectBuildModel projectModel = ProjectBuildModel.getOrLog(project);
       if (projectModel != null) {
         GradleBuildModel buildModel = projectModel.getModuleBuildModel(buildFile);

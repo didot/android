@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.compose.preview.animation
 
+import org.jetbrains.annotations.VisibleForTesting
 import java.lang.reflect.Method
 
 /**
@@ -30,6 +31,12 @@ internal class AnimationClock(val clock: Any) {
   val getAnimatedPropertiesFunction by lazy { findClockFunction("getAnimatedProperties") }
 
   /**
+   * Function `getTransitions` of [clock]. This API was added in Compose UI Tooling 1.1.0-alpha05. For early versions
+   * `getAnimatedProperties` should be called instead. The caller should first check if this method exists.
+   */
+  val getTransitionsFunction: Method? by lazy { findClockFunctionIfExists("getTransitions") }
+
+  /**
    * Function `getMaxDuration` of [clock].
    */
   val getMaxDurationFunction by lazy { findClockFunction("getMaxDuration") }
@@ -37,7 +44,7 @@ internal class AnimationClock(val clock: Any) {
   /**
    * Function `getMaxDurationPerIteration` of [clock].
    */
-  val getMaxDurationPerIteration by lazy {findClockFunction("getMaxDurationPerIteration") }
+  val getMaxDurationPerIteration by lazy { findClockFunction("getMaxDurationPerIteration") }
 
   /**
    * Function `setClockTime` of [clock].
@@ -49,6 +56,30 @@ internal class AnimationClock(val clock: Any) {
    */
   val updateFromAndToStatesFunction by lazy { findClockFunction("updateFromAndToStates") }
 
-  private fun findClockFunction(functionName: String): Method =
-    clock::class.java.methods.single { it.name == functionName }.apply { isAccessible = true }
+  /**
+   * Function `updateAnimatedVisibilityState` of [clock]. This API was added in Compose 1.1.0-alpha04, and trying to call it when using
+   * early Compose versions will cause a crash and the corresponding preview will not render properly. In order to make sure this method
+   * exists, the caller should first check if the animation type is ComposeAnimationType.ANIMATED_VISIBILITY, which was also introduced in
+   * the same Compose version and represents the animation type for which this method makes sense to be called.
+   */
+  val updateAnimatedVisibilityStateFunction by lazy { findClockFunction("updateAnimatedVisibilityState") }
+
+  /**
+   * Function `getAnimatedVisibilityState` of [clock]. This API was added in Compose 1.1.0-alpha04, and trying to call it when using early
+   * Compose versions will cause a crash and the corresponding preview will not render properly. In order to make sure this method exists,
+   * the caller should first check if the animation type is ComposeAnimationType.ANIMATED_VISIBILITY, which was also introduced in the same
+   * Compose version and represents the animation type for which this method makes sense to be called.
+   */
+  val getAnimatedVisibilityStateFunction by lazy { findClockFunction("getAnimatedVisibilityState") }
+
+  @VisibleForTesting
+  fun findClockFunction(functionName: String): Method = findClockFunctionIfExists(functionName)!!
+
+  private fun findClockFunctionIfExists(functionName: String): Method? =
+    clock::class.java.methods.firstOrNull() {
+      // Convert something like `setClockTime-zrx7VqY` into `setClockTime` in order to handle methods that use inline classes.
+      // See https://kotlinlang.org/docs/inline-classes.html#mangling for more info.
+      val normalizedName = it.name.substringBefore('-')
+      normalizedName == functionName
+    }?.apply { isAccessible = true }
 }

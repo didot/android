@@ -18,7 +18,6 @@ package com.android.tools.idea.tests.gui.framework.fixture.designer.layout;
 import static com.android.tools.idea.tests.gui.framework.GuiTests.waitUntilShowing;
 import static com.android.tools.idea.tests.gui.framework.GuiTests.waitUntilShowingAndEnabled;
 
-import com.android.tools.idea.common.actions.IssueNotificationAction;
 import com.android.tools.idea.actions.DesignerActions;
 import com.android.tools.idea.common.error.IssuePanel;
 import com.android.tools.idea.tests.gui.framework.fixture.ActionButtonFixture;
@@ -58,7 +57,7 @@ public class NlRhsConfigToolbarFixture {
   public void clickIssuePanelButton() {
     Robot robot = myNlEditorFixture.robot();
     ActionButton button = waitUntilShowing(
-      robot, myToolBar.getComponent(), new GenericTypeMatcher<ActionButton>(ActionButton.class) {
+      robot, myToolBar.getComponent(), new GenericTypeMatcher<>(ActionButton.class) {
         @Override
         protected boolean isMatching(@NotNull ActionButton component) {
           return component.getAction() == ActionManager.getInstance().getAction(DesignerActions.ACTION_TOGGLE_ISSUE_PANEL);

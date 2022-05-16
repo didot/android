@@ -19,10 +19,11 @@ import com.android.tools.idea.gradle.dependencies.GradleDependencyManager
 import com.android.tools.idea.gradle.project.GradleProjectInfo
 import com.android.tools.idea.gradle.project.build.BuildStatus
 import com.android.tools.idea.gradle.project.build.GradleBuildState
-import com.android.tools.idea.gradle.project.build.GradleProjectBuilder
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.GradleSyncState
-import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.*
+import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.SyncReason
+import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.SyncResult
+import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.SyncResultListener
 import com.android.tools.idea.projectsystem.gradle.GradleProjectSystemSyncManager
 import com.android.tools.idea.testing.IdeComponents
 import com.google.common.truth.Truth.assertThat
@@ -32,7 +33,13 @@ import com.intellij.openapi.startup.StartupManager
 import com.intellij.testFramework.PlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.util.messages.MessageBusConnection
-import org.mockito.Mockito.*
+import org.mockito.Mockito.any
+import org.mockito.Mockito.doAnswer
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.same
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 
 class GradleProjectSystemSyncManagerTest : PlatformTestCase() {
   private lateinit var ideComponents: IdeComponents
@@ -51,7 +58,6 @@ class GradleProjectSystemSyncManagerTest : PlatformTestCase() {
     syncInvoker = ideComponents.mockApplicationService(GradleSyncInvoker::class.java)
 
     ideComponents.mockProjectService(GradleDependencyManager::class.java)
-    ideComponents.mockProjectService(GradleProjectBuilder::class.java)
     gradleProjectInfo = ideComponents.mockProjectService(GradleProjectInfo::class.java)
     `when`<Boolean>(gradleProjectInfo.isBuildWithGradle).thenReturn(true)
 

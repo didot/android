@@ -15,15 +15,15 @@
  */
 package com.android.tools.idea.gradle.run;
 
-import static com.android.builder.model.AndroidProject.PROPERTY_APK_SELECT_CONFIG;
-import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_ABI;
-import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_API;
-import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_API_CODENAME;
-import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_DENSITY;
-import static com.android.builder.model.AndroidProject.PROPERTY_BUILD_WITH_STABLE_IDS;
-import static com.android.builder.model.AndroidProject.PROPERTY_DEPLOY_AS_INSTANT_APP;
-import static com.android.builder.model.AndroidProject.PROPERTY_EXTRACT_INSTANT_APK;
-import static com.android.builder.model.AndroidProject.PROPERTY_INJECTED_DYNAMIC_MODULES_LIST;
+import static com.android.builder.model.InjectedProperties.PROPERTY_APK_SELECT_CONFIG;
+import static com.android.builder.model.InjectedProperties.PROPERTY_BUILD_ABI;
+import static com.android.builder.model.InjectedProperties.PROPERTY_BUILD_API;
+import static com.android.builder.model.InjectedProperties.PROPERTY_BUILD_API_CODENAME;
+import static com.android.builder.model.InjectedProperties.PROPERTY_BUILD_DENSITY;
+import static com.android.builder.model.InjectedProperties.PROPERTY_BUILD_WITH_STABLE_IDS;
+import static com.android.builder.model.InjectedProperties.PROPERTY_DEPLOY_AS_INSTANT_APP;
+import static com.android.builder.model.InjectedProperties.PROPERTY_EXTRACT_INSTANT_APK;
+import static com.android.builder.model.InjectedProperties.PROPERTY_INJECTED_DYNAMIC_MODULES_LIST;
 import static com.android.tools.idea.gradle.util.AndroidGradleSettings.createProjectProperty;
 import static com.android.tools.idea.run.GradleApkProvider.POST_BUILD_MODEL;
 import static com.android.tools.idea.run.editor.ProfilerState.ANDROID_ADVANCED_PROFILING_TRANSFORMS;
@@ -43,7 +43,6 @@ import com.android.tools.idea.gradle.project.model.GradleModuleModel;
 import com.android.tools.idea.gradle.project.model.NdkModuleModel;
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker;
 import com.android.tools.idea.gradle.project.sync.GradleSyncListener;
-import com.android.tools.idea.gradle.project.sync.GradleSyncState;
 import com.android.tools.idea.gradle.util.AndroidGradleSettings;
 import com.android.tools.idea.gradle.util.BuildMode;
 import com.android.tools.idea.gradle.util.DynamicAppUtils;
@@ -60,10 +59,7 @@ import com.android.tools.idea.run.DeviceFutures;
 import com.android.tools.idea.run.PreferGradleMake;
 import com.android.tools.idea.run.editor.ProfilerState;
 import com.android.tools.idea.stats.RunStats;
-import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration;
-import com.android.tools.idea.testartifacts.instrumented.configuration.AndroidTestConfiguration;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -81,14 +77,13 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
-import com.intellij.util.ThreeState;
 import icons.StudioIcons;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -106,6 +101,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.swing.Icon;
 import one.util.streamex.StreamEx;
+import org.jetbrains.android.util.AndroidBuildCommonUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -192,11 +188,6 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
     if (!(ProjectSystemUtil.getProjectSystem(runConfiguration.getProject()) instanceof GradleProjectSystem)) {
       return false;
     }
-    // Disable "Gradle-aware Make" task for instrumentation tests run via UTP so that APK handling is delegated to AGP
-    if (AndroidTestConfiguration.getInstance().getRUN_ANDROID_TEST_USING_GRADLE() &&
-        runConfiguration instanceof AndroidTestRunConfiguration) {
-      return false;
-    }
     return runConfiguration instanceof PreferGradleMake || isUnitTestConfiguration(runConfiguration);
   }
 
@@ -281,40 +272,28 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
 
   @VisibleForTesting
   enum SyncNeeded {
-    NOT_NEEDED(false),
-    SINGLE_VARIANT_SYNC_NEEDED(false),
-    FULL_SYNC_NEEDED(true),
-    NATIVE_VARIANTS_SYNC_NEEDED(false);
-
-    public final boolean isFullSync;
-
-    SyncNeeded(boolean isFullSync) {
-      this.isFullSync = isFullSync;
-    }
+    NOT_NEEDED,
+    SINGLE_VARIANT_SYNC_NEEDED,
+    NATIVE_VARIANTS_SYNC_NEEDED;
   }
 
   @VisibleForTesting
   @NotNull
-  SyncNeeded isSyncNeeded(@NotNull DataContext context, @NotNull RunConfiguration configuration, Collection<String> abis) {
-
-    // Invoke Gradle Sync if build files have been changed since last sync, and Sync-before-build option is enabled OR post build sync
-    // if not supported. The later case requires Gradle Sync, because deploy relies on the models from Gradle Sync to get Apk locations.
-    if (GradleSyncState.getInstance(myProject).isSyncNeeded() != ThreeState.NO && !isPostBuildModelsSupported(context, configuration)) {
-      return SyncNeeded.SINGLE_VARIANT_SYNC_NEEDED;
-    }
-
-    // If the project has native modules, and there're any un-synced variants.
+  SyncNeeded isSyncNeeded(Collection<String> abis) {
+    // If the project has native modules, and there are any un-synced variants.
     for (Module module : ModuleManager.getInstance(myProject).getModules()) {
       NdkModuleModel ndkModel = NdkModuleModel.get(module);
       AndroidModuleModel androidModel = AndroidModuleModel.get(module);
       if (ndkModel != null && androidModel != null) {
-        String selectedVariantName = androidModel.getSelectedVariant().getName();
-        Set<String> availableAbis = ndkModel.getSyncedVariantAbis().stream()
-          .filter(it -> it.getVariant().equals(selectedVariantName))
-          .map(it -> it.getAbi())
-          .collect(Collectors.toSet());
-        if (!availableAbis.containsAll(abis)) {
-          return SyncNeeded.NATIVE_VARIANTS_SYNC_NEEDED;
+        if (ndkModel.getNdkModel().getNeedsAbiSyncBeforeRun()) {
+          String selectedVariantName = androidModel.getSelectedVariant().getName();
+          Set<String> availableAbis = ndkModel.getSyncedVariantAbis().stream()
+            .filter(it -> it.getVariant().equals(selectedVariantName))
+            .map(it -> it.getAbi())
+            .collect(Collectors.toSet());
+          if (!availableAbis.containsAll(abis)) {
+            return SyncNeeded.NATIVE_VARIANTS_SYNC_NEEDED;
+          }
         }
       }
     }
@@ -332,7 +311,6 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
       String result;
       GradleSyncInvoker.Request request = new GradleSyncInvoker.Request(TRIGGER_RUN_SYNC_NEEDED_BEFORE_RUNNING);
       request.runInBackground = false;
-      request.forceFullVariantsSync = syncNeeded.isFullSync;
 
       AtomicReference<String> errorMsgRef = new AtomicReference<>();
       GradleSyncInvoker.getInstance().requestProjectSync(myProject, request, new GradleSyncListener() {
@@ -344,23 +322,6 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
       result = errorMsgRef.get();
       return result;
     }
-  }
-
-  /**
-   * Returns true if there is no Android module, or all of Android modules support post build models (via sync or the build output file).
-   */
-  private boolean isPostBuildModelsSupported(@NotNull DataContext context,
-                                             @NotNull RunConfiguration configuration) {
-    Module[] modules = getModules(context, configuration);
-    for (Module module : modules) {
-      AndroidModuleModel androidModuleModel = AndroidModuleModel.get(module);
-      if (androidModuleModel != null &&
-          !androidModuleModel.getFeatures().isPostBuildSyncSupported() &&
-          !androidModuleModel.getFeatures().isBuildOutputFileSupported()) {
-        return false;
-      }
-    }
-    return true;
   }
 
   private boolean doExecuteTask(DataContext context, RunConfiguration configuration, ExecutionEnvironment env, MakeBeforeRunTask task) {
@@ -390,60 +351,50 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
     List<String> cmdLineArgs;
     try {
       cmdLineArgs = getCommonArguments(modules, androidRunConfiguration, targetDeviceSpec);
+      cmdLineArgs.add("--stacktrace");
     }
     catch (Exception e) {
       getLog().warn("Error generating command line arguments for Gradle task", e);
       return false;
     }
     AndroidVersion targetDeviceVersion = targetDeviceSpec != null ? targetDeviceSpec.getCommonVersion() : null;
+    GradleTaskRunner.DefaultGradleTaskRunner runner = GradleTaskRunner.newRunner(myTaskRunnerFactory.myProject);
     BeforeRunBuilder builder = createBuilder(modules, configuration, targetDeviceVersion, task.getGoal());
 
-    GradleTaskRunner.DefaultGradleTaskRunner runner = myTaskRunnerFactory.createTaskRunner(configuration);
     BuildSettings.getInstance(myProject).setRunConfigurationTypeId(configuration.getType().getId());
-    try {
-      boolean success = builder.build(runner, cmdLineArgs);
+    boolean success = builder.build(runner, cmdLineArgs);
 
-      if (androidRunConfiguration != null) {
-        Object model = runner.getModel();
-        if (model instanceof OutputBuildAction.PostBuildProjectModels) {
-          androidRunConfiguration.putUserData(POST_BUILD_MODEL, new PostBuildModel((OutputBuildAction.PostBuildProjectModels)model));
-        }
-        else {
-          getLog().info("Couldn't get post build models.");
-        }
+    if (androidRunConfiguration != null) {
+      Object model = runner.getModel();
+      if (model instanceof OutputBuildAction.PostBuildProjectModels) {
+        androidRunConfiguration.putUserData(POST_BUILD_MODEL, new PostBuildModel((OutputBuildAction.PostBuildProjectModels)model));
       }
-
-      getLog().info("Gradle invocation complete, success = " + success);
-
-      // If the model needs a sync, we need to sync "synchronously" before running.
-      Set<String> targetAbis = new HashSet<>(targetDeviceSpec != null ? targetDeviceSpec.getAbis() : emptyList());
-      SyncNeeded syncNeeded = isSyncNeeded(context, configuration, targetAbis);
-
-      if (syncNeeded != SyncNeeded.NOT_NEEDED) {
-        String errorMsg = runSync(syncNeeded, targetAbis);
-        if (errorMsg != null) {
-          // Sync failed. There is no point on continuing, because most likely the model is either not there, or has stale information,
-          // including the path of the APK.
-          getLog().info("Unable to launch '" + TASK_NAME + "' task. Project sync failed with message: " + errorMsg);
-          return false;
-        }
+      else {
+        getLog().info("Couldn't get post build models.");
       }
+    }
 
-      if (myProject.isDisposed()) {
+    getLog().info("Gradle invocation complete, success = " + success);
+
+    // If the model needs a sync, we need to sync "synchronously" before running.
+    Set<String> targetAbis = new HashSet<>(targetDeviceSpec != null ? targetDeviceSpec.getAbis() : emptyList());
+    SyncNeeded syncNeeded = isSyncNeeded(targetAbis);
+
+    if (syncNeeded != SyncNeeded.NOT_NEEDED) {
+      String errorMsg = runSync(syncNeeded, targetAbis);
+      if (errorMsg != null) {
+        // Sync failed. There is no point on continuing, because most likely the model is either not there, or has stale information,
+        // including the path of the APK.
+        getLog().info("Unable to launch '" + TASK_NAME + "' task. Project sync failed with message: " + errorMsg);
         return false;
       }
+    }
 
-      return success;
-    }
-    catch (InvocationTargetException e) {
-      getLog().info("Unexpected error while launching gradle before run tasks", e);
+    if (myProject.isDisposed()) {
       return false;
     }
-    catch (InterruptedException e) {
-      getLog().info("Interrupted while launching gradle before run tasks");
-      Thread.currentThread().interrupt();
-      return false;
-    }
+
+    return success;
   }
 
   @NotNull
@@ -563,7 +514,7 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
       File propertiesFile = createTempFile("profiler", ".properties");
       propertiesFile.deleteOnExit(); // TODO: It'd be nice to clean this up sooner than at exit.
 
-      Writer writer = new OutputStreamWriter(new FileOutputStream(propertiesFile), Charsets.UTF_8);
+      Writer writer = new OutputStreamWriter(new FileOutputStream(propertiesFile), StandardCharsets.UTF_8);
       profilerProperties.store(writer, "Android Studio Profiler Gradle Plugin Properties");
       writer.close();
 
@@ -589,15 +540,22 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
         .distinct()
         .map(path -> Paths.get(path))
         .forEach(path -> tasks.put(path, userGoal));
-      return new DefaultGradleBuilder(tasks, null);
+      return new DefaultGradleBuilder(modules, tasks, null);
     }
 
     GradleModuleTasksProvider gradleTasksProvider = new GradleModuleTasksProvider(modules);
 
-    TestCompileType testCompileType = TestCompileType.get(configuration.getType().getId());
+    TestCompileType testCompileType = TestCompileType.NONE;
+    if (configuration instanceof PreferGradleMake) {
+      testCompileType = ((PreferGradleMake)configuration).getTestCompileMode();
+    }
+    else if (AndroidBuildCommonUtils.isTestConfiguration(configuration.getType().getId())) {
+      testCompileType = TestCompileType.UNIT_TESTS;
+    }
+
     if (testCompileType == TestCompileType.UNIT_TESTS) {
       BuildMode buildMode = BuildMode.COMPILE_JAVA;
-      return new DefaultGradleBuilder(gradleTasksProvider.getUnitTestTasks(buildMode), buildMode);
+      return new DefaultGradleBuilder(modules, gradleTasksProvider.getUnitTestTasks(buildMode), buildMode);
     }
 
     // Use the "select apks from bundle" task if using a "AndroidRunConfigurationBase".
@@ -608,10 +566,10 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
     //       AndroidRunConfigurationBase.
     if (configuration instanceof AndroidRunConfigurationBase
         && useSelectApksFromBundleBuilder(modules, (AndroidRunConfigurationBase)configuration, targetDeviceVersion)) {
-      return new DefaultGradleBuilder(gradleTasksProvider.getTasksFor(BuildMode.APK_FROM_BUNDLE, testCompileType),
+      return new DefaultGradleBuilder(modules, gradleTasksProvider.getTasksFor(BuildMode.APK_FROM_BUNDLE, testCompileType),
                                       BuildMode.APK_FROM_BUNDLE);
     }
-    return new DefaultGradleBuilder(gradleTasksProvider.getTasksFor(BuildMode.ASSEMBLE, testCompileType), BuildMode.ASSEMBLE);
+    return new DefaultGradleBuilder(modules, gradleTasksProvider.getTasksFor(BuildMode.ASSEMBLE, testCompileType), BuildMode.ASSEMBLE);
   }
 
   private static boolean useSelectApksFromBundleBuilder(@NotNull Module[] modules,
@@ -667,28 +625,6 @@ public class MakeBeforeRunTaskProvider extends BeforeRunTaskProvider<MakeBeforeR
 
     GradleTaskRunnerFactory(@NotNull Project project) {
       myProject = project;
-    }
-
-    @NotNull
-    GradleTaskRunner.DefaultGradleTaskRunner createTaskRunner(@NotNull RunConfiguration configuration) {
-      if (configuration instanceof AndroidRunConfigurationBase) {
-        List<Module> modules = new ArrayList<>();
-        Module selectedModule = ((AndroidRunConfigurationBase)configuration).getConfigurationModule().getModule();
-        if (selectedModule != null) {
-          modules.add(selectedModule);
-          // Instrumented test support for Dynamic features: base-app module should be included explicitly,
-          // then corresponding post build models are generated. And in this case, dynamic feature module
-          // retrieved earlier is for test Apk.
-          if (configuration instanceof AndroidTestRunConfiguration) {
-            Module baseModule = DynamicAppUtils.getBaseFeature(selectedModule);
-            if (baseModule != null) {
-              modules.add(baseModule);
-            }
-          }
-        }
-        return GradleTaskRunner.newRunner(myProject, OutputBuildActionUtil.create(modules));
-      }
-      return GradleTaskRunner.newRunner(myProject, null);
     }
   }
 }

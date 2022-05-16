@@ -15,15 +15,13 @@
  */
 package com.android.tools.idea.gradle.actions;
 
-import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.gradle.project.GradleProjectInfo;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 
 /**
  * Base class for actions that perform Gradle-specific tasks in Android Studio.
@@ -68,10 +66,6 @@ public abstract class AndroidStudioGradleAction extends AnAction {
 
   protected static boolean isGradleProject(@NotNull AnActionEvent e) {
     Project project = e.getProject();
-    if (project == null) {
-      return false;
-    }
-    GradleProjectInfo info = GradleProjectInfo.getInstance(project);
-    return info.isBuildWithGradle() && (!info.getAndroidModules().isEmpty() || IdeInfo.getInstance().isAndroidStudio());
+    return project != null && GradleProjectInfo.getInstance(project).isBuildWithGradle();
   }
 }

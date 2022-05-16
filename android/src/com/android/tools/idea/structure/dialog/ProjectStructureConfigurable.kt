@@ -18,8 +18,8 @@ package com.android.tools.idea.structure.dialog
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.GradleSyncState
-import com.android.tools.idea.stats.withProjectId
 import com.android.tools.idea.structure.configurables.ui.CrossModuleUiStateComponent
+import com.android.tools.idea.stats.withProjectId
 import com.google.common.collect.Maps
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_PSD_CHANGES
@@ -39,7 +39,6 @@ import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.options.newEditor.SettingsDialog
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.MasterDetailsComponent
 import com.intellij.openapi.ui.MessageType
 import com.intellij.openapi.ui.Messages
@@ -72,18 +71,18 @@ import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.event.KeyEvent
-import java.util.*
+import java.util.EventListener
 import java.util.function.Consumer
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingConstants
 
-class ProjectStructureConfigurable(private val project: Project) : SearchableConfigurable, Place.Navigator, Configurable.NoMargin, Configurable.NoScroll {
+class ProjectStructureConfigurable(private val myProject: Project) : SearchableConfigurable, Place.Navigator, Configurable.NoMargin, Configurable.NoScroll {
   private var myHistory = History(this)
   private val myDetails = Wrapper()
   private val myConfigurables = Maps.newLinkedHashMap<Configurable, JComponent>()
-  private val myUiState = UIState().also { it.load(project) }
+  private val myUiState = UIState().also { it.load(myProject) }
   private val myEmptySelection = JLabel("<html><body><center>Select a setting to view or edit its details here</center></body></html>",
                                         SwingConstants.CENTER)
   private val myProjectStructureEventDispatcher = EventDispatcher.create(ProjectStructureListener::class.java)
@@ -103,9 +102,6 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
   private var myOpenTimeMs: Long = 0
   private var inDoOK = false
   private var needsSync = false
-
-  private val isDefaultProject: Boolean
-    get() = project === ProjectManager.getInstance().defaultProject
 
   override fun getPreferredFocusedComponent(): JComponent? = myToFocus
 
@@ -135,7 +131,7 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
       myDetails.setContent(detailsContent)
       myUiState.lastEditedConfigurable = toSelect.displayName
 
-      project.logUsageLeftNavigateTo(toSelect)
+      myProject.logUsageLeftNavigateTo(toSelect)
     }
     mySelectedConfigurable = toSelect
 
@@ -206,7 +202,7 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
   override fun getId(): String = "android.project.structure"
 
   @Nls
-  override fun getDisplayName(): String = if (isDefaultProject) "Default Project Structure" else JavaUiBundle.message("project.settings.display.name")
+  override fun getDisplayName(): String = if (myProject.isDefault) "Default Project Structure" else JavaUiBundle.message("project.settings.display.name")
 
   override fun getHelpTopic(): String? = mySelectedConfigurable?.helpTopic
 
@@ -253,8 +249,8 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
   fun showPlace(place: Place?) {
     // TODO(IDEA-196602):  Pressing Ctrl+Alt+S or Ctrl+Alt+Shift+S for a little longer shows tens of dialogs. Remove when fixed.
     if (myShowing) return
-    if (GradleSyncState.getInstance(project).isSyncInProgress) {
-      val ideFrame = WindowManager.getInstance().getIdeFrame(project)
+    if (GradleSyncState.getInstance(myProject).isSyncInProgress) {
+      val ideFrame = WindowManager.getInstance().getIdeFrame(myProject)
       if (ideFrame != null) {
         val statusBar = ideFrame.statusBar as StatusBarEx
         statusBar.notifyProgressByBalloon(MessageType.WARNING, "Project Structure is unavailable while sync is in progress.", null, null)
@@ -278,14 +274,14 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
     if (needsSync) {
       // NOTE: If the user applied the changes in the dialog and then cancelled the dialog, sync still needs to happen here since
       //       we do not perform a sync when applying changes on "apply".
-      GradleSyncInvoker.getInstance().requestProjectSync(project, TRIGGER_PSD_CHANGES)
+      GradleSyncInvoker.getInstance().requestProjectSync(myProject, TRIGGER_PSD_CHANGES)
     }
   }
 
   fun show() = showPlace(null)
 
   private fun showDialog(advanceInit: Runnable) {
-    val dialog = object : SettingsDialog(project, "#PSD", this, true, false) {
+    val dialog = object : SettingsDialog(myProject, "#PSD", this, true, false) {
       override fun doOKAction() {
         inDoOK = true
         try {
@@ -301,7 +297,7 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
         if (IdeEventQueue.getInstance().trueCurrentEvent.safeAs<KeyEvent>()?.keyCode == KeyEvent.VK_ESCAPE) {
           if (isModified) {
             if (Messages.showDialog(
-                project,
+                myProject,
                 "You have made changes that have not been applied.",
                 "Discard changes?",
                 arrayOf("Discard changes", "Continue editing"),
@@ -331,6 +327,7 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
     dialog.showAndGet()
   }
 
+
   private fun initSidePanel() {
 
     mySidePanel = SidePanel(this, myHistory)
@@ -344,7 +341,7 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
     val configurables =
       AndroidConfigurableContributor.EP_NAME.extensions
         .asSequence()
-        .flatMap { it.getConfigurables(project, myDisposable).asSequence() }
+        .flatMap { it.getConfigurables(myProject, myDisposable).asSequence() }
         .groupBy { it.groupName }
         .mapValues { entry -> entry.value.flatMap { it.items } }
 
@@ -378,12 +375,9 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
     val modifiedConfigurables = myConfigurables.keys.filter { it.isModified }
     if (modifiedConfigurables.isEmpty()) return
     modifiedConfigurables.forEach { it.apply() }
-
-    /// fixme-ank4: was removed by us
     // If we successfully applied changes there is none to notify about the changes since the dialog is being closed.
     if (!inDoOK) myProjectStructureEventDispatcher.multicaster.projectStructureChanged()
     needsSync = true
-    ///
   }
 
   override fun reset() {
@@ -419,7 +413,7 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
       (mySelectedConfigurable as? MasterDetailsComponent)?.saveSideProportion()
       myConfigurables.keys.forEach(Consumer<Configurable> { it.disposeUIResources() })
 
-      myUiState.save(project)
+      myUiState.save(myProject)
 
       Disposer.dispose(myDisposable)
     }
@@ -484,7 +478,7 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
         .setCategory(AndroidStudioEvent.EventCategory.PROJECT_STRUCTURE_DIALOG)
         .setKind(AndroidStudioEvent.EventKind.PROJECT_STRUCTURE_DIALOG_OPEN)
         .setPsdEvent(PSDEvent.newBuilder().setGeneration(PSDEvent.PSDGeneration.PROJECT_STRUCTURE_DIALOG_GENERATION_002))
-        .withProjectId(project))
+        .withProjectId(myProject))
   }
 
   private fun logUsageApply() {
@@ -501,7 +495,7 @@ class ProjectStructureConfigurable(private val project: Project) : SearchableCon
         .setCategory(AndroidStudioEvent.EventCategory.PROJECT_STRUCTURE_DIALOG)
         .setKind(AndroidStudioEvent.EventKind.PROJECT_STRUCTURE_DIALOG_SAVE)
         .setPsdEvent(psdEvent)
-        .withProjectId(project))
+        .withProjectId(myProject))
   }
 
   companion object {

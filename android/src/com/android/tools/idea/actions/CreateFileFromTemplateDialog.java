@@ -54,7 +54,12 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.swing.*;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JSeparator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -99,7 +104,7 @@ public class CreateFileFromTemplateDialog extends DialogWrapper {
   private final JavaCodeFragmentFactory myFragmentFactory;
   private final PsiDocumentManager myPsiDocumentManager;
 
-  private final Map<String, String> myCreationOptions = new HashMap<String, String>();
+  private final Map<String, String> myCreationOptions = new HashMap<>();
 
   protected CreateFileFromTemplateDialog(@NotNull Project project, @NotNull PsiDirectory defaultDirectory) {
     super(project);
@@ -265,7 +270,7 @@ public class CreateFileFromTemplateDialog extends DialogWrapper {
 
   @Override
   protected void doOKAction() {
-    List<String> imports = new ArrayList<String>();
+    List<String> imports = new ArrayList<>();
     String localPackage = getPackage();
     String superclassAsString = getSuperclass();
     if (!superclassAsString.isEmpty()) {
@@ -279,7 +284,7 @@ public class CreateFileFromTemplateDialog extends DialogWrapper {
       myCreationOptions.put(ATTRIBUTE_SUPERCLASS, "");
     }
 
-    List<String> interfacesToUse = new ArrayList<String>();
+    List<String> interfacesToUse = new ArrayList<>();
     for (String interfaceAsString : Splitter.on(',').trimResults().omitEmptyStrings().split(getInterfaces())) {
       Type interfaceAsType = Type.newType(interfaceAsString, myProject);
       interfacesToUse.add(interfaceAsType.getClassWithNesting());
@@ -487,7 +492,7 @@ public class CreateFileFromTemplateDialog extends DialogWrapper {
       }
 
       String classToImport = null;
-      Deque<String> containingClasses = new ArrayDeque<String>();
+      Deque<String> containingClasses = new ArrayDeque<>();
       for (PsiClass psiClass = myPsiClass; psiClass != null; psiClass = psiClass.getContainingClass()) {
         classToImport = psiClass.getName();
         containingClasses.addFirst(psiClass.getName());

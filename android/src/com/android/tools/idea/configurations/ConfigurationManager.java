@@ -16,7 +16,6 @@
 package com.android.tools.idea.configurations;
 
 import static com.android.SdkConstants.ANDROID_STYLE_RESOURCE_PREFIX;
-import static com.android.tools.idea.configurations.ConfigurationListener.CFG_DEVICE;
 import static com.android.tools.idea.configurations.ConfigurationListener.CFG_LOCALE;
 import static com.android.tools.idea.configurations.ConfigurationListener.CFG_TARGET;
 
@@ -116,6 +115,23 @@ public class ConfigurationManager implements Disposable {
       module.putUserData(KEY, configurationManager);
     }
     return configurationManager;
+  }
+
+  /**
+   * Gets the {@link Configuration} associated with the given module.
+   *
+   * @return the {@link Configuration} for the given module.
+   */
+  @Slow
+  @NotNull
+  public static Configuration getConfigurationForModule(@NotNull Module module) {
+    Project project = module.getProject();
+    ConfigurationManager configurationManager = getOrCreateInstance(module);
+
+    VirtualFile projectFile = project.getProjectFile();
+    assert projectFile != null;
+
+    return configurationManager.getConfiguration(projectFile);
   }
 
   public ConfigurationManager(@NotNull Module module) {
@@ -221,7 +237,14 @@ public class ConfigurationManager implements Disposable {
     if (platform == null) {
       return ImmutableList.of();
     }
-    return ImmutableList.copyOf(platform.getSdkData().getDeviceManager().getDevices(DeviceManager.ALL_DEVICES));
+
+    ImmutableList.Builder<Device> builder = new ImmutableList.Builder<>();
+    builder.addAll(platform.getSdkData().getDeviceManager().getDevices(DeviceManager.ALL_DEVICES));
+    AdditionalDeviceService ads = AdditionalDeviceService.getInstance();
+    if (ads != null) {
+      builder.addAll(ads.getWindowSizeDevices());
+    }
+    return builder.build();
   }
 
   @Nullable
@@ -245,7 +268,7 @@ public class ConfigurationManager implements Disposable {
     }
     String avdName = avd.getName();
     Device.Builder builder = new Device.Builder(modelDevice);
-    builder.setName(avdName);
+    builder.setName(avd.getDisplayName());
     builder.setId(Configuration.AVD_ID_PREFIX + avdName);
     return builder.build();
   }
@@ -472,8 +495,7 @@ public class ConfigurationManager implements Disposable {
         configuration.startBulkEditing();
         configuration.setTheme(null);
       }
-
-      configuration.updated(CFG_DEVICE);
+      configuration.setDevice(device, true);
 
       if (updateTheme) {
         configuration.finishBulkEditing();

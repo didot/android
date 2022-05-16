@@ -20,7 +20,6 @@ import com.android.annotations.Nullable;
 import com.android.ide.common.resources.LocaleManager;
 import com.android.ide.common.resources.configuration.FolderConfiguration;
 import com.android.ide.common.resources.configuration.LocaleQualifier;
-import com.android.tools.idea.editors.AndroidEditorAppearanceSettings;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.SimpleListCellRenderer;
@@ -29,7 +28,8 @@ import icons.AndroidIcons;
 import icons.StudioIcons;
 import java.util.HashMap;
 import java.util.Map;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.ListCellRenderer;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -68,7 +68,8 @@ public class FlagManager {
   /**
    * Map from region to flag icon
    */
-  private final @NotNull Map<String, Icon> myImageMap = new HashMap<>();
+  @NotNull
+  private final Map<String, Icon> myImageMap = new HashMap<>();
 
   /**
    * Returns the flag for the given language and region.
@@ -229,7 +230,7 @@ public class FlagManager {
 
   /** A function which maps from language code to a language label: code + name */
   public static @NotNull Function<Object, String> getLanguageNameMapper() {
-    return new Function<Object, String>() {
+    return new Function<>() {
       @Override
       public String fun(Object value) {
         String languageCode = (String)value;
@@ -247,7 +248,7 @@ public class FlagManager {
 
   /** A function which maps from language code to a language label: code + name */
   public static @NotNull Function<Object, String> getRegionNameMapper() {
-    return new Function<Object, String>() {
+    return new Function<>() {
       @Override
       public String fun(Object value) {
         String regionCode = (String)value;

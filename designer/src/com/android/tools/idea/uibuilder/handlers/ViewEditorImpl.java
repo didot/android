@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.uibuilder.handlers;
 
-import static com.android.tools.lint.checks.AnnotationDetector.RESTRICT_TO_ANNOTATION;
+import static com.android.tools.lint.checks.AnnotationDetectorKt.RESTRICT_TO_ANNOTATION;
 
 import com.android.ide.common.rendering.api.ResourceValue;
 import com.android.ide.common.rendering.api.ViewInfo;
@@ -51,12 +51,13 @@ import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiModifierList;
 import com.intellij.psi.xml.XmlFile;
 import com.intellij.psi.xml.XmlTag;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.concurrency.AppExecutorUtil;
-import java.awt.*;
+import java.awt.Dimension;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -188,7 +189,7 @@ public class ViewEditorImpl extends ViewEditor {
           return Collections.emptyMap();
         }
 
-        Map<NlComponent, Dimension> unweightedSizes = Maps.newHashMap();
+        Map<NlComponent, Dimension> unweightedSizes = new HashMap<>();
         for (Map.Entry<XmlTag, ViewInfo> entry : map.entrySet()) {
           ViewInfo viewInfo = entry.getValue();
           viewInfo = RenderService.getSafeBounds(viewInfo);
@@ -238,7 +239,7 @@ public class ViewEditorImpl extends ViewEditor {
                                   @Nullable Predicate<String> filter,
                                   @Nullable String currentValue) {
     Module module = myModel.getModule();
-    String[] superTypesArray = ArrayUtil.toStringArray(superTypes);
+    String[] superTypesArray = ArrayUtilRt.toStringArray(superTypes);
 
     Predicate<PsiClass> psiFilter = ChooseClassDialog.getIsPublicAndUnrestrictedFilter();
     if (filter == null) {

@@ -61,11 +61,11 @@ import com.android.ide.common.resources.ProtoXmlPullParser;
 import com.android.ide.common.resources.ResourceItem;
 import com.android.ide.common.resources.ResourceResolver;
 import com.android.ide.common.resources.ResourceVisitor;
+import com.android.ide.common.resources.ResourcesUtil;
 import com.android.ide.common.util.PathString;
 import com.android.resources.ResourceType;
 import com.android.support.AndroidxName;
 import com.android.tools.idea.AndroidPsiUtils;
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.fonts.DownloadableFontCacheService;
 import com.android.tools.idea.fonts.ProjectFonts;
 import com.android.tools.idea.layoutlib.LayoutLibrary;
@@ -81,7 +81,6 @@ import com.android.tools.idea.rendering.parsers.LayoutPsiPullParser;
 import com.android.tools.idea.rendering.parsers.TagSnapshot;
 import com.android.tools.idea.res.FileResourceReader;
 import com.android.tools.idea.res.LocalResourceRepository;
-import com.android.tools.idea.res.IdeResourcesUtil;
 import com.android.tools.idea.res.ResourceIdManager;
 import com.android.tools.idea.res.ResourceRepositoryManager;
 import com.android.tools.idea.util.DependencyManagementUtil;
@@ -120,7 +119,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jetbrains.android.facet.AndroidFacet;
-import org.jetbrains.android.uipreview.ModuleClassLoader;
 import org.jetbrains.android.uipreview.ViewLoader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -199,8 +197,7 @@ public class LayoutlibCallbackImpl extends LayoutlibCallback {
    * @param credential the sandbox credential
    * @param actionBarHandler An {@link ActionBarHandler} instance.
    * @param parserFactory an optional factory for creating XML parsers.
-   * @param privateClassLoader if true ViewLoader should create a new privately owned ModuleClassLoader and should not share it, if false
-   *                           use a shared one from the ModuleClassLoaderManager
+   * @param classLoader the {@link ClassLoader} to use for loading classes from Layoutlib.
    */
   public LayoutlibCallbackImpl(@NotNull RenderTask renderTask,
                                @NotNull LayoutLibrary layoutLib,
@@ -211,7 +208,7 @@ public class LayoutlibCallbackImpl extends LayoutlibCallback {
                                @Nullable Object credential,
                                @Nullable ActionBarHandler actionBarHandler,
                                @Nullable ILayoutPullParserFactory parserFactory,
-                               @NotNull ModuleClassLoader moduleClassLoader) {
+                               @NotNull ClassLoader moduleClassLoader) {
     myRenderTask = renderTask;
     myLayoutLib = layoutLib;
     myIdManager = ResourceIdManager.get(module);
@@ -449,7 +446,7 @@ public class LayoutlibCallbackImpl extends LayoutlibCallback {
       parser = LayoutPsiPullParser.create(aaptResource, ResourceNamespace.TODO(), myLogger);
     }
     else {
-      PathString pathString = IdeResourcesUtil.toFileResourcePathString(value);
+      PathString pathString = ResourcesUtil.toFileResourcePathString(value);
       if (pathString == null) {
         return null;
       }
@@ -884,8 +881,18 @@ public class LayoutlibCallbackImpl extends LayoutlibCallback {
 
   @Nullable
   private String getPackage() {
-    AndroidModuleInfo info = AndroidModuleInfo.getInstance(myModule);
-    return info == null ? null : info.getPackage();
+    try {
+      return RenderSecurityManager.runInSafeRegion(myCredential, () -> {
+        // This section might access system properties or access disk but it does not leak information back to Layoutlib so it can be
+        // executed in safe mode.
+        AndroidModuleInfo info = AndroidModuleInfo.getInstance(myModule);
+        return info == null ? null : info.getPackage();
+      });
+    }
+    catch (Exception e) {
+      LOG.warn(e);
+      return null;
+    }
   }
 
   @NotNull

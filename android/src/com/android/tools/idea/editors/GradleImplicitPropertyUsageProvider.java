@@ -23,15 +23,14 @@ import com.intellij.lang.properties.codeInspection.unused.ImplicitPropertyUsageP
 import com.intellij.lang.properties.psi.Property;
 import com.intellij.openapi.util.Comparing;
 import com.intellij.psi.PsiFile;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Provider which defines some properties as implicitly used, such that they don't get
  * flagged by the inspections as unused.
  */
-final class GradleImplicitPropertyUsageProvider implements ImplicitPropertyUsageProvider {
+public class GradleImplicitPropertyUsageProvider implements ImplicitPropertyUsageProvider {
   @Override
-  public boolean isUsed(@NotNull Property property) {
+  public boolean isUsed(Property property) {
     PsiFile file = property.getContainingFile();
     boolean caseSensitive = file.getViewProvider().getVirtualFile().isCaseSensitive();
     if (Comparing.equal(file.getName(), FN_GRADLE_WRAPPER_PROPERTIES, caseSensitive)) {

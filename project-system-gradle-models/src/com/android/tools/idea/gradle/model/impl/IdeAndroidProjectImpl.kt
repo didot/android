@@ -31,7 +31,7 @@ import java.io.File
 import java.io.Serializable
 
 data class IdeAndroidProjectImpl(
-  override val modelVersion: String,
+  override val agpVersion: String,
   override val name: String,
   override val projectType: IdeAndroidProjectType,
   override val defaultConfig: IdeProductFlavorContainer,
@@ -48,7 +48,6 @@ data class IdeAndroidProjectImpl(
   override val buildFolder: File,
   override val resourcePrefix: String?,
   override val buildToolsVersion: String?,
-  override val ndkVersion: String?,
   override val isBaseSplit: Boolean,
   override val dynamicFeatures: Collection<String>,
   override val viewBindingOptions: IdeViewBindingOptions?,
@@ -57,6 +56,6 @@ data class IdeAndroidProjectImpl(
   override val namespace: String?,
   override val agpFlags: IdeAndroidGradlePluginProjectFlags,
   override val variantsBuildInformation: Collection<IdeVariantBuildInformation>,
-  override val lintRuleJars: List<File>?,
-  override val testNamespace: String?
+  override val lintChecksJars: List<File>?,
+  override val testNamespace: String?,
 ) : IdeAndroidProject, Serializable

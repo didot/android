@@ -17,6 +17,7 @@ package com.android.tools.idea.databinding.psiclass;
 
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ATTR_ID;
+import static com.android.SdkConstants.CLASS_VIEW;
 import static com.android.ide.common.resources.ResourcesUtil.stripPrefixFromId;
 
 import com.android.SdkConstants;
@@ -79,6 +80,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import kotlin.Pair;
 import org.jetbrains.android.augment.AndroidLightClassBase;
@@ -163,36 +165,90 @@ public class LightBindingClass extends AndroidLightClassBase {
       return PsiField.EMPTY_ARRAY;
     }
 
+    PsiField[] computed;
+
     int numLayouts = scopedViewIds.keySet().size();
     if (numLayouts == 1) {
       // In the overwhelmingly common case, there's only a single layout, which means that all the
       // IDs are present in every layout (there's only the one!), so the fields generated for it
       // are always non-null.
       Collection<ViewIdData> viewIds = scopedViewIds.values().stream().findFirst().get();
-      return viewIds.stream()
-        .map(viewId -> createPsiField(viewId, true))
-        .filter(field -> field != null)
+      computed = viewIds.stream()
+        .map(viewId -> {
+          PsiType typeOverride = null;
+          String typeOverrideStr = viewId.getTypeOverride();
+          if (typeOverrideStr != null) {
+            typeOverrideStr = LayoutBindingTypeUtil.getFqcn(typeOverrideStr);
+            typeOverride = LayoutBindingTypeUtil.parsePsiType(typeOverrideStr, this);
+          }
+
+          return createPsiField(viewId, true, typeOverride);
+        })
+        .filter(Objects::nonNull)
+        .toArray(PsiField[]::new);
+    }
+    else { // Two or more layouts.
+      // Generated fields are non-null only if their source IDs are defined consistently across all layouts.
+      Set<ViewIdData> dedupedViewIds = new HashSet<>(); // Only create one field per ID
+      Map<String, Integer> idCounts = new HashMap<>();
+      {
+        for (Collection<ViewIdData> viewIds : scopedViewIds.values()) {
+          for (ViewIdData viewId : viewIds) {
+            int count = idCounts.compute(viewId.getId(), (key, value) -> (value == null) ? 1 : (value + 1));
+            if (count == 1) {
+              // It doesn't matter which copy of the ID we keep, so just keep the first one
+              dedupedViewIds.add(viewId);
+            }
+          }
+        }
+      }
+
+      // If tags have inconsitent IDs, e.g. <TextView ...> in one configuration and <Button ...> in another,
+      // the databinding compiler reverts to View
+      Set<String> inconsistentlyTypedIds = new HashSet<>();
+      {
+        Map<String, String> idTypes = new HashMap<>();
+
+        for (Collection<ViewIdData> viewIds : scopedViewIds.values()) {
+          for (ViewIdData viewId : viewIds) {
+            String id = viewId.getId();
+            String viewFqcn = LayoutBindingTypeUtil.getFqcn(viewId.getViewName());
+            String viewTypeOverride = viewId.getTypeOverride();
+            if (viewTypeOverride != null) {
+              viewFqcn = LayoutBindingTypeUtil.getFqcn(viewTypeOverride);
+            }
+
+            String previousViewName = idTypes.get(id);
+            if (previousViewName == null) {
+              idTypes.put(id, viewFqcn);
+            }
+            else {
+              if (!viewFqcn.equals(previousViewName)) {
+                inconsistentlyTypedIds.add(id);
+              }
+            }
+          }
+        }
+      }
+
+      computed = dedupedViewIds.stream()
+        .map(viewId -> {
+          PsiType typeOverride = null;
+          String typeOverrideStr = viewId.getTypeOverride();
+          if (inconsistentlyTypedIds.contains(viewId.getId())) {
+            typeOverride = LayoutBindingTypeUtil.parsePsiType(CLASS_VIEW, this);
+          }
+          else if (typeOverrideStr != null) {
+            typeOverrideStr = LayoutBindingTypeUtil.getFqcn(typeOverrideStr);
+            typeOverride = LayoutBindingTypeUtil.parsePsiType(typeOverrideStr, this);
+          }
+          return createPsiField(viewId, idCounts.get(viewId.getId()) == numLayouts, typeOverride);
+        })
+        .filter(Objects::nonNull)
         .toArray(PsiField[]::new);
     }
 
-    // If here, we have multiple layouts. Generated fields are non-null only if their source IDs
-    // are defined consistently across all layouts.
-    Map<String, Integer> idCounts = new HashMap<>();
-    Set<ViewIdData> dedupedViewIds = new HashSet<>(); // Only create one field per ID
-    for (Collection<ViewIdData> viewIds : scopedViewIds.values()) {
-      for (ViewIdData viewId : viewIds) {
-        int count = idCounts.compute(viewId.getId(), (key, value) -> (value == null) ? 1 : (value + 1));
-        if (count == 1) {
-          // It doesn't matter which copy of the ID we keep, so just keep the first one
-          dedupedViewIds.add(viewId);
-        }
-      }
-    }
-
-    return dedupedViewIds.stream()
-      .map(viewId -> createPsiField(viewId, idCounts.get(viewId.getId()) == numLayouts))
-      .filter(field -> field != null)
-      .toArray(PsiField[]::new);
+    return computed;
   }
 
   /**
@@ -402,7 +458,7 @@ public class LightBindingClass extends AndroidLightClassBase {
       // different if root tag names are not consistent across layout configurations.
       String rootTag = myConfig.getRootType();
 
-      PsiType type = LayoutBindingTypeUtil.resolveViewPsiType(rootTag, this);
+      PsiType type = LayoutBindingTypeUtil.resolveViewPsiType(xmlData, rootTag, this);
       if (type != null) {
         LightMethodBuilder rootMethod = createPublicMethod("getRoot", type);
         outPsiMethods.add(new LightDataBindingMethod(xmlRootTag, getManager(), rootMethod, this, JavaLanguage.INSTANCE));
@@ -565,11 +621,18 @@ public class LightBindingClass extends AndroidLightClassBase {
   }
 
   @Nullable
-  private PsiField createPsiField(@NotNull ViewIdData viewIdData, boolean isNonNull) {
+  private PsiField createPsiField(@NotNull ViewIdData viewIdData, boolean isNonNull, @Nullable PsiType typeOverride) {
     String name = DataBindingUtil.convertAndroidIdToJavaFieldName(viewIdData.getId());
-    PsiType type = LayoutBindingTypeUtil.resolveViewPsiType(viewIdData, this);
-    if (type == null) {
-      return null;
+
+    PsiType type;
+    if (typeOverride == null) {
+      type = LayoutBindingTypeUtil.resolveViewPsiType(myConfig.getTargetLayout().getData(), viewIdData, this);
+      if (type == null) {
+        return null;
+      }
+    }
+    else {
+      type = typeOverride;
     }
 
     LightFieldBuilder field = new NullabilityLightFieldBuilder(

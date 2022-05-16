@@ -18,7 +18,6 @@ package com.android.tools.idea.gradle.project.facet.gradle;
 import static com.intellij.util.xmlb.XmlSerializer.deserializeInto;
 import static com.intellij.util.xmlb.XmlSerializer.serializeInto;
 
-import org.jetbrains.android.facet.AndroidGradleFacetEditorForIdea;
 import com.intellij.facet.FacetConfiguration;
 import com.intellij.facet.ui.FacetEditorContext;
 import com.intellij.facet.ui.FacetEditorTab;
@@ -26,6 +25,7 @@ import com.intellij.facet.ui.FacetValidatorsManager;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.openapi.util.WriteExternalException;
 import org.jdom.Element;
+import org.jetbrains.android.facet.AndroidGradleFacetEditorForIdea;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 

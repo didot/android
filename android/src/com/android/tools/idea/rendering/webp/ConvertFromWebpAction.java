@@ -20,7 +20,6 @@ import static com.android.SdkConstants.DOT_PNG;
 import static com.android.SdkConstants.DOT_WEBP;
 import static com.android.utils.SdkUtils.endsWithIgnoreCase;
 
-import com.android.tools.idea.lint.AndroidLintWebpUnsupportedInspection;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.command.WriteCommandAction;
@@ -139,7 +138,7 @@ public class ConvertFromWebpAction extends DumbAwareAction {
             }
           }
           catch (IOException e) {
-            Logger.getInstance(AndroidLintWebpUnsupportedInspection.class).warn(e.getMessage());
+            Logger.getInstance(ConvertFromWebpAction.class).warn(e.getMessage());
           }
         }
       });

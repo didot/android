@@ -21,18 +21,14 @@ import com.android.ide.common.rendering.api.DrawableParams;
 import com.android.ide.common.rendering.api.ILayoutLog;
 import com.android.ide.common.rendering.api.RenderSession;
 import com.android.ide.common.rendering.api.Result;
-import com.android.ide.common.rendering.api.Result.Status;
 import com.android.ide.common.rendering.api.SessionParams;
-import com.android.ide.common.sdk.LoadStatus;
-import com.google.common.annotations.VisibleForTesting;
-import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.extensions.PluginId;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Class to use the Layout library.
@@ -44,9 +40,6 @@ import java.util.Map;
  * {@link #dispose()}, {@link #clearResourceCaches(Object)}.
  */
 public class LayoutLibrary implements Disposable {
-    public static final String LAYOUTLIB_NATIVE_PLUGIN = "com.android.layoutlib";
-    public static final String LAYOUTLIB_STANDARD_PLUGIN = "com.android.layoutlib.legacy";
-
     /** Link to the layout bridge */
     private final Bridge mBridge;
     /** classloader used to load the jar file */
@@ -57,6 +50,7 @@ public class LayoutLibrary implements Disposable {
     /**
      * Returns the classloader used to load the classes in the layoutlib jar file.
      */
+    @NotNull
     public ClassLoader getClassLoader() {
         return mClassLoader;
     }
@@ -64,21 +58,14 @@ public class LayoutLibrary implements Disposable {
     /**
      * Returns a {@link LayoutLibrary} instance using the given {@link Bridge} and {@link ClassLoader}
      */
-    static LayoutLibrary load(Bridge bridge, ClassLoader classLoader) {
+    @NotNull
+    public static LayoutLibrary load(@NotNull Bridge bridge, @NotNull ClassLoader classLoader) {
         return new LayoutLibrary(bridge, classLoader);
     }
 
-    private LayoutLibrary(Bridge bridge,  ClassLoader classLoader) {
+    private LayoutLibrary(@NotNull Bridge bridge, @NotNull ClassLoader classLoader) {
         mBridge = bridge;
         mClassLoader = classLoader;
-    }
-
-    public static boolean isNative() {
-        if (ApplicationManager.getApplication().isUnitTestMode()) {
-            return true;
-        }
-        IdeaPluginDescriptor nativePlugin = PluginManagerCore.getPlugin(PluginId.findId(LAYOUTLIB_NATIVE_PLUGIN));
-        return nativePlugin != null && nativePlugin.isEnabled();
     }
 
     // ------ Layout Lib API proxy
@@ -96,17 +83,13 @@ public class LayoutLibrary implements Disposable {
      * @param log a {@link ILayoutLog} object. Can be null.
      * @return true if success.
      */
-    public boolean init(Map<String, String> platformProperties,
-                        File fontLocation,
-                        String nativeLibDirPath,
-                        String icuDataPath,
-                        Map<String, Map<String, Integer>> enumValueMap,
-                        ILayoutLog log) {
-        if (mBridge != null) {
-            return mBridge.init(platformProperties, fontLocation, nativeLibDirPath, icuDataPath, enumValueMap, log);
-        }
-
-        return false;
+    public boolean init(@NotNull Map<String, String> platformProperties,
+                        @NotNull File fontLocation,
+                        @NotNull String nativeLibDirPath,
+                        @NotNull String icuDataPath,
+                        @NotNull Map<String, Map<String, Integer>> enumValueMap,
+                        @Nullable ILayoutLog log) {
+        return mBridge.init(platformProperties, fontLocation, nativeLibDirPath, icuDataPath, enumValueMap, log);
     }
 
     /**
@@ -116,9 +99,7 @@ public class LayoutLibrary implements Disposable {
      */
     @Override
     public void dispose() {
-        if (mBridge != null) {
-            mIsDisposed = mBridge.dispose();
-        }
+        mIsDisposed = mBridge.dispose();
     }
 
     public boolean isDisposed() {
@@ -131,16 +112,12 @@ public class LayoutLibrary implements Disposable {
      * <p>
      *
      * @return a new {@link RenderSession} object that contains the result of the scene creation and
-     * first rendering or null if {@link #getStatus()} doesn't return {@link LoadStatus#LOADED}.
+     * first rendering.
      *
      * @see Bridge#createSession(SessionParams)
      */
     public RenderSession createSession(SessionParams params) {
-        if (mBridge != null) {
-            return mBridge.createSession(params);
-        }
-
-        return null;
+        return mBridge.createSession(params);
     }
 
     /**
@@ -150,11 +127,7 @@ public class LayoutLibrary implements Disposable {
      * @return the result of the action.
      */
     public Result renderDrawable(DrawableParams params) {
-        if (mBridge != null) {
-            return mBridge.renderDrawable(params);
-        }
-
-        return Status.NOT_IMPLEMENTED.createResult();
+        return mBridge.renderDrawable(params);
     }
 
     /**
@@ -169,9 +142,7 @@ public class LayoutLibrary implements Disposable {
      * @see Bridge#clearResourceCaches(Object)
      */
     public void clearResourceCaches(Object projectKey) {
-        if (mBridge != null) {
-            mBridge.clearResourceCaches(projectKey);
-        }
+        mBridge.clearResourceCaches(projectKey);
     }
 
     /**
@@ -180,9 +151,7 @@ public class LayoutLibrary implements Disposable {
      * @param path the path of the font file to be removed from the cache.
      */
     public void clearFontCache(String path) {
-        if (mBridge != null) {
-            mBridge.clearFontCache(path);
-        }
+        mBridge.clearFontCache(path);
     }
 
     /**
@@ -191,9 +160,7 @@ public class LayoutLibrary implements Disposable {
      * @param projectKey the key for the project.
      */
     public void clearAllCaches(Object projectKey) {
-        if (mBridge != null) {
-            mBridge.clearAllCaches(projectKey);
-        }
+        mBridge.clearAllCaches(projectKey);
     }
 
     /**
@@ -205,10 +172,7 @@ public class LayoutLibrary implements Disposable {
      *      object in {@link Result#getData()}
      */
     public Result getViewParent(Object viewObject) {
-        if (mBridge != null) {
-            return mBridge.getViewParent(viewObject);
-        }
-        return Status.ERROR_UNKNOWN.createResult();
+        return mBridge.getViewParent(viewObject);
     }
 
     /**
@@ -217,12 +181,15 @@ public class LayoutLibrary implements Disposable {
      * @return true if the locale is right to left.
      */
     public boolean isRtl(String locale) {
-        return mBridge != null && mBridge.isRtl(locale);
+        return mBridge.isRtl(locale);
     }
 
-    @VisibleForTesting
-    protected LayoutLibrary() {
-        mBridge = null;
-        mClassLoader = null;
+    /**
+     * Returns a mock view displaying the given label. This mock view should be created by passing
+     * the provided arguments to its constructor.
+     */
+    public Object createMockView(String label, Class<?>[] constructorSignature, Object[] constructorArgs)
+      throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return mBridge.createMockView(label, constructorSignature, constructorArgs);
     }
 }

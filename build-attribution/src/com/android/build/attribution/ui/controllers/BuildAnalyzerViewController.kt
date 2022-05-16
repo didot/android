@@ -17,6 +17,7 @@ package com.android.build.attribution.ui.controllers
 
 import com.android.build.attribution.BuildAttributionWarningsFilter
 import com.android.build.attribution.analyzers.IncompatiblePluginWarning
+import com.android.build.attribution.analyzers.checkJetifierResultFile
 import com.android.build.attribution.data.GradlePluginsData
 import com.android.build.attribution.data.StudioProvidedInfo
 import com.android.build.attribution.ui.BuildAnalyzerBrowserLinks
@@ -31,27 +32,46 @@ import com.android.build.attribution.ui.model.WarningsFilter
 import com.android.build.attribution.ui.model.WarningsPageId
 import com.android.build.attribution.ui.model.WarningsTreeNode
 import com.android.build.attribution.ui.view.ViewActionHandlers
-import com.android.tools.idea.Projects
+import com.android.build.attribution.ui.view.details.JetifierWarningDetailsView
+import com.android.builder.model.PROPERTY_CHECK_JETIFIER_RESULT_FILE
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
 import com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
+import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker.Request.Companion.builder
 import com.android.tools.idea.gradle.project.build.invoker.GradleInvocationResult
 import com.android.tools.idea.gradle.project.upgrade.performRecommendedPluginUpgrade
+import com.android.tools.idea.gradle.util.AndroidGradleSettings.createProjectProperty
 import com.android.tools.idea.memorysettings.MemorySettingsConfigurable
 import com.google.common.base.Stopwatch
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.wireless.android.sdk.stats.BuildAttributionUiEvent
+import com.intellij.lang.properties.IProperty
+import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.invokeLater
-import com.intellij.openapi.components.ServiceManager
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.colors.CodeInsightColors
+import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.MessageType
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.popup.Balloon
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.psi.PsiElement
+import com.intellij.ui.awt.RelativePoint
+import com.intellij.util.ui.RangeBlinker
+import org.jetbrains.android.refactoring.disableJetifier
 import java.time.Duration
+import java.util.function.Supplier
 
 class BuildAnalyzerViewController(
   val model: BuildAnalyzerViewModel,
@@ -178,7 +198,7 @@ class BuildAnalyzerViewController(
   }
 
   override fun runTestConfigurationCachingBuild() {
-    ConfigurationCacheTestBuildFlowRunner.getInstance(project).startTestBuildsFlow()
+    ConfigurationCacheTestBuildFlowRunner.getInstance(project).startTestBuildsFlow(model.reportUiData.buildRequest)
     analytics.rerunBuildWithConfCacheClicked()
   }
 
@@ -196,6 +216,66 @@ class BuildAnalyzerViewController(
       }
     }
     analytics.updatePluginButtonClicked(duration)
+  }
+
+  override fun runCheckJetifierTask() {
+    val duration = runAndMeasureDuration {
+      val request = createCheckJetifierTaskRequest(model.reportUiData.buildRequest)
+      GradleBuildInvoker.getInstance(project).executeTasks(request)
+    }
+    analytics.runCheckJetifierTaskClicked(duration)
+  }
+
+  override fun turnJetifierOffInProperties(sourceRelativePointSupplier: Supplier<RelativePoint>) {
+    val duration = runAndMeasureDuration {
+      WriteCommandAction.runWriteCommandAction(project) {
+        project.disableJetifier { property ->
+          if (property == null) {
+            invokeLater {
+              val feedbackBalloonRelativePoint = sourceRelativePointSupplier.get()
+              val message = "'android.enableJetifier' property is not found in 'gradle.properties'. Was it already removed?"
+              createPropertyRemovalFeedbackBalloon(message, MessageType.ERROR)
+                .show(feedbackBalloonRelativePoint, Balloon.Position.below)
+            }
+          }
+          else {
+            invokeLater {
+              val openFileDescriptor = OpenFileDescriptor(project, property.propertiesFile.virtualFile,
+                                                          property.psiElement.textRange.endOffset)
+              FileEditorManagerEx.getInstance(project).openTextEditor(openFileDescriptor, true)?.let { editor ->
+                blinkPropertyTextInEditor(editor, property)
+                val pointInEditor = JBPopupFactory.getInstance().guessBestPopupLocation(editor)
+                val message = "'android.enableJetifier' property is now set to false.<br/>" +
+                              "Please, remove it after reviewing any associated comments."
+                createPropertyRemovalFeedbackBalloon(message, MessageType.INFO)
+                  .show(pointInEditor, Balloon.Position.atRight)
+              }
+            }
+          }
+        }
+      }
+    }
+    analytics.turnJetifierOffClicked(duration)
+  }
+
+  private fun blinkPropertyTextInEditor(editor: Editor, property: IProperty) {
+    val blinkingAttributes = EditorColorsManager.getInstance().globalScheme
+      .getAttributes(CodeInsightColors.BLINKING_HIGHLIGHTS_ATTRIBUTES)
+    val rangeBlinker = RangeBlinker(editor, blinkingAttributes, 6)
+    rangeBlinker.resetMarkers(listOf(property.psiElement.textRange))
+    rangeBlinker.startBlinking()
+  }
+
+  private fun createPropertyRemovalFeedbackBalloon(messageHtml: String, type: MessageType) = JBPopupFactory.getInstance()
+    .createHtmlTextBalloonBuilder(messageHtml, type) {}
+    .setHideOnClickOutside(true)
+    .setHideOnAction(false)
+    .setHideOnFrameResize(false)
+    .setHideOnKeyOutside(false)
+    .createBalloon()
+
+  override fun createFindSelectedLibVersionDeclarationAction(selectionSupplier: Supplier<JetifierWarningDetailsView.DirectDependencyDescriptor?>): AnAction {
+    return FindSelectedLibVersionDeclarationAction(selectionSupplier, project, analytics)
   }
 
   private fun runAndMeasureDuration(action: () -> Unit): Duration {
@@ -253,17 +333,17 @@ class ConfigurationCacheTestBuildFlowRunner(val project: Project) {
 
   companion object {
     fun getInstance(project: Project): ConfigurationCacheTestBuildFlowRunner {
-      return ServiceManager.getService(project, ConfigurationCacheTestBuildFlowRunner::class.java)
+      return project.getService(ConfigurationCacheTestBuildFlowRunner::class.java)
     }
   }
 
-  fun startTestBuildsFlow() {
-    runFirstConfigurationCacheTestBuildWithConfirmation()
+  fun startTestBuildsFlow(originalBuildRequest: GradleBuildInvoker.Request) {
+    runFirstConfigurationCacheTestBuildWithConfirmation(originalBuildRequest)
   }
 
   private val confirmationDialogHeader = "Configuration Cache Compatibility Assessment"
 
-  private fun runFirstConfigurationCacheTestBuildWithConfirmation() {
+  private fun runFirstConfigurationCacheTestBuildWithConfirmation(originalBuildRequest: GradleBuildInvoker.Request) {
     invokeLater(ModalityState.NON_MODAL) {
       val confirmationResult = Messages.showIdeaMessageDialog(
         project,
@@ -277,8 +357,8 @@ class ConfigurationCacheTestBuildFlowRunner(val project: Project) {
         Messages.getInformationIcon(), null
       )
       if (confirmationResult == Messages.OK) {
-        scheduleRebuildWithCCOptionAndRunOnSuccess(firstBuild = true) {
-          invokeLater { scheduleRebuildWithCCOptionAndRunOnSuccess(firstBuild = false) { showFinalSuccessMessage() } }
+        scheduleRebuildWithCCOptionAndRunOnSuccess(originalBuildRequest, firstBuild = true) {
+          invokeLater { scheduleRebuildWithCCOptionAndRunOnSuccess(originalBuildRequest, firstBuild = false) { showFinalSuccessMessage() } }
         }
       }
     }
@@ -303,21 +383,32 @@ class ConfigurationCacheTestBuildFlowRunner(val project: Project) {
     }
   }
 
-  private fun scheduleRebuildWithCCOptionAndRunOnSuccess(firstBuild: Boolean, onSuccess: () -> Unit) {
-    GradleBuildInvoker.getInstance(project).let { invoker ->
-      invoker.add(object : GradleBuildInvoker.AfterGradleInvocationTask {
-        override fun execute(result: GradleInvocationResult) {
-          runningFirstConfigurationCacheBuild = false
-          runningTestConfigurationCacheBuild = false
-          invoker.remove(this)
-          if (result.isBuildSuccessful) onSuccess()
-          else showFailureMessage(result)
-        }
-      })
-      invoker.rebuildWithTempOptions(Projects.getBaseDirPath(project), listOf("--configuration-cache"))
-      runningFirstConfigurationCacheBuild = firstBuild
-      runningTestConfigurationCacheBuild = true
-    }
+  private fun scheduleRebuildWithCCOptionAndRunOnSuccess(
+    originalBuildRequest: GradleBuildInvoker.Request,
+    firstBuild: Boolean,
+    onSuccess: () -> Unit
+  ) {
+    val request = builder(originalBuildRequest.project, originalBuildRequest.rootProjectPath, originalBuildRequest.gradleTasks)
+      .setCommandLineArguments(originalBuildRequest.commandLineArguments.plus("--configuration-cache"))
+      .build()
+
+    val future = GradleBuildInvoker.getInstance(project).executeTasks(request)
+    Futures.addCallback(future, object : FutureCallback<GradleInvocationResult> {
+      override fun onSuccess(result: GradleInvocationResult?) {
+        runningFirstConfigurationCacheBuild = false
+        runningTestConfigurationCacheBuild = false
+        if (result!!.isBuildSuccessful) onSuccess()
+        else showFailureMessage(result)
+      }
+
+      override fun onFailure(t: Throwable) {
+        runningFirstConfigurationCacheBuild = false
+        runningTestConfigurationCacheBuild = false
+        throw t
+      }
+    }, MoreExecutors.directExecutor())
+    runningFirstConfigurationCacheBuild = firstBuild
+    runningTestConfigurationCacheBuild = true
   }
 
   private fun showFailureMessage(result: GradleInvocationResult) {
@@ -331,7 +422,7 @@ class ConfigurationCacheTestBuildFlowRunner(val project: Project) {
           Messages.getInformationIcon(), null
         )
       }
-      //TODO(b/186203445): we have configuration cache exception with a detailed message and a link to the html report inside.
+      //TODO (b/186203445): we have configuration cache exception with a detailed message and a link to the html report inside.
       // So I can present that in the Dialog. find cause recursively?
       Messages.showIdeaMessageDialog(
         project,
@@ -342,4 +433,14 @@ class ConfigurationCacheTestBuildFlowRunner(val project: Project) {
       )
     }
   }
+}
+
+fun createCheckJetifierTaskRequest(originalBuildRequest: GradleBuildInvoker.Request): GradleBuildInvoker.Request {
+  return builder(originalBuildRequest.project, originalBuildRequest.rootProjectPath, listOf("checkJetifier"))
+    .setCommandLineArguments(listOf(
+      createProjectProperty(PROPERTY_CHECK_JETIFIER_RESULT_FILE, checkJetifierResultFile(originalBuildRequest).absolutePath),
+      // 'checkJetifier' task does not support configuration cache so switch it off for this run to avoid errors.
+      "--no-configuration-cache"
+    ))
+    .build()
 }

@@ -15,8 +15,10 @@
  */
 package com.android.tools.idea.logcat;
 
-import com.android.ddmlib.Log;
+import com.android.ddmlib.ClientData;
+import com.android.ddmlib.logcat.LogCatMessage;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * A filter which can reject lines of logcat output.
@@ -32,5 +34,10 @@ public interface AndroidLogcatFilter {
   /**
    * Returns {@code true} if the current logcat message should be accepted, {@code false} otherwise.
    */
-  boolean isApplicable(@NotNull String message, @NotNull String tag, @NotNull String pkg, int pid, @NotNull Log.LogLevel logLevel);
+  boolean isApplicable(@NotNull LogCatMessage logCatMessage);
+
+  /**
+   * Sets an optional {@link ClientData} that the filter may use.
+   */
+  default void setClient(@Nullable ClientData client) {}
 }

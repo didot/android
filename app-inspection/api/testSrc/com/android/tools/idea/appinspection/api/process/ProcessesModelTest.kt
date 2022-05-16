@@ -17,7 +17,7 @@ package com.android.tools.idea.appinspection.api.process
 
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.appinspection.internal.process.TransportProcessDescriptor
-import com.android.tools.idea.appinspection.test.TestProcessNotifier
+import com.android.tools.idea.appinspection.test.TestProcessDiscovery
 import com.android.tools.idea.transport.faketransport.FakeTransportService
 import com.android.tools.profiler.proto.Common
 import com.google.common.truth.Truth.assertThat
@@ -39,8 +39,8 @@ class ProcessesModelTest {
 
   @Test
   fun processConnectedDisconnected_modelUpdatesProperly() {
-    val testNotifier = TestProcessNotifier()
-    val model = ProcessesModel(testNotifier) { listOf(FakeTransportService.FAKE_PROCESS.name) }
+    val testNotifier = TestProcessDiscovery()
+    val model = ProcessesModel(testNotifier) { it.name == FakeTransportService.FAKE_PROCESS.name }
 
     val fakeStream = createFakeStream()
     val fakeProcess = fakeStream.createFakeProcess()
@@ -76,8 +76,8 @@ class ProcessesModelTest {
 
   @Test
   fun canSetSelectedProcessDirectly() {
-    val testNotifier = TestProcessNotifier()
-    val model = ProcessesModel(testNotifier) { listOf("A") }
+    val testNotifier = TestProcessDiscovery()
+    val model = ProcessesModel(testNotifier) { it.name == "A" }
 
     val fakeStream = createFakeStream()
     val fakeProcessA = fakeStream.createFakeProcess("A", 100)
@@ -93,8 +93,8 @@ class ProcessesModelTest {
 
   @Test
   fun modelListenerFiredOnProcessChanged() {
-    val testNotifier = TestProcessNotifier()
-    val model = ProcessesModel(testNotifier) { listOf("A", "B") }
+    val testNotifier = TestProcessDiscovery()
+    val model = ProcessesModel(testNotifier) { it.name in listOf("A", "B") }
 
     val fakeStream = createFakeStream()
     val fakeProcessA = fakeStream.createFakeProcess("A", 100)
@@ -120,8 +120,8 @@ class ProcessesModelTest {
 
   @Test
   fun modelPrioritizesPreferredProcess() {
-    val testNotifier = TestProcessNotifier()
-    val model = ProcessesModel(testNotifier) { listOf("preferred") }
+    val testNotifier = TestProcessDiscovery()
+    val model = ProcessesModel(testNotifier) { it.name == "preferred" }
 
     val fakeStream = createFakeStream()
 
@@ -138,8 +138,8 @@ class ProcessesModelTest {
 
   @Test
   fun newProcessDoesNotCauseSelectionToChange() {
-    val testNotifier = TestProcessNotifier()
-    val model = ProcessesModel(testNotifier) { listOf("A", "B") }
+    val testNotifier = TestProcessDiscovery()
+    val model = ProcessesModel(testNotifier) { it.name in listOf("A", "B") }
 
     val fakeStream = createFakeStream()
     val fakeProcessA = fakeStream.createFakeProcess("A", 100)
@@ -154,8 +154,8 @@ class ProcessesModelTest {
 
   @Test
   fun noPreferredProcesses_noSelection() {
-    val testNotifier = TestProcessNotifier()
-    val model = ProcessesModel(testNotifier) { emptyList() }
+    val testNotifier = TestProcessDiscovery()
+    val model = ProcessesModel(testNotifier) { false }
 
     val fakeStream = createFakeStream()
     val fakeProcessA = fakeStream.createFakeProcess("A")
@@ -168,8 +168,8 @@ class ProcessesModelTest {
 
   @Test
   fun stop() {
-    val testNotifier = TestProcessNotifier()
-    val model = ProcessesModel(testNotifier) { listOf("A", "B") }
+    val testNotifier = TestProcessDiscovery()
+    val model = ProcessesModel(testNotifier) { it.name in listOf("A", "B") }
 
     val fakeStream = createFakeStream()
     val fakeProcessA = fakeStream.createFakeProcess("A", 100)
@@ -196,7 +196,7 @@ class ProcessesModelTest {
 
   @Test
   fun processFilteringWorks() {
-    val testNotifier = TestProcessNotifier()
+    val testNotifier = TestProcessDiscovery()
 
     val fakeStream = createFakeStream()
     val fakeProcessA = fakeStream.createFakeProcess("A")
@@ -204,9 +204,11 @@ class ProcessesModelTest {
     val fakeProcessC = fakeStream.createFakeProcess("C")
     val fakeProcessD = fakeStream.createFakeProcess("D")
 
-    val model = ProcessesModel(testNotifier, { it === fakeProcessB || it === fakeProcessD }) {
-      listOf(FakeTransportService.FAKE_PROCESS.name)
-    }
+    val model = ProcessesModel(
+      processDiscovery = testNotifier,
+      acceptProcess = { it === fakeProcessB || it === fakeProcessD },
+      isPreferred = { it.name == FakeTransportService.FAKE_PROCESS.name }
+    )
 
     testNotifier.fireConnected(fakeProcessA)
     testNotifier.fireConnected(fakeProcessB)

@@ -81,6 +81,7 @@ class SinglePositionableContentLayoutManager : PositionableContentLayoutManager(
 private data class LayoutData private constructor(
   val scale: Double,
   val modelName: String?,
+  val modelTooltip: String?,
   val x: Int,
   val y: Int,
   val scaledSize: Dimension) {
@@ -102,6 +103,7 @@ private data class LayoutData private constructor(
       LayoutData(
         sceneView.scale,
         sceneView.scene.sceneManager.model.modelDisplayName,
+        sceneView.scene.sceneManager.model.modelTooltip,
         sceneView.x,
         sceneView.y,
         sceneView.getContentSize(null).scaleBy(sceneView.scale))
@@ -139,6 +141,7 @@ class SceneViewPeerPanel(val sceneView: SceneView,
   val positionableAdapter = object : PositionableContent() {
     override val x: Int get() = sceneView.x
     override val y: Int get() = sceneView.y
+    override val isVisible: Boolean get() = sceneView.isVisible
 
     override val margin: Insets
       get() {
@@ -177,10 +180,14 @@ class SceneViewPeerPanel(val sceneView: SceneView,
       sceneView.getContentSize(dimension).also {
         cachedContentSize.size = it
       }
-    else
+    else if (!sceneView.isVisible) {
+      dimension?.apply { setSize(0, 0) } ?: Dimension(0, 0)
+    }
+    else {
       dimension?.apply {
         size = cachedContentSize
       } ?: Dimension(cachedContentSize)
+    }
 
     /**
      * Returns the current size of the view content, excluding margins. This is the same as {@link #getContentSize()} but accounts for the
@@ -284,7 +291,8 @@ class SceneViewPeerPanel(val sceneView: SceneView,
     }
     else {
       modelNameLabel.text = layoutData.modelName
-      modelNameLabel.toolTipText = layoutData.modelName
+      // Use modelName for tooltip if none has been specified.
+      modelNameLabel.toolTipText = layoutData.modelTooltip ?: layoutData.modelName
       // We layout the top panel. We make the width to match the SceneViewPanel width and we let it choose its own
       // height.
       sceneViewTopPanel.setBounds(0, 0,

@@ -25,7 +25,7 @@ import com.intellij.psi.xml.XmlFile
 import com.intellij.util.xml.DomElement
 import com.intellij.util.xml.DomFileDescription
 import org.jetbrains.annotations.NonNls
-import java.util.*
+import java.util.EnumSet
 
 /**
  * Common supertype for [DomFileDescription]s of Android resource files.

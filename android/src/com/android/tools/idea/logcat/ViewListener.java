@@ -17,13 +17,9 @@ package com.android.tools.idea.logcat;
 
 import static com.intellij.util.Alarm.ThreadToUse.SWING_THREAD;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.android.ddmlib.logcat.LogCatMessage;
 import com.intellij.diagnostic.logging.LogConsoleBase;
-import com.intellij.openapi.Disposable;
-import com.intellij.openapi.util.Disposer;
-import com.intellij.util.Alarm;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.TestOnly;
 
 /**
  * A logcat receiver that adds lines to an {@link AndroidLogcatView}.
@@ -36,22 +32,20 @@ import org.jetbrains.annotations.TestOnly;
  * The update is posted to the Event Dispatch Thread (EDT) using an {@link com.intellij.util.Alarm}
  * no more frequently than every 500ms which is the normal refresh rate.
  */
-final class ViewListener extends FormattedLogcatReceiver {
+final class ViewListener implements AndroidLogcatService.LogcatListener {
   private static final int DELAY_MS = 500;
   private final AndroidLogcatView myView;
   private final SafeAlarm myAlarm;
 
-  ViewListener(@NotNull AndroidLogcatFormatter formatter, @NotNull AndroidLogcatView view) {
-    super(formatter);
-
+  ViewListener(@NotNull AndroidLogcatView view) {
     myView = view;
     // It seems that updateActionsImmediately() needs to run on the EDT.
-    myAlarm = new SafeAlarm(view.parentDisposable, SWING_THREAD);
+    myAlarm = new SafeAlarm(SWING_THREAD, view.parentDisposable);
   }
 
   @Override
-  void receiveFormattedLogLine(@NotNull String line) {
-    myView.getLogConsole().addLogLine(line);
+  public void onLogLineReceived(@NotNull LogCatMessage line) {
+    myView.getLogConsole().addLogLine(LogcatJson.toJson(line));
 
     // If we already added a request, we just let it run. This is better than canceling it and
     // scheduling another one which can result in starvation.
@@ -68,38 +62,5 @@ final class ViewListener extends FormattedLogcatReceiver {
     }
 
     console.clear();
-  }
-
-  /**
-   * Delegates to an Alarm but synchronizes on disposal so we don't try to execute a request after it's disposed.
-   */
-  @VisibleForTesting
-  static final class SafeAlarm implements Disposable {
-    private final @NotNull Alarm myAlarm;
-
-    SafeAlarm(Disposable parentDisposable, Alarm.ThreadToUse threadToUse) {
-      myAlarm = new Alarm(threadToUse, this);
-      Disposer.register(parentDisposable, this);
-    }
-
-    @Override
-    public synchronized void dispose() {
-      myAlarm.dispose();
-    }
-
-    synchronized void addRequestIfNotEmpty(@NotNull Runnable request, long delayMillis) {
-      if (!myAlarm.isEmpty() || myAlarm.isDisposed()) {
-        return;
-      }
-      myAlarm.addRequest(request, delayMillis);
-    }
-
-    /**
-     * Add for test that needs to post a request bypassing addRequestIfNotEmpty
-     */
-    @TestOnly
-    void addRequest(@NotNull Runnable request, long delayMillis) {
-      myAlarm.addRequest(request, delayMillis);
-    }
   }
 }

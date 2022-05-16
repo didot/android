@@ -22,8 +22,10 @@ import static javax.swing.BorderFactory.createEmptyBorder;
 
 import com.intellij.openapi.Disposable;
 import com.intellij.ui.HyperlinkAdapter;
-import java.awt.*;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import javax.swing.JComponent;
+import javax.swing.JEditorPane;
+import javax.swing.JPanel;
 import javax.swing.event.HyperlinkEvent;
 import org.jetbrains.annotations.NotNull;
 

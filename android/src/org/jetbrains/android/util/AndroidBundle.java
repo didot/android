@@ -2,9 +2,7 @@
 package org.jetbrains.android.util;
 
 import com.intellij.DynamicBundle;
-import java.util.Arrays;
 import java.util.function.Supplier;
-import com.intellij.openapi.application.ApplicationNamesInfo;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;

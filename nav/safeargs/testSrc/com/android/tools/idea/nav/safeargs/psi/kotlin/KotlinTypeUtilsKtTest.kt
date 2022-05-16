@@ -22,10 +22,9 @@ import com.intellij.testFramework.RunsInEdt
 import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.idea.caches.project.toDescriptor
-import org.jetbrains.kotlin.types.error.ErrorType
 import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.types.error.ErrorType
 import org.jetbrains.kotlin.types.typeUtil.TypeNullability
-import org.jetbrains.kotlin.types.typeUtil.makeNullable
 import org.jetbrains.kotlin.types.typeUtil.nullability
 import org.junit.Before
 import org.junit.Rule

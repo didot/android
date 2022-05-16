@@ -39,7 +39,9 @@ import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import java.io.File;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

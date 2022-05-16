@@ -20,27 +20,24 @@ import com.android.tools.idea.model.AndroidModel
 import com.android.tools.idea.util.androidFacet
 import com.intellij.facet.Facet
 import com.intellij.facet.FacetManager
-import com.intellij.facet.FacetManagerAdapter
+import com.intellij.facet.FacetManagerListener
 import org.jetbrains.android.AndroidTestCase
 import org.mockito.Mockito.mock
 
 class AndroidFacetConfigurationTest : AndroidTestCase() {
 
   fun testChangingModelFiresEvent() {
-    val module = myFixture.module
     val model = mock(AndroidModuleModel::class.java)
-
     val connection = myFixture.project.messageBus.connect()
-
     var eventReceived = false
 
-    connection.subscribe(FacetManager.FACETS_TOPIC, object : FacetManagerAdapter() {
+    connection.subscribe(FacetManager.FACETS_TOPIC, object : FacetManagerListener {
       override fun facetConfigurationChanged(facet: Facet<*>) {
-        eventReceived = true
+        if (facet.module == myFacet.module) eventReceived = true
       }
     })
 
-    AndroidModel.set(module.androidFacet!!, model)
+    AndroidModel.set(myFixture.module.androidFacet!!, model)
     connection.deliverImmediately()
     connection.disconnect()
 

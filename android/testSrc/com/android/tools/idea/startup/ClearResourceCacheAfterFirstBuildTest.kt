@@ -15,15 +15,12 @@
  */
 package com.android.tools.idea.startup
 
-import com.android.tools.idea.projectsystem.EP_NAME
 import com.android.tools.idea.projectsystem.ProjectSystemSyncManager.SyncResult
 import com.android.tools.idea.projectsystem.TestProjectSystem
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import com.intellij.openapi.project.Project
-import org.jetbrains.android.AndroidTestBase
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test

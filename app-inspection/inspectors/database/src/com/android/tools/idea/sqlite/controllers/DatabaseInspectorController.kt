@@ -325,15 +325,13 @@ class DatabaseInspectorControllerImpl(
     resultSetControllers.values.forEach { it.notifyDataMightBeStale() }
   }
 
-  override fun dispose() = invokeAndWaitIfNeeded {
+  override fun dispose(): Unit = invokeAndWaitIfNeeded {
     view.removeListener(sqliteViewListener)
     model.removeListener(modelListener)
     projectScope.launch { databaseRepository.clear() }
 
-    resultSetControllers.values
-      .asSequence()
-      .filterIsInstance<SqliteEvaluatorController>()
-      .forEach { it.removeListeners() }
+    // create a new list to avoid concurrent modification from `closeTab`
+    resultSetControllers.keys.toList().forEach { closeTab(it) }
   }
 
   private suspend fun readDatabaseSchema(databaseId: SqliteDatabaseId): SqliteSchema? {

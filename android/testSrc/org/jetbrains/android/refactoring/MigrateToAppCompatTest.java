@@ -22,8 +22,14 @@ import static com.android.SdkConstants.AUTO_URI;
 import static com.android.SdkConstants.CLASS_ACTIVITY;
 import static com.android.SdkConstants.CLASS_APP_COMPAT_ACTIVITY;
 import static com.android.SdkConstants.TAG_ITEM;
+import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.AttributeMigrationEntry;
+import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.AttributeValueMigrationEntry;
 import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.CHANGE_CUSTOM_VIEW_SUPERCLASS;
 import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.CHANGE_THEME_AND_STYLE;
+import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.ClassMigrationEntry;
+import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.MethodMigrationEntry;
+import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.XmlElementMigration;
+import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.XmlTagMigrationEntry;
 import static org.jetbrains.android.refactoring.MigrateToAppCompatProcessor.CLASS_SUPPORT_FRAGMENT_ACTIVITY;
 import static org.jetbrains.android.refactoring.MigrateToAppCompatProcessor.MIGRATION_ENTRY_SIZE;
 import static org.jetbrains.android.refactoring.MigrateToAppCompatProcessor.buildMigrationMap;
@@ -46,12 +52,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.jetbrains.android.AndroidTestCase;
-import org.jetbrains.android.refactoring.AppCompatMigrationEntry.AttributeMigrationEntry;
-import org.jetbrains.android.refactoring.AppCompatMigrationEntry.AttributeValueMigrationEntry;
-import org.jetbrains.android.refactoring.AppCompatMigrationEntry.ClassMigrationEntry;
-import org.jetbrains.android.refactoring.AppCompatMigrationEntry.MethodMigrationEntry;
-import org.jetbrains.android.refactoring.AppCompatMigrationEntry.XmlElementMigration;
-import org.jetbrains.android.refactoring.AppCompatMigrationEntry.XmlTagMigrationEntry;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -363,9 +363,7 @@ public class MigrateToAppCompatTest extends AndroidTestCase {
 
     public void run(JavaCodeInsightTestFixture fixture) {
       MigrateToAppCompatProcessor processor = setUpProcessor(fixture);
-/* b/146019491
       runMigration(fixture, processor);
-b/146019491 */
     }
 
     public MigrateToAppCompatProcessor makeProcessor(Project project, boolean allEntries,

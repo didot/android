@@ -42,11 +42,10 @@ import org.jetbrains.annotations.VisibleForTesting
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.swing.JComponent
-import javax.swing.Timer
 
 val TOGGLE_3D_ACTION_BUTTON_KEY = DataKey.create<ActionButton?>("$DEVICE_VIEW_ACTION_TOOLBAR_NAME.FloatingToolbar")
 
-private const val ROTATION_DURATION = 300L
+private const val ROTATION_FRAMES = 20L
 private const val ROTATION_TIMEOUT = 10_000L
 
 /** Creates the actions toolbar used on the [DeviceViewPanel] */
@@ -66,6 +65,9 @@ class DeviceViewPanelActionsToolbarProvider(
 }
 
 object Toggle3dAction : AnAction(MODE_3D), TooltipLinkProvider, TooltipDescriptionProvider {
+  @VisibleForTesting
+  var executorFactory = { Executors.newSingleThreadScheduledExecutor() }
+
   override fun actionPerformed(event: AnActionEvent) {
     val model = event.getData(DEVICE_VIEW_MODEL_KEY) ?: return
     val inspector = LayoutInspector.get(event)
@@ -76,32 +78,32 @@ object Toggle3dAction : AnAction(MODE_3D), TooltipLinkProvider, TooltipDescripti
     }
     else {
       client?.updateScreenshotType(AndroidWindow.ImageType.SKP, -1f)
-      var rotationStart = 0L
       val timerStart = System.currentTimeMillis()
-      val timer = Timer(10, null)
-      timer.addActionListener {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - timerStart > ROTATION_TIMEOUT) {
-          // We weren't able to get the SKP in a reasonable amount of time, so stop waiting.
-          timer.stop()
-        }
-        // Don't rotate or start the rotation timeout if we haven't received an SKP yet.
-        val inspectorModel = inspector?.layoutInspectorModel
-        if (inspectorModel?.pictureType != AndroidWindow.ImageType.SKP) {
-          return@addActionListener
-        }
-        if (rotationStart == 0L) {
-          rotationStart = currentTime
-        }
-        val elapsed = currentTime - rotationStart
-        if (elapsed > ROTATION_DURATION) {
-          timer.stop()
-        }
-        model.xOff = elapsed.coerceAtMost(ROTATION_DURATION) * 0.45 / ROTATION_DURATION
-        model.yOff = elapsed.coerceAtMost(ROTATION_DURATION) * 0.06 / ROTATION_DURATION
-        model.refresh()
-      }
-      timer.start()
+      val executor = executorFactory()
+      var iteration = 0
+      executor.scheduleAtFixedRate(
+        {
+          val currentTime = System.currentTimeMillis()
+          if (currentTime - timerStart > ROTATION_TIMEOUT) {
+            // We weren't able to get the SKP in a reasonable amount of time, so stop waiting.
+            executor.shutdown()
+            return@scheduleAtFixedRate
+          }
+          // Don't rotate or start the rotation timeout if we haven't received an SKP yet.
+          val inspectorModel = inspector?.layoutInspectorModel
+          // Wait until we have an actual SKP (not pending)
+          if (inspectorModel?.pictureType != AndroidWindow.ImageType.SKP) {
+            return@scheduleAtFixedRate
+          }
+          iteration++
+          if (iteration > ROTATION_FRAMES) {
+            executor.shutdown()
+            return@scheduleAtFixedRate
+          }
+          model.xOff = iteration * 0.45 / ROTATION_FRAMES
+          model.yOff = iteration * 0.06 / ROTATION_FRAMES
+          model.refresh()
+        }, 0, 15, TimeUnit.MILLISECONDS)
     }
   }
 

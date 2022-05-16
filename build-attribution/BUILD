@@ -1,4 +1,5 @@
 load("//tools/base/bazel:bazel.bzl", "iml_module")
+load("//tools/base/bazel:maven.bzl", "maven_repository")
 
 # managed by go/iml_to_build
 iml_module(
@@ -33,20 +34,30 @@ iml_module(
 iml_module(
     name = "intellij.android.build-attribution.tests",
     iml_files = ["intellij.android.build-attribution.tests.iml"],
+    split_test_targets = {
+        "analyzers": {
+            "shard_count": 2,
+            "test_filter": "com.android.build.attribution.analyzers",
+        },
+        "other": {
+        },
+    },
     tags = [
         "no_test_mac",  # b/113099009
         "no_test_windows",  # b/135665870
     ],
     test_class = "com.android.build.attribution.AndroidBuildAttributionTestSuite",
     test_data = [
+        ":test_deps",
         "//prebuilts/studio/jdk",
         "//prebuilts/studio/sdk:build-tools/latest",
         "//prebuilts/studio/sdk:platforms/latest",
-        "//tools/adt/idea/android:test_deps.zip",
         "//tools/adt/idea/android/testData",
+        "//tools/adt/idea/build-attribution/testData",
         "//tools/base/build-system:gradle-distrib",
-        "//tools/base/build-system:studio_repo.zip",
-        "//tools/base/third_party/kotlin:kotlin-m2repository.zip",
+        "//tools/base/build-system:studio_repo",
+        "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
+        "//tools/base/build-system/previous-versions:kgp1.3.72",
     ],
     test_srcs = ["testSrc"],
     test_timeout = "long",
@@ -72,5 +83,32 @@ iml_module(
         "//tools/adt/idea/adt-ui:intellij.android.adt.ui[module, test]",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-properties",
+        "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl.testutils[module, test]",
+        "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module, test]",
+    ],
+)
+
+maven_repository(
+    name = "test_deps",
+    # keep sorted: for buildifier
+    artifacts = [
+        "@maven//:androidx.collection.collection_1.0.0",
+        "@maven//:com.android.support.appcompat-v7_28.0.0",
+        "@maven//:com.android.support.constraint.constraint-layout_1.0.2",
+        "@maven//:com.android.support.test.espresso.espresso-core_3.0.2",
+        "@maven//:com.google.auto.value.auto-value-annotations_1.6.2",
+        "@maven//:com.google.auto.value.auto-value_1.6.2",
+        "@maven//:com.google.code.gson.gson_2.8.5",
+        "@maven//:com.google.errorprone.error_prone_annotations_2.3.2",
+        "@maven//:com.google.guava.guava_19.0",
+        "@maven//:com.google.jimfs.jimfs_1.1",
+        "@maven//:com.sun.activation.javax.activation_1.2.0",
+        "@maven//:commons-lang.commons-lang_2.4",
+        "@maven//:de.undercouch.gradle-download-task_4.0.2",
+        "@maven//:org.codehaus.mojo.animal-sniffer-annotations_1.17",
+        "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.4.32",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk7_1.4.32",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.5.0",
+        "@maven//:xmlpull.xmlpull_1.1.3.1",
     ],
 )

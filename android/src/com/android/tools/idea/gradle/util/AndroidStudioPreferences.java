@@ -19,10 +19,12 @@ import static com.intellij.openapi.options.Configurable.PROJECT_CONFIGURABLE;
 
 import com.android.tools.idea.IdeInfo;
 import com.google.common.collect.Lists;
+import com.intellij.compiler.CompilerWorkspaceConfiguration;
 import com.intellij.openapi.extensions.ExtensionPoint;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurableEP;
 import com.intellij.openapi.project.Project;
+import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,8 +32,8 @@ public final class AndroidStudioPreferences {
   private static final List<String> PROJECT_PREFERENCES_TO_REMOVE = Lists.newArrayList(
     "org.intellij.lang.xpath.xslt.associations.impl.FileAssociationsConfigurable", "com.intellij.uiDesigner.GuiDesignerConfigurable",
     "org.jetbrains.plugins.groovy.gant.GantConfigurable", "org.jetbrains.plugins.groovy.compiler.GroovyCompilerConfigurable",
-    "org.jetbrains.android.compiler.AndroidDexCompilerSettingsConfigurable", "org.jetbrains.idea.maven.utils.MavenSettings",
-    "com.intellij.compiler.options.CompilerConfigurable"
+    "org.jetbrains.idea.maven.utils.MavenSettings",
+    "com.intellij.compiler.options.CompilerConfigurable", "org.jetbrains.kotlin.idea.compiler.configuration.KotlinCompilerConfigurableTab"
   );
 
   /**
@@ -43,9 +45,13 @@ public final class AndroidStudioPreferences {
       return;
     }
 
+    // This option currently causes issues with external Gradle builds (see https://issuetracker.google.com/issues/183632446)
+    // This option can not be set in Android Studio, this is to disable already set configurations.
+    CompilerWorkspaceConfiguration.getInstance(project).MAKE_PROJECT_ON_SAVE = false;
+
     ExtensionPoint<ConfigurableEP<Configurable>> projectConfigurable = PROJECT_CONFIGURABLE.getPoint(project);
 
-    List<ConfigurableEP<Configurable>> nonStudioExtensions = Lists.newArrayList();
+    List<ConfigurableEP<Configurable>> nonStudioExtensions = new ArrayList<>();
     for (ConfigurableEP<Configurable> extension : projectConfigurable.getExtensionList()) {
       if (PROJECT_PREFERENCES_TO_REMOVE.contains(extension.instanceClass)) {
         nonStudioExtensions.add(extension);

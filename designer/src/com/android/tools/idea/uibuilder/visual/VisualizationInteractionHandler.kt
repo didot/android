@@ -17,11 +17,13 @@ package com.android.tools.idea.uibuilder.visual
 
 import com.android.tools.adtui.common.SwingCoordinate
 import com.android.tools.idea.common.editor.DesignToolsSplitEditor
+import com.android.tools.idea.common.model.Coordinates
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.common.surface.DesignSurfaceShortcut
 import com.android.tools.idea.common.surface.Interaction
 import com.android.tools.idea.common.surface.InteractionHandler
+import com.android.tools.idea.common.surface.navigateToComponent
 import com.android.tools.idea.configurations.Configuration
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.uibuilder.editor.LayoutNavigationManager
@@ -58,7 +60,13 @@ class VisualizationInteractionHandler(private val surface: DesignSurface,
                                              @SwingCoordinate y: Int,
                                              @JdkConstants.InputEventMask modifiersEx: Int) = Unit
 
-  override fun singleClick(@SwingCoordinate x: Int, @SwingCoordinate y: Int, @JdkConstants.InputEventMask modifiersEx: Int) = Unit
+  override fun singleClick(@SwingCoordinate x: Int, @SwingCoordinate y: Int, @JdkConstants.InputEventMask modifiersEx: Int) {
+    val view = surface.getSceneViewAt(x, y) ?: return
+    val xDp = Coordinates.getAndroidXDip(view, x)
+    val yDp = Coordinates.getAndroidYDip(view, y)
+    val clickedComponent = view.scene.findComponent(view.context, xDp, yDp) ?: return
+    navigateToComponent(clickedComponent.nlComponent, false)
+  }
 
   override fun doubleClick(@SwingCoordinate x: Int, @SwingCoordinate y: Int, @JdkConstants.InputEventMask modifiersEx: Int) {
     val view = surface.getSceneViewAt(x, y) ?: return
@@ -74,17 +82,21 @@ class VisualizationInteractionHandler(private val surface: DesignSurface,
 
     if (sourceFile == targetFile) {
       // Same file, just apply the config to it.
-      val configInLayoutEditor = (currentEditor as DesignToolsSplitEditor).designerEditor.component.surface.model?.configuration
+      val surfaceInLayoutEditor = (currentEditor as? DesignToolsSplitEditor)?.designerEditor?.component?.surface
+      val configInLayoutEditor = surfaceInLayoutEditor?.models?.firstOrNull()?.configuration
       if (configInLayoutEditor != null) {
         applyConfiguration(configInLayoutEditor, view.configuration)
+        surfaceInLayoutEditor.zoomToFit()
       }
     }
     else {
       // Open another file, or switch to it if it has been open. Then, apply the config to it.
       LayoutNavigationManager.getInstance(surface.project).pushFile(sourceFile, targetFile) { newEditor ->
-        val configInDestinationEditor = (newEditor as DesignToolsSplitEditor).designerEditor.component.surface.model?.configuration
+        val surfaceInDestinationEditor = (newEditor as? DesignToolsSplitEditor)?.designerEditor?.component?.surface
+        val configInDestinationEditor = surfaceInDestinationEditor?.models?.firstOrNull()?.configuration
         if (configInDestinationEditor != null) {
           applyConfiguration(configInDestinationEditor, view.configuration)
+          surfaceInDestinationEditor.zoomToFit()
         }
       }
     }
@@ -107,12 +119,11 @@ class VisualizationInteractionHandler(private val surface: DesignSurface,
                                       @JdkConstants.InputEventMask modifiersEx: Int) {
     val sceneView = surface.getSceneViewAt(mouseX, mouseY)
     if (sceneView != null) {
-      val name = sceneView.sceneManager.model.configuration.toTooltips()
-      surface.setDesignToolTip(name)
+      val context = sceneView.context
+      context.setMouseLocation(mouseX, mouseY)
+      sceneView.scene.mouseHover(context, Coordinates.getAndroidXDip(sceneView, mouseX), Coordinates.getAndroidYDip(sceneView, mouseY), modifiersEx)
     }
-    else {
-      surface.setDesignToolTip(null)
-    }
+    surface.sceneManagers.flatMap { it.sceneViews }.forEach { it.onHover(mouseX, mouseY) }
   }
 
   override fun popupMenuTrigger(mouseEvent: MouseEvent) {
@@ -150,6 +161,14 @@ class VisualizationInteractionHandler(private val surface: DesignSurface,
   }
 
   override fun keyReleasedWithoutInteraction(keyEvent: KeyEvent) = Unit
+
+  override fun mouseExited() {
+    // Call onHover on each SceneView, with coordinates that are sure to be outside.
+    surface.sceneManagers.flatMap { it.sceneViews }.forEach {
+      it.scene.mouseHover(it.context, Int.MIN_VALUE, Int.MIN_VALUE, 0)
+      it.onHover(Int.MIN_VALUE, Int.MIN_VALUE)
+    }
+  }
 }
 
 private class RemoveCustomModelAction(val provider: CustomModelsProvider, val model: NlModel, val enabled: Boolean) :

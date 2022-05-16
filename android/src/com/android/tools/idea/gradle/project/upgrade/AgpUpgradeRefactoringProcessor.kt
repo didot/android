@@ -15,75 +15,39 @@
  */
 package com.android.tools.idea.gradle.project.upgrade
 
-import com.android.SdkConstants.GRADLE_DISTRIBUTION_URL_PROPERTY
-import com.android.SdkConstants.GRADLE_LATEST_VERSION
-import com.android.SdkConstants.GRADLE_MINIMUM_VERSION
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.analytics.UsageTracker
-import com.android.tools.idea.Projects.getBaseDirPath
-import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.flags.StudioFlags.AGP_UPGRADE_ASSISTANT_TOOL_WINDOW
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel
-import com.android.tools.idea.gradle.dsl.api.PluginModel
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
-import com.android.tools.idea.gradle.dsl.api.android.BuildTypeModel
-import com.android.tools.idea.gradle.dsl.api.configurations.ConfigurationModel
-import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyModel
-import com.android.tools.idea.gradle.dsl.api.dependencies.CommonConfigurationNames.CLASSPATH
-import com.android.tools.idea.gradle.dsl.api.dependencies.DependenciesModel
-import com.android.tools.idea.gradle.dsl.api.dependencies.DependencyModel
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel
-import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.BOOLEAN_TYPE
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.LIST_TYPE
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.OBJECT_TYPE
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.REFERENCE_TO_TYPE
-import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.STRING
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel
-import com.android.tools.idea.gradle.dsl.api.java.LanguageLevelPropertyModel
-import com.android.tools.idea.gradle.dsl.api.repositories.MavenRepositoryModel
-import com.android.tools.idea.gradle.dsl.api.repositories.RepositoriesModel
-import com.android.tools.idea.gradle.dsl.api.repositories.RepositoryModel
-import com.android.tools.idea.gradle.dsl.api.repositories.addGoogleMavenRepository
 import com.android.tools.idea.gradle.dsl.api.util.DeletablePsiElementHolder
-import com.android.tools.idea.gradle.dsl.parser.dependencies.FakeArtifactElement
+import com.android.tools.idea.gradle.dsl.parser.semantics.AndroidGradlePluginVersion
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.GradleSyncListener
-import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.*
-import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.Companion.standardPointNecessity
 import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.Companion.standardRegionNecessity
-import com.android.tools.idea.gradle.project.upgrade.AndroidPluginVersionUpdater.isUpdatablePluginDependency
-import com.android.tools.idea.gradle.project.upgrade.AndroidPluginVersionUpdater.isUpdatablePluginRelatedDependency
-import com.android.tools.idea.gradle.project.upgrade.CompatibleGradleVersion.*
+import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.IRRELEVANT_FUTURE
+import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.IRRELEVANT_PAST
+import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.MANDATORY_CODEPENDENT
+import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.MANDATORY_INDEPENDENT
+import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.OPTIONAL_CODEPENDENT
+import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.OPTIONAL_INDEPENDENT
 import com.android.tools.idea.gradle.project.upgrade.Java8DefaultRefactoringProcessor.Companion.INSERT_OLD_USAGE_TYPE
-import com.android.tools.idea.gradle.project.upgrade.Java8DefaultRefactoringProcessor.NoLanguageLevelAction
-import com.android.tools.idea.gradle.project.upgrade.Java8DefaultRefactoringProcessor.NoLanguageLevelAction.ACCEPT_NEW_DEFAULT
-import com.android.tools.idea.gradle.project.upgrade.Java8DefaultRefactoringProcessor.NoLanguageLevelAction.INSERT_OLD_DEFAULT
-import com.android.tools.idea.gradle.util.BuildFileProcessor
-import com.android.tools.idea.gradle.util.GradleWrapper
 import com.android.tools.idea.stats.withProjectId
 import com.android.tools.idea.util.toIoFile
-import com.android.tools.idea.util.toVirtualFile
-import com.android.utils.FileUtils
-import com.android.utils.appendCapitalized
 import com.google.common.annotations.VisibleForTesting
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory.PROJECT_SYSTEM
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind.UPGRADE_ASSISTANT_COMPONENT_EVENT
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind.UPGRADE_ASSISTANT_PROCESSOR_EVENT
 import com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_AGP_VERSION_UPDATED
+import com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_MODIFIER_ACTION_REDONE
+import com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_MODIFIER_ACTION_UNDONE
 import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentEvent
 import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.Java8DefaultProcessorSettings
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.AGP_CLASSPATH_DEPENDENCY
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.COMPILE_RUNTIME_CONFIGURATION
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.FABRIC_CRASHLYTICS
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.GMAVEN_REPOSITORY
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.GRADLE_VERSION
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.JAVA8_DEFAULT
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.MIGRATE_TO_ANDROID_RESOURCES
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.MIGRATE_TO_BUILD_FEATURES
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.REMOVE_BUILD_TYPE_USE_PROGUARD
-import com.google.wireless.android.sdk.stats.UpgradeAssistantComponentInfo.UpgradeAssistantComponentKind.REMOVE_SOURCE_SET_JNI
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAssistantEventKind
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAssistantEventKind.EXECUTE
@@ -94,13 +58,11 @@ import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAs
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAssistantEventKind.SYNC_SUCCEEDED
 import com.google.wireless.android.sdk.stats.UpgradeAssistantProcessorEvent
 import com.intellij.find.findUsages.PsiElement2UsageTargetAdapter
-import com.intellij.lang.properties.psi.PropertiesFile
-import com.intellij.lang.properties.psi.Property
-import com.intellij.lang.properties.psi.PropertyKeyValueFormat
 import com.intellij.notification.NotificationListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runReadAction
-import com.intellij.openapi.components.ServiceManager
+import com.intellij.openapi.command.undo.BasicUndoableAction
+import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.progress.ProgressManager
@@ -111,12 +73,9 @@ import com.intellij.openapi.util.Factory
 import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.util.text.StringUtil.pluralize
-import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiManager
 import com.intellij.psi.impl.FakePsiElement
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.refactoring.BaseRefactoringProcessor
@@ -139,15 +98,12 @@ import com.intellij.usages.impl.rules.UsageType
 import com.intellij.usages.impl.rules.UsageTypeProvider
 import com.intellij.usages.rules.PsiElementUsage
 import com.intellij.util.Processor
-import com.intellij.util.ThreeState.NO
-import com.intellij.util.ThreeState.YES
 import com.intellij.util.containers.toArray
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet
 import org.jetbrains.android.util.AndroidBundle
-import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 import java.awt.event.ActionEvent
 import java.io.File
-import java.util.*
+import java.util.UUID
 import java.util.function.Supplier
 import javax.swing.AbstractAction
 import javax.swing.Action
@@ -167,6 +123,7 @@ abstract class GradleBuildModelRefactoringProcessor : BaseRefactoringProcessor {
   val project: Project
   val projectBuildModel: ProjectBuildModel
 
+  val otherAffectedFiles = mutableSetOf<PsiFile>()
   val psiSpoilingUsageInfos = mutableListOf<UsageInfo>()
 
   var foundUsages: Boolean = false
@@ -177,6 +134,7 @@ abstract class GradleBuildModelRefactoringProcessor : BaseRefactoringProcessor {
     usages.forEach {
       if (it is GradleBuildModelUsageInfo) {
         it.performRefactoringFor(this)
+        otherAffectedFiles.addAll(it.otherAffectedFiles)
       }
     }
   }
@@ -184,6 +142,20 @@ abstract class GradleBuildModelRefactoringProcessor : BaseRefactoringProcessor {
   override fun performPsiSpoilingRefactoring() {
     LOG.info("applying changes from \"${this.commandName}\" refactoring to build model")
     projectBuildModel.applyChanges()
+
+    if (otherAffectedFiles.isNotEmpty()) {
+      val documentManager = PsiDocumentManager.getInstance(project)
+      otherAffectedFiles.forEach psiFile@{ psiFile ->
+        val document = documentManager.getDocument(psiFile) ?: return@psiFile
+        if (documentManager.isDocumentBlockedByPsi(document)) {
+          documentManager.doPostponedOperationsAndUnblockDocument(document)
+        }
+        FileDocumentManager.getInstance().saveDocument(document)
+        if (!documentManager.isCommitted(document)) {
+          documentManager.commitDocument(document)
+        }
+      }
+    }
 
     if (psiSpoilingUsageInfos.isNotEmpty()) {
       projectBuildModel.reparse()
@@ -236,6 +208,14 @@ abstract class GradleBuildModelUsageInfo(element: WrappedPsiElement) : UsageInfo
    */
   open fun getDiscriminatingValues(): List<Any> = listOf()
 
+  /**
+   * Most actions taken by a [GradleBuildModelUsageInfo] in its [performBuildModelRefactoring] method affect project files through the
+   * build model, which takes responsibility for making sure that documents are saved and psi is not blocking.  Some actions affect
+   * files outside that model, however, and any such actions are responsible for adding those files to this set so that they can be
+   * accumulated for handling alongside the build model files.
+   */
+  val otherAffectedFiles = mutableSetOf<PsiFile>()
+
   final override fun equals(other: Any?) = super.equals(other) && when(other) {
     is GradleBuildModelUsageInfo -> getDiscriminatingValues() == other.getDiscriminatingValues()
     else -> false
@@ -280,7 +260,8 @@ class AgpUpgradeRefactoringProcessor(
   val classpathRefactoringProcessor = AgpClasspathDependencyRefactoringProcessor(this)
   val componentRefactoringProcessors = listOf(
     GMavenRepositoryRefactoringProcessor(this),
-    AgpGradleVersionRefactoringProcessor(this),
+    GradleVersionRefactoringProcessor(this),
+    GradlePluginsRefactoringProcessor(this),
     Java8DefaultRefactoringProcessor(this),
     CompileRuntimeConfigurationRefactoringProcessor(this),
     FabricCrashlyticsRefactoringProcessor(this),
@@ -288,10 +269,19 @@ class AgpUpgradeRefactoringProcessor(
     MIGRATE_AAPT_OPTIONS_TO_ANDROID_RESOURCES.RefactoringProcessor(this),
     REMOVE_BUILD_TYPE_USE_PROGUARD_INFO.RefactoringProcessor(this),
     RemoveImplementationPropertiesRefactoringProcessor(this),
+    MIGRATE_ADB_OPTIONS_TO_INSTALLATION.RefactoringProcessor(this),
+    MIGRATE_FAILURE_RETENTION_TO_EMULATOR_SNAPSHOTS.RefactoringProcessor(this),
+    MIGRATE_JACOCO_TO_TEST_COVERAGE.RefactoringProcessor(this),
+    MigratePackagingOptionsToJniLibsAndResourcesRefactoringProcessor(this),
+    MIGRATE_LINT_OPTIONS_TO_LINT.RefactoringProcessor(this),
+    REWRITE_DEPRECATED_OPERATORS.RefactoringProcessor(this),
+    RedundantPropertiesRefactoringProcessor(this),
+    AndroidManifestPackageToNamespaceRefactoringProcessor(this),
   )
 
   val targets = mutableListOf<PsiElement>()
   var usages: Array<UsageInfo> = listOf<UsageInfo>().toTypedArray()
+  var executedUsages: Array<out UsageInfo> = listOf<UsageInfo>().toTypedArray()
 
   override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
     return object : UsageViewDescriptorAdapter() {
@@ -307,12 +297,6 @@ class AgpUpgradeRefactoringProcessor(
   }
 
   override fun findUsages(): Array<UsageInfo> {
-    // TODO(xof): *something* needs to ensure that the buildModel has a fresh view of the Dsl files before
-    //  looking for things (particularly since findUsages can be re-run by user action) but it's not clear that
-    //  this is the right thing: it is a bit expensive, and sub-processors will have to also reparse() in case
-    //  they are run in isolation.  We could be correct regarding the sub-processor issue by either keeping track
-    //  of which constructor was used (e.g. "do I have a parent processor?  If so, don't reparse") or by reparsing
-    //  in findUsages() but calling findComponentUsages() from here.
     projectBuildModel.reparse()
     val usages = ArrayList<UsageInfo>()
 
@@ -332,7 +316,7 @@ class AgpUpgradeRefactoringProcessor(
 
     foundUsages = usages.size > 0
     this.usages = usages.toTypedArray()
-    trackProcessorUsage(FIND_USAGES, usages.size)
+    trackProcessorUsage(FIND_USAGES, usages.size, projectBuildModel.context.allRequestedFiles.size)
     return this.usages
   }
 
@@ -358,6 +342,7 @@ class AgpUpgradeRefactoringProcessor(
     val elements: MutableSet<PsiElement> = ReferenceOpenHashSet()  // protect against poorly implemented equality
 
     for (usage in usages) {
+      @Suppress("SENSELESS_COMPARISON") // preserve correspondence with BaseRefactoringProcessor
       assert(usage != null) { "Found null element in usages array" }
       if (skipNonCodeUsages() && usage.isNonCodeUsage()) continue
       val element = usage.element
@@ -385,7 +370,7 @@ class AgpUpgradeRefactoringProcessor(
 
     for (usage in usages) {
       if (usage is PsiElementUsage) {
-        val elementUsage = usage
+        @Suppress("UnnecessaryVariable") val elementUsage = usage // preserve correspondence with BaseRefactoringProcessor
         val element = elementUsage.element ?: continue
         val containingFile = element.containingFile
         if (usage is UsageInfo2UsageAdapter && usage.usageInfo.isDynamicUsage) {
@@ -414,8 +399,8 @@ class AgpUpgradeRefactoringProcessor(
     }
     presentation.setDynamicUsagesString("Dynamic " + StringUtil.decapitalize(
       descriptor.getCodeReferencesText(dynamicUsagesCount, dynamicUsagesCodeFiles.size)))
-
     return presentation
+
   }
 
   private fun showUsageView(viewDescriptor: UsageViewDescriptor, factory: Factory<UsageSearcher>, usageInfos: Array<out UsageInfo>) {
@@ -425,8 +410,8 @@ class AgpUpgradeRefactoringProcessor(
     val targets: Array<out UsageTarget> = PsiElement2UsageTargetAdapter.convert(initialElements)
       .map {
         when (val action = backFromPreviewAction) {
-          null -> WrappedUsageTarget(it) as UsageTarget
-          else -> WrappedConfigurableUsageTarget(it, action) as UsageTarget
+          null -> WrappedUsageTarget(it)
+          else -> WrappedConfigurableUsageTarget(it, action)
         }
       }
       .toArray(UsageTarget.EMPTY_ARRAY)
@@ -434,6 +419,7 @@ class AgpUpgradeRefactoringProcessor(
     if (!ProgressManager.getInstance().runProcessWithProgressSynchronously(
         {
           ApplicationManager.getApplication().runReadAction {
+            @Suppress("UNCHECKED_CAST")
             val usages: Array<Usage> = UsageInfo2UsageAdapter.convert(usageInfos) as Array<Usage>
             convertUsagesRef.set(usages)
           }
@@ -458,7 +444,7 @@ class AgpUpgradeRefactoringProcessor(
     else {
       (usageView as? UsageViewImpl)?.run {
         removeUsagesBulk(this.usages)
-        appendUsagesInBulk(Arrays.asList(*usages))
+        appendUsagesInBulk(listOf(*usages))
         // TODO(xof): switch to Find tab with our existing usageView in it (but it's more complicated than that
         //  because the user might have detached the usageView and it might be visible, floating in a window
         //  somewhere, or arbitrarily minimized).
@@ -472,7 +458,7 @@ class AgpUpgradeRefactoringProcessor(
   }
 
   override fun previewRefactoring(usages: Array<out UsageInfo>) {
-    trackProcessorUsage(PREVIEW_REFACTORING, usages.size)
+    trackProcessorUsage(PREVIEW_REFACTORING, usages.size, projectBuildModel.context.allRequestedFiles.size)
     // this would be `super.previewRefactoring(usages) except that there's no way to override the tab window title
     if (ApplicationManager.getApplication().isUnitTestMode) {
       ensureElementsWritable(usages, createUsageViewDescriptor(usages))
@@ -550,23 +536,27 @@ class AgpUpgradeRefactoringProcessor(
   }
 
   override fun execute(usages: Array<out UsageInfo>) {
-    trackProcessorUsage(EXECUTE, usages.size)
+    projectBuildModel.context.agpVersion = AndroidGradlePluginVersion.tryParse(new.toString())
+    trackProcessorUsage(EXECUTE, usages.size, projectBuildModel.context.allRequestedFiles.size)
+    executedUsages = usages
     super.execute(usages)
   }
 
   override fun performPsiSpoilingRefactoring() {
     super.performPsiSpoilingRefactoring()
+    val executedUsagesSize = executedUsages.size
+    val requestedFilesSize = projectBuildModel.context.allRequestedFiles.size
     val listener = object : GradleSyncListener {
-      override fun syncSkipped(project: Project) = trackProcessorUsage(SYNC_SKIPPED)
-      override fun syncFailed(project: Project, errorMessage: String) = trackProcessorUsage(SYNC_FAILED)
-      override fun syncSucceeded(project: Project) = trackProcessorUsage(SYNC_SUCCEEDED)
+      override fun syncSkipped(project: Project) = trackProcessorUsage(SYNC_SKIPPED, executedUsagesSize, requestedFilesSize)
+      override fun syncFailed(project: Project, errorMessage: String) =
+        trackProcessorUsage(SYNC_FAILED, executedUsagesSize, requestedFilesSize)
+      override fun syncSucceeded(project: Project) = trackProcessorUsage(SYNC_SUCCEEDED, executedUsagesSize, requestedFilesSize)
     }
-    // in AndroidRefactoringUtil this happens between performRefactoring() and performPsiSpoilingRefactoring().  Not
-    // sure why.
-    //
-    // FIXME(b/169838158): having this here works (in that a sync is triggered at the end of the refactor) but no sync is triggered
-    //  if the refactoring action is undone.
     GradleSyncInvoker.getInstance().requestProjectSync(project, GradleSyncInvoker.Request(TRIGGER_AGP_VERSION_UPDATED), listener)
+    UndoManager.getInstance(project).undoableActionPerformed(object : BasicUndoableAction() {
+      override fun undo(): Unit = GradleSyncInvoker.getInstance().requestProjectSync(project, TRIGGER_MODIFIER_ACTION_UNDONE)
+      override fun redo(): Unit = GradleSyncInvoker.getInstance().requestProjectSync(project, TRIGGER_MODIFIER_ACTION_REDONE)
+    })
   }
 
   var myCommandName: String = AndroidBundle.message("project.upgrade.agpUpgradeRefactoringProcessor.commandName", current, new)
@@ -601,6 +591,10 @@ class AgpUpgradeRefactoringProcessor(
             total?.let { indicator.fraction = seen.toDouble() / total.toDouble() }
           }
         }
+        // Ensure that we have the information about no-ops, which might also involve inspecting Psi directly (and thus should not be
+        // done on the EDT).
+        classpathRefactoringProcessor.initializeComponentCaches()
+        componentRefactoringProcessors.forEach { it.initializeComponentCaches() }
       },
       commandName, true, project)
   }
@@ -627,22 +621,9 @@ internal fun notifyCancelledUpgrade(project: Project, processor: AgpUpgradeRefac
  * to the process, and then running the processor under that user input's direction.
  */
 internal fun showAndInvokeAgpUpgradeRefactoringProcessor(project: Project, current: GradleVersion, new: GradleVersion) {
-  if (AGP_UPGRADE_ASSISTANT_TOOL_WINDOW.get()) {
-    DumbService.getInstance(project).smartInvokeLater {
-      val contentManager = ServiceManager.getService(project, ContentManager::class.java)
-      contentManager.showContent()
-    }
-    return
-  }
-  val processor = AgpUpgradeRefactoringProcessor(project, current, new)
-  val runProcessor = showAndGetAgpUpgradeDialog(processor)
-  if (runProcessor) {
-    DumbService.getInstance(project).smartInvokeLater { processor.run() }
-  }
-  else {
-    // TODO(xof): This adds a notification when the user selects Cancel from the dialog box, but not when they select Cancel from the
-    //  refactoring preview.
-    notifyCancelledUpgrade(project, processor)
+  DumbService.getInstance(project).smartInvokeLater {
+    val contentManager = project.getService(ContentManager::class.java)
+    contentManager.showContent(new)
   }
 }
 
@@ -734,6 +715,7 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
   val current: GradleVersion
   val new: GradleVersion
   val uuid: String
+  val hasParentProcessor: Boolean
   private var _isEnabled: Boolean? = null
   var isEnabled: Boolean
     set(value) {
@@ -764,16 +746,25 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
       return _isAlwaysNoOpForProject!!
     }
 
+  internal fun initializeComponentCaches() {
+    runReadAction {
+      _isAlwaysNoOpForProject = computeIsAlwaysNoOpForProject()
+      _cachedUsages = findComponentUsages().toList()
+    }
+  }
+
   constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project) {
     this.current = current
     this.new = new
     this.uuid = UUID.randomUUID().toString()
+    this.hasParentProcessor = false
   }
 
   constructor(processor: AgpUpgradeRefactoringProcessor): super(processor) {
     this.current = processor.current
     this.new = processor.new
     this.uuid = processor.uuid
+    this.hasParentProcessor = true
   }
 
   abstract fun necessity(): AgpUpgradeComponentNecessity
@@ -783,15 +774,18 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
     get() = _cachedUsages
 
   public final override fun findUsages(): Array<out UsageInfo> {
+    if (!hasParentProcessor) {
+      projectBuildModel.reparse()
+    }
     if (!isEnabled) {
-      trackComponentUsage(FIND_USAGES, 0)
+      trackComponentUsage(FIND_USAGES, 0, projectBuildModel.context.allRequestedFiles.size)
       LOG.info("\"${this.commandName}\" refactoring is disabled")
       return UsageInfo.EMPTY_ARRAY
     }
     val usages = findComponentUsages()
     _cachedUsages = usages.toList()
     val size = usages.size
-    trackComponentUsage(FIND_USAGES, size)
+    trackComponentUsage(FIND_USAGES, size, projectBuildModel.context.allRequestedFiles.size)
     LOG.info("found $size ${pluralize("usage", size)} for \"${this.commandName}\" refactoring")
     foundUsages = usages.isNotEmpty()
     return usages
@@ -800,12 +794,13 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
   protected abstract fun findComponentUsages(): Array<out UsageInfo>
 
   override fun previewRefactoring(usages: Array<out UsageInfo>) {
-    trackComponentUsage(PREVIEW_REFACTORING, usages.size)
+    trackComponentUsage(PREVIEW_REFACTORING, usages.size, projectBuildModel.context.allRequestedFiles.size)
     super.previewRefactoring(usages)
   }
 
   override fun execute(usages: Array<out UsageInfo>) {
-    trackComponentUsage(EXECUTE, usages.size)
+    projectBuildModel.context.agpVersion = AndroidGradlePluginVersion.tryParse(new.toString())
+    trackComponentUsage(EXECUTE, usages.size, projectBuildModel.context.allRequestedFiles.size)
     super.execute(usages)
   }
 
@@ -832,1242 +827,6 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
   abstract fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder
 }
 
-class AgpClasspathDependencyRefactoringProcessor : AgpUpgradeComponentRefactoringProcessor {
-
-  constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project, current, new)
-  constructor(processor: AgpUpgradeRefactoringProcessor): super(processor)
-
-  override fun necessity() = MANDATORY_CODEPENDENT
-
-  override fun findComponentUsages(): Array<UsageInfo> {
-    val usages = ArrayList<UsageInfo>()
-    val buildSrcDir = File(getBaseDirPath(project), "buildSrc").toVirtualFile()
-    projectBuildModel.allIncludedBuildModels.forEach model@{ model ->
-      // Using the buildModel, look for classpath dependencies on AGP, and if we find one, record it as a usage.
-      model.buildscript().dependencies().artifacts(CLASSPATH).forEach dep@{ dep ->
-        when (isUpdatablePluginDependency(new, dep)) {
-          YES -> {
-            val resultModel = dep.version().resultModel
-            val element = resultModel.rawElement
-            val psiElement = when (element) {
-              null -> return@dep
-              // TODO(xof): most likely we need a range in PsiElement, if the dependency is expressed in compactNotation
-              is FakeArtifactElement -> element.realExpression.psiElement
-              else -> element.psiElement
-            }
-            // This text gets used in the `target` display of the preview, and so needs to conform with our user interface
-            // (having this be more of a verb than a noun).
-            val presentableText = AndroidBundle.message("project.upgrade.agpClasspathDependencyRefactoringProcessor.target.presentableText")
-            psiElement?.let {
-              usages.add(AgpVersionUsageInfo(WrappedPsiElement(it, this, USAGE_TYPE, presentableText), current, new, resultModel))
-            }
-          }
-          else -> Unit
-        }
-      }
-      // buildSrc run-time dependencies are project build-time (classpath) dependencies.
-      if (model.moduleRootDirectory.toVirtualFile() == buildSrcDir) {
-        model.dependencies().artifacts().forEach dep@{ dep ->
-          when (isUpdatablePluginRelatedDependency(new, dep)) {
-            YES -> {
-              val resultModel = dep.version().resultModel
-              val element = resultModel.rawElement
-              val psiElement = when (element) {
-                null -> return@dep
-                // TODO(xof): most likely we need a range in PsiElement, if the dependency is expressed in compactNotation
-                is FakeArtifactElement -> element.realExpression.psiElement
-                else -> element.psiElement
-              }
-              // it would be weird for there to be an AGP dependency in buildSrc without there being one in the main project, but just in
-              // case...
-              val presentableText = AndroidBundle.message("project.upgrade.agpClasspathDependencyRefactoringProcessor.target.presentableText")
-              psiElement?.let {
-                usages.add(AgpVersionUsageInfo(WrappedPsiElement(it, this, USAGE_TYPE, presentableText), current, new, resultModel))
-              }
-            }
-            else -> Unit
-          }
-        }
-      }
-      // Examine plugins for plugin Dsl declarations.
-      model.plugins().forEach { plugin ->
-        if (plugin.version().valueType == STRING && plugin.name().toString().startsWith("com.android")) {
-          val version = GradleVersion.tryParse(plugin.version().toString()) ?: return@forEach
-          if (version == current && version < new)  {
-            val resultModel = plugin.version().resultModel
-            val psiElement = when (val element = resultModel.rawElement) {
-              null -> return@forEach
-              else -> element.psiElement
-            }
-            val presentableText = AndroidBundle.message("project.upgrade.agpClasspathDependencyRefactoringProcessor.target.presentableText")
-            psiElement?.let {
-              usages.add(AgpVersionUsageInfo(WrappedPsiElement(it, this, USAGE_TYPE, presentableText), current, new, resultModel))
-            }
-          }
-        }
-      }
-    }
-    return usages.toTypedArray()
-  }
-
-  override fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder =
-    builder.setKind(AGP_CLASSPATH_DEPENDENCY)
-
-  override fun getCommandName(): String = AndroidBundle.message("project.upgrade.agpClasspathDependencyRefactoringProcessor.commandName", current, new)
-
-  override fun getShortDescription(): String =
-    """
-      Changing the version of the Android Gradle Plugin dependency
-      effectively upgrades the project.  Pre-upgrade steps must be run
-      no later than this version change; post-upgrade steps must be run
-      no earlier, but can be run afterwards by continuing to use this
-      assistant after running the upgrade.
-    """.trimIndent()
-
-  override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.classpathDependency"
-
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
-    return object : UsageViewDescriptorAdapter() {
-      override fun getElements(): Array<PsiElement> {
-        return PsiElement.EMPTY_ARRAY
-      }
-
-      override fun getProcessedElementsHeader() = AndroidBundle.message("project.upgrade.agpClasspathDependencyRefactoringProcessor.usageView.header", current, new)
-    }
-  }
-
-  companion object {
-    val USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.agpClasspathDependencyRefactoringProcessor.usageType"))
-  }
-}
-
-class AgpVersionUsageInfo(
-  element: WrappedPsiElement,
-  val current: GradleVersion,
-  val new: GradleVersion,
-  private val resultModel: GradlePropertyModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.agpVersionUsageInfo.tooltipText", current, new)
-
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    resultModel.setValue(new.toString())
-  }
-}
-
-class GMavenRepositoryRefactoringProcessor : AgpUpgradeComponentRefactoringProcessor {
-  constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project, current, new) {
-    this.gradleVersion = AgpGradleVersionRefactoringProcessor.getCompatibleGradleVersion(new).version
-  }
-  constructor(processor: AgpUpgradeRefactoringProcessor): super(processor) {
-    this.gradleVersion = AgpGradleVersionRefactoringProcessor.getCompatibleGradleVersion(processor.new).version
-  }
-
-  var gradleVersion: GradleVersion
-    @VisibleForTesting set
-
-  override fun necessity() = standardPointNecessity(current, new, GradleVersion(3, 0, 0))
-
-  override fun findComponentUsages(): Array<UsageInfo> {
-    val usages = ArrayList<UsageInfo>()
-    // using the buildModel, look for classpath dependencies on AGP, and if we find one,
-    // check the buildscript/repositories block for a google() gmaven entry, recording an additional usage if we don't find one
-    projectBuildModel.allIncludedBuildModels.forEach model@{ model ->
-      model.buildscript().dependencies().artifacts(CLASSPATH).forEach dep@{ dep ->
-        when (isUpdatablePluginDependency(new, dep)) {
-          // consider returning a usage even if the dependency has the current version (in a chained upgrade, the dependency
-          // might have been updated before this RefactoringProcessor gets a chance to run).  The applicability of the processor
-          // will prevent this from being a problem.
-          YES, NO -> {
-            val repositories = model.buildscript().repositories()
-            if (!repositories.hasGoogleMavenRepository()) {
-              // TODO(xof) if we don't have a psiElement, we should add a suitable parent (and explain what
-              //  we're going to do in terms of that parent.  (But a buildscript block without a repositories block is unusual)
-              repositories.psiElement?.let { element ->
-                val wrappedElement = WrappedPsiElement(element, this, USAGE_TYPE)
-                usages.add(RepositoriesNoGMavenUsageInfo(wrappedElement, repositories, gradleVersion))
-              }
-            }
-          }
-          else -> Unit
-        }
-      }
-    }
-    return usages.toTypedArray()
-  }
-
-  override fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder =
-    builder.setKind(GMAVEN_REPOSITORY)
-
-  override fun getCommandName(): String = AndroidBundle.message("project.upgrade.gMavenRepositoryRefactoringProcessor.commandName")
-
-  override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.gmaven"
-
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
-    return object : UsageViewDescriptorAdapter() {
-      override fun getElements(): Array<PsiElement> {
-        return PsiElement.EMPTY_ARRAY
-      }
-
-      override fun getProcessedElementsHeader() = AndroidBundle.message("project.upgrade.gMavenRepositoryRefactoringProcessor.usageView.header")
-    }
-  }
-
-  companion object {
-    val USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.gMavenRepositoryRefactoringProcessor.usageType"))
-  }
-}
-
-class RepositoriesNoGMavenUsageInfo(
-  element: WrappedPsiElement,
-  private val repositoriesModel: RepositoriesModel,
-  private val gradleVersion: GradleVersion
-) : GradleBuildModelUsageInfo(element) {
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.repositoriesNoGMavenUsageInfo.tooltipText")
-
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    repositoriesModel.addGoogleMavenRepository(gradleVersion)
-  }
-}
-
-class AgpGradleVersionRefactoringProcessor : AgpUpgradeComponentRefactoringProcessor {
-
-  constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project, current, new) {
-    this.compatibleGradleVersion = getCompatibleGradleVersion(new)
-  }
-  constructor(processor: AgpUpgradeRefactoringProcessor) : super(processor) {
-    compatibleGradleVersion = getCompatibleGradleVersion(processor.new)
-  }
-
-  val compatibleGradleVersion: CompatibleGradleVersion
-
-  override fun necessity() = MANDATORY_CODEPENDENT
-
-  override fun findComponentUsages(): Array<out UsageInfo> {
-    val usages = mutableListOf<UsageInfo>()
-    // check the project's wrapper(s) for references to no-longer-supported Gradle versions
-    project.basePath?.let {
-      val projectRootFolders = listOf(File(FileUtils.toSystemDependentPath(it))) + BuildFileProcessor.getCompositeBuildFolderPaths(project)
-      projectRootFolders.filterNotNull().forEach { ioRoot ->
-        val ioFile = GradleWrapper.getDefaultPropertiesFilePath(ioRoot)
-        val gradleWrapper = GradleWrapper.get(ioFile, project)
-        val currentGradleVersion = gradleWrapper.gradleVersion ?: return@forEach
-        val parsedCurrentGradleVersion = GradleVersion.tryParse(currentGradleVersion) ?: return@forEach
-        if (compatibleGradleVersion.version > parsedCurrentGradleVersion) {
-          val updatedUrl = gradleWrapper.getUpdatedDistributionUrl(compatibleGradleVersion.version.toString(), true)
-          val virtualFile = VfsUtil.findFileByIoFile(ioFile, true) ?: return@forEach
-          val propertiesFile = PsiManager.getInstance(project).findFile(virtualFile) as? PropertiesFile ?: return@forEach
-          val property = propertiesFile.findPropertyByKey(GRADLE_DISTRIBUTION_URL_PROPERTY) ?: return@forEach
-          val wrappedPsiElement = WrappedPsiElement(property.psiElement, this, GRADLE_URL_USAGE_TYPE)
-          usages.add(GradleVersionUsageInfo(wrappedPsiElement, compatibleGradleVersion.version, updatedUrl))
-        }
-      }
-    }
-
-    // Check plugins for compatibility with our minimum Gradle version even if we're not upgrading (because the project has a higher
-    // version, for example) because some compatibility issues are related to the (AGP,Gradle) version pair rather than just directly
-    // the Gradle version.  (Also, this makes it substantially easier to test the action of this processor on a file at a time.)
-    projectBuildModel.allIncludedBuildModels.forEach model@{ model ->
-      model.buildscript().dependencies().artifacts(CLASSPATH).forEach dep@{ dep ->
-        GradleVersion.tryParse(dep.version().toString())?.let { currentVersion ->
-          // GradleVersion.tryParse() looks like it should only parse plausibly-valid version strings.  Unfortunately, things like
-          // `Versions.kotlin` are apparently plausibly-valid, returning a GradleVersion object essentially equivalent to `0.0` but with
-          // odd text present in the major/minor VersionSegments.
-          if (GradleVersion(0, 0) >= currentVersion) return@dep
-          WELL_KNOWN_GRADLE_PLUGIN_TABLE["${dep.group()}:${dep.name()}"]?.let { info ->
-            val minVersion = info(compatibleGradleVersion)
-            if (minVersion <= currentVersion) return@dep
-            val resultModel = dep.version().resultModel
-            val element = resultModel.rawElement
-            val psiElement = when (element) {
-              null -> return@dep
-              // TODO(xof): most likely we need a range in PsiElement, if the dependency is expressed in compactNotation
-              is FakeArtifactElement -> element.realExpression.psiElement
-              else -> element.psiElement
-            }
-            psiElement?.let {
-              val wrappedPsiElement = WrappedPsiElement(psiElement, this, WELL_KNOWN_GRADLE_PLUGIN_USAGE_TYPE)
-              usages.add(WellKnownGradlePluginDependencyUsageInfo(wrappedPsiElement, dep, resultModel, minVersion.toString()))
-            }
-          }
-        }
-      }
-      model.plugins().forEach plugin@{ plugin ->
-        if (plugin.version().valueType == STRING) {
-          val version = GradleVersion.tryParse(plugin.version().toString()) ?: return@plugin
-          if (GradleVersion(0,0) >= version) return@plugin
-          WELL_KNOWN_GRADLE_PLUGIN_TABLE[plugin.name().toString()]?.let { info ->
-            val minVersion = info(compatibleGradleVersion)
-            if (minVersion <= version) return@plugin
-            val resultModel = plugin.version().resultModel
-            val element = resultModel.rawElement
-            val psiElement = element?.psiElement ?: return@plugin
-            val wrappedPsiElement = WrappedPsiElement(psiElement, this, WELL_KNOWN_GRADLE_PLUGIN_USAGE_TYPE)
-            usages.add(WellKnownGradlePluginDslUsageInfo(wrappedPsiElement, plugin, resultModel, minVersion.toString()))
-          }
-        }
-      }
-    }
-    return usages.toTypedArray()
-  }
-
-  override fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder =
-    builder.setKind(GRADLE_VERSION)
-
-  override fun getCommandName(): String = AndroidBundle.message("project.upgrade.agpGradleVersionRefactoringProcessor.commandName", compatibleGradleVersion.version)
-
-  override fun getShortDescription(): String =
-    """
-      Version ${compatibleGradleVersion.version} is the minimum version of Gradle compatible
-      with Android Gradle Plugin version $new.
-    """.trimIndent()
-
-  override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.gradleVersion"
-
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
-    return object : UsageViewDescriptorAdapter() {
-      override fun getElements(): Array<PsiElement> {
-        return PsiElement.EMPTY_ARRAY
-      }
-
-      override fun getProcessedElementsHeader() = AndroidBundle.message("project.upgrade.agpGradleVersionRefactoringProcessor.usageView.header", compatibleGradleVersion.version)
-    }
-  }
-
-  companion object {
-    val GRADLE_URL_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.agpGradleVersionRefactoringProcessor.gradleUrlUsageType"))
-    val WELL_KNOWN_GRADLE_PLUGIN_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.agpGradleVersionRefactoringProcessor.wellKnownGradlePluginUsageType"))
-
-    fun getCompatibleGradleVersion(agpVersion: GradleVersion): CompatibleGradleVersion {
-      val agpVersionMajorMinor = GradleVersion(agpVersion.major, agpVersion.minor)
-      val compatibleGradleVersion = when {
-        GradleVersion.parse("3.1") >= agpVersionMajorMinor -> VERSION_4_4
-        GradleVersion.parse("3.2") >= agpVersionMajorMinor -> VERSION_4_6
-        GradleVersion.parse("3.3") >= agpVersionMajorMinor -> VERSION_4_10_1
-        GradleVersion.parse("3.4") >= agpVersionMajorMinor -> VERSION_5_1_1
-        GradleVersion.parse("3.5") >= agpVersionMajorMinor -> VERSION_5_4_1
-        GradleVersion.parse("3.6") >= agpVersionMajorMinor -> VERSION_5_6_4
-        GradleVersion.parse("4.0") >= agpVersionMajorMinor -> VERSION_6_1_1
-        GradleVersion.parse("4.1") >= agpVersionMajorMinor -> VERSION_6_5
-        GradleVersion.parse("4.2") >= agpVersionMajorMinor -> VERSION_6_7_1
-        else -> VERSION_FOR_DEV
-      }
-      return when {
-        compatibleGradleVersion.version < VERSION_MIN.version -> VERSION_MIN
-        else -> compatibleGradleVersion
-      }
-    }
-
-    fun `kotlin-gradle-plugin-compatibility-info`(compatibleGradleVersion: CompatibleGradleVersion): GradleVersion =
-      when (compatibleGradleVersion) {
-        VERSION_4_4 -> GradleVersion.parse("1.1.3")
-        VERSION_4_6 -> GradleVersion.parse("1.2.51")
-        VERSION_MIN -> GradleVersion.parse("1.2.51")
-        VERSION_4_10_1 -> GradleVersion.parse("1.3.0")
-        VERSION_5_1_1 -> GradleVersion.parse("1.3.10")
-        VERSION_5_4_1 -> GradleVersion.parse("1.3.10")
-        VERSION_5_6_4 -> GradleVersion.parse("1.3.10")
-        VERSION_6_1_1 -> GradleVersion.parse("1.3.20")
-        VERSION_6_5 -> GradleVersion.parse("1.3.20")
-        VERSION_6_7_1 -> GradleVersion.parse("1.3.20")
-        VERSION_FOR_DEV -> GradleVersion.parse("1.3.40")
-    }
-
-    fun `androidx-navigation-safeargs-gradle-plugin-compatibility-info`(compatibleGradleVersion: CompatibleGradleVersion): GradleVersion =
-      when (compatibleGradleVersion) {
-        VERSION_4_4, VERSION_4_6, VERSION_MIN, VERSION_4_10_1, VERSION_5_1_1, VERSION_5_4_1, VERSION_5_6_4, VERSION_6_1_1,
-        VERSION_6_5, VERSION_6_7_1 ->
-          GradleVersion.parse("2.0.0")
-        // TODO(xof): For Studio 4.3 / AGP 7.0, this might not be correct: a feature deprecated in
-        //  AGP 4 might be removed in AGP 7.0 (see b/159542337) at which point we would need to upgrade the version to whatever the
-        //  version is that doesn't use that deprecated interface (2.3.2?  2.4.0?  3.0.0?  Who knows?)
-        VERSION_FOR_DEV -> GradleVersion.parse("2.0.0")
-      }
-
-    // compatibility information from b/174686925 and https://github.com/mannodermaus/android-junit5/releases
-    fun `de-mannodermaus-android-junit5-plugin-compatibility-info`(compatibleGradleVersion: CompatibleGradleVersion): GradleVersion =
-      when (compatibleGradleVersion) {
-        VERSION_4_4, VERSION_4_6, VERSION_MIN, VERSION_4_10_1, VERSION_5_1_1 -> GradleVersion.parse("1.3.1.0")
-        VERSION_5_4_1, VERSION_5_6_4, VERSION_6_1_1 -> GradleVersion.parse("1.4.2.1")
-        VERSION_6_5, VERSION_6_7_1, VERSION_FOR_DEV -> GradleVersion.parse("1.6.1.0")
-      }
-
-    fun `com-google-firebase-crashlytics-plugin-compatibility-info`(compatibleGradleVersion: CompatibleGradleVersion): GradleVersion =
-      when (compatibleGradleVersion) {
-        VERSION_4_4, VERSION_4_6, VERSION_MIN, VERSION_4_10_1, VERSION_5_1_1, VERSION_5_4_1, VERSION_5_6_4, VERSION_6_1_1,
-        VERSION_6_5, VERSION_6_7_1 -> GradleVersion.parse("2.0.0")
-        VERSION_FOR_DEV -> GradleVersion.parse("2.5.2")
-      }
-
-    fun `com-google-firebase-appdistribution-plugin-compatibility-info`(compatibleGradleVersion: CompatibleGradleVersion): GradleVersion =
-      when (compatibleGradleVersion) {
-        VERSION_4_4, VERSION_4_6, VERSION_MIN -> GradleVersion.parse("1.0.0")
-        VERSION_4_10_1, VERSION_5_1_1, VERSION_5_4_1, VERSION_5_6_4 -> GradleVersion.parse("1.1.0")
-        VERSION_6_1_1, VERSION_6_5, VERSION_6_7_1 -> GradleVersion.parse("1.4.0")
-        VERSION_FOR_DEV -> GradleVersion.parse("2.1.1")
-      }
-
-    fun `com-google-android-gms-oss-licenses-plugin-compatibility-info`(compatibleGradleVersion: CompatibleGradleVersion): GradleVersion =
-      when (compatibleGradleVersion) {
-        VERSION_4_4, VERSION_4_6, VERSION_MIN, VERSION_4_10_1 -> GradleVersion.parse("0.9.3")
-        VERSION_5_1_1, VERSION_5_4_1, VERSION_5_6_4, VERSION_6_1_1, VERSION_6_5, VERSION_6_7_1 -> GradleVersion.parse("0.10.1")
-        VERSION_FOR_DEV -> GradleVersion.parse("0.10.4")
-    }
-
-    /**
-     * This table contains both the artifact names and the plugin names of the well known plugins, as each of them can be used to
-     * declare that a project uses a given plugin or set of plugins (one through a `classpath` configuration, the other through the
-     * plugins Dsl).
-     */
-    val WELL_KNOWN_GRADLE_PLUGIN_TABLE = mapOf(
-      "org.jetbrains.kotlin:kotlin-gradle-plugin" to ::`kotlin-gradle-plugin-compatibility-info`,
-      "org.jetbrains.kotlin.android" to ::`kotlin-gradle-plugin-compatibility-info`,
-
-      "androidx.navigation:navigation-safe-args-gradle-plugin" to ::`androidx-navigation-safeargs-gradle-plugin-compatibility-info`,
-      "androidx.navigation.safeargs" to ::`androidx-navigation-safeargs-gradle-plugin-compatibility-info`,
-      "androidx.navigation.safeargs.kotlin" to ::`androidx-navigation-safeargs-gradle-plugin-compatibility-info`,
-
-      "de.mannodermaus.gradle.plugins:android-junit5" to ::`de-mannodermaus-android-junit5-plugin-compatibility-info`,
-      "de.mannodermaus.android-junit5" to ::`de-mannodermaus-android-junit5-plugin-compatibility-info`,
-
-      "com.google.firebase:firebase-crashlytics-gradle" to ::`com-google-firebase-crashlytics-plugin-compatibility-info`,
-      "com.google.firebase.crashlytics" to ::`com-google-firebase-crashlytics-plugin-compatibility-info`,
-
-      "com.google.firebase:firebase-appdistribution-gradle" to ::`com-google-firebase-appdistribution-plugin-compatibility-info`,
-      "com.google.firebase.appdistribution" to ::`com-google-firebase-appdistribution-plugin-compatibility-info`,
-
-      "com.google.android.gms:oss-licenses-plugin" to ::`com-google-android-gms-oss-licenses-plugin-compatibility-info`,
-      "com.google.android.gms.oss-licenses-plugin" to ::`com-google-android-gms-oss-licenses-plugin-compatibility-info`,
-      )
-  }
-}
-
-enum class CompatibleGradleVersion(val version: GradleVersion) {
-  // versions earlier than 4.4 (corresponding to AGP 3.0.0 and below) are not needed because
-  // we no longer support running such early versions of Gradle given our required JDKs, so upgrading to
-  // them using this functionality is a non-starter.
-  VERSION_4_4(GradleVersion.parse("4.4")),
-  VERSION_4_6(GradleVersion.parse("4.6")),
-  VERSION_MIN(GradleVersion.parse(GRADLE_MINIMUM_VERSION)),
-  VERSION_4_10_1(GradleVersion.parse("4.10.1")),
-  VERSION_5_1_1(GradleVersion.parse("5.1.1")),
-  VERSION_5_4_1(GradleVersion.parse("5.4.1")),
-  VERSION_5_6_4(GradleVersion.parse("5.6.4")),
-  VERSION_6_1_1(GradleVersion.parse("6.1.1")),
-  VERSION_6_5(GradleVersion.parse("6.5")),
-  VERSION_6_7_1(GradleVersion.parse("6.7.1")),
-  VERSION_FOR_DEV(GradleVersion.parse(GRADLE_LATEST_VERSION))
-}
-
-class GradleVersionUsageInfo(
-  element: WrappedPsiElement,
-  private val gradleVersion: GradleVersion,
-  private val updatedUrl: String
-) : GradleBuildModelUsageInfo(element) {
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.gradleVersionUsageInfo.tooltipText", gradleVersion)
-
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    ((element as? WrappedPsiElement)?.realElement as? Property)?.setValue(updatedUrl.escapeColons(), PropertyKeyValueFormat.FILE)
-    // TODO(xof): if we brought properties files into the build model, this would not be necessary here, but the buildModel applyChanges()
-    //  does all that is necessary to save files, so we do that here to mimic that.  Should we do that in
-    //  performPsiSpoilingBuildModelRefactoring instead, to mimic the time applyChanges() would do that more precisely?
-    val documentManager = PsiDocumentManager.getInstance(project)
-    val document = documentManager.getDocument(element!!.containingFile) ?: return
-    if (documentManager.isDocumentBlockedByPsi(document)) {
-      documentManager.doPostponedOperationsAndUnblockDocument(document)
-    }
-    FileDocumentManager.getInstance().saveDocument(document)
-    if (!documentManager.isCommitted(document)) {
-      documentManager.commitDocument(document)
-    }
-  }
-
-  fun String.escapeColons() = this.replace(":", "\\:")
-}
-
-class WellKnownGradlePluginDependencyUsageInfo(
-  element: WrappedPsiElement,
-  val dependency: ArtifactDependencyModel,
-  val resultModel: GradlePropertyModel,
-  val version: String
-): GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    resultModel.setValue(version)
-  }
-
-  override fun getDiscriminatingValues() = listOf(dependency.group().toString(), dependency.name().toString(), version)
-
-  override fun getTooltipText() = "Update version of ${dependency.group()}:${dependency.name()} to $version"
-}
-
-class WellKnownGradlePluginDslUsageInfo(
-  element: WrappedPsiElement,
-  val plugin: PluginModel,
-  val resultModel: GradlePropertyModel,
-  val version: String
-): GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    resultModel.setValue(version)
-  }
-
-  override fun getDiscriminatingValues() = listOf(plugin.name().toString(), version)
-
-  override fun getTooltipText() = "Update version of ${plugin.name().toString()} to $version"
-}
-
-class Java8DefaultRefactoringProcessor : AgpUpgradeComponentRefactoringProcessor {
-
-  var noLanguageLevelAction = INSERT_OLD_DEFAULT
-    set(value) {
-      LOG.info("setting noLanguageLevelAction to ${value.name}")
-      field = value
-    }
-
-  constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project, current, new)
-  constructor(processor: AgpUpgradeRefactoringProcessor): super(processor)
-
-  override fun necessity() = standardPointNecessity(current, new, ACTIVATED_VERSION)
-
-  override fun findComponentUsages(): Array<out UsageInfo> {
-    fun usageType(model: LanguageLevelPropertyModel): UsageType? = when {
-      model.psiElement != null -> EXISTING_DIRECTIVE_USAGE_TYPE
-      noLanguageLevelAction == INSERT_OLD_DEFAULT -> INSERT_OLD_USAGE_TYPE
-      noLanguageLevelAction == ACCEPT_NEW_DEFAULT -> ACCEPT_NEW_USAGE_TYPE
-      else -> null
-    }
-
-    val usages = mutableListOf<UsageInfo>()
-    projectBuildModel.allIncludedBuildModels.forEach model@{ model ->
-      // TODO(xof): we should consolidate the various ways of guessing what a module is from its plugins (see also
-      //  PsModuleType.kt)
-      val pluginNames = model.plugins().map { it.name().forceString() }
-      pluginNames
-        .firstOrNull { it.startsWith("java") || it.startsWith("org.gradle.java") || it == "application" || it == "org.gradle.application" }
-        ?.let { _ ->
-        model.java().sourceCompatibility().let {
-          val psiElement = listOf(it, model.java(), model).firstNotNullOfOrNull { model -> model.psiElement }!!
-          val wrappedElement = WrappedPsiElement(psiElement, this, usageType(it))
-          val existing = it.psiElement != null
-          usages.add(JavaLanguageLevelUsageInfo(wrappedElement, it, existing, noLanguageLevelAction, "sourceCompatibility"))
-        }
-        model.java().targetCompatibility().let {
-          val psiElement = listOf(it, model.java(), model).firstNotNullOfOrNull { model -> model.psiElement }!!
-          val wrappedElement = WrappedPsiElement(psiElement, this, usageType(it))
-          val existing = it.psiElement != null
-          usages.add(JavaLanguageLevelUsageInfo(wrappedElement, it, existing, noLanguageLevelAction, "targetCompatibility"))
-        }
-      }
-
-      pluginNames.firstOrNull { it.startsWith("com.android") }?.let { _ ->
-        model.android().compileOptions().sourceCompatibility().let {
-          val psiElement = listOf(it, model.android().compileOptions(), model.android(), model)
-            .firstNotNullOfOrNull { model -> model.psiElement }!!
-          val wrappedElement = WrappedPsiElement(psiElement, this, usageType(it))
-          val existing = it.psiElement != null
-          usages.add(JavaLanguageLevelUsageInfo(wrappedElement, it, existing, noLanguageLevelAction, "sourceCompatibility"))
-        }
-        model.android().compileOptions().targetCompatibility().let {
-          val psiElement = listOf(it, model.android().compileOptions(), model.android(), model)
-            .firstNotNullOfOrNull { model -> model.psiElement }!!
-          val wrappedElement = WrappedPsiElement(psiElement, this, usageType(it))
-          val existing = it.psiElement != null
-          usages.add(JavaLanguageLevelUsageInfo(wrappedElement, it, existing, noLanguageLevelAction, "targetCompatibility"))
-        }
-        pluginNames.firstOrNull { it.startsWith("org.jetbrains.kotlin") || it.startsWith("kotlin") }?.let { _ ->
-          model.android().kotlinOptions().jvmTarget().let {
-            val psiElement = listOf(it, model.android().kotlinOptions(), model.android(), model)
-              .firstNotNullOfOrNull { model -> model.psiElement }!!
-            val wrappedElement = WrappedPsiElement(psiElement, this, usageType(it))
-            val existing = it.psiElement != null
-            usages.add(KotlinLanguageLevelUsageInfo(wrappedElement, it, existing, noLanguageLevelAction, "jvmTarget"))
-          }
-        }
-      }
-    }
-    return usages.toTypedArray()
-  }
-
-  override fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder {
-    val protoNoLanguageLevelAction = when (noLanguageLevelAction) {
-      INSERT_OLD_DEFAULT -> Java8DefaultProcessorSettings.NoLanguageLevelAction.INSERT_OLD_DEFAULT
-      ACCEPT_NEW_DEFAULT -> Java8DefaultProcessorSettings.NoLanguageLevelAction.ACCEPT_NEW_DEFAULT
-    }
-    val java8Settings = Java8DefaultProcessorSettings.newBuilder().setNoLanguageLevelAction(protoNoLanguageLevelAction).build()
-    return builder.setKind(JAVA8_DEFAULT).setJava8DefaultSettings(java8Settings)
-  }
-
-  override fun getCommandName(): String = AndroidBundle.message("project.upgrade.java8DefaultRefactoringProcessor.commandName")
-
-  override val groupingName: String = AndroidBundle.message("project.upgrade.java8DefaultRefactoringProcessor.groupingName")
-
-  override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.Java8Default"
-
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
-    return object : UsageViewDescriptorAdapter() {
-      override fun getElements(): Array<PsiElement> {
-        return PsiElement.EMPTY_ARRAY
-      }
-
-      override fun getProcessedElementsHeader() = AndroidBundle.message("project.upgrade.java8DefaultRefactoringProcessor.usageView.header")
-    }
-  }
-
-  override fun computeIsAlwaysNoOpForProject(): Boolean =
-    findComponentUsages().all {
-      when (it) {
-        is JavaLanguageLevelUsageInfo -> it.existing
-        is KotlinLanguageLevelUsageInfo -> it.existing
-        else -> false // shouldn't happen; if it does, return conservative value
-      }
-    }
-
-  override fun getReadMoreUrl(): String? = "https://developer.android.com/r/tools/upgrade-assistant/java8-default"
-
-  override fun getShortDescription(): String? =
-    """
-      The default Java Language Level is now Java 8, rather than the previous
-      Java 7.  If your project requires building with Java 7, the project's
-      build files need explicit Language Level directives.
-    """.trimIndent()
-
-  companion object {
-    val ACTIVATED_VERSION = GradleVersion.parse("4.2.0-alpha05")
-
-    val EXISTING_DIRECTIVE_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.java8DefaultRefactoringProcessor.existingDirectiveUsageType"))
-    val ACCEPT_NEW_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.java8DefaultRefactoringProcessor.acceptNewUsageType"))
-    val INSERT_OLD_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.java8DefaultRefactoringProcessor.insertOldUsageType"))
-  }
-
-  enum class NoLanguageLevelAction(val supplier: Supplier<String>) {
-    ACCEPT_NEW_DEFAULT(AndroidBundle.messagePointer("project.upgrade.noLanguageLevelAction.acceptNewDefault")),
-    INSERT_OLD_DEFAULT(AndroidBundle.messagePointer("project.upgrade.noLanguageLevelAction.insertOldDefault")),
-    ;
-
-    override fun toString() = supplier.get()
-  }
-}
-
-class JavaLanguageLevelUsageInfo(
-  element: WrappedPsiElement,
-  private val model: LanguageLevelPropertyModel,
-  internal val existing: Boolean,
-  private val noLanguageLevelAction: NoLanguageLevelAction,
-  private val propertyName: String
-): GradleBuildModelUsageInfo(element) {
-  override fun getTooltipText(): String {
-    return when (existing) {
-      false -> when (noLanguageLevelAction) {
-        INSERT_OLD_DEFAULT -> AndroidBundle.message("project.upgrade.javaLanguageLevelUsageInfo.tooltipText.insertOldDefault", propertyName)
-        ACCEPT_NEW_DEFAULT -> AndroidBundle.message("project.upgrade.javaLanguageLevelUsageInfo.tooltipText.acceptNewDefault")
-      }
-      true -> AndroidBundle.message("project.upgrade.javaLanguageLevelUsageInfo.tooltipText.existing", propertyName)
-    }
-  }
-
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    when {
-      !existing && noLanguageLevelAction == INSERT_OLD_DEFAULT -> model.setLanguageLevel(LanguageLevel.JDK_1_7)
-    }
-  }
-
-  override fun getDiscriminatingValues(): List<Any> = listOf(propertyName)
-}
-
-class KotlinLanguageLevelUsageInfo(
-  element: WrappedPsiElement,
-  private val model: LanguageLevelPropertyModel,
-  internal val existing: Boolean,
-  private val noLanguageLevelAction: NoLanguageLevelAction,
-  private val propertyName: String
-  ): SpoilingGradleBuildModelUsageInfo(element) {
-  override fun getTooltipText(): String {
-    return when (existing) {
-      false -> when (noLanguageLevelAction) {
-        INSERT_OLD_DEFAULT -> AndroidBundle.message("project.upgrade.kotlinLanguageLevelUsageInfo.tooltipText.insertOldDefault", propertyName)
-        ACCEPT_NEW_DEFAULT -> AndroidBundle.message("project.upgrade.kotlinLanguageLevelUsageInfo.tooltipText.acceptNewDefault")
-
-      }
-      true -> AndroidBundle.message("project.upgrade.kotlinLanguageLevelUsageInfo.tooltipText.existing", propertyName)
-    }
-  }
-
-  val gradleFile = model.gradleFile
-
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    when {
-      !existing && noLanguageLevelAction == INSERT_OLD_DEFAULT -> {
-        model.setLanguageLevel(LanguageLevel.JDK_1_6)
-        super.performBuildModelRefactoring(processor)
-      }
-    }
-  }
-
-  override fun performPsiSpoilingBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    val element = processor.projectBuildModel.getModuleBuildModel(gradleFile).android().kotlinOptions().jvmTarget().psiElement ?: return
-    val documentManager = PsiDocumentManager.getInstance(project)
-    val document = documentManager.getDocument(element.containingFile) ?: return
-    document.insertString(element.textRange.endOffset, " // Java 7 not supported by kotlinOptions jvmTarget")
-    FileDocumentManager.getInstance().saveDocument(document)
-    documentManager.commitDocument(document)
-  }
-
-  override fun getDiscriminatingValues(): List<Any> = listOf(propertyName)
-}
-
-class CompileRuntimeConfigurationRefactoringProcessor : AgpUpgradeComponentRefactoringProcessor {
-  constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project, current, new)
-  constructor(processor: AgpUpgradeRefactoringProcessor): super(processor)
-
-  override fun necessity() = standardRegionNecessity(current, new, IMPLEMENTATION_API_INTRODUCED, COMPILE_REMOVED)
-
-  override fun findComponentUsages(): Array<out UsageInfo> {
-    val usages = mutableListOf<UsageInfo>()
-
-    fun computeReplacementName(name: String, compileReplacement: String): String? {
-      return when {
-        name == "compile" -> compileReplacement
-        name.endsWith("Compile") && (name.startsWith("test") || name.startsWith("androidTest")) ->
-          name.removeSuffix("Compile").appendCapitalized("implementation")
-        name.endsWith("Compile") -> name.removeSuffix("Compile").appendCapitalized(compileReplacement)
-        name == "runtime" -> "runtimeOnly"
-        name.endsWith("Runtime") -> "${name}Only"
-        name.endsWith("Api") && (name.startsWith("test") || name.startsWith("androidTest")) ->
-          name.removeSuffix("Api").appendCapitalized("implementation")
-        name == "provided" -> "compileOnly"
-        name.endsWith("Provided") -> "${name.removeSuffix("Provided")}CompileOnly"
-        name == "apk" -> "runtimeOnly"
-        name.endsWith("Apk") -> "${name.removeSuffix("Apk")}RuntimeOnly"
-        name == "publish" -> "runtimeOnly"
-        name.endsWith("Publish") -> "${name.removeSuffix("Publish")}RuntimeOnly"
-        else -> null
-      }
-    }
-
-    fun maybeAddUsageForDependency(dependency: DependencyModel, compileReplacement: String, psiElement: PsiElement) {
-      val configuration = dependency.configurationName()
-      computeReplacementName(configuration, compileReplacement)?.let {
-        val wrappedElement = WrappedPsiElement(psiElement, this, CHANGE_DEPENDENCY_CONFIGURATION_USAGE_TYPE)
-        usages.add(ObsoleteConfigurationDependencyUsageInfo(wrappedElement, dependency, it))
-      }
-    }
-
-    fun maybeAddUsageForConfiguration(configuration: ConfigurationModel, compileReplacement: String, psiElement: PsiElement) {
-      val name = configuration.name()
-      computeReplacementName(name, compileReplacement)?.let {
-        val wrappedElement = WrappedPsiElement(psiElement, this, RENAME_CONFIGURATION_USAGE_TYPE)
-        usages.add(ObsoleteConfigurationConfigurationUsageInfo(wrappedElement, configuration, it))
-      }
-    }
-
-    projectBuildModel.allIncludedBuildModels.forEach model@{ model ->
-      // if we don't have a PsiElement for the model, we don't have a file at all, and attempting to perform a refactoring is not
-      // going to work
-      val modelPsiElement = model.psiElement ?: return@model
-      val pluginSet = model.plugins().map { it.name().forceString() }.toSet()
-      // TODO(xof): as with the Java8Default refactoring above, we should define and use some kind of API
-      //  to determine what kind of a module we have.
-      val applicationSet = setOf(
-        "application", "org.gradle.application", // see Gradle documentation for PluginDependenciesSpec for `org.gradle.` prefix
-        "android", // deprecated but equivalent to com.android.application
-        "com.android.application", "com.android.test", "com.android.instant-app")
-      val librarySet = setOf(
-        "java", "java-library", "org.gradle.java", "org.gradle.java-library",
-        "com.android.base", "com.android.library", "com.android.dynamic-feature", "com.android.feature")
-      val compileReplacement = when {
-        !model.android().dynamicFeatures().toList().isNullOrEmpty() -> "api"
-        pluginSet.intersect(applicationSet).isNotEmpty() -> "implementation"
-        pluginSet.intersect(librarySet).isNotEmpty() -> "api"
-        else -> return@model
-      }
-
-      model.dependencies().all()
-        .forEach { dependency ->
-          val psiElement = dependency.psiElement ?: model.dependencies().psiElement ?: modelPsiElement
-          maybeAddUsageForDependency(dependency, compileReplacement, psiElement)
-        }
-      // Although there might be a buildscript with dependencies, those dependencies cannot be added to a compile/runtime configuration
-      // out of the box -- and if somehow a user manages to configure things to have compile/runtime configurations there, there's no
-      // guarantee that they mean the same as the deprecated gradle ones.
-      model.configurations().all()
-        .forEach { configuration ->
-          // this PsiElement is used for displaying in the refactoring preview window, rather than for performing the refactoring; it is
-          // therefore appropriate and safe to pass a notional parent Psi if the element is not (yet) on file.
-          // TODO(b/159597456): here and elsewhere, encode this hierarchical logic more declaratively.
-          val psiElement = configuration.psiElement ?: model.configurations().psiElement ?: modelPsiElement
-          maybeAddUsageForConfiguration(configuration, compileReplacement, psiElement)
-        }
-    }
-    return usages.toTypedArray()
-  }
-
-  override fun getReadMoreUrl(): String? = "https://developer.android.com/r/tools/upgrade-assistant/compile-runtime-configuration"
-
-  override fun getShortDescription(): String? = let {
-    val mandatory = necessity().let { it == MANDATORY_CODEPENDENT || it == MANDATORY_INDEPENDENT }
-    if (mandatory)
-      """
-        Some dependencies have been added to configurations which have been
-        removed.  Those configurations must be replaced with their updated
-        equivalents.
-      """.trimIndent()
-    else
-      """
-        Some dependencies have been added to configurations which have been
-        deprecated.  Those configurations should be replaced with their
-        updated equivalents.
-      """.trimIndent()
-  }
-
-
-  override fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder =
-    builder.setKind(COMPILE_RUNTIME_CONFIGURATION)
-
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
-    return object : UsageViewDescriptorAdapter() {
-      override fun getElements(): Array<PsiElement> = PsiElement.EMPTY_ARRAY
-
-      override fun getProcessedElementsHeader(): String = AndroidBundle.message("project.upgrade.compileRuntimeConfigurationRefactoringProcessor.usageView.header")
-    }
-  }
-
-  override fun getRefactoringId(): String = "com.android.tools.agp.upgrade.CompileRuntimeConfiguration"
-
-  override fun getCommandName(): String = AndroidBundle.message("project.upgrade.compileRuntimeConfigurationRefactoringProcessor.commandName")
-
-  companion object {
-    val IMPLEMENTATION_API_INTRODUCED = GradleVersion.parse("3.1.0")
-    val COMPILE_REMOVED = GradleVersion.parse("7.0.0-alpha03")
-
-    val RENAME_CONFIGURATION_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.compileRuntimeConfigurationRefactoringProcessor.renameConfigurationUsageType"))
-    val CHANGE_DEPENDENCY_CONFIGURATION_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.compileRuntimeConfigurationRefactoringProcessor.changeDependencyConfigurationUsageType"))
-  }
-}
-
-class ObsoleteConfigurationDependencyUsageInfo(
-  element: WrappedPsiElement,
-  private val dependency: DependencyModel,
-  private val newConfigurationName: String
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    dependency.setConfigurationName(newConfigurationName)
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.obsoleteConfigurationDependencyUsageInfo.tooltipText", dependency.configurationName(), newConfigurationName)
-
-  override fun getDiscriminatingValues(): List<Any> = listOf(dependency, newConfigurationName)
-}
-
-class ObsoleteConfigurationConfigurationUsageInfo(
-  element: WrappedPsiElement,
-  private val configuration: ConfigurationModel,
-  private val newConfigurationName: String
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    configuration.rename(newConfigurationName)
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.obsoleteConfigurationConfigurationUsageInfo.tooltipText", configuration.name(), newConfigurationName)
-
-  override fun getDiscriminatingValues(): List<Any> = listOf(configuration, newConfigurationName)
-}
-
-class FabricCrashlyticsRefactoringProcessor : AgpUpgradeComponentRefactoringProcessor {
-  constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project, current, new)
-  constructor(processor: AgpUpgradeRefactoringProcessor): super(processor)
-
-  override fun necessity() = standardRegionNecessity(current, new, COMPATIBLE_WITH, INCOMPATIBLE_VERSION)
-
-  override fun findComponentUsages(): Array<out UsageInfo> {
-    val usages = ArrayList<UsageInfo>()
-    projectBuildModel.allIncludedBuildModels.forEach model@{ model ->
-      val modelPsiElement = model.psiElement ?: return@model
-
-      // ref. https://firebase.google.com/docs/crashlytics/upgrade-sdk?platform=android Step 2.1:
-      // - Replace Fabric's Maven repository with Google's Maven repository.
-      // - Replace the Fabric Gradle plugin with the Firebase Crashlytics Gradle plugin.
-      run {
-        var hasGoogleServices = false
-        var hasFirebaseCrashlytics = false
-        var seenFabricCrashlytics = false
-        val dependencies = model.buildscript().dependencies()
-        val dependenciesOrHigherPsiElement = dependencies.psiElement ?: model.buildscript().psiElement ?: modelPsiElement
-        dependencies.artifacts(CLASSPATH).forEach dep@{ dep ->
-          when {
-            dep.spec.group == "com.google.gms" && dep.spec.name == "google-services" -> hasGoogleServices = true
-            dep.spec.group == "com.google.firebase" && dep.spec.name == "firebase-crashlytics-gradle" -> hasFirebaseCrashlytics = true
-            dep.spec.group == "io.fabric.tools" && dep.spec.name == "gradle" -> {
-              // remove the dependency on the Fabric Gradle plugin
-              val psiElement = dep.psiElement ?: dependenciesOrHigherPsiElement
-              val wrappedPsiElement = WrappedPsiElement(psiElement, this, REMOVE_FABRIC_CLASSPATH_USAGE_TYPE)
-              val usageInfo = RemoveFabricClasspathDependencyUsageInfo(wrappedPsiElement, dependencies, dep)
-              usages.add(usageInfo)
-              seenFabricCrashlytics = true
-            }
-          }
-        }
-        if (seenFabricCrashlytics) {
-          // if we are a project that currently declares a dependency on io.fabric.tools:gradle (the Fabric Gradle plugin) ...
-          if (!hasGoogleServices) {
-            // ... if we don't have Google Services already, add it
-            val wrappedPsiElement = WrappedPsiElement(dependenciesOrHigherPsiElement, this, ADD_GOOGLE_SERVICES_CLASSPATH_USAGE_TYPE)
-            val usageInfo = AddGoogleServicesClasspathDependencyUsageInfo(wrappedPsiElement, dependencies)
-            usages.add(usageInfo)
-          }
-          if (!hasFirebaseCrashlytics) {
-            // ... if we don't have Firebase Crashlytics already
-            val wrappedPsiElement = WrappedPsiElement(dependenciesOrHigherPsiElement, this, ADD_FIREBASE_CRASHLYTICS_CLASSPATH_USAGE_TYPE)
-            val usageInfo = AddFirebaseCrashlyticsClasspathDependencyUsageInfo(wrappedPsiElement, dependencies)
-            usages.add(usageInfo)
-          }
-        }
-
-        var seenFabricMavenRepository = false
-        val repositories = model.buildscript().repositories()
-        val repositoriesOrHigherPsiElement = repositories.psiElement ?: model.buildscript().psiElement ?: modelPsiElement
-        repositories.repositories().filterIsInstance(MavenRepositoryModel::class.java).forEach repo@{ repo ->
-          if (repo.url().forceString().startsWith("https://maven.fabric.io/public")) {
-            val psiElement = repo.psiElement ?: repositoriesOrHigherPsiElement
-            val wrappedPsiElement = WrappedPsiElement(psiElement, this, REMOVE_FABRIC_REPOSITORY_USAGE_TYPE)
-            val usageInfo = RemoveFabricMavenRepositoryUsageInfo(wrappedPsiElement, repositories, repo)
-            usages.add(usageInfo)
-            seenFabricMavenRepository = true
-          }
-        }
-        if (seenFabricMavenRepository && !repositories.hasGoogleMavenRepository()) {
-          // TODO(xof): in theory this could collide with the refactoring to add google() to pre-3.0.0 projects.  In practice there's
-          //  probably little overlap in fabric upgrades with such old projects.
-          val compatibleGradleVersion = AgpGradleVersionRefactoringProcessor.getCompatibleGradleVersion(new)
-          val wrappedPsiElement = WrappedPsiElement(repositoriesOrHigherPsiElement, this, ADD_GMAVEN_REPOSITORY_USAGE_TYPE)
-          val usageInfo = AddGoogleMavenRepositoryUsageInfo(wrappedPsiElement, repositories, compatibleGradleVersion.version)
-          usages.add(usageInfo)
-        }
-      }
-
-      // ref. https://firebase.google.com/docs/crashlytics/upgrade-sdk?platform=android Step 2.2
-      // - In your app-level build.gradle, replace the Fabric plugin with the Firebase Crashlytics plugin.
-      run {
-        val pluginsOrHigherPsiElement = model.pluginsPsiElement ?: modelPsiElement
-        var seenFabricPlugin = false
-        var seenGoogleServicesPlugin = false
-        model.plugins().forEach { plugin ->
-          when (plugin.name().forceString()) {
-            "com.google.gms.google-services" -> seenGoogleServicesPlugin = true
-            "io.fabric" -> {
-              val psiElement = plugin.psiElement ?: pluginsOrHigherPsiElement
-              val wrappedPsiElement = WrappedPsiElement(psiElement, this, REPLACE_FABRIC_PLUGIN_USAGE_TYPE)
-              val usageInfo = ReplaceFabricPluginUsageInfo(wrappedPsiElement, plugin)
-              usages.add(usageInfo)
-              seenFabricPlugin = true
-            }
-          }
-        }
-        if (seenFabricPlugin && !seenGoogleServicesPlugin) {
-          val wrappedPsiElement = WrappedPsiElement(pluginsOrHigherPsiElement, this, APPLY_GOOGLE_SERVICES_PLUGIN_USAGE_TYPE)
-          val usageInfo = ApplyGoogleServicesPluginUsageInfo(wrappedPsiElement, model)
-          usages.add(usageInfo)
-        }
-      }
-
-      run {
-        val dependencies = model.dependencies()
-        val dependenciesOrHigherPsiElement = dependencies.psiElement ?: modelPsiElement
-
-        // ref. https://firebase.google.com/docs/crashlytics/upgrade-sdk?platform=android Step 2.3
-        // - In your app-level build.gradle, replace the legacy Fabric Crashlytics SDK with the new Firebase Crashlytics SDK.
-        //   Make sure you add version 17.0.0 or later (beginning November 15, 2020, this is required for your crash reports to appear
-        //   in the Firebase console).
-        run {
-          var seenFabricSdk = false
-          var seenFirebaseSdk = false
-          var seenGoogleAnalyticsSdk = false
-          dependencies.artifacts().forEach dep@{ dep ->
-            when {
-              dep.spec.group == "com.crashlytics.sdk.android" && dep.spec.name == "crashlytics" -> {
-                val psiElement = dep.psiElement ?: dependenciesOrHigherPsiElement
-                val wrappedPsiElement = WrappedPsiElement(psiElement, this, REMOVE_FABRIC_CRASHLYTICS_SDK_USAGE_TYPE)
-                val usageInfo = RemoveFabricCrashlyticsSdkUsageInfo(wrappedPsiElement, dependencies, dep)
-                usages.add(usageInfo)
-                seenFabricSdk = true
-              }
-              dep.spec.group == "com.google.firebase" && dep.spec.name == "firebase-crashlytics" -> seenFirebaseSdk = true
-              dep.spec.group == "com.google.firebase" && dep.spec.name == "google-analytics" -> seenGoogleAnalyticsSdk = true
-            }
-          }
-          // if we currently depend on the Fabric SDK ...
-          if (seenFabricSdk) {
-            // ... insert a dependency on the Firebase Crashlytics SDK, if not already present ...
-            if (!seenFirebaseSdk) {
-              val wrappedPsiElement = WrappedPsiElement(dependenciesOrHigherPsiElement, this, ADD_FIREBASE_CRASHLYTICS_SDK_USAGE_TYPE)
-              val usageInfo = AddFirebaseCrashlyticsSdkUsageInfo(wrappedPsiElement, dependencies)
-              usages.add(usageInfo)
-            }
-            // ... and insert a dependency on the Google Analytics SDK, as recommended.
-            if (!seenGoogleAnalyticsSdk) {
-              val wrappedPsiElement = WrappedPsiElement(dependenciesOrHigherPsiElement, this, ADD_GOOGLE_ANALYTICS_SDK_USAGE_TYPE)
-              val usageInfo = AddGoogleAnalyticsSdkUsageInfo(wrappedPsiElement, dependencies)
-              usages.add(usageInfo)
-            }
-          }
-        }
-
-        // ref. https://firebase.google.com/docs/crashlytics/upgrade-sdk?platform=android Optional Step: Set up Ndk crash reporting
-        // - only done if crashlytics.enableNdk is present and enabled in the current project.
-        // - In your app-level build.gradle, replace the Fabric NDK dependency with the Firebase Crashlytics NDK dependency. Then,
-        //   add the firebaseCrashlytics extension and make sure to enable the nativeSymbolUploadEnabled flag.
-        run {
-          if (model.crashlytics().enableNdk().getValue(BOOLEAN_TYPE) == true) {
-            // if enableNdk is true (not false or null/non-existent), remove it ...
-            run {
-              val psiElement = model.crashlytics().enableNdk().psiElement ?: model.crashlytics().psiElement ?: modelPsiElement
-              val wrappedPsiElement = WrappedPsiElement(psiElement, this, REMOVE_CRASHLYTICS_ENABLE_NDK_USAGE_TYPE)
-              val usageInfo = RemoveCrashlyticsEnableNdkUsageInfo(wrappedPsiElement, model)
-              usages.add(usageInfo)
-            }
-            // ... turn on native symbol upload for the `release` buildType ...
-            run {
-              val releaseBuildType = model.android().buildTypes().first { it.name() == "release" }
-              val psiElement = releaseBuildType.psiElement ?: model.android().psiElement ?: modelPsiElement
-              val wrappedPsiElement = WrappedPsiElement(psiElement, this, ADD_FIREBASE_CRASHLYTICS_NATIVE_SYMBOL_UPLOAD_USAGE_TYPE)
-              val usageInfo = AddBuildTypeFirebaseCrashlyticsUsageInfo(wrappedPsiElement, releaseBuildType)
-              usages.add(usageInfo)
-            }
-          }
-
-          // replace the Fabric NDK dependency with the Firebase Crashlytics NDK dependency
-          var seenFabricNdk = false
-          var seenFirebaseCrashlyticsNdk = false
-          dependencies.artifacts().forEach dep@{ dep ->
-            when {
-              dep.spec.group == "com.crashlytics.sdk.android" && dep.spec.name == "crashlytics-ndk" -> {
-                val psiElement = dep.psiElement ?: dependenciesOrHigherPsiElement
-                val wrappedPsiElement = WrappedPsiElement(psiElement, this, REMOVE_FABRIC_NDK_USAGE_TYPE)
-                val usageInfo = RemoveFabricNdkUsageInfo(wrappedPsiElement, dependencies, dep)
-                usages.add(usageInfo)
-                seenFabricNdk = true
-              }
-              dep.spec.group == "com.google.firebase" && dep.spec.name == "firebase-crashlytics-ndk" -> seenFirebaseCrashlyticsNdk = true
-            }
-          }
-          if (seenFabricNdk && !seenFirebaseCrashlyticsNdk) {
-            val wrappedPsiElement = WrappedPsiElement(dependenciesOrHigherPsiElement, this, ADD_FIREBASE_CRASHLYTICS_NDK_USAGE_TYPE)
-            val usageInfo = AddFirebaseCrashlyticsNdkUsageInfo(wrappedPsiElement, dependencies)
-            usages.add(usageInfo)
-          }
-        }
-      }
-    }
-    return usages.toTypedArray()
-  }
-
-  override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
-    return object : UsageViewDescriptorAdapter() {
-      override fun getElements(): Array<PsiElement> {
-        return PsiElement.EMPTY_ARRAY
-      }
-
-      override fun getProcessedElementsHeader() = AndroidBundle.message("project.upgrade.fabricCrashlyticsRefactoringProcessor.usageView.header")
-    }
-  }
-
-  override fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder =
-    builder.setKind(FABRIC_CRASHLYTICS)
-
-  override fun getCommandName(): String = AndroidBundle.message("project.upgrade.fabricCrashlyticsRefactoringProcessor.commandName")
-
-  override fun getShortDescription() =
-    """
-       The Fabric SDK is no longer supported as of November 15, 2020.
-    """.trimIndent()
-
-  override fun getReadMoreUrl(): String? = "https://firebase.google.com/docs/crashlytics/upgrade-sdk?platform=android"
-
-  companion object {
-    val COMPATIBLE_WITH = GradleVersion.parse("3.4.0")
-    val INCOMPATIBLE_VERSION = GradleVersion.parse("4.1.0-alpha05") // see b/154302886
-
-    val REMOVE_FABRIC_REPOSITORY_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.removeFabricRepositoryUsageType"))
-    val ADD_GMAVEN_REPOSITORY_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.addGmavenRepositoryUsageType"))
-
-    val REMOVE_FABRIC_CLASSPATH_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.removeFabricClasspathUsageType"))
-    val ADD_GOOGLE_SERVICES_CLASSPATH_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.addGoogleServicesClasspathUsageType"))
-    val ADD_FIREBASE_CRASHLYTICS_CLASSPATH_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.addFirebaseCrashlyticsClasspathUsageType"))
-
-    val REPLACE_FABRIC_PLUGIN_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.replaceFabricPluginUsageType"))
-    val APPLY_GOOGLE_SERVICES_PLUGIN_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.applyGoogleServicesPluginUsageType"))
-
-    val REMOVE_FABRIC_CRASHLYTICS_SDK_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.removeFabricCrashlyticsSdkUsageType"))
-    val ADD_FIREBASE_CRASHLYTICS_SDK_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.addFirebaseCrashlyticsSdkUsageType"))
-    val ADD_GOOGLE_ANALYTICS_SDK_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.addGoogleAnalyticsSdkUsageType"))
-
-    val REMOVE_FABRIC_NDK_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.removeFabricNdkUsageType"))
-    val ADD_FIREBASE_CRASHLYTICS_NDK_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.addFirebaseCrashlyticsNdkUsageType"))
-    val REMOVE_CRASHLYTICS_ENABLE_NDK_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.removeCrashlyticsEnableNdkUsageType"))
-    val ADD_FIREBASE_CRASHLYTICS_NATIVE_SYMBOL_UPLOAD_USAGE_TYPE = UsageType(AndroidBundle.messagePointer("project.upgrade.fabricCrashlyticsRefactoringProcessor.addFirebaseCrashlyticsNativeSymbolUploadUsageType"))
-  }
-}
-
-class RemoveFabricMavenRepositoryUsageInfo(
-  element: WrappedPsiElement,
-  private val repositories: RepositoriesModel,
-  private val repository: RepositoryModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    repositories.removeRepository(repository)
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.removeFabricMavenRepositoryUsageInfo.tooltipText")
-}
-
-// TODO(xof): investigate unifying this with the NoGMavenUsageInfo class above
-
-class AddGoogleMavenRepositoryUsageInfo(
-  element: WrappedPsiElement,
-  private val repositories: RepositoriesModel,
-  private val gradleVersion: GradleVersion
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    repositories.addGoogleMavenRepository(gradleVersion)
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.addGoogleMavenRepositoryUsageInfo.tooltipText")
-}
-
-class RemoveFabricClasspathDependencyUsageInfo(
-  element: WrappedPsiElement,
-  private val dependencies: DependenciesModel,
-  private val dependency: DependencyModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    dependencies.remove(dependency)
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.removeFabricClasspathDependencyUsageInfo.tooltipText")
-}
-
-class AddGoogleServicesClasspathDependencyUsageInfo(
-  element: WrappedPsiElement,
-  private val dependencies: DependenciesModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    // TODO(xof): how to find the current version?  Or the version contemporaneous with this AGP/Studio?
-    dependencies.addArtifact("classpath", "com.google.gms:google-services:4.3.3")
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.addGoogleServicesClasspathDependencyUsageInfo.tooltipText")
-}
-
-class AddFirebaseCrashlyticsClasspathDependencyUsageInfo(
-  element: WrappedPsiElement,
-  private val dependencies: DependenciesModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    // TODO(xof): how to find the current version?  Or the version contemporaneous with this AGP/Studio?
-    dependencies.addArtifact("classpath", "com.google.firebase:firebase-crashlytics-gradle:2.3.0")
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.addFirebaseCrashlyticsClasspathDependencyUsageInfo.tooltipText")
-}
-
-class ReplaceFabricPluginUsageInfo(
-  element: WrappedPsiElement,
-  private val plugin: PluginModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    plugin.name().setValue("com.google.firebase.crashlytics")
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.replaceFabricPluginUsageInfo.tooltipText")
-}
-
-class ApplyGoogleServicesPluginUsageInfo(
-  element: WrappedPsiElement,
-  private val model: GradleBuildModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    model.applyPlugin("com.google.gms.google-services")
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.applyGoogleServicesPluginUsageInfo.tooltipText")
-}
-
-class RemoveFabricCrashlyticsSdkUsageInfo(
-  element: WrappedPsiElement,
-  private val dependencies: DependenciesModel,
-  private val dependency: DependencyModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    dependencies.remove(dependency)
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.removeFabricCrashlyticsSdkUsageInfo.tooltipText")
-}
-
-class AddFirebaseCrashlyticsSdkUsageInfo(
-  element: WrappedPsiElement,
-  private val dependencies: DependenciesModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    dependencies.addArtifact("implementation", "com.google.firebase:firebase-crashlytics:17.2.1")
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.addFirebaseCrashlyticsSdkUsageInfo.tooltipText")
-}
-
-class AddGoogleAnalyticsSdkUsageInfo(
-  element: WrappedPsiElement,
-  private val dependencies: DependenciesModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    dependencies.addArtifact("implementation", "com.google.firebase:firebase-analytics:17.5.0")
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.addGoogleAnalyticsSdkUsageInfo.tooltipText")
-}
-
-class RemoveFabricNdkUsageInfo(
-  element: WrappedPsiElement,
-  private val dependencies: DependenciesModel,
-  private val dependency: DependencyModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    dependencies.remove(dependency)
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.removeFabricNdkUsageInfo.tooltipText")
-}
-
-class AddFirebaseCrashlyticsNdkUsageInfo(
-  element: WrappedPsiElement,
-  private val dependencies: DependenciesModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    dependencies.addArtifact("implementation", "com.google.firebase:firebase-crashlytics-ndk:17.2.1")
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.addFirebaseCrashlyticsNdkUsageInfo.tooltipText")
-}
-
-class RemoveCrashlyticsEnableNdkUsageInfo(
-  element: WrappedPsiElement,
-  private val model: GradleBuildModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    model.crashlytics().enableNdk().delete()
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.removeCrashlyticsEnableNdkUsageInfo.tooltipText")
-}
-
-class AddBuildTypeFirebaseCrashlyticsUsageInfo(
-  element: WrappedPsiElement,
-  private val buildType: BuildTypeModel
-) : GradleBuildModelUsageInfo(element) {
-  override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
-    buildType.firebaseCrashlytics().nativeSymbolUploadEnabled().setValue(true)
-  }
-
-  override fun getTooltipText(): String = AndroidBundle.message("project.upgrade.addBuildTypeFirebaseCrashlyticsUsageInfo.tooltipText")
-}
-
 interface PropertiesOperationInfo {
   fun findBuildModelUsages(processor: AgpUpgradeComponentRefactoringProcessor, buildModel: GradleBuildModel): ArrayList<UsageInfo>
 }
@@ -2090,7 +849,7 @@ data class PropertiesOperationsRefactoringInfo(
 
     override fun getCommandName(): String = commandNameSupplier.get()
 
-    override fun getShortDescription(): String? = shortDescriptionSupplier?.get()
+    override fun getShortDescription(): String? = shortDescriptionSupplier.get()
 
     override fun completeComponentInfo(builder: UpgradeAssistantComponentInfo.Builder): UpgradeAssistantComponentInfo.Builder =
       builder.setKind(componentKind)
@@ -2168,36 +927,6 @@ data class MovePropertiesInfo(
   }
 }
 
-val VIEW_BINDING_ENABLED_INFO = MovePropertiesInfo(
-  sourceToDestinationPropertyModelGetters = listOf(
-    Pair({ android().viewBinding().enabled() }, { android().buildFeatures().viewBinding() }),
-  ),
-  tooltipTextSupplier = AndroidBundle.messagePointer("project.upgrade.viewBindingEnabledUsageInfo.tooltipText"),
-  usageType = UsageType(AndroidBundle.messagePointer("project.upgrade.migrateToBuildFeaturesRefactoringProcessor.viewBindingEnabledUsageType"))
-)
-
-val DATA_BINDING_ENABLED_INFO = MovePropertiesInfo(
-  sourceToDestinationPropertyModelGetters = listOf(
-    Pair({ android().dataBinding().enabled() }, { android().buildFeatures().dataBinding() }),
-  ),
-  tooltipTextSupplier = AndroidBundle.messagePointer("project.upgrade.dataBindingEnabledUsageInfo.tooltipText"),
-  usageType = UsageType(AndroidBundle.messagePointer("project.upgrade.migrateToBuildFeaturesRefactoringProcessor.dataBindingEnabledUsageType"))
-)
-
-val MIGRATE_TO_BUILD_FEATURES_INFO = PropertiesOperationsRefactoringInfo(
-  optionalFromVersion = GradleVersion.parse("4.0.0-alpha05"),
-  requiredFromVersion = GradleVersion.parse("7.0.0"),
-  commandNameSupplier = AndroidBundle.messagePointer("project.upgrade.migrateToBuildFeaturesRefactoringProcessor.commandName"),
-  shortDescriptionSupplier = { """
-    The viewBinding and dataBinding features used to be enabled using
-    a flag in their respective blocks; they are now enabled using an
-    equivalent flag in the buildFeatures block.
-  """.trimIndent() },
-  processedElementsHeaderSupplier = AndroidBundle.messagePointer("project.upgrade.migrateToBuildFeaturesRefactoringProcessor.usageView.header"),
-  componentKind = MIGRATE_TO_BUILD_FEATURES,
-  propertiesOperationInfos = listOf(DATA_BINDING_ENABLED_INFO, VIEW_BINDING_ENABLED_INFO)
-)
-
 data class RemovePropertiesInfo(
   val propertyModelListGetter: GradleBuildModel.() -> List<DeletablePsiElementHolder>,
   val tooltipTextSupplier: Supplier<String>,
@@ -2233,76 +962,43 @@ data class RemovePropertiesInfo(
   }
 }
 
-val SOURCE_SET_JNI_INFO = RemovePropertiesInfo(
-  propertyModelListGetter = { android().sourceSets().map { sourceSet -> sourceSet.jni() } },
-  tooltipTextSupplier = AndroidBundle.messagePointer("project.upgrade.sourceSetJniUsageInfo.tooltipText"),
-  usageType = UsageType(AndroidBundle.messagePointer("project.upgrade.sourceSetJniUsageInfo.usageType"))
-)
+data class RewriteObsoletePropertiesInfo(
+  val propertyModelListGetter: GradleBuildModel.() -> List<ResolvedPropertyModel>,
+  val tooltipTextSupplier: Supplier<String>,
+  val usageType: UsageType,
+): PropertiesOperationInfo {
 
-val REMOVE_SOURCE_SET_JNI_INFO = PropertiesOperationsRefactoringInfo(
-  optionalFromVersion = GradleVersion.parse("7.0.0-alpha06"),
-  requiredFromVersion = GradleVersion.parse("8.0.0"),
-  commandNameSupplier = AndroidBundle.messagePointer("project.upgrade.removeSourceSetJniRefactoringProcessor.commandName"),
-  shortDescriptionSupplier = { """
-    The jni block in an android sourceSet does nothing, and will be removed
-    in Android Gradle Plugin version 8.0.0.
-  """.trimIndent() },
-  processedElementsHeaderSupplier = AndroidBundle.messagePointer("project.upgrade.removeSourceSetJniRefactoringProcessor.usageView.header"),
-  componentKind = REMOVE_SOURCE_SET_JNI,
-  propertiesOperationInfos = listOf(SOURCE_SET_JNI_INFO)
-)
+  override fun findBuildModelUsages(
+    processor: AgpUpgradeComponentRefactoringProcessor,
+    buildModel: GradleBuildModel
+  ): ArrayList<UsageInfo> {
+    val usages = ArrayList<UsageInfo>()
+    buildModel.(propertyModelListGetter)().forEach property@{ property ->
+      val ok = property.rawElement?.modelEffect?.versionConstraint?.isOkWith(null) ?: return@property
+      if (!ok) {
+        val psiElement = property.psiElement ?: return@property
+        val wrappedPsiElement = WrappedPsiElement(psiElement, processor, usageType)
+        val usageInfo = RewritePropertyUsageInfo(wrappedPsiElement, property)
+        usages.add(usageInfo)
+      }
+    }
+    return usages
+  }
 
-val MIGRATE_AAPT_OPTIONS_TO_ANDROID_RESOURCES =
-  PropertiesOperationsRefactoringInfo(
-    optionalFromVersion = GradleVersion.parse("7.0.0-alpha08"),
-    requiredFromVersion = GradleVersion.parse("8.0.0"),
-    commandNameSupplier = AndroidBundle.messagePointer("project.upgrade.migrateToAndroidResourcesRefactoringProcessor.commandName"),
-    shortDescriptionSupplier = { """
-      Configuration related to Android assets and other resources is
-      now performed using the androidResources block.
-    """.trimIndent() },
-    processedElementsHeaderSupplier = AndroidBundle.messagePointer("project.upgrade.migrateToAndroidResourcesRefactoringProcessor.usageView.header"),
-    componentKind = MIGRATE_TO_ANDROID_RESOURCES,
-    propertiesOperationInfos = listOf(
-      MovePropertiesInfo(
-        sourceToDestinationPropertyModelGetters = listOf(
-          Pair({ android().aaptOptions().ignoreAssets() }, { android().androidResources().ignoreAssets() }),
-          Pair({ android().aaptOptions().noCompress() }, { android().androidResources().noCompress() }),
-          Pair({ android().aaptOptions().failOnMissingConfigEntry() }, { android().androidResources().failOnMissingConfigEntry() }),
-          Pair({ android().aaptOptions().additionalParameters() }, { android().androidResources().additionalParameters() }),
-          Pair({ android().aaptOptions().namespaced() }, { android().androidResources().namespaced() }),
-        ),
-        tooltipTextSupplier = AndroidBundle.messagePointer("project.upgrade.androidResourcesUsageInfo.move.tooltipText"),
-        usageType = UsageType(AndroidBundle.messagePointer("project.upgrade.migrateToAndroidResourcesRefactoringProcessor.move.usageType"))
-      ),
-      RemovePropertiesInfo(
-        propertyModelListGetter = { listOf(android().aaptOptions()) },
-        tooltipTextSupplier = AndroidBundle.messagePointer("project.upgrade.androidResourcesUsageInfo.remove.tooltipText"),
-        usageType = UsageType(AndroidBundle.messagePointer("project.upgrade.migrateToAndroidResourcesRefactoringProcessor.remove.usageType")),
-      )
-    )
-  )
+  inner class RewritePropertyUsageInfo(
+    element: WrappedPsiElement,
+    val model: ResolvedPropertyModel,
+  ): GradleBuildModelUsageInfo(element) {
 
-val BUILD_TYPE_USE_PROGUARD_INFO = RemovePropertiesInfo(
-  propertyModelListGetter = { android().buildTypes().map { buildType -> buildType.useProguard() } },
-  tooltipTextSupplier = { "remove useProguard setting" },
-  usageType = UsageType("remove useProguard setting")
-)
+    override fun performBuildModelRefactoring(processor: GradleBuildModelRefactoringProcessor) {
+      model.rewrite()
+    }
 
-val REMOVE_BUILD_TYPE_USE_PROGUARD_INFO = PropertiesOperationsRefactoringInfo(
-  optionalFromVersion = GradleVersion.parse("3.5.0"),
-  requiredFromVersion = GradleVersion.parse("7.0.0-alpha14"),
-  commandNameSupplier = { "Remove buildType useProguard setting" },
-  shortDescriptionSupplier = { """
-    The useProguard setting for build types is not supported in Android
-    Gradle Plugin version 7.0.0 and higher; from that version the R8 minifier
-    is used unconditionally.
-  """.trimIndent()},
-  processedElementsHeaderSupplier = { "Remove buildType useProguard setting" },
-  componentKind = REMOVE_BUILD_TYPE_USE_PROGUARD,
-  propertiesOperationInfos = listOf(BUILD_TYPE_USE_PROGUARD_INFO)
-)
+    override fun getTooltipText(): String = tooltipTextSupplier.get()
 
+    override fun getDiscriminatingValues(): List<Any> = listOf(this@RewriteObsoletePropertiesInfo)
+  }
+}
 /**
  * Usage Types for usages coming from [AgpUpgradeComponentRefactoringProcessor]s.
  *
@@ -2311,8 +1007,7 @@ val REMOVE_BUILD_TYPE_USE_PROGUARD_INFO = PropertiesOperationsRefactoringInfo(
  * a high-level description of the effect the refactoring will have on this usage.
  */
 class AgpComponentUsageTypeProvider : UsageTypeProvider {
-  override fun getUsageType(element: PsiElement): UsageType? =
-    if (StudioFlags.AGP_UPGRADE_ASSISTANT.get()) (element as? WrappedPsiElement)?.usageType else null
+  override fun getUsageType(element: PsiElement): UsageType? = (element as? WrappedPsiElement)?.usageType
 }
 
 /**
@@ -2324,11 +1019,18 @@ class AgpComponentUsageTypeProvider : UsageTypeProvider {
  * Currently, the difference between these messages is simply that the Processor reports on the state of all its
  * Components, while each Component reports only on itself.
  */
-internal fun AgpUpgradeRefactoringProcessor.trackProcessorUsage(kind: UpgradeAssistantEventKind, usages: Int? = null) {
+internal fun AgpUpgradeRefactoringProcessor.trackProcessorUsage(
+  kind: UpgradeAssistantEventKind,
+  usages: Int? = null,
+  files: Int? = null,
+) {
   val processorEvent = UpgradeAssistantProcessorEvent.newBuilder()
     .setUpgradeUuid(uuid)
     .setCurrentAgpVersion(current.toString()).setNewAgpVersion(new.toString())
-    .setEventInfo(UpgradeAssistantEventInfo.newBuilder().setKind(kind).apply { usages?.let { setUsages(it) } }.build())
+    .setEventInfo(UpgradeAssistantEventInfo.newBuilder().setKind(kind)
+                    .apply { usages?.let { setUsages(it) } }
+                    .apply { files?.let { setFiles(it) } }
+                    .build())
   processorEvent.addComponentInfo(classpathRefactoringProcessor.getComponentInfo())
   componentRefactoringProcessors.forEach {
     processorEvent.addComponentInfo(it.getComponentInfo())
@@ -2341,12 +1043,16 @@ internal fun AgpUpgradeRefactoringProcessor.trackProcessorUsage(kind: UpgradeAss
   UsageTracker.log(studioEvent)
 }
 
-private fun AgpUpgradeComponentRefactoringProcessor.trackComponentUsage(kind: UpgradeAssistantEventKind, usages: Int) {
+private fun AgpUpgradeComponentRefactoringProcessor.trackComponentUsage(
+  kind: UpgradeAssistantEventKind,
+  usages: Int,
+  files: Int,
+) {
   val componentEvent = UpgradeAssistantComponentEvent.newBuilder()
     .setUpgradeUuid(uuid)
     .setCurrentAgpVersion(current.toString()).setNewAgpVersion(new.toString())
     .setComponentInfo(getComponentInfo().build())
-    .setEventInfo(UpgradeAssistantEventInfo.newBuilder().setKind(kind).setUsages(usages).build())
+    .setEventInfo(UpgradeAssistantEventInfo.newBuilder().setKind(kind).setUsages(usages).setFiles(files).build())
     .build()
   val studioEvent = AndroidStudioEvent.newBuilder()
     .setCategory(PROJECT_SYSTEM).setKind(UPGRADE_ASSISTANT_COMPONENT_EVENT).withProjectId(project)

@@ -16,7 +16,19 @@
 package com.android.tools.idea.uibuilder.property.ui;
 
 import com.android.tools.adtui.common.StudioColorsKt;
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Desktop;
+import java.awt.FontMetrics;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Paint;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Stroke;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
@@ -25,7 +37,10 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Vector;
 import javax.imageio.ImageIO;
-import javax.swing.*;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
 
 public class GraphBase extends JPanel {
   int myInsTop = 30;
@@ -47,7 +62,7 @@ public class GraphBase extends JPanel {
   private static Color ourEndPointColor  = StudioColorsKt.getContentSelectionBackground();
 
   private static Stroke ourStroke = new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_BEVEL);
-  Vector<DrawItem> myDrawItems = new Vector<DrawItem>();
+  Vector<DrawItem> myDrawItems = new Vector<>();
   private int[] pointMode = new int[0];
 
   void waveGen(int base) {

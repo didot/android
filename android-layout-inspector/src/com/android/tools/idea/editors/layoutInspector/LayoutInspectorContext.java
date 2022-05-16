@@ -63,7 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
-import javax.swing.*;
+import javax.swing.JMenuItem;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.TreePath;
@@ -406,8 +406,8 @@ public class LayoutInspectorContext implements Disposable, DataProvider, ViewNod
   private static void createNotification(@NotNull String message, @NotNull NotificationType type) {
     new Notification(
       NotificationGroup.createIdWithTitle("Layout Inspector", AndroidBundle.message("android.ddms.actions.layoutinspector.notification.group")),
-      AndroidBundle.message("android.ddms.actions.layoutinspector.notification.title"), message, type
-    ).notify(null);
+                                              AndroidBundle.message("android.ddms.actions.layoutinspector.notification.title"),
+                                              message, type).notify(null);
   }
 
   private class RenderSubtreePreviewActionListener implements ActionListener {

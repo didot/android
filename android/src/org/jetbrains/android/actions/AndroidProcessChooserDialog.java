@@ -57,7 +57,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.swing.*;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTree;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
@@ -182,7 +186,7 @@ public class AndroidProcessChooserDialog extends DialogWrapper {
       }
     };
 
-    FutureCallback<DeviceNameProperties> callback = new FutureCallback<DeviceNameProperties>() {
+    FutureCallback<DeviceNameProperties> callback = new FutureCallback<>() {
       @Override
       public void onSuccess(@Nullable DeviceNameProperties properties) {
         updateTree();
@@ -365,7 +369,7 @@ public class AndroidProcessChooserDialog extends DialogWrapper {
       }
     }
 
-    ArrayList<AndroidDebugger> androidDebuggers = Lists.newArrayList();
+    ArrayList<AndroidDebugger> androidDebuggers = new ArrayList<>();
     for (AndroidDebugger androidDebugger : AndroidDebugger.EP_NAME.getExtensions()) {
       if (!androidDebugger.supportsProject(myProject)) {
         continue;
@@ -550,7 +554,7 @@ public class AndroidProcessChooserDialog extends DialogWrapper {
   @NotNull
   private static Set<String> collectAllProcessNames(Project project) {
     final List<AndroidFacet> facets = ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID);
-    final Set<String> result = new HashSet<String>();
+    final Set<String> result = new HashSet<>();
 
     for (AndroidFacet facet : facets) {
       final String packageName = AndroidCompileUtil.getAaptManifestPackage(facet);

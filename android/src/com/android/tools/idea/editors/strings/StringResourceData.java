@@ -18,8 +18,8 @@ package com.android.tools.idea.editors.strings;
 import com.android.SdkConstants;
 import com.android.ide.common.resources.ResourceItem;
 import com.android.ide.common.resources.StringResourceUnescaper;
-import com.android.tools.idea.configurations.LocaleMenuAction;
 import com.android.tools.idea.rendering.Locale;
+import com.android.tools.idea.res.IdeResourcesUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.intellij.openapi.project.Project;
@@ -41,7 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import com.android.tools.idea.res.IdeResourcesUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -169,7 +168,7 @@ public class StringResourceData {
   @NotNull
   @VisibleForTesting
   Collection<Locale> getMissingTranslations(@NotNull StringResourceKey key) {
-    Set<Locale> missingTranslations = new HashSet<Locale>();
+    Set<Locale> missingTranslations = new HashSet<>();
     for (Locale locale : getLocaleSet()) {
       StringResource stringResource = getStringResource(key);
       if (stringResource.isTranslationMissing(locale)) {
@@ -218,7 +217,7 @@ public class StringResourceData {
   }
 
   private static String getLabel(@Nullable Locale locale) {
-    return locale == null ? "" : LocaleMenuAction.getLocaleLabel(locale, false);
+    return locale == null ? "" : Locale.getLocaleLabel(locale, false);
   }
 
   boolean containsKey(@NotNull StringResourceKey key) {

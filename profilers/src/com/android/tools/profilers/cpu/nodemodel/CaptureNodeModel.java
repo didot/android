@@ -16,17 +16,42 @@ package com.android.tools.profilers.cpu.nodemodel;
 
 import com.android.tools.profilers.cpu.CaptureNode;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Provides accessors to the basic attributes of data represented by {@link CaptureNode} (e.g. Java methods, native functions, etc.).
  */
 public interface CaptureNodeModel {
 
+  /**
+   * @return a tag for the purpose of collapsing into coarser nodes
+   */
+  @Nullable
+  default String getTag() {
+    return null;
+  }
+
   @NotNull
   String getName();
 
+  /**
+   * @return name concatenated by a suffix. The suffix is empty by default.
+   */
+  @NotNull
+  default String getNameWithSuffix() {
+    return getName();
+  }
+
   @NotNull
   String getFullName();
+
+  /**
+   * @return full name concatenated by a suffix. The suffix is empty by default.
+   */
+  @NotNull
+  default String getFullNameWithSuffix() {
+    return getFullName();
+  }
 
   @NotNull
   String getId();

@@ -29,7 +29,7 @@ import com.intellij.execution.update.RunningApplicationUpdaterProvider;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import icons.StudioIcons;
-import javax.swing.*;
+import javax.swing.Icon;
 import org.jetbrains.android.util.AndroidBuildCommonUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

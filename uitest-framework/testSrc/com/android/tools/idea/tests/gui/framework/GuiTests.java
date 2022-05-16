@@ -17,14 +17,12 @@ package com.android.tools.idea.tests.gui.framework;
 
 import static com.google.common.base.Joiner.on;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.io.Files.createTempDir;
 import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.openapi.util.io.FileUtil.ensureExists;
 import static com.intellij.openapi.util.io.FileUtil.filesEqual;
 import static com.intellij.openapi.util.io.FileUtil.join;
 import static com.intellij.openapi.util.io.FileUtil.toCanonicalPath;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
 import static com.intellij.util.containers.ContainerUtil.getFirstItem;
 import static org.junit.Assert.assertTrue;
@@ -36,7 +34,6 @@ import com.android.tools.idea.tests.gui.framework.matcher.FluentMatcher;
 import com.android.tools.idea.tests.gui.framework.matcher.Matchers;
 import com.android.tools.idea.ui.GuiTestingService;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.intellij.diagnostic.AbstractMessage;
 import com.intellij.diagnostic.MessagePool;
 import com.intellij.diagnostic.PerformanceWatcher;
@@ -312,7 +309,7 @@ public final class GuiTests {
     }
     String testDir = System.getenv("TEST_TMPDIR");
     if (testDir == null) {
-      testDir = toSystemDependentName(PathManager.getHomePath());
+      testDir = FileUtilRt.toSystemDependentName(PathManager.getHomePath());
     }
     assertThat(testDir).isNotEmpty();
     File rootDirPath = new File(testDir, join("androidStudio", "gui-tests"));
@@ -341,7 +338,7 @@ public final class GuiTests {
   @NotNull
   public static File getTestProjectsRootDirPath() {
     String testDataPath =
-      toCanonicalPath(toSystemDependentName(TestUtils.resolveWorkspacePath("tools/adt/idea/android-uitests").toString()));
+      toCanonicalPath(FileUtilRt.toSystemDependentName(TestUtils.resolveWorkspacePath("tools/adt/idea/android-uitests").toString()));
     return new File(testDataPath, "testData");
   }
 
@@ -352,7 +349,7 @@ public final class GuiTests {
    * Waits until an IDE popup is shown and returns it.
    */
   public static JBList waitForPopup(@NotNull Robot robot) {
-    return waitUntilFound(robot, null, new GenericTypeMatcher<JBList>(JBList.class) {
+    return waitUntilFound(robot, null, new GenericTypeMatcher<>(JBList.class) {
       @Override
       protected boolean isMatching(@NotNull JBList list) {
         ListModel model = list.getModel();
@@ -362,11 +359,11 @@ public final class GuiTests {
   }
 
   public static SimpleTree waitTreeForPopup(@NotNull Robot robot) {
-    return waitUntilFound(robot, null, new GenericTypeMatcher<SimpleTree>(SimpleTree.class) {
+    return waitUntilFound(robot, null, new GenericTypeMatcher<>(SimpleTree.class) {
       @Override
       protected boolean isMatching(@NotNull SimpleTree tree) {
         Container container = tree.getParent();
-        while (container != null){
+        while (container != null) {
           if (container.getClass().getName().contains("WizardPopup")) return true;
           container = container.getParent();
         }
@@ -390,7 +387,7 @@ public final class GuiTests {
   public static void clickPopupMenuItemMatching(@NotNull Predicate<String> predicate, @NotNull Component component, @NotNull Robot robot) {
     JPopupMenu menu = GuiQuery.get(robot::findActivePopupMenu);
     if (menu != null) {
-      new JPopupMenuFixture(robot, menu).menuItem(new GenericTypeMatcher<JMenuItem>(JMenuItem.class) {
+      new JPopupMenuFixture(robot, menu).menuItem(new GenericTypeMatcher<>(JMenuItem.class) {
         @Override
         protected boolean isMatching(@NotNull JMenuItem component) {
           return predicate.test(component.getText());
@@ -407,7 +404,7 @@ public final class GuiTests {
     Container root = GuiQuery.getNonNull(() -> (Container)SwingUtilities.getRoot(component));
     // First find the JBList which holds the popup. There could be other JBLists in the hierarchy,
     // so limit it to one that is actually used as a popup, as identified by its model being a ListPopupModel:
-    JBList list = waitUntilShowing(robot, root, new GenericTypeMatcher<JBList>(JBList.class) {
+    JBList list = waitUntilShowing(robot, root, new GenericTypeMatcher<>(JBList.class) {
       @Override
       protected boolean isMatching(@NotNull JBList list) {
         ListModel model = list.getModel();
@@ -418,7 +415,7 @@ public final class GuiTests {
     // We can't use the normal JListFixture method to click by label since the ListModel items are
     // ActionItems whose toString does not reflect the text, so search through the model items instead:
     ListPopupModel model = (ListPopupModel)list.getModel();
-    java.util.List<String> items = Lists.newArrayList();
+    List<String> items = new ArrayList<>();
     for (int i = 0; i < model.getSize(); i++) {
       Object elementAt = model.getElementAt(i);
       String s;
@@ -462,6 +459,11 @@ public final class GuiTests {
   public static void findAndClickButton(@NotNull ContainerFixture<? extends Container> container, @NotNull String text) {
     Robot robot = container.robot();
     new JButtonFixture(robot, GuiTests.waitUntilShowingAndEnabled(robot, container.target(), Matchers.byText(JButton.class, text))).click();
+  }
+
+  public static void findAndKeypressButton(@NotNull ContainerFixture<? extends Container> container, @NotNull String text, int... keycodes) {
+    Robot robot = container.robot();
+    new JButtonFixture(robot, GuiTests.waitUntilShowingAndEnabled(robot, container.target(), Matchers.byText(JButton.class, text))).pressAndReleaseKeys(keycodes);
   }
 
   public static void findAndClickLabel(@NotNull ContainerFixture<? extends Container> container, @NotNull String text) {
@@ -657,7 +659,8 @@ public final class GuiTests {
   public static String progressIndicators() {
     Collection<ProgressIndicator> progressIndicators = getIndicatorsCollection();
     return progressIndicators.stream()
-      .map(it -> nullToEmpty(it.getText()))
+      .map(ProgressIndicator::getText)
+      .filter(text -> isNotEmpty(text))
       .collect(Collectors.joining(","));
   }
 
@@ -692,5 +695,20 @@ public final class GuiTests {
     // Bazel wipes all Android Studio Caches between tests and all JDK and Android SDK libraries are re-indexed (about 50K files)
     // Usually this take 20-30 secs, but depends heavily on the machine and its load
     waitForProjectIndexingToFinish(project, Wait.seconds(240));
+  }
+
+  public static void takeScreenshot(@NotNull Robot robot, @NotNull String name) {
+    try {
+      File folderName = GuiTests.getFailedTestScreenshotDirPath();
+      ensureExists(folderName);
+      ScreenshotTaker screenshotTaker = new ScreenshotTaker(robot);
+      File pngPath = new File(folderName, name + ".png");
+      LOG.info("Saving screenshot to: " + pngPath.getPath());
+      screenshotTaker.saveDesktopAsPng(pngPath.getPath());
+    }
+    catch (IOException e) {
+      LOG.error("Could not create folder");
+      fail();
+    }
   }
 }

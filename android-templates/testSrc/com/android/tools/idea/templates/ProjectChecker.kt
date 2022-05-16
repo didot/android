@@ -31,12 +31,14 @@ import com.android.tools.idea.npw.module.recipes.pureLibrary.generatePureLibrary
 import com.android.tools.idea.npw.module.recipes.tvModule.generateTvModule
 import com.android.tools.idea.npw.module.recipes.wearModule.generateWearModule
 import com.android.tools.idea.npw.project.setGradleWrapperExecutable
+import com.android.tools.idea.npw.template.ModuleTemplateDataBuilder
 import com.android.tools.idea.templates.recipe.DefaultRecipeExecutor
 import com.android.tools.idea.templates.recipe.RenderingContext
 import com.android.tools.idea.testing.AndroidGradleTests
 import com.android.tools.idea.testing.AndroidGradleTests.getLocalRepositoriesForGroovy
 import com.android.tools.idea.testing.AndroidGradleTests.updateLocalRepositories
 import com.android.tools.idea.testing.IdeComponents
+import com.android.tools.idea.testing.updatePluginsResolutionManagement
 import com.android.tools.idea.util.toIoFile
 import com.android.tools.idea.util.toVirtualFile
 import com.android.tools.idea.wizard.template.BytecodeLevel
@@ -123,7 +125,10 @@ data class ProjectChecker(
 
     val settingsFile = File(projectRoot, SdkConstants.FN_SETTINGS_GRADLE)
     val settingsOrigContent = settingsFile.readText()
+
     val settingsNewContent = updateLocalRepositories(settingsOrigContent, getLocalRepositoriesForGroovy())
+      .run { updatePluginsResolutionManagement(this, newContent) }
+
     settingsFile.writeText(settingsOrigContent, settingsNewContent)
 
     refreshProjectFiles()
@@ -166,8 +171,7 @@ data class ProjectChecker(
     val language = moduleState.projectTemplateDataBuilder.language
     val projectRecipe: Recipe = { data: TemplateData ->
       androidProjectRecipe(
-        data as ProjectTemplateData, "Template Test project",
-        language!!, true, false, forceNonTransitiveRClass = true
+        data as ProjectTemplateData, "Template Test project", language!!, addAndroidXSupport = true, useGradleKts = false
       )
     }
 

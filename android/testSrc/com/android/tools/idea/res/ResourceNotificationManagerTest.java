@@ -18,6 +18,7 @@ package com.android.tools.idea.res;
 import static org.junit.Assert.assertNotEquals;
 
 import com.android.ide.common.rendering.api.ResourceNamespace;
+import com.android.ide.common.rendering.api.ResourceReference;
 import com.android.resources.ResourceType;
 import com.android.tools.idea.configurations.Configuration;
 import com.android.tools.idea.configurations.ConfigurationManager;
@@ -38,6 +39,7 @@ import com.intellij.util.ui.UIUtil;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.android.AndroidTestCase;
 import org.jetbrains.annotations.NotNull;
@@ -47,7 +49,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class ResourceNotificationManagerTest extends AndroidTestCase {
 
-  public void test() throws Exception {
+  public void testEditNotifications() throws Exception {
     @Language("XML") String xml;
 
     // Setup sample project: a strings file, and a couple of layout file
@@ -125,7 +127,7 @@ public class ResourceNotificationManagerTest extends AndroidTestCase {
     //noinspection ConstantConditions
     assertEquals("#ff0000",
                  configuration1.getResourceResolver()
-                   .getStyle("AppTheme", false)
+                   .getStyle(new ResourceReference(ResourceNamespace.RES_AUTO, ResourceType.STYLE, "AppTheme"))
                    .getItem(ResourceNamespace.ANDROID, "colorBackground").getValue());
     IdeResourcesUtil.createValueResource(getProject(), resourceDir, "color2", ResourceType.COLOR, "colors.xml",
                                          Collections.singletonList("values"), "#fa2395");
@@ -176,7 +178,10 @@ public class ResourceNotificationManagerTest extends AndroidTestCase {
     // Read the value first to ensure that we trigger it as a read (see comment above for previous
     // resource resolver lookup).
     //noinspection ConstantConditions
-    assertEquals("Hello", configuration1.getResourceResolver().findResValue("@string/hello_world", false).getValue());
+    assertEquals("Hello",
+                 configuration1.getResourceResolver().getResolvedResource(
+                     new ResourceReference(ResourceNamespace.RES_AUTO, ResourceType.STRING, "hello_world")).getValue());
+    //getResolvedResource
     addText(values1, "Hello^</string>", " World");
     ensureCalled(called1, calledValue1, called2, calledValue2, Reason.RESOURCE_EDIT);
 
@@ -223,7 +228,7 @@ public class ResourceNotificationManagerTest extends AndroidTestCase {
     // TODO: Test that remove and replace editing also works as expected.
   }
 
-  public void testNotifyOnRename() throws Exception {
+  public void testNotifiedOnRename() throws Exception {
     // Setup sample project: a strings file, and a couple of layout file
     @Language("XML") String xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                                   "<FrameLayout xmlns:android=\"http://schemas.android.com/apk/res/android\"\n" +
@@ -296,17 +301,15 @@ public class ResourceNotificationManagerTest extends AndroidTestCase {
     ensureNotCalled(called1, called2);
   }
 
-  private static void ensureCalled(@NotNull Ref<Boolean> called1, @NotNull Ref<Set<Reason>> calledValue1,
-                                   @NotNull Ref<Boolean> called2, @NotNull Ref<Set<Reason>> calledValue2,
-                                   @NotNull Reason reason) {
+  private void ensureCalled(@NotNull Ref<Boolean> called1, @NotNull Ref<Set<Reason>> calledValue1,
+                            @NotNull Ref<Boolean> called2, @NotNull Ref<Set<Reason>> calledValue2,
+                            @NotNull Reason reason) throws InterruptedException, TimeoutException {
+    waitForResourceRepositoryUpdates();
     UIUtil.dispatchAllInvocationEvents();
-    UIUtil.invokeAndWaitIfNeeded((Runnable)() -> {
-      assertTrue(called1.get());
-      assertEquals(EnumSet.of(reason), calledValue1.get());
-
-      assertTrue(called2.get());
-      assertEquals(EnumSet.of(reason), calledValue2.get());
-    });
+    assertTrue(called1.get());
+    assertEquals(EnumSet.of(reason), calledValue1.get());
+    assertTrue(called2.get());
+    assertEquals(EnumSet.of(reason), calledValue2.get());
   }
 
   private static void clear(@NotNull Ref<Boolean> called1, @NotNull Ref<Set<Reason>> calledValue1,
@@ -317,12 +320,11 @@ public class ResourceNotificationManagerTest extends AndroidTestCase {
     calledValue2.set(null);
   }
 
-  private static void ensureNotCalled(@NotNull Ref<Boolean> called1, @NotNull Ref<Boolean> called2) {
+  private void ensureNotCalled(@NotNull Ref<Boolean> called1, @NotNull Ref<Boolean> called2) throws InterruptedException, TimeoutException {
+    waitForResourceRepositoryUpdates();
     UIUtil.dispatchAllInvocationEvents();
-    UIUtil.invokeAndWaitIfNeeded((Runnable)() -> {
-      assertFalse(called1.get());
-      assertFalse(called2.get());
-    });
+    assertFalse(called1.get());
+    assertFalse(called2.get());
   }
 
   private void addText(@NotNull PsiFile file, @NotNull String location, @NotNull String insertedText) {

@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.gradle.dsl.model.ext.transforms;
 
+import static com.android.tools.idea.gradle.dsl.parser.GradleDslNameConverter.Kind.KOTLIN;
+
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpression;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
@@ -31,7 +33,7 @@ public class KtsOnlyPropertyTransform extends PropertyTransform {
 
   @Override
   public boolean test(@Nullable GradleDslElement e, @NotNull GradleDslElement holder) {
-    if (holder.getDslFile().isKotlin()) {
+    if (holder.getDslFile().getWriter().getKind() == KOTLIN) {
       return myTransform.test(e, holder);
     }
     return false;
@@ -63,37 +65,29 @@ public class KtsOnlyPropertyTransform extends PropertyTransform {
 
   @NotNull
   @Override
-  public GradleDslExpression bindList(@NotNull GradleDslElement holder,
-                                      @Nullable GradleDslElement oldElement,
-                                      @NotNull String name,
-                                      boolean isMethodCall) {
-    return myTransform.bindList(holder, oldElement, name, isMethodCall);
+  public GradleDslExpression bindList(@NotNull GradleDslElement holder, @Nullable GradleDslElement oldElement, @NotNull String name) {
+    return myTransform.bindList(holder, oldElement, name);
   }
 
   @Override
   public GradleDslExpression bindList(@NotNull GradleDslElement holder,
                                       @Nullable GradleDslElement oldElement,
-                                      @NotNull ModelPropertyDescription propertyDescription,
-                                      boolean isMethodCall) {
-    return myTransform.bindList(holder, oldElement, propertyDescription, isMethodCall);
+                                      @NotNull ModelPropertyDescription propertyDescription) {
+    return myTransform.bindList(holder, oldElement, propertyDescription);
+  }
+
+  @NotNull
+  @Override
+  public GradleDslExpression bindMap(@NotNull GradleDslElement holder, @Nullable GradleDslElement oldElement, @NotNull String name) {
+    return myTransform.bindMap(holder, oldElement, name);
   }
 
   @NotNull
   @Override
   public GradleDslExpression bindMap(@NotNull GradleDslElement holder,
                                      @Nullable GradleDslElement oldElement,
-                                     @NotNull String name,
-                                     boolean isMethodCall) {
-    return myTransform.bindMap(holder, oldElement, name, isMethodCall);
-  }
-
-  @NotNull
-  @Override
-  public GradleDslExpression bindMap(@NotNull GradleDslElement holder,
-                                     @Nullable GradleDslElement oldElement,
-                                     @NotNull ModelPropertyDescription propertyDescription,
-                                     boolean isMethodCall) {
-    return super.bindMap(holder, oldElement, propertyDescription, isMethodCall);
+                                     @NotNull ModelPropertyDescription propertyDescription) {
+    return super.bindMap(holder, oldElement, propertyDescription);
   }
 
   @NotNull

@@ -32,6 +32,7 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.Cursor
 import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -52,7 +53,7 @@ private const val LINK_BORDER = 2
  */
 class ResolutionElementEditor(
   private val model: ResolutionStackModel,
-  @VisibleForTesting
+  @get:VisibleForTesting
   val editorModel: PropertyEditorModel,
   editor: JComponent
 ) : JPanel(BorderLayout()) {
@@ -220,6 +221,7 @@ class ResolutionElementEditor(
       isFocusable = true
       border = JBUI.Borders.empty(0, LINK_BORDER, LINK_BORDER, LINK_BORDER)
       alignmentX = Component.LEFT_ALIGNMENT
+      cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
       registerActionKey({ activateLink() }, KeyStrokes.SPACE, "space")
       registerActionKey({ activateLink() }, KeyStrokes.ENTER, "enter")
 
@@ -251,7 +253,7 @@ class ResolutionElementEditor(
       if (strikeout) {
         attributes[TextAttribute.STRIKETHROUGH] = TextAttribute.STRIKETHROUGH_ON
       }
-      return Font(attributes)
+      return font.deriveFont(attributes)
     }
   }
 }

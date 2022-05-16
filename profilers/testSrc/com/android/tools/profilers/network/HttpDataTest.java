@@ -21,7 +21,6 @@ import com.android.tools.adtui.model.Range;
 import com.android.tools.idea.protobuf.ByteString;
 import com.android.tools.profilers.network.httpdata.HttpData;
 import com.android.tools.profilers.network.httpdata.Payload;
-import com.android.tools.profilers.network.httpdata.StackTrace;
 import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.List;
@@ -76,6 +75,18 @@ public class HttpDataTest {
     HttpData.Builder builder = TestHttpData.newBuilder(1);
     builder.setResponseFields("   \n  \n  \n\n   \n  ");
     assertThat(builder.build().getResponseHeader().getStatusCode()).isEqualTo(-1);
+  }
+
+  @Test
+  public void responseFieldsWithDuplicateKeys() {
+    HttpData.Builder builder = TestHttpData.newBuilder(1);
+    builder.setResponseFields("status line =  HTTP/1.1 302 Found \n" +
+                              "first=1 \n  second  = 2\n equation=x+y=10\nsecond=3");
+    HttpData data = builder.build();
+    HttpData.ResponseHeader header = data.getResponseHeader();
+    assertThat(header.getField("first")).isEqualTo("1");
+    assertThat(header.getField("second")).isEqualTo("2;3");
+    assertThat(header.getField("equation")).isEqualTo("x+y=10");
   }
 
   @Test(expected = AssertionError.class)

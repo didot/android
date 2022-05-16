@@ -17,7 +17,8 @@ package com.android.tools.idea.uibuilder.graphics;
 
 import com.android.tools.adtui.common.SwingCoordinate;
 import com.intellij.ui.JBColor;
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.Color;
 
 @SuppressWarnings("UseJBColor")
 public class NlConstants {

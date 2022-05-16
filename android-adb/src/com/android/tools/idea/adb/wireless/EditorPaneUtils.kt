@@ -17,8 +17,6 @@
 package com.android.tools.idea.adb.wireless
 
 import com.android.utils.HtmlBuilder
-import com.intellij.ide.BrowserUtil
-import com.intellij.ui.HyperlinkAdapter
 import com.intellij.ui.JBColor
 import com.intellij.ui.border.CustomLineBorder
 import com.intellij.util.ui.JBDimension
@@ -26,26 +24,16 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.SwingHelper
 import com.intellij.util.ui.UIUtil
 import java.awt.Color
-import java.net.URL
 import javax.swing.JComponent
 import javax.swing.JEditorPane
 import javax.swing.border.Border
 import javax.swing.border.CompoundBorder
-import javax.swing.event.HyperlinkEvent
 
 fun createHtmlEditorPane(): JEditorPane {
   val viewer: JEditorPane = SwingHelper.createHtmlViewer(true, null, JBColor.WHITE, JBColor.BLACK)
   viewer.isOpaque = false
   viewer.isFocusable = false
   UIUtil.doNotScrollToCaret(viewer)
-  viewer.addHyperlinkListener(object : HyperlinkAdapter() {
-    override fun hyperlinkActivated(e: HyperlinkEvent) {
-      val url: URL? = e.url
-      if (url != null) {
-        BrowserUtil.browse(url)
-      }
-    }
-  })
   return viewer
 }
 

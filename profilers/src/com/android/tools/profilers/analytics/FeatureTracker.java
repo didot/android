@@ -466,4 +466,25 @@ public interface FeatureTracker {
    * @param trackCount number fo tracks included in the selection.
    */
   void trackSelectBox(long durationUs, int trackCount);
+
+  // TODO(b/188695273): to be removed.
+  /**
+   * Tracks when the user clicks on the network profiler migration dialog.
+   */
+  void trackNetworkMigrationDialogSelected();
+
+  /**
+   * Tracks when the user has performed this many frame selections within one session viewing a trace
+   */
+  void trackFrameSelectionPerTrace(int count);
+
+  /**
+   * Tracks when the user has toggled the "All Frames" checkbox this many times within one session viewing a trace
+   */
+  void trackAllFrameTogglingPerTrace(int count);
+
+  /**
+   * Tracks when the user has toggled the "Lifecycle" checkbox this many times within one session viewing a trace
+   */
+  void trackLifecycleTogglingPerTrace(int count);
 }

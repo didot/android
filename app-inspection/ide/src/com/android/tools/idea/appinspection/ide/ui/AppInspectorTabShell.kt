@@ -17,13 +17,15 @@ package com.android.tools.idea.appinspection.ide.ui
 
 import com.android.annotations.concurrency.UiThread
 import com.android.tools.adtui.stdui.EmptyStatePanel
+import com.android.tools.idea.appinspection.ide.InspectorTabJarTargets
 import com.android.tools.idea.appinspection.ide.model.AppInspectionBundle
-import com.android.tools.idea.appinspection.inspector.ide.AppInspectorTabProvider
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import java.awt.BorderLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -37,12 +39,29 @@ import javax.swing.JTabbedPane
  * ordering across inspector launches.
  */
 class AppInspectorTabShell(
-  val provider: AppInspectorTabProvider
+  val tabJarTargets: InspectorTabJarTargets
 ) : Comparable<AppInspectorTabShell>, UserDataHolderBase(), Disposable {
+  val provider = tabJarTargets.provider
+
   @VisibleForTesting
   val containerPanel = JPanel(BorderLayout())
 
   private val contentChangedDeferred = CompletableDeferred<JComponent>()
+
+  private var componentListener: ((component: JComponent) -> Unit)? = null
+
+  /**
+   * A flow that fires whenever content is set in the tab shell. For testing only.
+   *
+   * Note, this flow might miss the first component set event depending on the timing
+   * of the collection. [waitForContent] is the preferred way to suspend and wait for
+   * the first component.
+   */
+  @VisibleForTesting
+  val componentUpdates: Flow<JComponent> = callbackFlow {
+    componentListener = { component -> offer(component) }
+    awaitClose { componentListener = null }
+  }
 
   /**
    * Will be false until [setComponent] is called
@@ -64,6 +83,7 @@ class AppInspectorTabShell(
     containerPanel.removeAll()
     containerPanel.add(component)
     contentChangedDeferred.complete(component)
+    componentListener?.invoke(component)
   }
 
   @UiThread

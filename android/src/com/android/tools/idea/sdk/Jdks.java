@@ -34,7 +34,6 @@ import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.serviceContainer.NonInjectable;
 import com.intellij.util.system.CpuArch;
-import java.io.File;
 import java.nio.file.Path;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -43,7 +42,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Utility methods related to IDEA JDKs.
  */
-public final class Jdks {
+public class Jdks {
   @NotNull private static final Logger LOG = Logger.getInstance(Jdks.class);
 
   @NonNls public static final String DOWNLOAD_JDK_8_URL =
@@ -56,14 +55,14 @@ public final class Jdks {
     return ApplicationManager.getApplication().getService(Jdks.class);
   }
 
+  public Jdks() {
+    this(IdeInfo.getInstance());
+  }
+
   @NonInjectable
   @VisibleForTesting
   public Jdks(@NotNull IdeInfo ideInfo) {
     myIdeInfo = ideInfo;
-  }
-
-  public Jdks() {
-    myIdeInfo = IdeInfo.getInstance();
   }
 
   @Nullable
@@ -91,7 +90,7 @@ public final class Jdks {
 
   @Nullable
   public Sdk createEmbeddedJdk() {
-    if (myIdeInfo.isAndroidStudio() || myIdeInfo.isGameTools()) {
+    if (myIdeInfo.isAndroidStudio()) {
       Path path = EmbeddedDistributionPaths.getInstance().tryToGetEmbeddedJdkPath();
       if (path == null) {
         return null;

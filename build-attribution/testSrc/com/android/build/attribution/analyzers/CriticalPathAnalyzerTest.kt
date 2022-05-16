@@ -21,6 +21,7 @@ import com.android.build.attribution.data.PluginContainer
 import com.android.build.attribution.data.StudioProvidedInfo
 import com.android.build.attribution.data.TaskContainer
 import com.android.build.attribution.data.TaskData
+import com.android.testutils.MockitoKt.mock
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.build.attribution.BuildAttributionManager
 import com.android.tools.idea.testing.AndroidGradleProjectRule
@@ -38,9 +39,19 @@ class CriticalPathAnalyzerTest {
   @get:Rule
   val myProjectRule = AndroidGradleProjectRule()
 
+  private lateinit var studioProvidedInfo: StudioProvidedInfo
+
   @Before
   fun setUp() {
     StudioFlags.BUILD_ATTRIBUTION_ENABLED.override(true)
+    studioProvidedInfo = StudioProvidedInfo(
+      agpVersion = null,
+      configurationCachingGradlePropertyState = null,
+      isInConfigurationCacheTestFlow = false,
+      enableJetifierPropertyState = false,
+      useAndroidXPropertyState = false,
+      buildRequestHolder = mock()
+    )
   }
 
   @After
@@ -100,12 +111,11 @@ class CriticalPathAnalyzerTest {
     wrapper.receiveEvent(taskLast)
 
     // When the build is finished successfully and the analyzer is run
-
     wrapper.onBuildSuccess(
       null,
       GradlePluginsData.emptyData,
       Mockito.mock(BuildEventsAnalysisResult::class.java),
-      StudioProvidedInfo(null, null, false)
+      studioProvidedInfo
     )
 
     // Then the analyzer should find this critical path
@@ -160,7 +170,7 @@ class CriticalPathAnalyzerTest {
       GradlePluginsData.emptyData,
 
       Mockito.mock(BuildEventsAnalysisResult::class.java),
-      StudioProvidedInfo(null, null, false)
+      studioProvidedInfo
     )
 
     // Then the analyzer should find this critical path

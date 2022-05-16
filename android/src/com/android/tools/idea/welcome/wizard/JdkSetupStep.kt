@@ -32,7 +32,7 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.ComboboxWithBrowseButton
-import com.intellij.ui.layout.*
+import com.intellij.ui.layout.panel
 import com.intellij.uiDesigner.core.Spacer
 import java.awt.event.ItemEvent
 import java.nio.file.Path
@@ -59,8 +59,7 @@ class JdkSetupStep(model: FirstRunModel) : ModelWizardStep<FirstRunModel>(model,
   private val validatorPanel = ValidatorPanel(this, wrapWithVScroll(jdkPanel))
   private val invalidPathMessage = StringValueProperty()
   private val isValidJdkPath = BoolValueProperty(false)
-  private val jdkLocation: Path
-    get() = getLocationFromComboBoxWithBrowseButton(jdkLocationComboBox)
+  private val jdkLocation: Path get() = getLocationFromComboBoxWithBrowseButton(jdkLocationComboBox)
 
   init {
     val descriptor = createSingleFolderDescriptor { file ->
@@ -76,7 +75,8 @@ class JdkSetupStep(model: FirstRunModel) : ModelWizardStep<FirstRunModel>(model,
     }
 
     fun addJdkIfValid(path: Path?, label: String) {
-      val validatedPath = validateJdkPath(path ?: return) ?: return
+      path ?: return
+      val validatedPath = validateJdkPath(path) ?: return
       comboBox.addItem(LabelAndFileForLocation(label, validatedPath))
     }
 
@@ -105,7 +105,8 @@ class JdkSetupStep(model: FirstRunModel) : ModelWizardStep<FirstRunModel>(model,
   override fun canGoForward(): ObservableBool = isValidJdkPath
 
   override fun onProceeding() {
-    IdeSdks.findOrCreateJdk(ANDROID_STUDIO_DEFAULT_JDK_NAME, jdkLocation.toAbsolutePath())
+    val path = jdkLocation.toAbsolutePath().normalize()
+    IdeSdks.findOrCreateJdk(ANDROID_STUDIO_DEFAULT_JDK_NAME, path!!)
   }
 
   override fun getPreferredFocusComponent() = jdkPanel
@@ -124,7 +125,7 @@ class JdkSetupStep(model: FirstRunModel) : ModelWizardStep<FirstRunModel>(model,
 
     // TODO(qumeric): replace it with PathValidator, like:
     val validator = PathValidator.Builder().withCommonRules().build("Android SDK location")
-    val validationResult = validator.validate(jdkLocation.toFile())
+    val validationResult = validator.validate(jdkLocation)
     invalidPathMessage.set(validationResult.message)
     val isError = validationResult.severity != Validator.Severity.ERROR
     isValidJdkPath.set(isError)

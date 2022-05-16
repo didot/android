@@ -30,11 +30,11 @@ import com.intellij.openapi.project.ProjectManagerListener;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.openapi.wm.ex.ToolWindowManagerListener;
-import org.jetbrains.android.util.AndroidBundle;
-import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import org.jetbrains.android.util.AndroidBundle;
+import org.jetbrains.annotations.NotNull;
 
 public class WhatsNewSidePanelAction extends OpenAssistSidePanelAction {
   @NotNull
@@ -59,7 +59,7 @@ public class WhatsNewSidePanelAction extends OpenAssistSidePanelAction {
     }
 
     action.update(e);
-    presentation.setDescription(AndroidBundle.message("whats.new.action.custom.description",
+    presentation.setDescription(AndroidBundle.message("whatsnew.action.custom.description",
                                                       ApplicationNamesInfo.getInstance().getFullProductName()));
   }
 
@@ -85,7 +85,7 @@ public class WhatsNewSidePanelAction extends OpenAssistSidePanelAction {
   @NotNull
   private WhatsNewToolWindowListener newWhatsNewToolWindowListener(@NotNull Project project) {
     WhatsNewToolWindowListener listener = new WhatsNewToolWindowListener(project, myProjectToListenerMap);
-    project.getMessageBus().connect(project).subscribe(ToolWindowManagerListener.TOPIC, listener);
+    project.getMessageBus().connect().subscribe(ToolWindowManagerListener.TOPIC, listener);
     return listener;
   }
 
@@ -101,7 +101,7 @@ public class WhatsNewSidePanelAction extends OpenAssistSidePanelAction {
       isOpen = true; // Start off as opened so we don't fire an extra opened event
 
       // Need an additional listener for project close, because the below invokeLater isn't fired in time before closing
-      project.getMessageBus().connect(project).subscribe(ProjectManager.TOPIC, new ProjectManagerListener() {
+      project.getMessageBus().connect().subscribe(ProjectManager.TOPIC, new ProjectManagerListener() {
         @Override
         public void projectClosed(@NotNull Project project) {
           if (!project.equals(myProject)) {

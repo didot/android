@@ -22,6 +22,7 @@ import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAct
 
 import com.android.tools.idea.gradle.project.model.JavaModuleModel;
 import com.android.tools.idea.gradle.util.BuildMode;
+import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.intellij.facet.Facet;
 import com.intellij.facet.FacetManager;
 import com.intellij.facet.FacetType;
@@ -59,7 +60,7 @@ public class JavaFacet extends Facet<JavaFacetConfiguration> {
 
   @Nullable
   public static JavaFacet getInstance(@NotNull Module module) {
-    return FacetManager.getInstance(module).getFacetByType(TYPE_ID);
+    return FacetManager.getInstance(ModuleSystemUtil.getHolderModule(module)).getFacetByType(TYPE_ID);
   }
 
   public JavaFacet(@NotNull Module module,

@@ -20,19 +20,12 @@ import com.android.tools.idea.gradle.project.build.GradleBuildContext;
 import com.android.tools.idea.gradle.project.build.JpsBuildContext;
 import com.android.tools.idea.gradle.project.build.PostProjectBuildTasksExecutor;
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker;
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
 import com.android.tools.idea.project.AndroidProjectBuildNotifications;
-import com.intellij.ide.SaveAndSyncHandler;
 import com.intellij.notification.NotificationDisplayType;
 import com.intellij.notification.NotificationsConfiguration;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.compiler.CompilerManager;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
-import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.StartupActivity;
-import com.intellij.openapi.vfs.VirtualFileManager;
 import org.jetbrains.annotations.NotNull;
 
 public class AndroidGradleProjectDumbStartupActivity implements StartupActivity.DumbAware {
@@ -56,25 +49,16 @@ public class AndroidGradleProjectDumbStartupActivity implements StartupActivity.
   private void registerAfterTaskForAndroidGradleProjectCompiledViaGradleInvocation(Project project) {
     GradleBuildInvoker.getInstance(project).add(result -> {
       if (project.isDisposed()) return;
-      PostProjectBuildTasksExecutor.getInstance(project).onBuildCompletion(result);
+      PostProjectBuildTasksExecutor.getInstance(project).onBuildCompletion();
       GradleBuildContext newContext = new GradleBuildContext(result);
       AndroidProjectBuildNotifications.getInstance(project).notifyBuildComplete(newContext);
-
-      // Force VFS refresh required by any of the modules.
-      if (isVfsRefreshAfterBuildRequired(project)) {
-        ApplicationManager.getApplication().invokeLater(() -> {
-          FileDocumentManager.getInstance().saveAllDocuments();
-          SaveAndSyncHandler.getInstance().refreshOpenFiles();
-          VirtualFileManager.getInstance().refreshWithoutFileWatcher(true /* asynchronously */);
-        });
-      }
     });
   }
 
   private void registerAfterTaskForAndroidGradleProjectCompiledViaJPS(Project project) {
     CompilerManager.getInstance(project).addAfterTask(context -> {
       if (GradleProjectInfo.getInstance(project).isBuildWithGradle()) {
-        PostProjectBuildTasksExecutor.getInstance(project).onBuildCompletion(context);
+        PostProjectBuildTasksExecutor.getInstance(project).onBuildCompletion();
 
         JpsBuildContext newContext = new JpsBuildContext(context);
         AndroidProjectBuildNotifications.getInstance(project).notifyBuildComplete(newContext);
@@ -87,19 +71,5 @@ public class AndroidGradleProjectDumbStartupActivity implements StartupActivity.
     NotificationsConfiguration
       .getNotificationsConfiguration()
       .changeSettings(GRADLE_NOTIFICATION_GROUP_NAME, NotificationDisplayType.NONE, false, false);
-  }
-
-  /**
-   * @return {@code true} if any of the modules require VFS refresh after build.
-   */
-  private static boolean isVfsRefreshAfterBuildRequired(@NotNull Project project) {
-    ModuleManager moduleManager = ModuleManager.getInstance(project);
-    for (Module module : moduleManager.getModules()) {
-      AndroidModuleModel androidModuleModel = AndroidModuleModel.get(module);
-      if (androidModuleModel != null && androidModuleModel.getFeatures().isVfsRefreshAfterBuildRequired()) {
-        return true;
-      }
-    }
-    return false;
   }
 }

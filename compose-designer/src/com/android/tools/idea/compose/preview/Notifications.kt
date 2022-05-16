@@ -56,7 +56,7 @@ private fun createBuildNotificationPanel(project: Project,
     isFocusable = false
 
     createActionLabel(buildActionLabel) {
-      requestBuild(project, module, true)
+      requestBuild(project, file, true)
     }
   }
 }
@@ -74,7 +74,6 @@ internal class ComposeNewPreviewNotificationProvider @NonInjectable constructor(
   override fun createNotificationPanel(file: VirtualFile, fileEditor: FileEditor, project: Project): EditorNotificationPanel? =
     when {
       StudioFlags.NELE_SOURCE_CODE_EDITOR.get() -> null
-      !StudioFlags.COMPOSE_PREVIEW.get() -> null
       // Not a Kotlin file or already a Compose Preview Editor
       !file.isKotlinFileType() || fileEditor.getComposePreviewManager() != null -> null
       filePreviewElementProvider().hasPreviewMethods(project, file) -> EditorNotificationPanel(fileEditor).apply {
@@ -83,8 +82,7 @@ internal class ComposeNewPreviewNotificationProvider @NonInjectable constructor(
           if (fileEditor.isValid) {
             FileEditorManager.getInstance(project).closeFile(file)
             FileEditorManager.getInstance(project).openFile(file, true)
-            val module = ModuleUtil.findModuleForFile(file, project) ?: return@createActionLabel
-            requestBuild(project, module, true)
+            requestBuild(project, file, true)
           }
         }
       }
@@ -109,9 +107,6 @@ internal class ComposeNewPreviewNotificationManager(private val project: Project
   }
 
   override fun projectOpened() {
-    if (!StudioFlags.COMPOSE_PREVIEW.get()) {
-      return
-    }
     LOG.debug("projectOpened")
 
     PsiManager.getInstance(project).addPsiTreeChangeListener(object : PsiTreeChangeAdapter() {
@@ -158,7 +153,7 @@ class ComposePreviewNotificationProvider : EditorNotifications.Provider<EditorNo
 
   override fun createNotificationPanel(file: VirtualFile, fileEditor: FileEditor, project: Project): EditorNotificationPanel? {
     LOG.debug("createNotificationsProvider")
-    if (!StudioFlags.COMPOSE_PREVIEW.get() || !file.isKotlinFileType()) {
+    if (!file.isKotlinFileType()) {
       return null
     }
 
@@ -172,7 +167,7 @@ class ComposePreviewNotificationProvider : EditorNotifications.Provider<EditorNo
     if (previewStatus.isRefreshing) {
       LOG.debug("Refreshing")
       return when (previewStatus.interactiveMode) {
-        ComposePreviewManager.InteractiveMode.STARTING -> EditorNotificationPanel().apply {
+        ComposePreviewManager.InteractiveMode.STARTING -> EditorNotificationPanel(fileEditor).apply {
           text = message("notification.interactive.preview.starting")
           icon(AnimatedIcon.Default())
         }
@@ -180,7 +175,7 @@ class ComposePreviewNotificationProvider : EditorNotifications.Provider<EditorNo
           // Don't show the notification when entering animation preview
           if (previewManager.animationInspectionPreviewElementInstance != null) null
           else
-            EditorNotificationPanel().apply {
+            EditorNotificationPanel(fileEditor).apply {
               text = message("notification.interactive.preview.stopping")
               icon(AnimatedIcon.Default())
             }
@@ -188,7 +183,7 @@ class ComposePreviewNotificationProvider : EditorNotifications.Provider<EditorNo
       }
     }
 
-    val status = GradleBuildState.getInstance(project).summary?.status
+    val status = GradleBuildState.getInstance(project).lastFinishedBuildSummary?.status
     // If there was no build or the project is loading, we won't have a status. We do not consider that as a build failure yet.
     val lastBuildSuccessful = status == null || status.isBuildSuccessful
 

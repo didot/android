@@ -17,13 +17,18 @@ package com.android.tools.idea.util
 
 import com.android.ide.common.repository.GradleCoordinate
 import com.android.ide.common.repository.GradleVersion
-import com.android.tools.idea.projectsystem.*
+import com.android.tools.idea.projectsystem.GoogleMavenArtifactId
+import com.android.tools.idea.projectsystem.NON_PLATFORM_SUPPORT_LAYOUT_LIBS
+import com.android.tools.idea.projectsystem.PLATFORM_SUPPORT_LIBS
+import com.android.tools.idea.projectsystem.ProjectSystemSyncManager
+import com.android.tools.idea.projectsystem.TestProjectSystem
+import com.android.tools.idea.projectsystem.getModuleSystem
 import com.google.common.truth.Truth
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TestDialog
 import com.intellij.openapi.ui.TestDialogManager
 import com.intellij.testFramework.LightPlatformTestCase
-import java.util.*
+import java.util.Collections
 
 /**
  * Tests for [DependencyManagement].

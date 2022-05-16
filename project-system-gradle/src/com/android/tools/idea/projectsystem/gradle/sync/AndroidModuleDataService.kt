@@ -18,14 +18,15 @@ package com.android.tools.idea.projectsystem.gradle.sync
 import com.android.AndroidProjectTypes
 import com.android.tools.idea.IdeInfo
 import com.android.tools.idea.facet.AndroidArtifactFacet
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType
 import com.android.tools.idea.gradle.model.IdeVariant
 import com.android.tools.idea.gradle.plugin.AndroidPluginInfo
 import com.android.tools.idea.gradle.project.GradleProjectInfo
 import com.android.tools.idea.gradle.project.ProjectStructure
 import com.android.tools.idea.gradle.project.SupportedModuleChecker
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
+import com.android.tools.idea.gradle.project.sync.PROJECT_SYNC_REQUEST
+import com.android.tools.idea.gradle.project.sync.idea.ModuleUtil.linkAndroidModuleGroup
 import com.android.tools.idea.gradle.project.sync.idea.computeSdkReloadingAsNeeded
 import com.android.tools.idea.gradle.project.sync.idea.data.service.AndroidProjectKeys.ANDROID_MODEL
 import com.android.tools.idea.gradle.project.sync.idea.data.service.ModuleModelDataService
@@ -37,13 +38,15 @@ import com.android.tools.idea.gradle.project.sync.setup.post.TimeBasedReminder
 import com.android.tools.idea.gradle.project.sync.setup.post.setUpModules
 import com.android.tools.idea.gradle.project.sync.validation.android.AndroidModuleValidator
 import com.android.tools.idea.gradle.project.upgrade.maybeRecommendPluginUpgrade
-import com.android.tools.idea.gradle.util.GradleUtil.GRADLE_SYSTEM_ID
-import com.android.tools.idea.gradle.variant.conflict.ConflictSet.findConflicts
+import com.android.tools.idea.gradle.variant.conflict.ConflictSet.Companion.findConflicts
 import com.android.tools.idea.model.AndroidModel
+import com.android.tools.idea.projectsystem.getAllLinkedModules
 import com.android.tools.idea.run.RunConfigurationChecker
 import com.android.tools.idea.sdk.AndroidSdks
 import com.android.tools.idea.sdk.IdeSdks
 import com.google.common.annotations.VisibleForTesting
+import com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_AGP_VERSION_UPDATED
+import com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_VARIANT_SELECTION_CHANGED_BY_USER
 import com.intellij.facet.ModifiableFacetModel
 import com.intellij.openapi.externalSystem.model.DataNode
 import com.intellij.openapi.externalSystem.model.Key
@@ -66,6 +69,7 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.pom.java.LanguageLevel
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.facet.AndroidFacetProperties.PATH_LIST_SEPARATOR_IN_FACET_CONFIGURATION
+import org.jetbrains.plugins.gradle.util.GradleConstants.SYSTEM_ID
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -73,22 +77,22 @@ import java.util.concurrent.TimeUnit
  * Service that sets an Android SDK and facets to the modules of a project that has been imported from an Android-Gradle project.
  */
 class AndroidModuleDataService @VisibleForTesting
-internal constructor(private val myModuleValidatorFactory: AndroidModuleValidator.Factory) : ModuleModelDataService<AndroidModuleModel>() {
+internal constructor(private val myModuleValidatorFactory: AndroidModuleValidator.Factory) : ModuleModelDataService<GradleAndroidModel>() {
 
   // This constructor is called by the IDE. See this module's plugin.xml file, implementation of extension 'externalProjectDataService'.
   constructor() : this(AndroidModuleValidator.Factory())
 
-  override fun getTargetDataKey(): Key<AndroidModuleModel> = ANDROID_MODEL
+  override fun getTargetDataKey(): Key<GradleAndroidModel> = ANDROID_MODEL
 
   /**
    * This method is responsible for managing the presence of both the [AndroidFacet] and [AndroidArtifactFacet] across all modules.
    *
-   * It also sets up the SDKs and language levels for all modules that stem from an [AndroidModuleModel]
+   * It also sets up the SDKs and language levels for all modules that stem from an [GradleAndroidModel]
    */
-  public override fun importData(toImport: Collection<DataNode<AndroidModuleModel>>,
+  public override fun importData(toImport: Collection<DataNode<GradleAndroidModel>>,
                                  project: Project,
                                  modelsProvider: IdeModifiableModelsProvider,
-                                 modelsByModuleName: Map<String, DataNode<AndroidModuleModel>>) {
+                                 modelsByModuleName: Map<String, DataNode<GradleAndroidModel>>) {
     val moduleValidator = myModuleValidatorFactory.create(project)
 
     for (nodeToImport in toImport) {
@@ -102,28 +106,16 @@ internal constructor(private val myModuleValidatorFactory: AndroidModuleValidato
       val androidModel = nodeToImport.data
       androidModel.setModule(mainIdeModule)
 
-      var mainArtifactModule : Module? = null
-      val modules = listOf(mainIdeModule)
-      /* FIXME-ank6: this does not work with MPP projects, because source sets of main module are: common, jvm, ios, etc.
-      val modules = listOf(mainIdeModule) + findAll(mainModuleDataNode, GradleSourceSetData.KEY).mapNotNull { dataNode ->
-        modelsProvider.findIdeModule(dataNode.data).also { module ->
-          if (dataNode.data.externalName.substringAfterLast(":") == "main") {
-            mainArtifactModule = module
-          }
-        }
-      }
-      */
+      mainModuleDataNode.linkAndroidModuleGroup(modelsProvider)
 
+      val modules = mainIdeModule.getAllLinkedModules()
       modules.forEach { module ->
         val facetModel = modelsProvider.getModifiableFacetModel(module)
 
-        // If we only have one module then module per source set must be disabled as no GradleSourceSetData was found.
-        if (!StudioFlags.USE_MODULE_PER_SOURCE_SET.get() || module == mainArtifactModule) {
-          val androidFacet = modelsProvider.getModifiableFacetModel(module).getFacetByType(AndroidFacet.ID)
-                             ?: createAndroidFacet(module, facetModel)
-          // Configure that Android facet from the information in the AndroidModuleModel.
-          configureFacet(androidFacet, androidModel)
-        }
+        val androidFacet = modelsProvider.getModifiableFacetModel(module).getFacetByType(AndroidFacet.ID)
+                           ?: createAndroidFacet(module, facetModel)
+        // Configure that Android facet from the information in the AndroidModuleModel.
+        configureFacet(androidFacet, androidModel)
 
         moduleValidator.validate(module, androidModel)
       }
@@ -135,7 +127,7 @@ internal constructor(private val myModuleValidatorFactory: AndroidModuleValidato
   }
 
   override fun removeData(toRemoveComputable: Computable<out MutableCollection<out Module>>?,
-                          toIgnore: MutableCollection<out DataNode<AndroidModuleModel>>,
+                          toIgnore: MutableCollection<out DataNode<GradleAndroidModel>>,
                           projectData: ProjectData,
                           project: Project,
                           modelsProvider: IdeModifiableModelsProvider) {
@@ -162,15 +154,29 @@ internal constructor(private val myModuleValidatorFactory: AndroidModuleValidato
   /**
    * This may be called from either the EDT or a background thread depending on if the project import is being run synchronously.
    */
-  override fun onSuccessImport(imported: Collection<DataNode<AndroidModuleModel>>,
+  override fun onSuccessImport(imported: Collection<DataNode<GradleAndroidModel>>,
                                projectData: ProjectData?,
                                project: Project,
                                modelsProvider: IdeModelsProvider) {
     GradleProjectInfo.getInstance(project).isNewProject = false
     GradleProjectInfo.getInstance(project).isImportedProject = false
 
-    // TODO(b/124229467): Consider whether this should be here, as it will trigger on any project data import.
-    AndroidPluginInfo.findFromModel(project)?.maybeRecommendPluginUpgrade(project)
+    if (imported.isEmpty() && !IdeInfo.getInstance().isAndroidStudio){
+      // in IDEA Android Plugin should not do anything, if there are no Android Modules in the project.
+      // not sure why Android Studio wants to do something (maybe it's OK to skip the remaining in Android Studio as well).
+      return;
+    }
+    
+    // TODO(b/200268010): this only triggers when we have actually run sync, as opposed to having loaded models from cache.  That means
+    //  that we should be able to move this to some kind of sync listener.
+    val data = project.getUserData(PROJECT_SYNC_REQUEST)
+    val trigger = data?.takeIf { it.projectRoot == project.basePath }?.trigger
+    if (trigger != null) {
+      project.putUserData(PROJECT_SYNC_REQUEST, null)
+      if (trigger != TRIGGER_AGP_VERSION_UPDATED && trigger != TRIGGER_VARIANT_SELECTION_CHANGED_BY_USER) {
+        AndroidPluginInfo.findFromModel(project)?.maybeRecommendPluginUpgrade(project)
+      }
+    }
 
     if (IdeInfo.getInstance().isAndroidStudio) {
       MemorySettingsPostSyncChecker
@@ -194,7 +200,7 @@ internal constructor(private val myModuleValidatorFactory: AndroidModuleValidato
     })
   }
 
-  override fun postProcess(toImport: MutableCollection<out DataNode<AndroidModuleModel>>,
+  override fun postProcess(toImport: Collection<DataNode<GradleAndroidModel>>,
                            projectData: ProjectData?,
                            project: Project,
                            modelsProvider: IdeModifiableModelsProvider) {
@@ -221,13 +227,7 @@ internal constructor(private val myModuleValidatorFactory: AndroidModuleValidato
         IdeSdks.getInstance()
       )
 
-      val modules = listOf(mainIdeModule)
-      /* FIXME-ank6: this does not work with MPP projects, because source sets of main module are: common, jvm, ios, etc.
-       * and they may need their own sdks like JDK, Kotlin SDK, etc.
-      val modules = listOf(mainIdeModule) + findAll(mainModuleDataNode, GradleSourceSetData.KEY).mapNotNull { dataNode ->
-        modelsProvider.findIdeModule(dataNode.data)
-      }
-       */
+      val modules = mainIdeModule.getAllLinkedModules()
       modules.forEach { module ->
         module.setupSdkAndLanguageLevel(modelsProvider, androidModel.javaLanguageLevel, sdkToUse)
       }
@@ -242,7 +242,7 @@ private fun createAndroidFacet(module: Module, facetModel: ModifiableFacetModel)
   val facetType = AndroidFacet.getFacetType()
   val facet = facetType.createFacet(module, AndroidFacet.NAME, facetType.createDefaultConfiguration(), null)
   @Suppress("UnstableApiUsage")
-  facetModel.addFacet(facet, ExternalSystemApiUtil.toExternalSource(GRADLE_SYSTEM_ID))
+  facetModel.addFacet(facet, ExternalSystemApiUtil.toExternalSource(SYSTEM_ID))
   return facet
 }
 
@@ -251,7 +251,7 @@ private fun createAndroidFacet(module: Module, facetModel: ModifiableFacetModel)
  *
  * Note: we use the currently selected variant of the [androidModuleModel] to perform the configuration.
  */
-private fun configureFacet(androidFacet: AndroidFacet, androidModuleModel: AndroidModuleModel) {
+private fun configureFacet(androidFacet: AndroidFacet, androidModuleModel: GradleAndroidModel) {
   @Suppress("DEPRECATION") // One of the legitimate assignments to the property.
   androidFacet.properties.ALLOW_USER_CONFIGURATION = false
   @Suppress("DEPRECATION")

@@ -16,6 +16,7 @@
 package com.android.tools.idea.gradle.dsl.parser.elements;
 
 import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR;
+import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.followElement;
 import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.isPropertiesElementOrMap;
 import static com.android.tools.idea.gradle.dsl.model.notifications.NotificationTypeReference.PROPERTY_PLACEMENT;
 import static com.android.tools.idea.gradle.dsl.parser.elements.ElementState.APPLIED;
@@ -37,6 +38,7 @@ import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyType;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.SemanticsDescription;
 import com.android.tools.idea.gradle.dsl.parser.settings.ProjectPropertiesDslElement;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -220,20 +222,26 @@ public abstract class GradlePropertiesDslElement extends GradleDslElementImpl {
    * @param element
    */
   public void augmentParsedElement(@NotNull GradleDslElement element) {
-    ModelPropertyDescription modelProperty = element.getModelProperty();
-    if (modelProperty == null) {
+    ModelEffectDescription modelEffect = element.getModelEffect();
+    if (modelEffect == null) {
       // this is probably not right but let's see what happens.
       addParsedElement(element);
       return;
     }
-    if (modelProperty.type == ModelPropertyType.MUTABLE_LIST || modelProperty.type == ModelPropertyType.MUTABLE_SET) {
-      addToParsedExpressionList(modelProperty, element);
+    ModelPropertyType type = modelEffect.property.type;
+    if (type == ModelPropertyType.MUTABLE_LIST || type == ModelPropertyType.MUTABLE_SET) {
+      addToParsedExpressionList(modelEffect, element);
+      return;
+    }
+    if (type == ModelPropertyType.MUTABLE_MAP) {
+      addToParsedExpressionMap(modelEffect, element);
       return;
     }
     addParsedElement(element);
   }
 
-  protected void addAsParsedDslExpressionList(@NotNull String property, @NotNull GradleDslSimpleExpression expression) {
+  protected void addAsParsedDslExpressionList(@NotNull ModelEffectDescription effect, @NotNull GradleDslSimpleExpression expression) {
+    String property = effect.property.name;
     PsiElement psiElement = expression.getPsiElement();
     if (psiElement == null) {
       return;
@@ -244,6 +252,8 @@ public abstract class GradlePropertiesDslElement extends GradleDslElementImpl {
     // only one argument is supported and for this cases we use addToParsedExpressionList method.
     GradleDslExpressionList literalList =
       new GradleDslExpressionList(this, psiElement, GradleNameElement.create(property), true);
+    literalList.setModelEffect(effect);
+    literalList.setElementType(REGULAR);
     if (expression instanceof GradleDslMethodCall) {
       // Make sure the psi is set to the argument list instead of the whole method call.
       literalList.setPsiElement(((GradleDslMethodCall)expression).getArgumentListPsiElement());
@@ -315,17 +325,22 @@ public abstract class GradlePropertiesDslElement extends GradleDslElementImpl {
     newElements.forEach(gradleDslExpressionList::addParsedElement);
   }
 
-  public void addToParsedExpressionList(@NotNull ModelPropertyDescription property, @NotNull GradleDslElement element) {
+  public void addToParsedExpressionList(@NotNull ModelEffectDescription effect, @NotNull GradleDslElement element) {
     List<GradleDslElement> newElements = new ArrayList<>();
     PsiElement psiElement = mungeElementsForAddToParsedExpressionList(element, newElements);
     if (psiElement == null) {
       return;
     }
 
-    GradleDslExpressionList gradleDslExpressionList = getPropertyElement(property, GradleDslExpressionList.class);
+    GradleDslExpressionList gradleDslExpressionList = getPropertyElement(effect.property, GradleDslExpressionList.class);
     if (gradleDslExpressionList == null) {
-      gradleDslExpressionList = new GradleDslExpressionList(this, psiElement, GradleNameElement.create(property.name), false);
-      gradleDslExpressionList.setModelEffect(new ModelEffectDescription(property, CREATE_WITH_VALUE));
+      gradleDslExpressionList = new GradleDslExpressionList(this, psiElement, GradleNameElement.create(effect.property.name), false);
+      // TODO(xof): rewriting the effect to CREATE_WITH_VALUE seems wrong.  It is necessary because we can end up adding to a parsed list
+      //  with several kinds of model semantics (e.g. augmented assignment on a VAL or VAR, AUGMENT_LIST from a method call) and we
+      //  must be prepared to rewrite on structural change for all these cases.  We preserve the existing effect's versionConstraint, if
+      //  any, so that that too can be used to decide whether to rewrite.
+      ModelEffectDescription createEffect = new ModelEffectDescription(effect.property, CREATE_WITH_VALUE, effect.versionConstraint);
+      gradleDslExpressionList.setModelEffect(createEffect);
       gradleDslExpressionList.setElementType(REGULAR);
       addPropertyInternal(gradleDslExpressionList, EXISTING);
     }
@@ -333,6 +348,35 @@ public abstract class GradlePropertiesDslElement extends GradleDslElementImpl {
       gradleDslExpressionList.setPsiElement(psiElement);
     }
     newElements.forEach(gradleDslExpressionList::addParsedElement);
+  }
+
+  public void addToParsedExpressionMap(@NotNull ModelEffectDescription effect, @NotNull GradleDslElement element) {
+    element = followElement(element);
+    if (!(element instanceof GradleDslExpressionMap)) return;
+
+    GradleDslExpressionMap map = getPropertyElement(effect.property, GradleDslExpressionMap.class);
+    if (map == null) {
+      map = new GradleDslExpressionMap(this, element.getPsiElement(), GradleNameElement.create(effect.property.name), true);
+      ModelEffectDescription createEffect = new ModelEffectDescription(effect.property, CREATE_WITH_VALUE, effect.versionConstraint);
+      map.setModelEffect(createEffect);
+      map.setElementType(REGULAR);
+      addPropertyInternal(map, EXISTING);
+    }
+    else {
+      map.setPsiElement(element.getPsiElement());
+      SemanticsDescription semantics = CREATE_WITH_VALUE;
+      ModelEffectDescription currentEffect = map.getModelEffect();
+      if (currentEffect != null) {
+        semantics = currentEffect.semantics;
+      }
+      ModelEffectDescription newEffect = new ModelEffectDescription(effect.property, semantics, effect.versionConstraint);
+      map.setModelEffect(newEffect);
+    }
+
+    GradleDslExpressionMap newElements = (GradleDslExpressionMap)element;
+    for (Map.Entry<String,GradleDslElement> entry : newElements.getPropertyElements().entrySet()) {
+      map.setParsedElement(entry.getValue());
+    }
   }
 
   @NotNull
@@ -677,7 +721,7 @@ public abstract class GradlePropertiesDslElement extends GradleDslElementImpl {
 
   /**
    * Marks the given {@code element} for removal.
-   * <p>
+   *
    * Note that it removes the element from all its holders, not just the one this is called on (usually, but not always, its parent).
    *
    * @param element the element to remove.
@@ -885,7 +929,6 @@ public abstract class GradlePropertiesDslElement extends GradleDslElementImpl {
     }
     throw new IllegalStateException("Element not found in parent");
   }
-
   /**
    * Class to deal with retrieving the correct property for a given context. It manages whether
    * or not variable types should be returned along with coordinating a number of properties

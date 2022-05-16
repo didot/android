@@ -14,39 +14,45 @@
  * limitations under the License.
  */
 package com.android.tools.idea.layoutinspector
-
 import com.android.ddmlib.testing.FakeAdbRule
 import com.android.fakeadbserver.DeviceState
-import com.android.fakeadbserver.FakeAdbServer
-import com.android.fakeadbserver.devicecommandhandlers.DeviceCommandHandler
 import com.android.sdklib.AndroidVersion
 import com.android.testutils.MockitoKt.mock
 import com.android.tools.adtui.workbench.PropertiesComponentMock
 import com.android.tools.idea.appinspection.api.process.ProcessesModel
 import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescriptor
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
-import com.android.tools.idea.appinspection.test.TestProcessNotifier
+import com.android.tools.idea.appinspection.test.TestProcessDiscovery
+import com.android.tools.idea.layoutinspector.metrics.LayoutInspectorMetrics
 import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model.InspectorModel
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLauncher
+import com.android.tools.idea.layoutinspector.pipeline.adb.AdbDebugViewProperties
+import com.android.tools.idea.layoutinspector.pipeline.adb.FakeShellCommandHandler
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.AppInspectionInspectorClient
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.compose.ComposeParametersCache
 import com.android.tools.idea.layoutinspector.pipeline.legacy.LegacyClient
 import com.android.tools.idea.layoutinspector.pipeline.legacy.LegacyTreeLoader
 import com.android.tools.idea.layoutinspector.util.FakeTreeSettings
+import com.android.tools.idea.model.AndroidModel
+import com.android.tools.idea.model.TestAndroidModel
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.intellij.ide.DataManager
 import com.intellij.ide.impl.HeadlessDataManager
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
+import org.jetbrains.android.facet.AndroidFacet
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
-import java.net.Socket
-import java.util.ArrayDeque
+import org.mockito.ArgumentMatchers
+import org.mockito.Mockito
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 val MODERN_DEVICE = object : DeviceDescriptor {
@@ -73,10 +79,11 @@ val OLDER_LEGACY_DEVICE = object : DeviceDescriptor by MODERN_DEVICE {
   override val version = "L"
 }
 
-fun DeviceDescriptor.createProcess(name: String = "com.example.layout.MyApp",
-                                   pid: Int = 1,
-                                   streamId: Long = 13579,
-                                   isRunning: Boolean = true
+fun DeviceDescriptor.createProcess(
+  name: String = "com.example",
+  pid: Int = 1,
+  streamId: Long = 13579,
+  isRunning: Boolean = true
 ): ProcessDescriptor {
   val device = this
   return object : ProcessDescriptor {
@@ -95,17 +102,22 @@ fun DeviceDescriptor.createProcess(name: String = "com.example.layout.MyApp",
  *
  * This will be used to handle initializing this rule's [InspectorClientLauncher].
  */
-interface InspectorClientProvider {
-  fun create(params: InspectorClientLauncher.Params, inspector: LayoutInspector): InspectorClient
+fun interface InspectorClientProvider {
+  fun create(params: InspectorClientLauncher.Params, inspector: LayoutInspector): InspectorClient?
 }
 
 /**
  * Simple, convenient provider for generating a real [LegacyClient]
  */
-class LegacyClientProvider(private val treeLoaderOverride: LegacyTreeLoader? = null) : InspectorClientProvider {
-  override fun create(params: InspectorClientLauncher.Params, inspector: LayoutInspector): InspectorClient {
-    return LegacyClient(params.adb, params.process, inspector.layoutInspectorModel, inspector.stats, treeLoaderOverride)
+fun LegacyClientProvider(
+  parentDisposable: Disposable,
+  treeLoaderOverride: LegacyTreeLoader? = Mockito.mock(LegacyTreeLoader::class.java).also {
+    Mockito.`when`(it.getAllWindowIds(ArgumentMatchers.any())).thenReturn(listOf("1"))
   }
+) = InspectorClientProvider { params, inspector ->
+  LegacyClient(params.process, params.isInstantlyAutoConnected, inspector.layoutInspectorModel,
+               LayoutInspectorMetrics(inspector.layoutInspectorModel.project, params.process, inspector.stats),
+               parentDisposable, treeLoaderOverride)
 }
 
 /**
@@ -114,93 +126,48 @@ class LegacyClientProvider(private val treeLoaderOverride: LegacyTreeLoader? = n
  * This includes things like fake ADB support, process management, and [InspectorClient] setup.
  *
  * Note that, when the rule first starts up, that [inspectorClient] will be set to a disconnected client. You must first
- * call [TestProcessNotifier.fireConnected] (with a process that has a preferred process name) or
+ * call [TestProcessDiscovery.fireConnected] (with a process that has a preferred process name) or
  * [ProcessesModel.selectedProcess] directly, to trigger a new client to get created.
  *
  * @param projectRule A rule providing access to a test project. This shouldn't be annotated with `@Rule` by the caller,
  *     as this class will handle it.
  *
- * @param getPreferredProcessNames Optionally provide names of processes that, when connected via [TestProcessNotifier],
+ * @param isPreferredProcess Optionally provide a process selector that, when connected via [TestProcessDiscovery],
  *     will be automatically attached to. This simulates the experience when the user presses the "Run" button for example.
  *     Otherwise, the test caller must set [ProcessesModel.selectedProcess] directly.
  */
 class LayoutInspectorRule(
-  private val clientProvider: InspectorClientProvider,
+  private val clientProviders: List<InspectorClientProvider>,
   val projectRule: AndroidProjectRule = AndroidProjectRule.onDisk(),
-  getPreferredProcessNames: () -> List<String> = { listOf() }
+  isPreferredProcess: (ProcessDescriptor) -> Boolean = { false }
 ) : TestRule {
-
-  /**
-   * Class which installs fake handling for adb commands related to querying and updating debug
-   * view properties.
-   */
-  class AdbDebugViewProperties(adbRule: FakeAdbRule) {
-    var debugViewAttributesChangesCount = 0
-      private set
-    var debugViewAttributes: String? = null
-      private set
-    var debugViewAttributesApplicationPackage: String? = null
-      private set
-
-    init {
-      adbRule.withDeviceCommandHandler(object : DeviceCommandHandler("shell") {
-        override fun accept(server: FakeAdbServer, socket: Socket, device: DeviceState, command: String, args: String): Boolean {
-          val response = when (command) {
-            "shell" -> handleShellCommand(args) ?: return false
-            else -> return false
-          }
-          writeOkay(socket.getOutputStream())
-          writeString(socket.getOutputStream(), response)
-          return true
-        }
-      })
-    }
-
-    /**
-     * Handle shell commands.
-     *
-     * Examples:
-     *  - "settings get global debug_view_attributes"
-     *  - "settings get global debug_view_attributes_application_package"
-     *  - "settings put global debug_view_attributes 1"
-     *  - "settings put global debug_view_attributes_application_package com.example.myapp"
-     *  - "settings delete global debug_view_attributes"
-     *  - "settings delete global debug_view_attributes_application_package"
-     */
-    private fun handleShellCommand(command: String): String? {
-      val args = ArrayDeque(command.split(' '))
-      if (args.poll() != "settings") {
-        return null
-      }
-      val operation = args.poll()
-      if (args.poll() != "global") {
-        return null
-      }
-      val variable = when (args.poll()) {
-        "debug_view_attributes" -> this::debugViewAttributes
-        "debug_view_attributes_application_package" -> this::debugViewAttributesApplicationPackage
-        else -> return null
-      }
-      val argument = if (args.isEmpty()) "" else args.poll()
-      if (args.isNotEmpty()) {
-        return null
-      }
-      return when (operation) {
-        "get" -> variable.get().toString()
-        "put" -> {
-          variable.set(argument); debugViewAttributesChangesCount++; ""
-        }
-        "delete" -> {
-          variable.set(null); debugViewAttributesChangesCount++; ""
-        }
-        else -> null
-      }
-    }
-  }
 
   lateinit var launcher: InspectorClientLauncher
     private set
   private val launcherDisposable = Disposer.newDisposable()
+
+  private val launcherExecutor = Executor { runnable ->
+    if (launchSynchronously) {
+      runnable.run()
+    }
+    else {
+      Thread {
+        runnable.run()
+        asyncLaunchLatch.countDown()
+      }.start()
+    }
+  }
+
+  /**
+   * Set this to false if the test requires the launcher to execute on a different thread.
+   * Use [asyncLaunchLatch] to make sure the thread finished.
+   */
+  var launchSynchronously = true
+
+  /**
+   * Use this latch to control the execution of background launchers
+   */
+  lateinit var asyncLaunchLatch: CountDownLatch
 
   /**
    * Convenience accessor, as this property is used a lot
@@ -210,17 +177,20 @@ class LayoutInspectorRule(
   /**
    * A notifier which acts as a source of processes being externally connected.
    */
-  val processNotifier = TestProcessNotifier()
+  val processNotifier = TestProcessDiscovery()
 
   /**
    * The underlying processes model, automatically affected by [processNotifier] but can be
    * interacted directly with to force a connection via its [ProcessesModel.selectedProcess]
    * property.
    */
-  val processes = ProcessesModel(processNotifier, getPreferredProcessNames)
+  val processes = ProcessesModel(processNotifier, isPreferredProcess)
 
   val adbRule = FakeAdbRule()
-  val adbProperties = AdbDebugViewProperties(adbRule)
+  val adbProperties: AdbDebugViewProperties = FakeShellCommandHandler().apply {
+    adbRule.withDeviceCommandHandler(this)
+  }
+  val adbService = AdbServiceRule(projectRule::project, adbRule)
 
   lateinit var inspector: LayoutInspector
     private set
@@ -249,12 +219,13 @@ class LayoutInspectorRule(
     projectRule.replaceService(PropertiesComponent::class.java, PropertiesComponentMock())
 
     inspectorModel = InspectorModel(projectRule.project)
-    launcher = InspectorClientLauncher(adbRule.bridge,
-                                       processes,
-                                       listOf { params -> clientProvider.create(params, inspector) },
+    launcher = InspectorClientLauncher(processes,
+                                       clientProviders.map { provider -> { params -> provider.create(params, inspector) } },
+                                       project,
                                        launcherDisposable,
-                                       MoreExecutors.directExecutor())
+                                       executor = launcherExecutor)
     Disposer.register(projectRule.fixture.testRootDisposable, launcherDisposable)
+    AndroidFacet.getInstance(projectRule.module)?.let { AndroidModel.set(it, TestAndroidModel("com.example")) }
 
     // Client starts disconnected, and will be updated after the ProcessesModel's selected process is updated
     inspectorClient = launcher.activeClient
@@ -287,7 +258,7 @@ class LayoutInspectorRule(
 
   override fun apply(base: Statement, description: Description): Statement {
     // List of rules that will be applied in order, with this rule being last
-    val innerRules = listOf(adbRule, projectRule)
+    val innerRules = listOf(adbService, adbRule, projectRule)
     val coreStatement = object : Statement() {
       override fun evaluate() {
         before()

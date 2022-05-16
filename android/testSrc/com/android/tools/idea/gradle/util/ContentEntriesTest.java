@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.gradle.util;
 
-import static com.google.common.truth.Truth.assertThat;
+import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
@@ -24,8 +24,9 @@ import com.intellij.openapi.roots.ModifiableRootModel;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.HeavyPlatformTestCase;
-import com.intellij.util.io.PathKt;
-import java.nio.file.Path;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
@@ -42,12 +43,12 @@ public class ContentEntriesTest extends HeavyPlatformTestCase {
     Module module2 = createModule("module2");
     contentEntries.add(createContentEntry(module2));
 
-    Path fakeLibraryPath = createFakeLibraryIn(contentEntry);
-    ContentEntry found = ContentEntries.findParentContentEntry(fakeLibraryPath.toFile(), contentEntries.stream());
+    File fakeLibraryPath = createFakeLibraryIn(contentEntry);
+    ContentEntry found = ContentEntries.findParentContentEntry(fakeLibraryPath, contentEntries.stream());
     assertSame(contentEntry, found);
   }
 
-  public void testFindContentEntryWithFileNotInContentEntry() {
+  public void testFindContentEntryWithFileNotInContentEntry() throws IOException {
     List<ContentEntry> contentEntries = new ArrayList<>();
     contentEntries.add(createContentEntry(getModule()));
 
@@ -55,32 +56,35 @@ public class ContentEntriesTest extends HeavyPlatformTestCase {
     contentEntries.add(createContentEntry(module2));
 
     // This file exists outside the project. Should be in any content roots.
-    Path fakeLibraryPath = createFakeLibraryOutsideProject();
-    assertThat(ContentEntries.findParentContentEntry(fakeLibraryPath.toFile(), contentEntries.stream())).isNull();
+    File fakeLibraryPath = createFakeLibraryOutsideProject();
+
+    ContentEntry found = ContentEntries.findParentContentEntry(fakeLibraryPath, contentEntries.stream());
+    assertNull(found);
   }
 
   public void testIsPathInContentEntryWithFileInContentEntry() {
     ContentEntry contentEntry = createContentEntry(getModule());
-    Path fakeLibraryPath = createFakeLibraryIn(contentEntry);
-    assertTrue(ContentEntries.isPathInContentEntry(fakeLibraryPath.toFile(), contentEntry));
+    File fakeLibraryPath = createFakeLibraryIn(contentEntry);
+    assertTrue(ContentEntries.isPathInContentEntry(fakeLibraryPath, contentEntry));
   }
 
-  private static @NotNull Path createFakeLibraryIn(@NotNull ContentEntry contentEntry) {
+  @NotNull
+  private static File createFakeLibraryIn(@NotNull ContentEntry contentEntry) {
     VirtualFile contentEntryRootFile = contentEntry.getFile();
     assertNotNull(contentEntryRootFile);
-    return contentEntryRootFile.toNioPath().resolve("fakeLibrary.jar");
+    File folderPath = virtualToIoFile(contentEntryRootFile);
+    return new File(folderPath, "fakeLibrary.jar");
   }
 
-  public void testIsPathInContentEntryWithFileNotInContentEntry() {
+  public void testIsPathInContentEntryWithFileNotInContentEntry() throws IOException {
     ContentEntry contentEntry = createContentEntry(getModule());
-    Path fakeLibraryPath = createFakeLibraryOutsideProject();
-    assertFalse(ContentEntries.isPathInContentEntry(fakeLibraryPath.toFile(), contentEntry));
+    File fakeLibraryPath = createFakeLibraryOutsideProject();
+    assertFalse(ContentEntries.isPathInContentEntry(fakeLibraryPath, contentEntry));
   }
 
-  private @NotNull Path createFakeLibraryOutsideProject() {
-    Path result = getTempDir().newPath("fakeLibrary.jar");
-    PathKt.createFile(result);
-    return result;
+  @NotNull
+  private static File createFakeLibraryOutsideProject() throws IOException {
+    return Files.createTempFile("fakeLibrary", ".jar").toFile();
   }
 
   @NotNull

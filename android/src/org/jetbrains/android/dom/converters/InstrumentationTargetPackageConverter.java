@@ -8,7 +8,7 @@ import com.intellij.psi.PsiReference;
 import com.intellij.psi.PsiReferenceBase;
 import com.intellij.psi.impl.source.resolve.ResolveCache;
 import com.intellij.psi.xml.XmlAttributeValue;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.Processor;
 import com.intellij.util.xml.ConvertContext;
 import com.intellij.util.xml.Converter;
@@ -74,7 +74,7 @@ public class InstrumentationTargetPackageConverter extends Converter<String> imp
       }
       final Ref<PsiElement> result = Ref.create();
 
-      processApkPackageAttrs(new Processor<GenericAttributeValue<String>>() {
+      processApkPackageAttrs(new Processor<>() {
         @Override
         public boolean process(GenericAttributeValue<String> domValue) {
           if (value.equals(domValue.getValue())) {
@@ -96,7 +96,7 @@ public class InstrumentationTargetPackageConverter extends Converter<String> imp
     public Object[] getVariants() {
       final Set<String> result = new HashSet<>();
 
-      processApkPackageAttrs(new Processor<GenericAttributeValue<String>>() {
+      processApkPackageAttrs(new Processor<>() {
         @Override
         public boolean process(GenericAttributeValue<String> domValue) {
           final String value = domValue.getValue();
@@ -107,7 +107,7 @@ public class InstrumentationTargetPackageConverter extends Converter<String> imp
           return true;
         }
       });
-      return ArrayUtil.toStringArray(result);
+      return ArrayUtilRt.toStringArray(result);
     }
 
     private void processApkPackageAttrs(@NotNull Processor<GenericAttributeValue<String>> processor) {

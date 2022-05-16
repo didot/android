@@ -35,7 +35,8 @@ import com.intellij.util.containers.nullize
 import com.intellij.util.ui.update.MergingUpdateQueue
 import com.intellij.util.ui.update.MergingUpdateQueue.ANY_COMPONENT
 import com.intellij.util.ui.update.Update
-import java.util.*
+import java.util.Collections
+import java.util.EventListener
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit

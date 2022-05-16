@@ -16,10 +16,12 @@
 package com.android.tools.profilers;
 
 import com.android.sdklib.AndroidVersion;
-import com.android.tools.inspectors.common.api.stacktrace.CodeNavigator;
+import com.android.tools.idea.codenavigation.CodeNavigator;
+import com.android.tools.idea.codenavigation.FakeNavSource;
 import com.android.tools.profiler.proto.Cpu;
 import com.android.tools.profiler.proto.Memory;
 import com.android.tools.profilers.analytics.FeatureTracker;
+import com.android.tools.profilers.appinspection.AppInspectionMigrationServices;
 import com.android.tools.profilers.cpu.FakeTracePreProcessor;
 import com.android.tools.profilers.cpu.TracePreProcessor;
 import com.android.tools.profilers.cpu.config.ArtInstrumentedConfiguration;
@@ -30,7 +32,6 @@ import com.android.tools.profilers.cpu.config.ProfilingConfiguration;
 import com.android.tools.profilers.cpu.config.SimpleperfConfiguration;
 import com.android.tools.profilers.cpu.config.UnspecifiedConfiguration;
 import com.android.tools.profilers.perfetto.traceprocessor.TraceProcessorService;
-import com.android.tools.profilers.stacktrace.FakeCodeNavigator;
 import com.android.tools.profilers.stacktrace.NativeFrameSymbolizer;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
@@ -69,7 +70,8 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
   public static final ProfilingConfiguration PERFETTO_CONFIG = new PerfettoConfiguration(FAKE_PERFETTO_NAME);
 
   private final FeatureTracker myFakeFeatureTracker = new FakeFeatureTracker();
-  private final CodeNavigator myFakeNavigationService = new FakeCodeNavigator(myFakeFeatureTracker);
+  private final CodeNavigator myFakeNavigationService = new CodeNavigator(
+      new FakeNavSource(), CodeNavigator.Companion.getTestExecutor());
   private final TracePreProcessor myFakeTracePreProcessor = new FakeTracePreProcessor();
   private TraceProcessorService myTraceProcessorService = new FakeTraceProcessorService();
   private NativeFrameSymbolizer myFakeSymbolizer = new NativeFrameSymbolizer() {
@@ -92,19 +94,14 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
   private boolean myEnergyProfilerEnabled = false;
 
   /**
+   * Whether jank detection UI is enabled
+   */
+  private boolean myIsJankDetectionUiEnabled = true;
+
+  /**
    * JNI references alloc/dealloc events are tracked and shown.
    */
   private boolean myIsJniReferenceTrackingEnabled = false;
-
-  /**
-   * Toggle for faking live allocation tracking support in tests.
-   */
-  private boolean myLiveTrackingEnabled = false;
-
-  /**
-   * Toggle for faking memory snapshot support in tests.
-   */
-  private boolean myMemorySnapshotEnabled = true;
 
   /**
    * Whether a native CPU profiling configuration is preferred over a Java one.
@@ -132,11 +129,6 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
   private boolean myCpuNewRecordingWorkflowEnabled = false;
 
   /**
-   * Toggle for live allocation sampling mode.
-   */
-  private boolean myLiveAllocationsSamplingEnabled = true;
-
-  /**
    * Toggle for cpu capture stage switching vs cpu profiler stage when handling captures.
    */
   private boolean myIsCaptureStageEnabled = false;
@@ -147,11 +139,6 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
   private boolean myCustomEventVisualizationEnabled = false;
 
   /**
-   * Whether native memory sampling via heapprofd is enabled.
-   */
-  private boolean myNativeMemorySampleEnabled = false;
-
-  /**
    * Whether we use TraceProcessor to parse Perfetto traces.
    */
   private boolean myUseTraceProcessor = true;
@@ -159,12 +146,12 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
   /**
    * Whether we support profileable processes
    */
-  private boolean myProfileableEnabled = false;
+  private boolean myProfileableEnabled = true;
 
   /**
    * Whether we support profileable processes in Q & R
    */
-  private boolean myProfileableInQrEnabled = false;
+  private boolean myProfileableInQrEnabled = true;
 
   /**
    * List of custom CPU profiling configurations.
@@ -194,6 +181,8 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
   public FakeIdeProfilerServices() {
     myPersistentPreferences = new FakeProfilerPreferences();
     myTemporaryPreferences = new FakeProfilerPreferences();
+
+    myFakeNavigationService.addListener((location -> myFakeFeatureTracker.trackNavigateToCode()));
   }
 
   @NotNull
@@ -268,29 +257,16 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
       }
 
       @Override
+      public boolean isJankDetectionUiEnabled() {
+        return myIsJankDetectionUiEnabled;
+      }
+
+      @Override
       public boolean isJniReferenceTrackingEnabled() { return myIsJniReferenceTrackingEnabled; }
-
-      @Override
-      public boolean isLiveAllocationsEnabled() {
-        return myLiveTrackingEnabled;
-      }
-
-      @Override
-      public boolean isLiveAllocationsSamplingEnabled() {
-        return myLiveAllocationsSamplingEnabled;
-      }
 
       @Override
       public boolean isMemoryCSVExportEnabled() {
         return false;
-      }
-
-      @Override
-      public boolean isNativeMemorySampleEnabled() { return myNativeMemorySampleEnabled; }
-
-      @Override
-      public boolean isMemorySnapshotEnabled() {
-        return myMemorySnapshotEnabled;
       }
 
       @Override
@@ -452,6 +428,24 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
     return myTraceProcessorService;
   }
 
+  @Override
+  public @NotNull AppInspectionMigrationServices getAppInspectionMigrationServices() {
+    return new AppInspectionMigrationServices() {
+      @Override
+      public boolean isMigrationEnabled() { return false; }
+      @Override
+      public boolean isSystemEventsMigrationDialogEnabled() { return false; }
+      @Override
+      public void setSystemEventsMigrationDialogEnabled(boolean isSystemEventsMigrationDialogEnabled) { }
+      @Override
+      public boolean isNetworkProfilerMigrationDialogEnabled() { return false; }
+      @Override
+      public void setNetworkProfilerMigrationDialogEnabled(boolean isNetworkProfilerMigrationDialogEnabled) { }
+      @Override
+      public void openAppInspectionToolWindow(@NotNull String tabName) { }
+    };
+  }
+
   public void setTraceProcessorService(@NotNull TraceProcessorService service) {
     myTraceProcessorService = service;
   }
@@ -469,11 +463,11 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
     myEnergyProfilerEnabled = enabled;
   }
 
-  public void enableJniReferenceTracking(boolean enabled) { myIsJniReferenceTrackingEnabled = enabled; }
-
-  public void enableLiveAllocationTracking(boolean enabled) {
-    myLiveTrackingEnabled = enabled;
+  public void enableJankDetectionUi(boolean enabled) {
+    myIsJankDetectionUiEnabled = enabled;
   }
+
+  public void enableJniReferenceTracking(boolean enabled) { myIsJniReferenceTrackingEnabled = enabled; }
 
   public void enableStartupCpuProfiling(boolean enabled) {
     myStartupCpuProfilingEnabled = enabled;
@@ -485,14 +479,6 @@ public final class FakeIdeProfilerServices implements IdeProfilerServices {
 
   public void enableCpuNewRecordingWorkflow(boolean enabled) {
     myCpuNewRecordingWorkflowEnabled = enabled;
-  }
-
-  public void enableLiveAllocationsSampling(boolean enabled) {
-    myLiveAllocationsSamplingEnabled = enabled;
-  }
-
-  public void enableNativeMemorySampling(boolean enabled) {
-    myNativeMemorySampleEnabled = enabled;
   }
 
   public void enableCpuCaptureStage(boolean enabled) { myIsCaptureStageEnabled = enabled; }

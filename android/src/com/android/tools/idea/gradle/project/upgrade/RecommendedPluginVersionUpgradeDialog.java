@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.gradle.project.upgrade;
 
-import static com.android.SdkConstants.GRADLE_LATEST_VERSION;
 import static com.android.tools.adtui.HtmlLabel.setUpAsHtmlLabel;
 import static com.android.tools.idea.gradle.project.upgrade.GradlePluginUpgrade.releaseNotesUrl;
 import static com.android.tools.idea.gradle.project.upgrade.UpgradeDialogMetricUtilsKt.recordUpgradeDialogEvent;
@@ -30,7 +29,6 @@ import static javax.swing.Action.MNEMONIC_KEY;
 import static javax.swing.Action.NAME;
 
 import com.android.ide.common.repository.GradleVersion;
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.gradle.project.PropertyBasedDoNotAskOption;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.project.Project;
@@ -39,11 +37,16 @@ import com.intellij.openapi.ui.OnePixelDivider;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.ui.HyperlinkAdapter;
 import com.intellij.ui.border.CustomLineBorder;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.Action;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JEditorPane;
+import javax.swing.JPanel;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.event.HyperlinkEvent;
@@ -80,12 +83,7 @@ public class RecommendedPluginVersionUpgradeDialog extends DialogWrapper {
     myCurrentPluginVersion = current;
     myRecommendedPluginVersion = recommended;
     myUpgradeReminder = upgradeReminder;
-    if (StudioFlags.AGP_UPGRADE_ASSISTANT.get()) {
-      setTitle("Android Gradle Plugin Upgrade Assistant");
-    }
-    else {
-      setTitle("Android Gradle Plugin Update Recommended");
-    }
+    setTitle("Android Gradle Plugin Upgrade Assistant");
     myDoNotAskOption = new PropertyBasedDoNotAskOption(project, upgradeReminder.getDoNotAskForProjectPropertyString()) {
       @Override
       @NotNull
@@ -109,29 +107,11 @@ public class RecommendedPluginVersionUpgradeDialog extends DialogWrapper {
     String msg = "";
     String url = releaseNotesUrl(recommended);
 
-    if (StudioFlags.AGP_UPGRADE_ASSISTANT.get()) {
-      msg += "<p>To take advantage of the latest features, improvements, and security fixes, we strongly recommend " +
-             "that you upgrade the Android Gradle Plugin in this project (" + myProject.getName() +
-             ") from the current version " + current + " to version " +
-             recommended + ". " +
-             "<a href='" + url + "'>Release notes</a></p>";
-    }
-    else {
-      msg += "To take advantage of the latest features, improvements, and security fixes, we strongly recommend " +
-             "that you update the Android Gradle plugin in this project (" + myProject.getName() +
-             ") from the current version " + current
-             + " to version " + recommended + " and Gradle to version " + GRADLE_LATEST_VERSION + ". " +
-             "<a href='" + url + "'>Release notes</a>";
-
-      if (current.compareTo("3.2.0") < 0) {
-        msg += "<br/><br/>" +
-               "Android plugin 3.2.0 and higher now support building the <i>Android App Bundle</i>—" +
-               "a new upload format that defers APK generation and signing to compatible app stores, " +
-               "such as Google Play. With app bundles, you no longer have to build, sign, and manage multiple APKs, " +
-               "and users get smaller, more optimized downloads. " +
-               "<a href='http://d.android.com/r/studio-ui/dynamic-delivery/overview'>Learn more</a>";
-      }
-    }
+    msg += "<p>To take advantage of the latest features, improvements, and security fixes, we strongly recommend " +
+           "that you upgrade the Android Gradle Plugin in this project (" + myProject.getName() +
+           ") from the current version " + current + " to version " +
+           recommended + ". " +
+           "<a href='" + url + "'>Release notes</a></p>";
     myMessagePane.setText(msg);
     myMessagePane.addHyperlinkListener(new HyperlinkAdapter() {
       @Override
@@ -179,12 +159,7 @@ public class RecommendedPluginVersionUpgradeDialog extends DialogWrapper {
   @NotNull
   protected Action getOKAction() {
     Action action = super.getOKAction();
-    if (StudioFlags.AGP_UPGRADE_ASSISTANT.get()) {
-      action.putValue(NAME, "Begin Upgrade");
-    }
-    else {
-      action.putValue(NAME, "Update");
-    }
+    action.putValue(NAME, "Begin Upgrade");
     return action;
   }
 

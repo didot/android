@@ -17,17 +17,11 @@ package com.android.tools.idea.devicemanager.physicaltab;
 
 import static org.junit.Assert.assertEquals;
 
-import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
-import com.google.common.jimfs.Configuration;
-import com.google.common.jimfs.Jimfs;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,28 +32,20 @@ public final class PhysicalDeviceAsyncSupplierTest {
   @Test
   public void get() throws Exception {
     // Arrange
-    Path adb = Jimfs.newFileSystem(Configuration.unix()).getPath("/home/user/Android/Sdk/platform-tools/adb");
     IDevice device = Mockito.mock(IDevice.class);
 
-    AndroidDebugBridge bridge = Mockito.mock(AndroidDebugBridge.class);
-    Mockito.when(bridge.isConnected()).thenReturn(true);
-    Mockito.when(bridge.getDevices()).thenReturn(new IDevice[]{device});
-
-    ListenableFuture<AndroidDebugBridge> bridgeFuture = Futures.immediateFuture(bridge);
-
-    PhysicalDevice physicalDevice = new PhysicalDevice.Builder()
-      .setSerialNumber("86UX00F4R")
-      .build();
+    DeviceManagerAndroidDebugBridge bridge = Mockito.mock(DeviceManagerAndroidDebugBridge.class);
+    Mockito.when(bridge.getDevices(null)).thenReturn(Futures.immediateFuture(Collections.singletonList(device)));
 
     BuilderService service = Mockito.mock(BuilderService.class);
-    Mockito.when(service.build(device)).thenReturn(Futures.immediateFuture(physicalDevice));
+    Mockito.when(service.build(device)).thenReturn(Futures.immediateFuture(TestPhysicalDevices.GOOGLE_PIXEL_3));
 
-    PhysicalDeviceAsyncSupplier supplier = new PhysicalDeviceAsyncSupplier(null, project -> adb, a -> bridgeFuture, () -> service);
+    PhysicalDeviceAsyncSupplier supplier = new PhysicalDeviceAsyncSupplier(null, bridge, () -> service);
 
     // Act
     Future<List<PhysicalDevice>> devicesFuture = supplier.get();
 
     // Assert
-    assertEquals(Collections.singletonList(physicalDevice), devicesFuture.get(256, TimeUnit.MILLISECONDS));
+    assertEquals(Collections.singletonList(TestPhysicalDevices.GOOGLE_PIXEL_3), DeviceManagerFutures.get(devicesFuture));
   }
 }

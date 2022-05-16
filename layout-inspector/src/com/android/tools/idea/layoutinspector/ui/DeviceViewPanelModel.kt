@@ -53,6 +53,18 @@ class DeviceViewPanelModel(
   val treeSettings: TreeSettings,
   private val client: (() -> InspectorClient?)? = null
 ) {
+  /**
+   * The last rendered level hovered over. This is different from [InspectorModel.hoveredNode], since this differentiates between different
+   * layers owned by the same ViewNode.
+   */
+  var hoveredDrawInfo: ViewDrawInfo? = null
+    set(value) {
+      if (field != value) {
+        field = value
+        fireModified()
+      }
+    }
+
   @VisibleForTesting
   var xOff = 0.0
   @VisibleForTesting
@@ -117,11 +129,15 @@ class DeviceViewPanelModel(
    * the depth of the child.
    */
   fun findViewsAt(x: Double, y: Double): Sequence<ViewNode> =
+    findDrawInfoAt(x, y)
+      .mapNotNull { it.node.findFilteredOwner(treeSettings) }
+      .distinct()
+
+  fun findDrawInfoAt(x: Double, y: Double): Sequence<ViewDrawInfo> =
     hitRects.asReversed()
       .asSequence()
       .filter { it.bounds.contains(x, y) }
       .sortedByDescending { it.hitLevel }
-      .mapNotNull { it.node.findFilteredOwner(treeSettings) }
       .distinct()
 
   fun findTopViewAt(x: Double, y: Double): ViewNode? = findViewsAt(x, y).firstOrNull()
@@ -150,8 +166,8 @@ class DeviceViewPanelModel(
 
     val levelLists = mutableListOf<MutableList<LevelListItem>>()
     // Each window should start completely above the previous window, hence level = levelLists.size
-    ViewNode.readDrawChildren { drawChildren ->
-      root.drawChildren().forEach { buildLevelLists(it, levelLists, levelLists.size, levelLists.size, drawChildren) }
+    ViewNode.readAccess {
+      root.drawChildren.forEach { buildLevelLists(it, levelLists, levelLists.size, levelLists.size) }
     }
     maxDepth = levelLists.size
 
@@ -161,18 +177,26 @@ class DeviceViewPanelModel(
     var angle = 0.0
     if (maxDepth > 0) {
       rootBounds = levelLists[0].map { it.node.bounds.bounds }.reduce { acc, bounds -> acc.apply { add(bounds) } }
+      // If nodes are visible (not explicitly hidden via right-click) but filtered out (e.g. by filter system nodes) they won't be in
+      // levelLists but may still paint something. Prior to initial image generation there's no way to know if they will end up painting
+      // or not, but we still need to be able to zoom to fit correctly, so include those bounds here.
+      ViewNode.readAccess {
+        model.root.flatten()
+          .minus(model.root)
+          .filter { model.isVisible(it) }
+          .forEach { node -> rootBounds.add(node.layoutBounds) }
+      }
       root.x = rootBounds.x
-      root.y = rootBounds.x
+      root.y = rootBounds.y
       root.width = rootBounds.width
       root.height = rootBounds.height
-      transform.translate(-rootBounds.width / 2.0, -rootBounds.height / 2.0)
 
       // Don't allow rotation to completely edge-on, since some rendering can have problems in that situation. See issue 158452416.
       // You might say that this is ( •_•)>⌐■-■ / (⌐■_■) an edge-case.
       magnitude = min(0.98, hypot(xOff, yOff))
       angle = if (abs(xOff) < 0.00001) PI / 2.0 else atan(yOff / xOff)
 
-      transform.translate(rootBounds.width / 2.0 - rootBounds.x, rootBounds.height / 2.0 - rootBounds.y)
+      transform.translate(-rootBounds.x.toDouble(), -rootBounds.y.toDouble())
       transform.rotate(angle)
     }
     else {
@@ -183,11 +207,12 @@ class DeviceViewPanelModel(
     modificationListeners.forEach { it() }
   }
 
-  private fun buildLevelLists(node: DrawViewNode,
-                              levelListCollector: MutableList<MutableList<LevelListItem>>,
-                              minLevel: Int,
-                              previousLevel: Int,
-                              drawChildren: ViewNode.() -> List<DrawViewNode>) {
+  private fun ViewNode.ReadAccess.buildLevelLists(
+    node: DrawViewNode,
+    levelListCollector: MutableList<MutableList<LevelListItem>>,
+    minLevel: Int,
+    previousLevel: Int,
+  ) {
     var newLevelIndex = minLevel
     val owner = node.findFilteredOwner(treeSettings)
     if (owner == null || model.isVisible(owner)) {
@@ -227,8 +252,8 @@ class DeviceViewPanelModel(
         levelList.add(LevelListItem(node, isCollapsed))
       }
     }
-    for (drawChild in node.children(drawChildren)) {
-      buildLevelLists(drawChild, levelListCollector, 0, newLevelIndex, drawChildren)
+    for (drawChild in node.children(this)) {
+      buildLevelLists(drawChild, levelListCollector, 0, newLevelIndex)
     }
   }
 
@@ -259,9 +284,11 @@ class DeviceViewPanelModel(
   }
 
   fun resetRotation() {
-    xOff = 0.0
-    yOff = 0.0
-    refresh()
+    if (xOff != 0.0 || yOff != 0.0) {
+      xOff = 0.0
+      yOff = 0.0
+      refresh()
+    }
   }
 
   /**

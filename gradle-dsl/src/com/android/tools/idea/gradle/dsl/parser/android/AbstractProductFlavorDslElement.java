@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.gradle.dsl.parser.android;
 
+import static com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR;
 import static com.android.tools.idea.gradle.dsl.model.android.ProductFlavorModelImpl.APPLICATION_ID;
 import static com.android.tools.idea.gradle.dsl.model.android.ProductFlavorModelImpl.DEFAULT;
 import static com.android.tools.idea.gradle.dsl.model.android.ProductFlavorModelImpl.DIMENSION;
@@ -35,13 +36,16 @@ import static com.android.tools.idea.gradle.dsl.model.android.ProductFlavorModel
 import static com.android.tools.idea.gradle.dsl.model.android.ProductFlavorModelImpl.VERSION_CODE;
 import static com.android.tools.idea.gradle.dsl.model.android.ProductFlavorModelImpl.VERSION_NAME;
 import static com.android.tools.idea.gradle.dsl.model.android.ProductFlavorModelImpl.WEAR_APP_UNBUNDLED;
-import static com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil.followElement;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.atLeast;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.exactly;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ArityHelper.property;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.AUGMENT_LIST;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.AUGMENT_MAP;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.OTHER;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.MethodSemanticsDescription.SET;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelMapCollector.toModelMap;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.ModelSemanticsDescription.CREATE_WITH_VALUE;
+import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAL;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR;
 import static com.android.tools.idea.gradle.dsl.parser.semantics.PropertySemanticsDescription.VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -53,17 +57,16 @@ import com.android.tools.idea.gradle.dsl.parser.android.productFlavors.VectorDra
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
-import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslLiteral;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslMethodCall;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
+import com.android.tools.idea.gradle.dsl.parser.semantics.ExternalToModelMap;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.android.tools.idea.gradle.dsl.parser.semantics.SurfaceSyntaxDescription;
+import com.android.tools.idea.gradle.dsl.parser.semantics.VersionConstraint;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
@@ -83,111 +86,118 @@ public abstract class AbstractProductFlavorDslElement extends AbstractFlavorType
     return CHILD_PROPERTIES_ELEMENTS_MAP;
   }
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> ktsToModelNameMap =
-    Stream.concat(
-      AbstractFlavorTypeDslElement.ktsToModelNameMap.entrySet().stream().map(data -> new Object[]{
-        data.getKey().name, data.getKey().arity, data.getValue().property, data.getValue().semantics
-      }),
-      Stream.of(new Object[][]{
-        {"applicationId", property, APPLICATION_ID, VAR},
-        {"setApplicationId", exactly(1), APPLICATION_ID, SET},
-        {"isDefault", property, DEFAULT, VAR},
-        {"dimension", property, DIMENSION, VAR},
-        {"setDimension", exactly(1), DIMENSION, SET},
-        {"maxSdkVersion", property, MAX_SDK_VERSION, VAR},
-        {"maxSdkVersion", exactly(1), MAX_SDK_VERSION, SET},
-        {"minSdkVersion", exactly(1), MIN_SDK_VERSION, SET},
-        {"missingDimensionStrategy", atLeast(1), MISSING_DIMENSION_STRATEGY, OTHER}, // ADD
-        {"renderscriptTargetApi", property, RENDER_SCRIPT_TARGET_API, VAR},
-        {"renderscriptSupportModeEnabled", property, RENDER_SCRIPT_SUPPORT_MODE_ENABLED, VAR},
-        {"renderscriptSupportModeBlasEnabled", property, RENDER_SCRIPT_SUPPORT_MODE_BLAS_ENABLED, VAR},
-        {"renderscriptNdkModeEnabled", property, RENDER_SCRIPT_NDK_MODE_ENABLED, VAR},
-        {"resConfigs", atLeast(0), RES_CONFIGS, OTHER}, // FIXME(xof): actually APPENDN fails to handle resConfigs(listOf(...))
-        {"resConfig", exactly(1), RES_CONFIGS, OTHER},
-        {"targetSdkVersion", exactly(1), TARGET_SDK_VERSION, SET},
-        {"testApplicationId", property, TEST_APPLICATION_ID, VAR},
-        {"setTestApplicationId", exactly(1), TEST_APPLICATION_ID, SET},
-        {"testFunctionalTest", property, TEST_FUNCTIONAL_TEST, VAR},
-        {"setTestFunctionalTest", exactly(1), TEST_FUNCTIONAL_TEST, SET},
-        {"testHandleProfiling", property, TEST_HANDLE_PROFILING, VAR},
-        {"setTestHandleProfiling", exactly(1), TEST_HANDLE_PROFILING, SET},
-        {"testInstrumentationRunner", property, TEST_INSTRUMENTATION_RUNNER, VAR},
-        {"testInstrumentationRunner", exactly(1), TEST_INSTRUMENTATION_RUNNER, SET},
-        // TODO(b/148657110): see the comment above manifestPlaceholders in AbstractFlavorTypeDslElement
-        {"testInstrumentationRunnerArguments", property, TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS},
-        {"testInstrumentationRunnerArguments", exactly(1), TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, OTHER}, // PUTALL
-        {"versionCode", property, VERSION_CODE, VAR},
-        {"setVersionCode", exactly(1), VERSION_CODE, SET},
-        {"versionName", property, VERSION_NAME, VAR},
-        {"setVersionName", exactly(1), VERSION_NAME, SET},
-        {"wearAppUnbundled", property, WEAR_APP_UNBUNDLED, VAR}
-      }))
-      .collect(toModelMap());
+  public static final ExternalToModelMap ktsToModelNameMap = Stream.of(new Object[][]{
+    {"applicationId", property, APPLICATION_ID, VAR},
+    {"setApplicationId", exactly(1), APPLICATION_ID, SET},
+    {"isDefault", property, DEFAULT, VAR},
+    {"dimension", property, DIMENSION, VAR},
+    {"setDimension", exactly(1), DIMENSION, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"maxSdk", property, MAX_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"maxSdkVersion", property, MAX_SDK_VERSION, VAR, VersionConstraint.agpBefore("8.0.0")},
+    {"maxSdkVersion", exactly(1), MAX_SDK_VERSION, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"minSdk", property, MIN_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"minSdkPreview", property, MIN_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"minSdkVersion", exactly(1), MIN_SDK_VERSION, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"missingDimensionStrategy", atLeast(1), MISSING_DIMENSION_STRATEGY, OTHER}, // ADD
+    {"renderscriptTargetApi", property, RENDER_SCRIPT_TARGET_API, VAR},
+    {"renderscriptSupportModeEnabled", property, RENDER_SCRIPT_SUPPORT_MODE_ENABLED, VAR},
+    {"renderscriptSupportModeBlasEnabled", property, RENDER_SCRIPT_SUPPORT_MODE_BLAS_ENABLED, VAR},
+    {"renderscriptNdkModeEnabled", property, RENDER_SCRIPT_NDK_MODE_ENABLED, VAR},
+    {"resConfigs", atLeast(0), RES_CONFIGS, AUGMENT_LIST, VersionConstraint.agpBefore("8.0.0")},
+    {"resConfig", exactly(1), RES_CONFIGS, AUGMENT_LIST, VersionConstraint.agpBefore("8.0.0")},
+    {"resourceConfigurations", property, RES_CONFIGS, VAL, VersionConstraint.agpFrom("4.1.0")},
+    {"targetSdk", property, TARGET_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"targetSdkPreview", property, TARGET_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"targetSdkVersion", exactly(1), TARGET_SDK_VERSION, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"testApplicationId", property, TEST_APPLICATION_ID, VAR},
+    {"setTestApplicationId", exactly(1), TEST_APPLICATION_ID, SET},
+    {"testFunctionalTest", property, TEST_FUNCTIONAL_TEST, VAR},
+    {"setTestFunctionalTest", exactly(1), TEST_FUNCTIONAL_TEST, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"testHandleProfiling", property, TEST_HANDLE_PROFILING, VAR},
+    {"setTestHandleProfiling", exactly(1), TEST_HANDLE_PROFILING, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"testInstrumentationRunner", property, TEST_INSTRUMENTATION_RUNNER, VAR},
+    {"testInstrumentationRunner", exactly(1), TEST_INSTRUMENTATION_RUNNER, SET},
+    {"testInstrumentationRunnerArguments", property, TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, VAR_BUT_DO_NOT_USE_FOR_WRITING_IN_KTS, VersionConstraint.agpBefore("4.1.0")},
+    {"testInstrumentationRunnerArguments", property, TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, VAL, VersionConstraint.agpFrom("4.1.0")},
+    {"testInstrumentationRunnerArguments", exactly(1), TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, AUGMENT_MAP, VersionConstraint.agpBefore("8.0.0")},
+    {"setTestInstrumentationRunnerArguments", exactly(1), TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"versionCode", property, VERSION_CODE, VAR},
+    {"setVersionCode", exactly(1), VERSION_CODE, SET},
+    {"versionName", property, VERSION_NAME, VAR},
+    {"setVersionName", exactly(1), VERSION_NAME, SET},
+    {"wearAppUnbundled", property, WEAR_APP_UNBUNDLED, VAR}
+  }).collect(toModelMap(AbstractFlavorTypeDslElement.ktsToModelNameMap));
 
-  public static final ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> groovyToModelNameMap =
-    Stream.concat(
-      AbstractFlavorTypeDslElement.groovyToModelNameMap.entrySet().stream().map(data -> new Object[]{
-        data.getKey().name, data.getKey().arity, data.getValue().property, data.getValue().semantics
-      }),
-      Stream.of(new Object[][]{
-        {"applicationId", property, APPLICATION_ID, VAR},
-        {"applicationId", exactly(1), APPLICATION_ID, SET},
-        {"isDefault", property, DEFAULT, VAR},
-        {"isDefault", exactly(1), DEFAULT, SET},
-        {"dimension", property, DIMENSION, VAR},
-        {"dimension", exactly(1), DIMENSION, SET},
-        {"maxSdkVersion", property, MAX_SDK_VERSION, VAR},
-        {"maxSdkVersion", exactly(1), MAX_SDK_VERSION, SET},
-        {"minSdkVersion", property, MIN_SDK_VERSION, VAR},
-        {"minSdkVersion", exactly(1), MIN_SDK_VERSION, SET},
-        {"missingDimensionStrategy", atLeast(1), MISSING_DIMENSION_STRATEGY, OTHER},
-        {"renderscriptTargetApi", property, RENDER_SCRIPT_TARGET_API, VAR},
-        {"renderscriptTargetApi", exactly(1), RENDER_SCRIPT_TARGET_API, SET},
-        {"renderscriptSupportModeEnabled", property, RENDER_SCRIPT_SUPPORT_MODE_ENABLED, VAR},
-        {"renderscriptSupportModeEnabled", exactly(1), RENDER_SCRIPT_SUPPORT_MODE_ENABLED, SET},
-        {"renderscriptSupportModeBlasEnabled", property, RENDER_SCRIPT_SUPPORT_MODE_BLAS_ENABLED, VAR},
-        {"renderscriptSupportModeBlasEnabled", exactly(1), RENDER_SCRIPT_SUPPORT_MODE_BLAS_ENABLED, SET},
-        {"renderscriptNdkModeEnabled", property, RENDER_SCRIPT_NDK_MODE_ENABLED, VAR},
-        {"renderscriptNdkModeEnabled", exactly(1), RENDER_SCRIPT_NDK_MODE_ENABLED, SET},
-        {"resConfigs", atLeast(0), RES_CONFIGS, OTHER},
-        {"resConfig", exactly(1), RES_CONFIGS, OTHER},
-        {"targetSdkVersion", property, TARGET_SDK_VERSION, VAR},
-        {"targetSdkVersion", exactly(1), TARGET_SDK_VERSION, SET},
-        {"testApplicationId", property, TEST_APPLICATION_ID, VAR},
-        {"testApplicationId", exactly(1), TEST_APPLICATION_ID, SET},
-        {"testFunctionalTest", property, TEST_FUNCTIONAL_TEST, VAR},
-        {"testFunctionalTest", exactly(1), TEST_FUNCTIONAL_TEST, SET},
-        {"testHandleProfiling", property, TEST_HANDLE_PROFILING, VAR},
-        {"testHandleProfiling", exactly(1), TEST_HANDLE_PROFILING, SET},
-        {"testInstrumentationRunner", property, TEST_INSTRUMENTATION_RUNNER, VAR},
-        {"testInstrumentationRunner", exactly(1), TEST_INSTRUMENTATION_RUNNER, SET},
-        {"testInstrumentationRunnerArguments", property, TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, VAR},
-        {"testInstrumentationRunnerArguments", exactly(1), TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, SET},
-        {"versionCode", property, VERSION_CODE, VAR},
-        {"versionCode", exactly(1), VERSION_CODE, SET},
-        {"versionName", property, VERSION_NAME, VAR},
-        {"versionName", exactly(1), VERSION_NAME, SET},
-        {"wearAppUnbundled", property, WEAR_APP_UNBUNDLED, VAR},
-        {"wearAppUnbundled", exactly(1), WEAR_APP_UNBUNDLED, SET}
-      }))
-      .collect(toModelMap());
+  public static final ExternalToModelMap groovyToModelNameMap = Stream.of(new Object[][]{
+    {"applicationId", property, APPLICATION_ID, VAR},
+    {"applicationId", exactly(1), APPLICATION_ID, SET},
+    {"isDefault", property, DEFAULT, VAR},
+    {"isDefault", exactly(1), DEFAULT, SET},
+    {"dimension", property, DIMENSION, VAR},
+    {"dimension", exactly(1), DIMENSION, SET},
+    {"setDimension", exactly(1), DIMENSION, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"maxSdk", property, MAX_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"maxSdk", exactly(1), MAX_SDK_VERSION, SET, VersionConstraint.agpFrom("4.1.0")},
+    {"maxSdkVersion", property, MAX_SDK_VERSION, VAR, VersionConstraint.agpBefore("8.0.0")},
+    {"maxSdkVersion", exactly(1), MAX_SDK_VERSION, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"minSdk", property, MIN_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"minSdk", exactly(1), MIN_SDK_VERSION, SET, VersionConstraint.agpFrom("4.1.0")},
+    {"minSdkPreview", property, MIN_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"minSdkPreview", exactly(1), MIN_SDK_VERSION, SET, VersionConstraint.agpFrom("4.1.0")},
+    {"minSdkVersion", property, MIN_SDK_VERSION, VAR, VersionConstraint.agpBefore("8.0.0")},
+    {"minSdkVersion", exactly(1), MIN_SDK_VERSION, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"missingDimensionStrategy", atLeast(1), MISSING_DIMENSION_STRATEGY, OTHER},
+    {"renderscriptTargetApi", property, RENDER_SCRIPT_TARGET_API, VAR},
+    {"renderscriptTargetApi", exactly(1), RENDER_SCRIPT_TARGET_API, SET},
+    {"renderscriptSupportModeEnabled", property, RENDER_SCRIPT_SUPPORT_MODE_ENABLED, VAR},
+    {"renderscriptSupportModeEnabled", exactly(1), RENDER_SCRIPT_SUPPORT_MODE_ENABLED, SET},
+    {"renderscriptSupportModeBlasEnabled", property, RENDER_SCRIPT_SUPPORT_MODE_BLAS_ENABLED, VAR},
+    {"renderscriptSupportModeBlasEnabled", exactly(1), RENDER_SCRIPT_SUPPORT_MODE_BLAS_ENABLED, SET},
+    {"renderscriptNdkModeEnabled", property, RENDER_SCRIPT_NDK_MODE_ENABLED, VAR},
+    {"renderscriptNdkModeEnabled", exactly(1), RENDER_SCRIPT_NDK_MODE_ENABLED, SET},
+    {"resConfigs", atLeast(0), RES_CONFIGS, AUGMENT_LIST, VersionConstraint.agpBefore("8.0.0")},
+    {"resConfig", exactly(1), RES_CONFIGS, AUGMENT_LIST, VersionConstraint.agpBefore("8.0.0")},
+    {"resourceConfigurations", property, RES_CONFIGS, VAL, VersionConstraint.agpFrom("4.1.0")},
+    {"targetSdk", property, TARGET_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"targetSdk", exactly(1), TARGET_SDK_VERSION, SET, VersionConstraint.agpFrom("4.1.0")},
+    {"targetSdkPreview", property, TARGET_SDK_VERSION, VAR, VersionConstraint.agpFrom("4.1.0")},
+    {"targetSdkPreview", exactly(1), TARGET_SDK_VERSION, SET, VersionConstraint.agpFrom("4.1.0")},
+    {"targetSdkVersion", property, TARGET_SDK_VERSION, VAR, VersionConstraint.agpBefore("8.0.0")},
+    {"targetSdkVersion", exactly(1), TARGET_SDK_VERSION, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"testApplicationId", property, TEST_APPLICATION_ID, VAR},
+    {"testApplicationId", exactly(1), TEST_APPLICATION_ID, SET},
+    {"testFunctionalTest", property, TEST_FUNCTIONAL_TEST, VAR},
+    {"testFunctionalTest", exactly(1), TEST_FUNCTIONAL_TEST, SET},
+    {"setTestFunctionalTest", exactly(1), TEST_FUNCTIONAL_TEST, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"testHandleProfiling", property, TEST_HANDLE_PROFILING, VAR},
+    {"testHandleProfiling", exactly(1), TEST_HANDLE_PROFILING, SET},
+    {"setTestHandleProfiling", exactly(1), TEST_HANDLE_PROFILING, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"testInstrumentationRunner", property, TEST_INSTRUMENTATION_RUNNER, VAR},
+    {"testInstrumentationRunner", exactly(1), TEST_INSTRUMENTATION_RUNNER, SET},
+    {"testInstrumentationRunnerArguments", property, TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, VAR},
+    {"testInstrumentationRunnerArguments", exactly(1), TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, AUGMENT_MAP},
+    {"setTestInstrumentationRunnerArguments", exactly(1), TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, SET, VersionConstraint.agpBefore("8.0.0")},
+    {"versionCode", property, VERSION_CODE, VAR},
+    {"versionCode", exactly(1), VERSION_CODE, SET},
+    {"versionName", property, VERSION_NAME, VAR},
+    {"versionName", exactly(1), VERSION_NAME, SET},
+    {"wearAppUnbundled", property, WEAR_APP_UNBUNDLED, VAR},
+    {"wearAppUnbundled", exactly(1), WEAR_APP_UNBUNDLED, SET}
+  }).collect(toModelMap(AbstractFlavorTypeDslElement.groovyToModelNameMap));
 
   @Override
-  public @NotNull ImmutableMap<SurfaceSyntaxDescription, ModelEffectDescription> getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
-    if (converter.isKotlin()) {
-      return ktsToModelNameMap;
-    }
-    else if (converter.isGroovy()) {
-      return groovyToModelNameMap;
-    }
-    else {
-      return super.getExternalToModelMap(converter);
-    }
+  public @NotNull ExternalToModelMap getExternalToModelMap(@NotNull GradleDslNameConverter converter) {
+    return getExternalToModelMap(converter, groovyToModelNameMap, ktsToModelNameMap);
   }
 
   AbstractProductFlavorDslElement(@NotNull GradleDslElement parent, @NotNull GradleNameElement name) {
     super(parent, name);
-    addDefaultProperty(new GradleDslExpressionMap(this, GradleNameElement.fake(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS)));
+    GradleDslExpressionMap testInstrumentationRunnerArguments =
+      new GradleDslExpressionMap(this, GradleNameElement.fake(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS.name));
+    ModelEffectDescription effect = new ModelEffectDescription(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, CREATE_WITH_VALUE);
+    testInstrumentationRunnerArguments.setModelEffect(effect);
+    testInstrumentationRunnerArguments.setElementType(REGULAR);
+    addDefaultProperty(testInstrumentationRunnerArguments);
   }
 
   @Override
@@ -201,39 +211,6 @@ public abstract class AbstractProductFlavorDslElement extends AbstractFlavorType
       ModelEffectDescription effect = new ModelEffectDescription(new ModelPropertyDescription(MISSING_DIMENSION_STRATEGY), OTHER);
       argumentList.setModelEffect(effect);
       super.addParsedElement(argumentList);
-      return;
-    }
-
-    // these two methods have the same names in both currently-supported languages (Kotlin and Groovy)
-    if (property.equals("resConfigs") || property.equals("resConfig")) {
-      addToParsedExpressionList(RES_CONFIGS, element);
-      return;
-    }
-
-    // testInstrumentationRunnerArguments has the same name in Groovy and Kotlin
-    if (property.equals("testInstrumentationRunnerArguments")) {
-      // This deals with references to maps.
-      GradleDslElement oldElement = element;
-      if (element instanceof GradleDslLiteral && ((GradleDslLiteral)element).isReference()) {
-        element = followElement((GradleDslLiteral) element);
-      }
-      if (!(element instanceof GradleDslExpressionMap)) {
-        return;
-      }
-
-      GradleDslExpressionMap testInstrumentationRunnerArgumentsElement =
-        getPropertyElement(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, GradleDslExpressionMap.class);
-      if (testInstrumentationRunnerArgumentsElement == null) {
-        testInstrumentationRunnerArgumentsElement =
-          new GradleDslExpressionMap(this, element.getPsiElement(), oldElement.getNameElement(), true);
-        setParsedElement(testInstrumentationRunnerArgumentsElement);
-      }
-
-      testInstrumentationRunnerArgumentsElement.setPsiElement(element.getPsiElement());
-      GradleDslExpressionMap elementsToAdd = (GradleDslExpressionMap)element;
-      for (Map.Entry<String, GradleDslElement> entry : elementsToAdd.getPropertyElements().entrySet()) {
-        testInstrumentationRunnerArgumentsElement.setParsedElement(entry.getValue());
-      }
       return;
     }
 
@@ -263,10 +240,17 @@ public abstract class AbstractProductFlavorDslElement extends AbstractFlavorType
         getPropertyElement(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, GradleDslExpressionMap.class);
       if (testInstrumentationRunnerArgumentsElement == null) {
         testInstrumentationRunnerArgumentsElement =
-          new GradleDslExpressionMap(this, GradleNameElement.create(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS));
+          new GradleDslExpressionMap(this, GradleNameElement.create(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS.name));
         setParsedElement(testInstrumentationRunnerArgumentsElement);
       }
       testInstrumentationRunnerArgumentsElement.setParsedElement(value);
+      // This is not theoretically sound, but...
+      ModelEffectDescription effect =
+        new ModelEffectDescription(TEST_INSTRUMENTATION_RUNNER_ARGUMENTS, CREATE_WITH_VALUE, VersionConstraint.agpBefore("8.0.0"));
+      testInstrumentationRunnerArgumentsElement.setModelEffect(effect);
+      if (testInstrumentationRunnerArgumentsElement.getPsiElement() == null) {
+        testInstrumentationRunnerArgumentsElement.setPsiElement(element.getPsiElement());
+      }
       return;
     }
 

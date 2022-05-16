@@ -16,8 +16,10 @@
 package com.android.tools.profilers.perfetto.traceprocessor
 
 import com.android.tools.profiler.perfetto.proto.TraceProcessor
+import com.android.tools.profiler.perfetto.proto.TraceProcessor.AndroidFrameEventsResult.*
 import com.android.tools.profiler.proto.Cpu
 import com.android.tools.profilers.cpu.ThreadState
+import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineEvent
 import com.android.tools.profilers.cpu.systemtrace.CounterModel
 import com.android.tools.profilers.cpu.systemtrace.CpuCoreModel
 import com.android.tools.profilers.cpu.systemtrace.ProcessModel
@@ -25,6 +27,7 @@ import com.android.tools.profilers.cpu.systemtrace.SchedulingEventModel
 import com.android.tools.profilers.cpu.systemtrace.SystemTraceModelAdapter
 import com.android.tools.profilers.cpu.systemtrace.ThreadModel
 import com.android.tools.profilers.cpu.systemtrace.TraceEventModel
+import perfetto.protos.PerfettoTrace
 import java.io.Serializable
 import java.util.Deque
 import java.util.LinkedList
@@ -40,7 +43,8 @@ class TraceProcessorModel(builder: Builder) : SystemTraceModelAdapter, Serializa
 
   private val processMap: Map<Int, ProcessModel>
   private val cpuCores: List<CpuCoreModel>
-  private val androidFrameLayers: List<TraceProcessor.AndroidFrameEventsResult.Layer>
+  private val androidFrameLayers: List<Layer>
+  private val androidFrameTimelineEvents: List<AndroidFrameTimelineEvent>
 
   private val danglingThreads = builder.danglingThreads
 
@@ -71,8 +75,11 @@ class TraceProcessorModel(builder: Builder) : SystemTraceModelAdapter, Serializa
         .toMap()
       CpuCoreModel(it, builder.coreToScheduling.getOrDefault(it, listOf()), cpuCountersMap)
     }
-
-    androidFrameLayers = builder.androidFrameLayers
+    androidFrameTimelineEvents = builder.androidFrameTimelineEvents
+    androidFrameLayers = when {
+      androidFrameTimelineEvents.isEmpty() -> builder.androidFrameLayers
+      else -> builder.androidFrameLayers.renumbered(androidFrameTimelineEvents, builder.surfaceflingerDisplayTokenToEndNs)
+    }
   }
 
   override fun getCaptureStartTimestampUs() = startCaptureTimestamp
@@ -89,6 +96,7 @@ class TraceProcessorModel(builder: Builder) : SystemTraceModelAdapter, Serializa
   // TODO(b/156578844): Fetch data from TraceProcessor error table to populate this.
   override fun isCapturePossibleCorrupted() = false
   override fun getAndroidFrameLayers() = androidFrameLayers
+  override fun getAndroidFrameTimelineEvents() = androidFrameTimelineEvents
 
   class Builder {
     internal var startCaptureTimestamp = Long.MAX_VALUE
@@ -101,7 +109,9 @@ class TraceProcessorModel(builder: Builder) : SystemTraceModelAdapter, Serializa
     internal val coreToScheduling = mutableMapOf<Int, List<SchedulingEventModel>>()
     internal val coreToCpuCounters = mutableMapOf<Int, List<CounterModel>>()
     internal val processToCounters = mutableMapOf<Int, List<CounterModel>>()
-    internal val androidFrameLayers = mutableListOf<TraceProcessor.AndroidFrameEventsResult.Layer>()
+    internal val androidFrameLayers = mutableListOf<Layer>()
+    internal val androidFrameTimelineEvents = mutableListOf<AndroidFrameTimelineEvent>()
+    internal var surfaceflingerDisplayTokenToEndNs = mapOf<Long, Long>()
 
     fun addProcessMetadata(processMetadataResult: TraceProcessor.ProcessMetadataResult) {
       for (process in processMetadataResult.processList) {
@@ -199,24 +209,51 @@ class TraceProcessorModel(builder: Builder) : SystemTraceModelAdapter, Serializa
 
       val perThreadScheduling = mutableMapOf<Int, MutableList<SchedulingEventModel>>()
       val perCoreScheduling = mutableMapOf<Int, MutableList<SchedulingEventModel>>()
-      for (event in schedEvents.schedEventList) {
-        val startTimestampUs = convertToUs(event.timestampNanoseconds)
-        val durationTimestampUs = convertToUs(event.durationNanoseconds)
-        val endTimestampUs = startTimestampUs + durationTimestampUs
-        startCaptureTimestamp = minOf(startCaptureTimestamp, startTimestampUs)
-        endCaptureTimestamp = maxOf(endCaptureTimestamp, endTimestampUs)
-        val schedEvent = SchedulingEventModel(convertSchedulingState(event.state),
-                                              startTimestampUs,
-                                              endTimestampUs,
-                                              durationTimestampUs,
-                                              durationTimestampUs,
-                                              event.processId.toInt(),
-                                              event.threadId.toInt(),
-                                              event.cpu)
+      schedEvents.schedEventList
+        .groupBy { it.threadId }
+        .forEach { (tid, events) ->
+          events.forEachIndexed { index, event ->
+            val startTimestampUs = convertToUs(event.timestampNanoseconds)
+            val durationUs = convertToUs(event.durationNanoseconds)
+            val endTimestampUs = startTimestampUs + durationUs
+            startCaptureTimestamp = minOf(startCaptureTimestamp, startTimestampUs)
+            endCaptureTimestamp = maxOf(endCaptureTimestamp, endTimestampUs)
 
-        perThreadScheduling.getOrPut(event.threadId.toInt()) { mutableListOf() }.add(schedEvent)
-        perCoreScheduling.getOrPut(event.cpu) { mutableListOf() }.add(schedEvent)
-      }
+            // Scheduling events from the Trace Processor encode thread states differently from ftrace.
+            // TP only records the end_state of the event and implies RUNNING as the start_state always:
+            // https://perfetto.dev/docs/data-sources/cpu-scheduling#decoding-code-end_state-code-
+            //
+            // So for every event except the last one, we need to insert a RUNNING event + an end_state event.
+            val schedEvent = SchedulingEventModel(ThreadState.RUNNING_CAPTURED,
+                                                  startTimestampUs,
+                                                  endTimestampUs,
+                                                  durationUs,
+                                                  durationUs,
+                                                  event.processId.toInt(),
+                                                  event.threadId.toInt(),
+                                                  event.cpu)
+            // Add a RUNNING event and an [end_state] event to thread scheduling events.
+            perThreadScheduling.getOrPut(tid.toInt()) { mutableListOf() }.apply {
+              // The RUNNING thread state event.
+              add(schedEvent)
+              if (index < events.size - 1) {
+                val nextStartTimestampUs = convertToUs(events[index + 1].timestampNanoseconds)
+                val nextDurationTimeUs = nextStartTimestampUs - endTimestampUs
+                // The [end_state] thread state event.
+                add(SchedulingEventModel(convertSchedulingState(event.endState),
+                                         endTimestampUs,
+                                         nextStartTimestampUs,
+                                         nextDurationTimeUs,
+                                         nextDurationTimeUs,
+                                         event.processId.toInt(),
+                                         event.threadId.toInt(),
+                                         event.cpu))
+              }
+            }
+            // Add just the RUNNING event to core scheduling events.
+            perCoreScheduling.getOrPut(event.cpu) { mutableListOf() }.add(schedEvent)
+          }
+        }
 
       perThreadScheduling.forEach {
         val previousList = threadToScheduling[it.key] ?: listOf()
@@ -230,11 +267,13 @@ class TraceProcessorModel(builder: Builder) : SystemTraceModelAdapter, Serializa
 
     private fun convertSchedulingState(state: TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState): ThreadState {
       return when (state) {
-        TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNING -> ThreadState.RUNNING_CAPTURED
-        TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNING_FOREGROUND -> ThreadState.RUNNING_CAPTURED
+        TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNABLE -> ThreadState.RUNNABLE_CAPTURED
+        TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.RUNNABLE_PREEMPTED -> ThreadState.RUNNABLE_CAPTURED
         TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.DEAD -> ThreadState.DEAD_CAPTURED
         TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.SLEEPING -> ThreadState.SLEEPING_CAPTURED
         TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.SLEEPING_UNINTERRUPTIBLE -> ThreadState.WAITING_CAPTURED
+        TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.WAKING -> ThreadState.RUNNABLE_CAPTURED
+        TraceProcessor.SchedulingEventsResult.SchedulingEvent.SchedulingState.WAKE_KILL -> ThreadState.RUNNABLE_CAPTURED
         else -> ThreadState.UNKNOWN
       }
     }
@@ -263,10 +302,119 @@ class TraceProcessorModel(builder: Builder) : SystemTraceModelAdapter, Serializa
       androidFrameLayers.addAll(frameEventsResult.layerList)
     }
 
+    /**
+     * Process the Frame Timeline query result and turn it into [AndroidFrameTimelineEvent]s, ordered by
+     * [AndroidFrameTimelineEvent.expectedStartUs]
+     */
+    fun addAndroidFrameTimelineEvents(frameTimelineResult: TraceProcessor.AndroidFrameTimelineResult) {
+      // Match actual timeline slices to expected timeline slices by surfaceFrameToken and construct an AndroidFrameTimelineEvent
+      // from two matching slices.
+      val expectedSlicesBySurfaceFrame = frameTimelineResult.expectedSliceList.associateBy { it.surfaceFrameToken }
+      frameTimelineResult.actualSliceList.forEach { actualSlice ->
+        expectedSlicesBySurfaceFrame[actualSlice.surfaceFrameToken]?.let { expectedSlice ->
+          val expectedEndUs = convertToUs(expectedSlice.timestampNanoseconds + expectedSlice.durationNanoseconds)
+          val actualEndUs = convertToUs(actualSlice.timestampNanoseconds + actualSlice.durationNanoseconds)
+          androidFrameTimelineEvents.add(AndroidFrameTimelineEvent(expectedSlice.displayFrameToken,
+                                                                   expectedSlice.surfaceFrameToken,
+                                                                   convertToUs(expectedSlice.timestampNanoseconds),
+                                                                   expectedEndUs,
+                                                                   actualEndUs,
+                                                                   actualSlice.layerName,
+                                                                   parsePresentType(actualSlice.presentType),
+                                                                   parseAppJankType(actualSlice.jankType),
+                                                                   actualSlice.onTimeFinish,
+                                                                   actualSlice.gpuComposition,
+                                                                   actualSlice.layoutDepth))
+        }
+      }
+      androidFrameTimelineEvents.sortBy { it.expectedStartUs }
+    }
+
+    fun indexSurfaceflingerFrameTimelineEvents(frameTimelineResult: TraceProcessor.AndroidFrameTimelineResult) {
+      surfaceflingerDisplayTokenToEndNs = frameTimelineResult.actualSliceList.associate {
+        it.displayFrameToken to it.timestampNanoseconds + it.durationNanoseconds
+      }
+    }
+
     fun build(): TraceProcessorModel {
       return TraceProcessorModel(this)
     }
 
     private fun convertToUs(tsNanos: Long) = TimeUnit.NANOSECONDS.toMicros(tsNanos)
+
+    private fun parsePresentType(presetTypeStr: String) = when (presetTypeStr) {
+      "On-time Present" -> PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_ON_TIME
+      "Late Present" -> PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_LATE
+      "Early Present" -> PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_EARLY
+      "Dropped Frame" -> PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_DROPPED
+      "Unknown Present" -> PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_UNKNOWN
+      else -> PerfettoTrace.FrameTimelineEvent.PresentType.PRESENT_UNSPECIFIED
+    }
+
+    private fun parseAppJankType(jankTypeStr: String): PerfettoTrace.FrameTimelineEvent.JankType {
+      // jankTypeStr is a comma-separated string of both an app jank type and a surfaceflinger jank type (if exists).
+      // In SystemTrace we only care about the app jank type, so once a match is found we can return early.
+      jankTypeStr.split(", ").forEach {
+        when (it) {
+          "None" -> return PerfettoTrace.FrameTimelineEvent.JankType.JANK_NONE
+          "App Deadline Missed" -> return PerfettoTrace.FrameTimelineEvent.JankType.JANK_APP_DEADLINE_MISSED
+          "Buffer Stuffing" -> return PerfettoTrace.FrameTimelineEvent.JankType.JANK_BUFFER_STUFFING
+          "Unknown Jank" -> return PerfettoTrace.FrameTimelineEvent.JankType.JANK_UNKNOWN
+        }
+      }
+      return PerfettoTrace.FrameTimelineEvent.JankType.JANK_UNSPECIFIED
+    }
   }
+}
+
+private fun List<Layer>.renumbered(timelineEvents: List<AndroidFrameTimelineEvent>,
+                                   surfaceflingerDisplayTokenToEndNs: Map<Long, Long>): List<Layer> =
+  mapFrameNumber(this, timelineEvents, surfaceflingerDisplayTokenToEndNs).let { frameNumberMap ->
+    fun timelineNumberOf(lifecycleNumber: Int) = frameNumberMap[lifecycleNumber]?.toInt()
+    fun transformFrame(evt: FrameEvent): FrameEvent? =
+      timelineNumberOf(evt.frameNumber)?.let { evt.toBuilder().setFrameNumber(it).build() }
+    fun transformPhase(phase: Phase): Phase =
+      phase.toBuilder().clearFrameEvent().addAllFrameEvent(phase.frameEventList.mapNotNull(::transformFrame)).build()
+    fun transformLayer(layer: Layer): Layer =
+      layer.toBuilder().clearPhase().addAllPhase(layer.phaseList.mapNotNull(::transformPhase)).build()
+    map(::transformLayer)
+  }
+
+fun List<Layer>.groupedByPhase(): List<Phase> = asSequence()
+  .flatMap(Layer::getPhaseList)
+  .groupingBy(Phase::getPhaseName)
+  // for each phase, accumulate event list and max depth
+  .fold({ _, _ -> mutableListOf<FrameEvent>() to 0}) { phaseName, (eventsAcc, depthAcc), phase -> when (phaseName) {
+    "Display" -> phase.frameEventList to 0 // "Display" track is special, so no accumulation
+    else -> {
+      eventsAcc.addAll(phase.frameEventList.map { e -> e.toBuilder().setDepth(depthAcc + e.depth).build() })
+      eventsAcc to (depthAcc + (phase.frameEventList.maxOfOrNull(FrameEvent::getDepth)?.let(Int::inc) ?: 0))
+    }
+  } }
+  .map { (name, result) -> Phase.newBuilder().setPhaseName(name).addAllFrameEvent(result.first).build() }
+
+/**
+ * Map lifecycle's frame numbers to timeline's frame numbers by:
+ * - identifying the surfaceflinger event sharing the same display-token as the app event
+ * - looking up the lifecycle's event whose start matches the surfaceflinger event's end
+ */
+private fun mapFrameNumber(layers: List<Layer>,
+                           timelineEvents: List<AndroidFrameTimelineEvent>,
+                           surfaceflingerDisplayTokenToEndNs: Map<Long, Long>): Map<Int, Long> {
+  val lifeCycleEventStartNsToNumber = mutableMapOf<Long, Int>()
+  layers.forEach { layer ->
+    layer.phaseList.forEach { phase ->
+      phase.frameEventList.forEach { event ->
+        lifeCycleEventStartNsToNumber[event.timestampNanoseconds] = event.frameNumber
+      }
+    }
+  }
+  return timelineEvents.asSequence()
+    .mapNotNull { appEvent ->
+      val surfaceflingerEndNs = surfaceflingerDisplayTokenToEndNs[appEvent.displayFrameToken]
+      lifeCycleEventStartNsToNumber[surfaceflingerEndNs]?.let { lifecycleFrameNumber ->
+        lifecycleFrameNumber to appEvent.surfaceFrameToken
+      }
+    }
+    .toMap()
 }

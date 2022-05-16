@@ -16,16 +16,19 @@
 package com.android.tools.idea.res;
 
 import static com.android.SdkConstants.FD_RES_RAW;
+import static java.lang.Math.max;
 
 import com.android.SdkConstants;
 import com.android.annotations.concurrency.Slow;
 import com.android.annotations.concurrency.UiThread;
+import com.android.ide.common.util.PathString;
 import com.android.resources.ResourceFolderType;
 import com.android.tools.idea.fileTypes.FontFileType;
 import com.android.tools.idea.gradle.project.sync.GradleFiles;
 import com.android.tools.idea.lang.aidl.AidlFileType;
 import com.android.tools.idea.lang.rs.AndroidRenderscriptFileType;
 import com.android.tools.idea.layoutlib.LayoutLibrary;
+import com.android.tools.idea.util.FileExtensions;
 import com.intellij.AppTopics;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.ide.highlighter.XmlFileType;
@@ -125,8 +128,6 @@ public class AndroidFileChangeListener implements Disposable {
     EditorFactory.getInstance().getEventMulticaster().addDocumentListener(new MyDocumentListener(myProject, myRegistry), this);
 
     MessageBusConnection connection = myProject.getMessageBus().connect(this);
-
-    // TODO-ank3: replace with xml-declared listener
     connection.subscribe(VirtualFileManager.VFS_CHANGES, new MyVfsListener(myRegistry));
     connection.subscribe(AppTopics.FILE_DOCUMENT_SYNC, new MyFileDocumentManagerListener(myRegistry));
   }
@@ -151,7 +152,7 @@ public class AndroidFileChangeListener implements Disposable {
   }
 
   static boolean isRelevantFileType(@NotNull FileType fileType) {
-    if ( fileType == JavaFileType.INSTANCE || fileType == KotlinFileType.INSTANCE) { // fail fast for vital file type
+    if (fileType == JavaFileType.INSTANCE || fileType == KotlinFileType.INSTANCE) { // fail fast for vital file type
       return false;
     }
     if (fileType == XmlFileType.INSTANCE) {
@@ -334,6 +335,8 @@ public class AndroidFileChangeListener implements Disposable {
     }
 
     private void onFileOrDirectoryCreated(@Nullable VirtualFile parent, @NotNull String childName) {
+      ResourceUpdateTracer.log(() -> "AndroidFileChangeListener.MyVfsListener.onFileOrDirectoryCreated(" +
+                                     pathForLogging(parent, childName) + ")");
       if (parent == null || !parent.exists()) {
         return;
       }
@@ -352,9 +355,18 @@ public class AndroidFileChangeListener implements Disposable {
       }
 
       if (cachedRepositories != null) {
+        ResourceUpdateTracer.log(() -> "AndroidFileChangeListener.MyVfsListener.onFileOrDirectoryCreated: Dispatching to repositories");
         onFileOrDirectoryCreated(created, cachedRepositories.namespaced);
         onFileOrDirectoryCreated(created, cachedRepositories.nonNamespaced);
       }
+    }
+
+    private @NotNull String pathForLogging(@Nullable VirtualFile parent, @NotNull String childName) {
+      if (parent == null) {
+        return childName;
+      }
+      PathString path = FileExtensions.toPathString(parent).resolve(childName);
+      return path.subpath(max(path.getNameCount() - 4, 0), path.getNameCount()).getNativePath();
     }
 
     private static void onFileOrDirectoryCreated(@NotNull VirtualFile created, @Nullable ResourceFolderRepository repository) {
@@ -362,6 +374,8 @@ public class AndroidFileChangeListener implements Disposable {
         return;
       }
 
+      ResourceUpdateTracer.log(() -> "AndroidFileChangeListener.MyVfsListener.onFileOrDirectoryCreated(" + created + ", " +
+                                     repository.getDisplayName() + ")");
       if (!created.isDirectory()) {
         repository.onFileCreated(created);
       }
@@ -387,7 +401,7 @@ public class AndroidFileChangeListener implements Disposable {
   static class MyFileDocumentManagerListener implements FileDocumentManagerListener {
     private final ResourceFolderRegistry myRegistry;
 
-    private MyFileDocumentManagerListener(ResourceFolderRegistry registry) {
+    private MyFileDocumentManagerListener(@NotNull ResourceFolderRegistry registry) {
       myRegistry = registry;
     }
 
@@ -398,16 +412,16 @@ public class AndroidFileChangeListener implements Disposable {
   }
 
   static class MyDocumentListener implements DocumentListener {
+    private final Project myProject;
     private final FileDocumentManager myFileDocumentManager;
     private final PsiDocumentManager myPsiDocumentManager;
     private final ResourceFolderRegistry myRegistry;
-    private final Project myProject;
 
     private MyDocumentListener(@NotNull Project project, @NotNull ResourceFolderRegistry registry) {
+      myProject = project;
       myPsiDocumentManager = PsiDocumentManager.getInstance(project);
       myFileDocumentManager = FileDocumentManager.getInstance();
       myRegistry = registry;
-      myProject = project;
     }
 
     @Override

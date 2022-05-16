@@ -17,7 +17,8 @@
 package org.jetbrains.kotlin.android.parcel.quickfixes
 
 import org.jetbrains.kotlin.android.parcel.ANDROID_PARCELABLE_CLASS_FQNAME
-import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtPsiFactory
 
 class ParcelableAddSupertypeQuickfix(clazz: KtClassOrObject) : AbstractParcelableQuickFix<KtClassOrObject>(clazz) {
     object Factory : AbstractFactory({ findElement<KtClassOrObject>()?.let(::ParcelableAddSupertypeQuickfix) })

@@ -28,12 +28,24 @@ public class NoSymbolModel extends NativeNodeModel {
    */
   private boolean myKernel;
 
-  public NoSymbolModel(@NotNull String name) {
+  @NotNull private final String myTag;
+
+  /**
+   * @param tag a tag as a coarser specification of this node, used for collapsing
+   * @param name the name to display this symbol by
+   */
+  public NoSymbolModel(@NotNull String tag, @NotNull String name) {
     myName = name;
     myKernel = name.startsWith(KERNEL_ELF);
+    myTag = tag;
   }
 
   public boolean isKernel() {
     return myKernel;
+  }
+
+  @Override
+  public String getTag() {
+    return myTag;
   }
 }

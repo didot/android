@@ -178,7 +178,7 @@ public class RepositoriesModelImpl extends GradleDslBlockModel implements Reposi
     List<MavenRepositoryDslElement> elements = myDslElement.getPropertyElements(MavenRepositoryDslElement.class);
     for (MavenRepositoryDslElement element : elements) {
       String urlElement = element.getLiteral(URL, String.class);
-      if (repositoryUrl.equalsIgnoreCase(urlElement)) {
+      if (repositoryUrl.equals(urlElement)) {
         return true;
       }
     }
@@ -203,10 +203,9 @@ public class RepositoriesModelImpl extends GradleDslBlockModel implements Reposi
     return false;
   }
 
-
   /**
    * Look for Google Maven repository. If Gradle version is 4 or newer, look for it by method call and url.
-   * If it is lower than 4, look only by url.
+   * If it is lower than 4, look only by url.  (But as of Arctic Fox we only support Gradle 4 or newer.)
    *
    * @return {@code true} if Google Maven repository can be found in {@code repositoriesModel}, {@code false} otherwise.
    */
@@ -222,5 +221,10 @@ public class RepositoriesModelImpl extends GradleDslBlockModel implements Reposi
       return true;
     }
     return containsMavenRepositoryByUrl(GOOGLE_DEFAULT_REPO_URL);
+  }
+
+  @Override
+  public void addGoogleMavenRepository() {
+    addRepositoryByMethodName(GOOGLE_METHOD_NAME);
   }
 }

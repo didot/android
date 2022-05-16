@@ -1,4 +1,4 @@
-// Copyright 2000-2021 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.android;
 
 import com.android.SdkConstants;
@@ -15,7 +15,6 @@ import com.intellij.notification.NotificationType;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
-import com.intellij.openapi.components.Service;
 import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
@@ -55,7 +54,6 @@ import org.jetbrains.annotations.Nullable;
 // This class supports JPS projects and relies on APIs which should not be used in AS otherwise. We suppress related warnings to
 // avoid cluttering of the build output.
 @SuppressWarnings("deprecation")
-@Service
 public final class AndroidPropertyFilesUpdater implements Disposable {
   private static final NotificationGroup PROPERTY_FILES_UPDATING_NOTIFICATION =
     NotificationGroup.balloonGroup("Android Property Files Updating", PluginId.getId("org.jetbrains.android"));
@@ -140,7 +138,7 @@ public final class AndroidPropertyFilesUpdater implements Disposable {
 
     if (!changes.isEmpty() || !toAskChanges.isEmpty()) {
       if (!toAskChanges.isEmpty()) {
-        askUserIfUpdatePropertyFile(myProject, toAskFacets, new Processor<MyResult>() {
+        askUserIfUpdatePropertyFile(myProject, toAskFacets, new Processor<>() {
           @Override
           public boolean process(MyResult result) {
             if (result == MyResult.NEVER) {
@@ -282,7 +280,7 @@ public final class AndroidPropertyFilesUpdater implements Disposable {
 
           for (int i = 0; i < newDepValues.size(); i++) {
             final String value = newDepValues.get(i);
-            projectProperties.addProperty(AndroidUtils.ANDROID_LIBRARY_REFERENCE_PROPERTY_PREFIX + (i + 1), value);
+            projectProperties.addProperty(AndroidUtils.ANDROID_LIBRARY_REFERENCE_PROPERTY_PREFIX + Integer.toString(i + 1), value);
           }
         }
       });
@@ -326,12 +324,14 @@ public final class AndroidPropertyFilesUpdater implements Disposable {
       else {
         if (!Objects.equals(property.getValue(), targetPropertyValue)) {
           final PsiElement element = property.getPsiElement();
-          changes.add(new Runnable() {
-            @Override
-            public void run() {
-              element.replace(createProperty(project, targetPropertyValue).getPsiElement());
-            }
-          });
+          if (element != null) {
+            changes.add(new Runnable() {
+              @Override
+              public void run() {
+                element.replace(createProperty(project, targetPropertyValue).getPsiElement());
+              }
+            });
+          }
         }
       }
     }
@@ -432,25 +432,24 @@ public final class AndroidPropertyFilesUpdater implements Disposable {
       moduleList.append(facet.getModule().getName()).append("<br>");
     }
     myNotification = PROPERTY_FILES_UPDATING_NOTIFICATION.createNotification(
-        AndroidBundle.message("android.update.project.properties.dialog.title"),
-        AndroidBundle.message("android.update.project.properties.dialog.text", moduleList.toString()),
-        NotificationType.INFORMATION)
-      .setListener(new NotificationListener.Adapter() {
-        @Override
-        protected void hyperlinkActivated(@NotNull Notification notification, @NotNull HyperlinkEvent event) {
-          final String desc = event.getDescription();
-          if ("once".equals(desc)) {
-            callback.process(MyResult.ONCE);
-          }
-          else if ("never".equals(desc)) {
-            callback.process(MyResult.NEVER);
-          }
-          else {
-            callback.process(MyResult.ALWAYS);
-          }
-          notification.expire();
+      AndroidBundle.message("android.update.project.properties.dialog.title"),
+      AndroidBundle.message("android.update.project.properties.dialog.text", moduleList.toString()),
+      NotificationType.INFORMATION).setListener(new NotificationListener.Adapter() {
+      @Override
+      protected void hyperlinkActivated(@NotNull Notification notification, @NotNull HyperlinkEvent event) {
+        final String desc = event.getDescription();
+        if ("once".equals(desc)) {
+          callback.process(MyResult.ONCE);
         }
-      });
+        else if ("never".equals(desc)) {
+          callback.process(MyResult.NEVER);
+        }
+        else {
+          callback.process(MyResult.ALWAYS);
+        }
+        notification.expire();
+      }
+    });
     myNotification.notify(project);
   }
 

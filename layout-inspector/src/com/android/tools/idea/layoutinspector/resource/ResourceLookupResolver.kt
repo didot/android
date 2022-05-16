@@ -37,6 +37,7 @@ import com.android.ide.common.resources.ResourceItem
 import com.android.ide.common.resources.ResourceResolver
 import com.android.ide.common.resources.ResourceResolver.MAX_RESOURCE_INDIRECTION
 import com.android.ide.common.resources.configuration.FolderConfiguration
+import com.android.ide.common.resources.toFileResourcePathString
 import com.android.resources.FolderTypeRelationship
 import com.android.resources.ResourceFolderType
 import com.android.resources.ResourceType
@@ -46,6 +47,7 @@ import com.android.tools.idea.layoutinspector.model.ComposeViewNode
 import com.android.tools.idea.layoutinspector.model.ViewNode
 import com.android.tools.idea.layoutinspector.properties.InspectorPropertyItem
 import com.android.tools.idea.layoutinspector.properties.PropertyType.COLOR
+import com.android.tools.idea.model.AndroidModel
 import com.android.tools.idea.model.Namespacing
 import com.android.tools.idea.namespacing
 import com.android.tools.idea.res.ResourceNamespaceContext
@@ -60,7 +62,6 @@ import com.android.tools.idea.res.resolveColor
 import com.android.tools.idea.res.resolveLayout
 import com.android.tools.idea.res.resolveStateList
 import com.android.tools.idea.res.resourceNamespace
-import com.android.tools.idea.res.toFileResourcePathString
 import com.android.tools.idea.util.toVirtualFile
 import com.intellij.facet.ProjectFacetManager
 import com.intellij.ide.util.EditSourceUtil
@@ -80,7 +81,6 @@ import com.intellij.util.text.nullize
 import org.jetbrains.android.dom.AttributeProcessingUtil
 import org.jetbrains.android.dom.attrs.AttributeDefinition
 import org.jetbrains.android.dom.attrs.AttributeDefinitions
-import org.jetbrains.android.dom.manifest.Manifest
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.resourceManagers.ModuleResourceManagers
 import javax.swing.Icon
@@ -91,8 +91,9 @@ import javax.swing.Icon
  * The namespaces from the agent are using the real package names.
  */
 fun findFacetFromPackage(project: Project, packageName: String): AndroidFacet? {
-  return ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID)
-    .firstOrNull { Manifest.getMainManifest(it)?.`package`?.value == packageName }
+  return ProjectFacetManager.getInstance(project).getFacets(AndroidFacet.ID).firstOrNull {
+    AndroidModel.get(it)?.allApplicationIds?.contains(packageName) ?: false
+  }
 }
 
 /**
@@ -207,7 +208,8 @@ class ResourceLookupResolver(
       return false
     }
     val isLayoutAttribute = attributeName.startsWith(ATTR_LAYOUT_RESOURCE_PREFIX)
-    val qualifiedTagName = (if (isLayoutAttribute) view.parent?.qualifiedName else view.qualifiedName) ?: return false
+    val qualifiedTagName =
+      (if (isLayoutAttribute) ViewNode.readAccess { view.parent?.qualifiedName } else view.qualifiedName) ?: return false
     var psiClass: PsiClass? = JavaPsiFacade.getInstance(project).findClass(qualifiedTagName, GlobalSearchScope.allScope(project))
     while (psiClass != null) {
       val attrValue = if (isLayoutAttribute)
@@ -492,7 +494,8 @@ class ResourceLookupResolver(
 
   private fun findLayoutAttribute(property: InspectorPropertyItem, view: ViewNode, layout: ResourceReference): XmlAttribute? {
     val tag = findViewTagInFile(view, layout)
-    return tag?.getAttribute(property.attrName, property.namespace)
+    val attrNamespace = mapNamespace(ResourceNamespace.fromNamespaceUri(property.namespace) ?: ResourceNamespace.ANDROID)
+    return tag?.getAttribute(property.attrName, attrNamespace.xmlNamespaceUri)
   }
 
   private fun findViewTagInFile(view: ViewNode, layout: ResourceReference?): XmlTag? {
@@ -530,7 +533,7 @@ class ResourceLookupResolver(
    */
   private class ViewLocator(view: ViewNode) : PsiRecursiveElementVisitor() {
     private val viewId = view.viewId
-    private val parentId = view.parent?.viewId
+    private val parentId = ViewNode.readAccess { view.parent?.viewId }
     private var found: XmlTag? = null
     private var foundParent: XmlTag? = null
 

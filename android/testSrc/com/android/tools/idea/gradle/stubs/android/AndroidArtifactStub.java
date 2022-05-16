@@ -39,7 +39,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class AndroidArtifactStub extends BaseArtifactStub implements AndroidArtifact {
-  @NotNull private final List<File> myGeneratedResourceFolders = new ArrayList();
+  @NotNull private final List<File> myGeneratedResourceFolders = new ArrayList<>();
   @NotNull private final List<AndroidArtifactOutput> myOutputs;
   @NotNull private String myApplicationId;
 

@@ -15,10 +15,10 @@
  */
 package com.android.tools.idea.stats;
 
-import com.android.annotations.VisibleForTesting;
 import com.android.annotations.concurrency.Slow;
 import com.android.repository.Revision;
 import com.android.tools.idea.downloads.DownloadService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

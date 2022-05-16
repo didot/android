@@ -19,8 +19,8 @@ import static com.android.tools.idea.transport.TransportServiceProxy.PRE_LOLLIPO
 import static com.android.tools.profiler.proto.Commands.Command.CommandType.BEGIN_SESSION;
 import static com.android.tools.profiler.proto.Commands.Command.CommandType.ECHO;
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -30,7 +30,10 @@ import com.android.ddmlib.Client;
 import com.android.ddmlib.ClientData;
 import com.android.ddmlib.IDevice;
 import com.android.ddmlib.IShellOutputReceiver;
+import com.android.ddmlib.ProfileableClient;
+import com.android.ddmlib.ProfileableClientData;
 import com.android.sdklib.AndroidVersion;
+import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.protobuf.ByteString;
 import com.android.tools.profiler.proto.Commands;
 import com.android.tools.profiler.proto.Common;
@@ -46,7 +49,9 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -56,6 +61,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Ignore;
@@ -111,7 +117,7 @@ public class TransportServiceProxyTest {
     when(mockDevice.getAvdName()).thenReturn(null);
     Common.Device profilerDevice = TransportServiceProxy.transportDeviceFromIDevice(mockDevice);
 
-    assertThat(profilerDevice.getModel()).isEqualTo("Unknown");
+    assertThat(profilerDevice.getModel()).isEqualTo("Serial");
   }
 
   @Test
@@ -125,14 +131,41 @@ public class TransportServiceProxyTest {
       new TransportServiceProxy(mockDevice, transportMockDevice,
                                 startNamedChannel("testClientsWithNullDescriptionsNotCached", new FakeTransportService()),
                                 new LinkedBlockingDeque<>(), new HashMap<>());
-    Map<Client, Common.Process> cachedProcesses = proxy.getCachedProcesses();
+    Map<Integer, Common.Process> cachedProcesses = proxy.getCachedProcesses();
     assertThat(cachedProcesses.size()).isEqualTo(1);
-    Map.Entry<Client, Common.Process> cachedProcess = cachedProcesses.entrySet().iterator().next();
-    assertThat(cachedProcess.getKey()).isEqualTo(client1);
+    Map.Entry<Integer, Common.Process> cachedProcess = cachedProcesses.entrySet().iterator().next();
+    assertThat(cachedProcess.getKey()).isEqualTo(client1.getClientData().getPid());
     assertThat(cachedProcess.getValue().getPid()).isEqualTo(1);
     assertThat(cachedProcess.getValue().getName()).isEqualTo("testClientDescription");
     assertThat(cachedProcess.getValue().getState()).isEqualTo(Common.Process.State.ALIVE);
     assertThat(cachedProcess.getValue().getAbiCpuArch()).isEqualTo(SdkConstants.CPU_ARCH_ARM);
+  }
+
+  @Test
+  public void profileableClientsAlsoCached() throws Exception {
+    StudioFlags.PROFILEABLE.override(true);
+    Client client1 = createMockClient(1, "test1", "name1");
+    ProfileableClient client2 = createMockProfileableClient(2, "name2");
+    IDevice device = createMockDevice(AndroidVersion.VersionCodes.S, new Client[]{client1}, new ProfileableClient[] { client2 });
+    Common.Device transportDevice = TransportServiceProxy.transportDeviceFromIDevice(device);
+    TransportServiceProxy proxy =
+      new TransportServiceProxy(device, transportDevice,
+                                startNamedChannel("profileableClientsAlsoCached", new FakeTransportService()),
+                                new LinkedBlockingDeque<>(), new HashMap<>());
+    Map<Integer, Common.Process> cachedProcesses = proxy.getCachedProcesses();
+    assertThat(cachedProcesses.size()).isEqualTo(2);
+    Common.Process process1 = cachedProcesses.get(1);
+    assertThat(process1.getPid()).isEqualTo(1);
+    assertThat(process1.getName()).isEqualTo("name1");
+    assertThat(process1.getState()).isEqualTo(Common.Process.State.ALIVE);
+    assertThat(process1.getAbiCpuArch()).isEqualTo(SdkConstants.CPU_ARCH_ARM);
+    assertThat(process1.getExposureLevel()).isEqualTo(Common.Process.ExposureLevel.DEBUGGABLE);
+    Common.Process process2 = cachedProcesses.get(2);
+    assertThat(process2.getPid()).isEqualTo(2);
+    assertThat(process2.getName()).isEqualTo("name2");
+    assertThat(process2.getState()).isEqualTo(Common.Process.State.ALIVE);
+    assertThat(process2.getAbiCpuArch()).isEqualTo(SdkConstants.CPU_ARCH_ARM);
+    assertThat(process2.getExposureLevel()).isEqualTo(Common.Process.ExposureLevel.PROFILEABLE);
   }
 
   @Ignore("b/126763044")
@@ -150,7 +183,7 @@ public class TransportServiceProxyTest {
     List<Common.Event> receivedEvents = new ArrayList<>();
     // We should expect six events: two process starts events, followed by event1 and event2, then process ends events.
     CountDownLatch latch = new CountDownLatch(1);
-    proxy.getEvents(Transport.GetEventsRequest.getDefaultInstance(), new StreamObserver<Common.Event>() {
+    proxy.getEvents(Transport.GetEventsRequest.getDefaultInstance(), new StreamObserver<>() {
       @Override
       public void onNext(Common.Event event) {
         receivedEvents.add(event);
@@ -261,7 +294,7 @@ public class TransportServiceProxyTest {
         return Collections.singletonList(generatedEvent);
       }
     });
-    proxy.getEvents(Transport.GetEventsRequest.getDefaultInstance(), new StreamObserver<Common.Event>() {
+    proxy.getEvents(Transport.GetEventsRequest.getDefaultInstance(), new StreamObserver<>() {
       @Override
       public void onNext(Common.Event event) {
         receivedEvents.add(event);
@@ -273,7 +306,7 @@ public class TransportServiceProxyTest {
       }
 
       @Override
-      public void onCompleted() {}
+      public void onCompleted() { }
     });
     Common.Event eventToPreprocess = Common.Event.newBuilder().setPid(1).setKind(Common.Event.Kind.ECHO).setIsEnded(true).build();
     Common.Event eventToIgnore = Common.Event.newBuilder().setPid(1).setIsEnded(true).build();
@@ -317,17 +350,17 @@ public class TransportServiceProxyTest {
 
     // Handle returning data to proxy service.
     Transport.BytesRequest.Builder request = Transport.BytesRequest.newBuilder();
-    StreamObserver<Transport.BytesResponse> validation = new StreamObserver<Transport.BytesResponse>() {
+    StreamObserver<Transport.BytesResponse> validation = new StreamObserver<>() {
       @Override
       public void onNext(Transport.BytesResponse response) {
         receivedData.add(response.getContents());
       }
 
       @Override
-      public void onError(Throwable throwable) { assert false;}
+      public void onError(Throwable throwable) { assert false; }
 
       @Override
-      public void onCompleted() {}
+      public void onCompleted() { }
     };
 
     // Run test.
@@ -356,13 +389,18 @@ public class TransportServiceProxyTest {
   }
 
   @NotNull
-  private IDevice createMockDevice(int version, @NotNull Client[] clients) throws Exception {
+  private IDevice createMockDevice(int version, @NotNull Client[] clients, @NotNull ProfileableClient[] profileables) throws Exception {
+    ProfileableClient[] allProfileables =
+      version >= AndroidVersion.VersionCodes.S
+      ? ArrayUtils.addAll(Arrays.stream(clients).map(this::createMockProfileableClient).toArray(ProfileableClient[]::new), profileables)
+      : new ProfileableClient[0];
     IDevice mockDevice = mock(IDevice.class);
     when(mockDevice.getSerialNumber()).thenReturn("Serial");
     when(mockDevice.getName()).thenReturn("Device");
     when(mockDevice.getVersion()).thenReturn(new AndroidVersion(version, null));
     when(mockDevice.isOnline()).thenReturn(true);
     when(mockDevice.getClients()).thenReturn(clients);
+    when(mockDevice.getProfileableClients()).thenReturn(allProfileables);
     when(mockDevice.getState()).thenReturn(IDevice.DeviceState.ONLINE);
     when(mockDevice.getAbis()).thenReturn(Collections.singletonList("armeabi"));
     when(mockDevice.getProperty(IDevice.PROP_BUILD_TAGS)).thenReturn("release-keys");
@@ -372,11 +410,16 @@ public class TransportServiceProxyTest {
       @Override
       public Void answer(InvocationOnMock invocation) {
         Object[] args = invocation.getArguments();
-        ((IShellOutputReceiver)args[1]).addOutput("boot-id\n".getBytes(), 0, 8);
+        ((IShellOutputReceiver)args[1]).addOutput("boot-id\n".getBytes(StandardCharsets.UTF_8), 0, 8);
         return null;
       }
     }).when(mockDevice).executeShellCommand(anyString(), any(IShellOutputReceiver.class));
     return mockDevice;
+  }
+
+  @NotNull
+  private IDevice createMockDevice(int version, @NotNull Client[] clients) throws Exception {
+    return createMockDevice(version, clients, new ProfileableClient[0]);
   }
 
   @NotNull
@@ -389,6 +432,21 @@ public class TransportServiceProxyTest {
     Client mockClient = mock(Client.class);
     when(mockClient.getClientData()).thenReturn(mockData);
     return mockClient;
+  }
+
+  @NotNull
+  private ProfileableClient createMockProfileableClient(int pid, String processName) {
+    ProfileableClientData mockData = mock(ProfileableClientData.class);
+    when(mockData.getPid()).thenReturn(pid);
+    when(mockData.getProcessName()).thenReturn(processName);
+    ProfileableClient mockClient = mock(ProfileableClient.class);
+    when(mockClient.getProfileableClientData()).thenReturn(mockData);
+    return mockClient;
+  }
+
+  @NotNull
+  private ProfileableClient createMockProfileableClient(Client client) {
+    return createMockProfileableClient(client.getClientData().getPid(), client.getClientData().getClientDescription());
   }
 
   private static class FakeTransportService extends TransportServiceGrpc.TransportServiceImplBase {

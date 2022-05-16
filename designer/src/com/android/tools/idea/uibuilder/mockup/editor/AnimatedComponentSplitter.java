@@ -18,9 +18,9 @@ package com.android.tools.idea.uibuilder.mockup.editor;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.ui.ThreeComponentsSplitter;
 import com.intellij.util.Consumer;
+import javax.swing.JComponent;
+import javax.swing.Timer;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
 
 /**
  * A {@link ThreeComponentsSplitter} that can open and close its first and last component

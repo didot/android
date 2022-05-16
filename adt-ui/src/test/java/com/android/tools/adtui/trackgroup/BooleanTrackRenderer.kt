@@ -15,13 +15,12 @@
  */
 package com.android.tools.adtui.trackgroup
 
-import com.android.tools.adtui.model.trackgroup.TestTrackRendererType
 import com.android.tools.adtui.model.trackgroup.TrackModel
 import javax.swing.JComponent
 import javax.swing.JLabel
 
-class BooleanTrackRenderer : TrackRenderer<Boolean, TestTrackRendererType> {
-  override fun render(trackModel: TrackModel<Boolean, TestTrackRendererType>): JComponent {
+class BooleanTrackRenderer : TrackRenderer<Boolean> {
+  override fun render(trackModel: TrackModel<Boolean, *>): JComponent {
     return JLabel(trackModel.dataModel.toString())
   }
 }

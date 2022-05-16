@@ -27,6 +27,7 @@ import com.android.manifmerger.XmlDocument;
 import com.android.tools.idea.project.SyncTimestampUtil;
 import com.android.tools.idea.projectsystem.ManifestOverrides;
 import com.android.tools.idea.projectsystem.MergedManifestContributors;
+import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.utils.ILogger;
 import com.android.utils.NullLogger;
@@ -37,11 +38,9 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -53,7 +52,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import org.apache.commons.io.input.CharSequenceInputStream;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -409,21 +407,11 @@ final class MergedManifestInfo {
         // where the build.gradle remaps the sources to point to $root/external/a/AndroidManifest.xml, obtaining the module containing the
         // file will return root where it should have been "a". So the correct scheme is to actually iterate through all the modules in the
         // project and look at their source providers
-        for (Module m : ModuleManager.getInstance(project).getModules()) {
-          AndroidFacet androidFacet = AndroidFacet.getInstance(m);
-          if (androidFacet == null) {
-            continue;
-          }
-
-          Collection<VirtualFile> manifestFiles = getManifestFiles(androidFacet);
-          for (VirtualFile manifestFile : manifestFiles) {
-            if (vFile.equals(manifestFile)) {
-              return m;
-            }
-          }
-        }
-
-        return null;
+        return ProjectSystemUtil.getAndroidFacets(project).stream()
+          .filter(androidFacet -> getManifestFiles(androidFacet).contains(vFile))
+          .findFirst()
+          .map(androidFacet -> ModuleSystemUtil.getMainModule(androidFacet.getModule()))
+          .orElse(null);
       }
     });
 

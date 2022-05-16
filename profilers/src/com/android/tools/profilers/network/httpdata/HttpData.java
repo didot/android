@@ -292,11 +292,22 @@ public class HttpData {
     @NotNull
     protected static Map<String, String> parseHeaderFields(@NotNull String fields) {
       Map<String, String> fieldsMap = new HashMap<>();
-      Arrays.stream(fields.split("\\n")).filter(line -> !line.trim().isEmpty()).forEach(line -> {
-        String[] keyAndValue = line.split("=", 2);
-        assert keyAndValue.length == 2 : String.format("Unexpected http header field (%s)", line);
-        fieldsMap.put(keyAndValue[0].trim(), StringUtil.trimEnd(keyAndValue[1].trim(), ';'));
-      });
+      Arrays.stream(fields.split("\\n"))
+        .filter(line -> !line.trim().isEmpty())
+        .forEach(line -> {
+          String[] keyAndValue = line.split("=", 2);
+          assert keyAndValue.length == 2 : String.format("Unexpected http header field (%s)", line);
+          String key = keyAndValue[0].trim();
+          String value = StringUtil.trimEnd(keyAndValue[1].trim(), ';');
+          fieldsMap.compute(key, (k, v) -> {
+            if (v == null) {
+              return value;
+            }
+            else {
+              return v + ";" + value;
+            }
+          });
+        });
       return fieldsMap;
     }
   }

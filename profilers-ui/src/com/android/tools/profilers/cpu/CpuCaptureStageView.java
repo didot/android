@@ -16,6 +16,7 @@
 package com.android.tools.profilers.cpu;
 
 import com.android.tools.adtui.AxisComponent;
+import com.android.tools.adtui.ComboCheckBox;
 import com.android.tools.adtui.RangeTooltipComponent;
 import com.android.tools.adtui.TabularLayout;
 import com.android.tools.adtui.common.AdtUiCursorType;
@@ -31,18 +32,21 @@ import com.android.tools.adtui.model.formatter.TimeAxisFormatter;
 import com.android.tools.adtui.trackgroup.Track;
 import com.android.tools.adtui.trackgroup.TrackGroupListPanel;
 import com.android.tools.profiler.proto.Cpu;
+import com.android.tools.profilers.DropDownButton;
 import com.android.tools.profilers.ProfilerColors;
+import com.android.tools.profilers.ProfilerFonts;
 import com.android.tools.profilers.ProfilerLayout;
 import com.android.tools.profilers.ProfilerTooltipMouseAdapter;
 import com.android.tools.profilers.ProfilerTrackRendererFactory;
 import com.android.tools.profilers.StageView;
+import com.android.tools.profilers.StringUtils;
 import com.android.tools.profilers.StudioProfilersView;
-import com.android.tools.profilers.cpu.analysis.CaptureNodeAnalysisModel;
-import com.android.tools.profilers.cpu.analysis.CpuAnalysisModel;
 import com.android.tools.profilers.cpu.analysis.CpuAnalysisPanel;
-import com.android.tools.profilers.cpu.analysis.CpuAnalyzable;
 import com.android.tools.profilers.cpu.capturedetails.CpuCaptureNodeTooltip;
 import com.android.tools.profilers.cpu.capturedetails.CpuCaptureNodeTooltipView;
+import com.android.tools.profilers.cpu.systemtrace.AndroidFrameEventTooltip;
+import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineEvent;
+import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineTooltip;
 import com.android.tools.profilers.cpu.systemtrace.BufferQueueTooltip;
 import com.android.tools.profilers.cpu.systemtrace.CpuFrameTooltip;
 import com.android.tools.profilers.cpu.systemtrace.CpuFrequencyTooltip;
@@ -55,8 +59,8 @@ import com.android.tools.profilers.event.LifecycleTooltipView;
 import com.android.tools.profilers.event.UserEventTooltip;
 import com.android.tools.profilers.event.UserEventTooltipView;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import com.intellij.ui.JBSplitter;
+import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.labels.LinkLabel;
 import com.intellij.util.ui.JBEmptyBorder;
@@ -69,14 +73,22 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.util.ArrayList;
+import java.util.HashSet;
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.InputMap;
+import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
+import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -106,6 +118,22 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
   private final JScrollPane myScrollPane;
   private final LinkLabel<?> myDeselectAllLabel;
   private final JPanel myDeselectAllToolbar;
+  private final JButton myCollapseFrameButton = DropDownButton.of(
+    "Collapse frames",
+    () ->
+      ComboCheckBox.of(new ArrayList<>(getStage().getCapture().getTags()),
+                       getStage().getCapture().getCollapsedTags(),
+                       selected -> {
+                         getStage().getCapture().collapseNodesWithTags(new HashSet<>(selected));
+                         onTrackGroupSelectionChange();
+                         updateComponents();
+                         getComponent().requestFocus();
+                         return Unit.INSTANCE;
+                       },
+                       "Apply",
+                       StringUtils::abbreviatePath)
+  );
+  private final JBCheckBox myVsyncBackgroundCheckBox = new JBCheckBox("VSync guide", true);
 
   /**
    * To avoid conflict with drag-and-drop, we need a keyboard modifier (e.g. VK_SPACE) to toggle panning mode.
@@ -114,7 +142,7 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
 
   public CpuCaptureStageView(@NotNull StudioProfilersView view, @NotNull CpuCaptureStage stage) {
     super(view, stage);
-    myTrackRendererFactory = new ProfilerTrackRendererFactory(getProfilersView());
+    myTrackRendererFactory = new ProfilerTrackRendererFactory(getProfilersView(), myVsyncBackgroundCheckBox::isSelected);
     myTrackGroupList = createTrackGroupListPanel();
     myScrollPane = new JBScrollPane(myTrackGroupList.getComponent(),
                                     ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
@@ -123,6 +151,10 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
     myAnalysisPanel = new CpuAnalysisPanel(view, stage);
     myDeselectAllToolbar = new JPanel(ProfilerLayout.createToolbarLayout());
     myDeselectAllLabel = createDeselectAllLabel();
+    myVsyncBackgroundCheckBox.addItemListener(e -> {
+      getComponent().invalidate();
+      getComponent().repaint();
+    });
 
     // Tooltip used in the stage
     getTooltipBinder().bind(CpuCaptureStageCpuUsageTooltip.class, CpuCaptureStageCpuUsageTooltipView::new);
@@ -139,10 +171,13 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
     myTrackGroupList.getTooltipBinder().bind(BufferQueueTooltip.class, BufferQueueTooltipView::new);
     myTrackGroupList.getTooltipBinder().bind(RssMemoryTooltip.class, RssMemoryTooltipView::new);
     myTrackGroupList.getTooltipBinder().bind(CpuFrequencyTooltip.class, CpuFrequencyTooltipView::new);
+    myTrackGroupList.getTooltipBinder().bind(AndroidFrameEventTooltip.class, AndroidFrameEventTooltipView::new);
+    myTrackGroupList.getTooltipBinder().bind(AndroidFrameTimelineTooltip.class, AndroidFrameTimelineTooltipView::new);
 
     stage.getAspect().addDependency(this).onChange(CpuCaptureStage.Aspect.STATE, this::updateComponents);
     stage.getMultiSelectionModel().addDependency(this)
-      .onChange(MultiSelectionModel.Aspect.CHANGE_SELECTION, this::onTrackGroupSelectionChange);
+      .onChange(MultiSelectionModel.Aspect.SELECTIONS_CHANGED, this::onTrackGroupSelectionChange)
+      .onChange(MultiSelectionModel.Aspect.ACTIVE_SELECTION_CHANGED, this::updateTrackGroupList);
     updateComponents();
   }
 
@@ -153,7 +188,13 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
     myDeselectAllToolbar.add(myDeselectAllLabel);
     myDeselectAllToolbar.add(new FlatSeparator());
     myDeselectAllToolbar.setVisible(false);
+    JPanel leftPanel = new JPanel();
+    leftPanel.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 0));
+    leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.LINE_AXIS));
+    leftPanel.add(myCollapseFrameButton);
+    leftPanel.add(myVsyncBackgroundCheckBox);
     panel.add(myDeselectAllToolbar, BorderLayout.EAST);
+    panel.add(leftPanel, BorderLayout.WEST);
     return panel;
   }
 
@@ -161,6 +202,8 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
     getComponent().removeAll();
     if (getStage().getState() == CpuCaptureStage.State.PARSING) {
       getComponent().add(new StatusPanel(getStage().getCaptureHandler(), "Parsing", "Abort"));
+      myCollapseFrameButton.setVisible(false);
+      myVsyncBackgroundCheckBox.setVisible(false);
     }
     else {
       // If we had any previously registered analyzing events we unregister them first.
@@ -172,6 +215,8 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
       getComponent().revalidate();
       // Request focus to enable keyboard shortcuts once loading finishes.
       myTrackGroupList.getComponent().requestFocusInWindow();
+      myCollapseFrameButton.setVisible(!getStage().getCapture().getTags().isEmpty());
+      myVsyncBackgroundCheckBox.setVisible(getStage().getCapture().getSystemTraceData() != null);
     }
   }
 
@@ -196,6 +241,17 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
   }
 
   private JComponent createAnalyzingComponents() {
+    if (getStage().getCapture().getRange().isEmpty()) {
+      // If the capture range is empty, it means the capture doesn't contain any data.
+      JPanel container = new JPanel(new BorderLayout());
+      JLabel label = new JLabel("This trace doesn't contain any data. Please record a new one and interact with the app to generate data.");
+      label.setFont(ProfilerFonts.H3_FONT);
+      label.setHorizontalAlignment(SwingConstants.CENTER);
+      label.setVerticalAlignment(SwingConstants.CENTER);
+      container.add(label);
+      return container;
+    }
+
     // Minimap
     CpuCaptureMinimapModel minimapModel = getStage().getMinimapModel();
     CpuCaptureMinimapView minimap = new CpuCaptureMinimapView(minimapModel);
@@ -357,6 +413,7 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
   private void updateTrackGroupList() {
     // Force track group list to validate its children.
     myTrackGroupList.getComponent().updateUI();
+    onActiveSelectionChange();
   }
 
   private void loadTrackGroupModels() {
@@ -371,33 +428,27 @@ public class CpuCaptureStageView extends StageView<CpuCaptureStage> {
   }
 
   private void onTrackGroupSelectionChange() {
-    // Remove the last selection if any.
-    if (getStage().getAnalysisModels().size() > 1) {
-      getStage().removeCpuAnalysisModel(getStage().getAnalysisModels().size() - 1);
-    }
-
-    // Merge all selected items' analysis models and provide one combined model to the analysis panel.
-    ImmutableList<CpuAnalyzable> selection = getStage().getMultiSelectionModel().getSelection();
-    getStage().getMultiSelectionModel().getSelection().stream()
-      .map(CpuAnalyzable::getAnalysisModel)
-      .reduce(CpuAnalysisModel::mergeWith)
-      .ifPresent(getStage()::addCpuAnalysisModel);
-
-    // Now update track groups.
+    // Update track groups.
     updateTrackGroupList();
 
-    // Update selection range
-    if (selection.isEmpty()) {
-      getStage().getTimeline().getSelectionRange().clear();
-    }
-    else if (selection.get(0) instanceof CaptureNodeAnalysisModel) {
-      // Use the first item to determine selection type as all items in the selection model are of the same type.
-      Range selectedNodeRange = ((CaptureNodeAnalysisModel)selection.get(0)).getNodeRange();
-      getStage().getTimeline().getSelectionRange().set(selectedNodeRange);
-    }
+    onActiveSelectionChange();
 
     // Show/hide "Deselect All" label.
-    myDeselectAllToolbar.setVisible(!selection.isEmpty());
+    myDeselectAllToolbar.setVisible(!getStage().getMultiSelectionModel().getSelections().isEmpty());
+  }
+
+  private void onActiveSelectionChange() {
+    // Update selection range
+    Object selection = getStage().getMultiSelectionModel().getActiveSelectionKey();
+    Range selectionRange = getStage().getTimeline().getSelectionRange();
+    if (selection == null) {
+      selectionRange.clear();
+    } else if (selection instanceof CaptureNode) {
+      selectionRange.set(((CaptureNode)selection).getStart(), ((CaptureNode)selection).getEnd());
+    } else if (selection instanceof AndroidFrameTimelineEvent) {
+      selectionRange.set(((AndroidFrameTimelineEvent)selection).getExpectedStartUs(),
+                         ((AndroidFrameTimelineEvent)selection).getActualEndUs());
+    }
   }
 
   @VisibleForTesting

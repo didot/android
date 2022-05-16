@@ -20,7 +20,6 @@ import com.intellij.openapi.ui.VerticalFlowLayout;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
-import icons.AndroidIcons;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -48,7 +47,6 @@ public class PairingCodeContentPanel {
     myEmptyPanel.setBackground(UIColors.PAIRING_CONTENT_BACKGROUND);
     myDeviceListScrollPane.setBorder(JBUI.Borders.empty());
     myDeviceList.setBackground(UIColors.PAIRING_CONTENT_BACKGROUND);
-    myDeviceLineupLabel.setIcon(AndroidIcons.Explorer.DevicesLineup);
   }
 
   @NotNull

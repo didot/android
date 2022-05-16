@@ -9,6 +9,7 @@ import com.android.tools.build.apkzlib.zip.ZFileOptions;
 import com.android.tools.build.apkzlib.zip.compress.DeflateExecutionCompressor;
 import com.google.common.base.Predicate;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import java.io.File;
 import java.io.IOException;
@@ -58,7 +59,7 @@ public class SafeSignedJarBuilder implements AutoCloseable {
 
 
     apkCreator = factory.make(creationData.build());
-    myOutFilePath = FileUtil.toSystemDependentName(outFilePath);
+    myOutFilePath = FileUtilRt.toSystemDependentName(outFilePath);
   }
 
   public void writeFile(File inputFile, String jarPath) throws IOException {

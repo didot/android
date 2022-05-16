@@ -17,20 +17,19 @@ package com.android.tools.idea.gradle.project.sync;
 
 import static com.android.SdkConstants.FN_SETTINGS_GRADLE;
 import static com.android.tools.idea.gradle.project.sync.ModuleDependenciesSubject.moduleDependencies;
+import static com.android.tools.idea.gradle.util.PropertiesFiles.getProperties;
+import static com.android.tools.idea.gradle.util.PropertiesFiles.savePropertiesToFile;
 import static com.android.tools.idea.testing.FileSubject.file;
 import static com.android.tools.idea.testing.TestProjectPaths.APP_WITH_BUILDSRC;
 import static com.android.tools.idea.testing.TestProjectPaths.BASIC;
 import static com.android.tools.idea.testing.TestProjectPaths.CUSTOM_BUILD_SCRIPT_DEPS;
 import static com.android.tools.idea.testing.TestProjectPaths.DEPENDENT_MODULES;
-import static com.android.tools.idea.testing.TestProjectPaths.KOTLIN_GRADLE_DSL;
 import static com.android.tools.idea.testing.TestProjectPaths.KOTLIN_KAPT;
 import static com.android.tools.idea.testing.TestProjectPaths.NESTED_MODULE;
 import static com.android.tools.idea.testing.TestProjectPaths.PURE_JAVA_PROJECT;
 import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION;
 import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION_UNRESOLVED_DEPENDENCY;
 import static com.android.tools.idea.testing.TestProjectPaths.TRANSITIVE_DEPENDENCIES;
-import static com.android.tools.idea.util.PropertiesFiles.getProperties;
-import static com.android.tools.idea.util.PropertiesFiles.savePropertiesToFile;
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction;
@@ -45,8 +44,8 @@ import static com.intellij.pom.java.LanguageLevel.JDK_1_8;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.jetbrains.plugins.gradle.settings.DistributionType.DEFAULT_WRAPPED;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -114,7 +113,6 @@ import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.testFramework.EdtTestUtil;
-import com.intellij.testFramework.ServiceContainerUtil;
 import com.intellij.util.containers.ContainerUtil;
 import java.io.File;
 import java.io.IOException;
@@ -125,6 +123,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import junit.framework.AssertionFailedError;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.plugins.gradle.internal.daemon.GradleDaemonServices;
 import org.jetbrains.plugins.gradle.settings.GradleProjectSettings;
@@ -136,7 +135,7 @@ import org.mockito.ArgumentCaptor;
 /**
  * Integration tests for 'Gradle Sync'.
  */
-public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
+public final class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
   private IdeComponents myIdeComponents;
 
   @Override
@@ -342,8 +341,9 @@ public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
     List<NotificationData> messages = syncMessages.getNotifications();
     List<NotificationData> relevantMessages = messages.stream()
       .filter(m -> m.getTitle().equals("Unresolved dependencies") &&
-                   m.getMessage().contains(
-                     "Unable to resolve dependency for ':app@basicQa/compileClasspath': Could not resolve project :lib.\nAffected Modules:"))
+                   (m.getMessage().contains(
+                     "Unable to resolve dependency for ':app@basicQa/compileClasspath': Could not resolve project :lib.\nAffected Modules:")
+                    || m.getMessage().contains("Failed to resolve: project :lib\nAffected Modules:")))
       .collect(toList());
     assertThat(relevantMessages).isNotEmpty();
   }
@@ -374,7 +374,7 @@ public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
     Project project = getProject();
     GradleSyncMessagesStub syncMessages = GradleSyncMessagesStub.replaceSyncMessagesService(project, getTestRootDisposable());
     SyncMessage oldSyncMessage = new SyncMessage(SyncMessage.DEFAULT_GROUP, MessageType.ERROR,
-            "A quick blown fix bumps over the lazy bug");
+                                                 "A quick blown fix bumps over the lazy bug");
     syncMessages.report(oldSyncMessage);
 
     // Expect a successful sync, and that the old message should get cleaned up.
@@ -383,16 +383,6 @@ public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
     assertThat(messages).isEmpty();
   }
 
-  public void testSyncWithKotlinDsl() throws Exception {
-    loadProject(KOTLIN_GRADLE_DSL);
-
-    Module[] modules = ModuleManager.getInstance(getProject()).getModules();
-    assertSize(3, modules);
-    for (Module module : modules) {
-      ContentEntry[] entries = ModuleRootManager.getInstance(module).getContentEntries();
-      assertThat(entries).named(module.getName() + " should have content entries").isNotEmpty();
-    }
-  }
 
   /* TODO(b/142753914): GradleSyncIntegrationTest.testWithKotlinMpp fails with Kotlin version 1.3.60-withExperimentalGoogleExtensions-20191014
   public void testWithKotlinMpp() throws Exception {
@@ -414,7 +404,6 @@ public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
     loadProject(SIMPLE_APPLICATION);
 
     Module[] modules = ModuleManager.getInstance(getProject()).getModules();
-    assertSize(2, modules);
     for (Module module : modules) {
       GradleFacet gradleFacet = GradleFacet.getInstance(module);
       if (module.getName().contains("app")) {
@@ -460,9 +449,9 @@ public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
       // agpVersion is not available for Java modules.
       if (gradleFacet != null && androidFacet != null) {
         assertThat(gradleFacet.getConfiguration().LAST_SUCCESSFUL_SYNC_AGP_VERSION)
-                .isEqualTo(BuildEnvironment.getInstance().getGradlePluginVersion());
+          .isEqualTo(BuildEnvironment.getInstance().getGradlePluginVersion());
         assertThat(gradleFacet.getConfiguration().LAST_KNOWN_AGP_VERSION)
-                .isEqualTo(BuildEnvironment.getInstance().getGradlePluginVersion());
+          .isEqualTo(BuildEnvironment.getInstance().getGradlePluginVersion());
       }
     }
   }
@@ -485,7 +474,7 @@ public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
     try {
       requestSyncAndWait();
     }
-    catch (AssertionError expected) {
+    catch (AssertionFailedError expected) {
       // Sync issues are expected.
     }
 
@@ -550,7 +539,7 @@ public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
 
     // Spy on SyncView manager to confirm it is displaying the error message
     SyncViewManager spyViewManager = spy(project.getService(SyncViewManager.class));
-    ServiceContainerUtil.replaceService(project, SyncViewManager.class, spyViewManager, getTestRootDisposable());
+    myIdeComponents.replaceProjectService(SyncViewManager.class, spyViewManager);
 
     String syncError = loadProjectAndExpectSyncError(SIMPLE_APPLICATION);
     assertThat(syncError).startsWith("Presync checks failed\n");
@@ -626,8 +615,9 @@ public class GradleSyncIntegrationTest extends GradleSyncIntegrationTestCase {
     }
 
     // Verify that buildSrc/lib1 has dependency on buildSrc/lib2.
-    Module lib1Module = getModule("lib1");
-    assertAbout(moduleDependencies()).that(lib1Module).hasDependency(getModule("lib2").getName(), DependencyScope.COMPILE, false);
+    Module lib1Module = AndroidGradleTests.getMainJavaModule(getProject(), "lib1");
+    assertAbout(moduleDependencies()).that(lib1Module)
+      .hasDependency(AndroidGradleTests.getMainJavaModule(getProject(), "lib2").getName(), DependencyScope.COMPILE, false);
   }
 
   public void testViewBindingOptionsAreCorrectlyVisibleFromIDE() throws Exception {
