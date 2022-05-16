@@ -78,7 +78,6 @@ class NlPropertiesModelTest: LayoutTestCase() {
 
   fun testPropertiesGeneratedEventAfterSelectionChange() {
     // setup
-    @Suppress("UNCHECKED_CAST")
     val listener = TimingPropertiesModelListener()
     val model = createModel()
     val nlModel = createNlModel(TEXT_VIEW)

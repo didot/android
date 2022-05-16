@@ -82,7 +82,6 @@ class Lookup<out M : CommonTextFieldModel>(val editor: CommonTextField<M>, priva
   private var currentValueIncluded = false
 
   init {
-    @Suppress("UNCHECKED_CAST")
     ui.createList(filteredModel as ListModel<String>, matcher, editor)
     ui.clickAction = { enter() }
     filteredModel.setFilter(condition)
