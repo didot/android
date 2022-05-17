@@ -3,7 +3,6 @@ package org.jetbrains.android.database;
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.explorer.adbimpl.AdbDeviceFileSystem;
-import com.android.tools.idea.explorer.adbimpl.AdbDeviceFileSystemService;
 import com.android.tools.idea.explorer.fs.DeviceFileEntry;
 import com.intellij.CommonBundle;
 import com.intellij.database.SynchronizeHandler;
@@ -15,6 +14,7 @@ import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.util.concurrency.EdtExecutorService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,8 +26,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
-import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.ide.PooledThreadExecutor;
 
 public class AndroidSynchronizeHandler extends SynchronizeHandler {
   private static final Logger LOG = Logger.getInstance(AndroidSynchronizeHandler.class);
@@ -66,7 +66,7 @@ public class AndroidSynchronizeHandler extends SynchronizeHandler {
     final AndroidDebugBridge debugBridge = AndroidSdkUtils.getDebugBridge(project);
 
     if (debugBridge == null) {
-      Messages.showErrorDialog(project, AndroidBundle.message("cannot.connect.to.adb.error"), CommonBundle.getErrorTitle());
+      Messages.showErrorDialog(project, AndroidUltimateBundle.message("cannot.connect.to.adb.error"), CommonBundle.getErrorTitle());
       return Collections.emptySet();
     }
     final Set<AndroidDataSource> syncedDataSources = Collections.synchronizedSet(new HashSet<>(dataSourcesToSync));
@@ -96,8 +96,7 @@ public class AndroidSynchronizeHandler extends SynchronizeHandler {
     final boolean external = dbConnectionInfo.isExternal();
 
     String databaseRemoteFilePath = AndroidDbUtil.getDatabaseRemoteFilePath(packageName, dbName, external);
-    AdbDeviceFileSystemService adbService = AdbDeviceFileSystemService.getInstance(project);
-    AdbDeviceFileSystem fileSystem = new AdbDeviceFileSystem(adbService, device);
+    AdbDeviceFileSystem fileSystem = new AdbDeviceFileSystem(device, EdtExecutorService.getInstance(), PooledThreadExecutor.INSTANCE);
     final Path localDbFilePath = Paths.get(dataSource.buildLocalDbFileOsPath());
     progressIndicator.checkCanceled();
 
@@ -142,7 +141,7 @@ public class AndroidSynchronizeHandler extends SynchronizeHandler {
     MySynchronizeDataSourcesTask(@NotNull Project project,
                                  @NotNull AndroidDebugBridge debugBridge,
                                  @NotNull Set<AndroidDataSource> dataSources) {
-      super(project, AndroidBundle.message("android.db.downloading.progress.title"), true);
+      super(project, AndroidUltimateBundle.message("android.db.downloading.progress.title"), true);
       myProject = project;
       myDebugBridge = debugBridge;
       myDataSources = dataSources;

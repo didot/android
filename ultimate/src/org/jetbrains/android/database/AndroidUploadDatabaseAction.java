@@ -4,7 +4,6 @@ package org.jetbrains.android.database;
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.explorer.adbimpl.AdbDeviceFileSystem;
-import com.android.tools.idea.explorer.adbimpl.AdbDeviceFileSystemService;
 import com.android.tools.idea.explorer.fs.DeviceFileEntry;
 import com.intellij.CommonBundle;
 import com.intellij.database.psi.DbDataSource;
@@ -17,6 +16,7 @@ import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.util.concurrency.EdtExecutorService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,8 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
-import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.ide.PooledThreadExecutor;
 
 public class AndroidUploadDatabaseAction extends AnAction {
   private static final Logger LOG = Logger.getInstance(AndroidUploadDatabaseAction.class);
@@ -46,10 +46,10 @@ public class AndroidUploadDatabaseAction extends AnAction {
     final AndroidDebugBridge debugBridge = AndroidSdkUtils.getDebugBridge(project);
 
     if (debugBridge == null) {
-      Messages.showErrorDialog(project, AndroidBundle.message("cannot.connect.to.adb.error"), CommonBundle.getErrorTitle());
+      Messages.showErrorDialog(project, AndroidUltimateBundle.message("cannot.connect.to.adb.error"), CommonBundle.getErrorTitle());
       return;
     }
-    ProgressManager.getInstance().run(new Task.Backgroundable(project, AndroidBundle.message("android.db.uploading.progress.title"), true) {
+    ProgressManager.getInstance().run(new Task.Backgroundable(project, AndroidUltimateBundle.message("android.db.uploading.progress.title"), true) {
       @Override
       public void run(@NotNull ProgressIndicator indicator) {
         for (final AndroidDataSource dataSource : dataSources) {
@@ -106,8 +106,7 @@ public class AndroidUploadDatabaseAction extends AnAction {
 
     String databaseRemoteDirPath = AndroidDbUtil.getDatabaseRemoteDirPath(packageName, external);
     String databaseRemoteFilePath = AndroidDbUtil.getDatabaseRemoteFilePath(packageName, dbName, external);
-    AdbDeviceFileSystemService adbService = AdbDeviceFileSystemService.getInstance(project);
-    AdbDeviceFileSystem fileSystem = new AdbDeviceFileSystem(adbService, device);
+    AdbDeviceFileSystem fileSystem = new AdbDeviceFileSystem(device, EdtExecutorService.getInstance(), PooledThreadExecutor.INSTANCE);
 
     try {
       progress.setIndeterminate(false);
