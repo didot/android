@@ -7,7 +7,6 @@ import com.android.tools.idea.ddms.DeviceNamePropertiesFetcher;
 import com.android.tools.idea.ddms.DeviceNamePropertiesProvider;
 import com.android.tools.idea.ddms.DeviceRenderer;
 import com.android.tools.idea.explorer.adbimpl.AdbDeviceFileSystem;
-import com.android.tools.idea.explorer.adbimpl.AdbDeviceFileSystemService;
 import com.android.tools.idea.explorer.fs.DeviceFileEntry;
 import com.android.tools.idea.gradle.model.IdeVariant;
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel;
@@ -35,7 +34,8 @@ import com.intellij.util.concurrency.EdtExecutorService;
 import com.intellij.util.concurrency.annotations.RequiresEdt;
 import com.intellij.util.ui.update.Activatable;
 import com.intellij.util.ui.update.UiNotifyConnector;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,7 +43,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.swing.*;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JComponent;
+import javax.swing.JList;
+import javax.swing.JPanel;
 import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
@@ -386,8 +389,7 @@ public class AndroidDataSourceConfigurable extends AbstractDataSourceConfigurabl
 
   @NotNull
   private ListenableFuture<List<String>> loadDatabasesFromInternalStorage(@NotNull IDevice device, @NotNull final String packageName) {
-    AdbDeviceFileSystemService fileSystemService = AdbDeviceFileSystemService.getInstance(getProject());
-    AdbDeviceFileSystem remoteFileSystem = new AdbDeviceFileSystem(fileSystemService, device);
+    AdbDeviceFileSystem remoteFileSystem = new AdbDeviceFileSystem(device, EdtExecutorService.getInstance(), PooledThreadExecutor.INSTANCE);
 
     String dbPath = AndroidDbUtil.getInternalDatabasesRemoteDirPath(packageName);
     ListenableFuture<DeviceFileEntry> remoteDatabasesPath = remoteFileSystem.getEntry(dbPath);
