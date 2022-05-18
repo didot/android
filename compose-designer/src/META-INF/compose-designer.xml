@@ -105,7 +105,7 @@
     <localInspection implementationClass="com.android.tools.idea.compose.annotator.PreviewPickerAnnotationInspection"
                      language="kotlin"
                      enabledByDefault="true"
-                     bundle="com.android.tools.idea.compose.preview.ComposePreviewBundle"
+                     bundle="messages.ComposePreviewBundle"
                      groupKey="inspection.group.name"
                      key="inspection.preview.device.spec.name"
                      level="ERROR"/>
