@@ -144,7 +144,7 @@ class IssuePanelService(private val project: Project) {
           selectSharedIssuePanelTab()
           return
         }
-        val surface = getDesignSurface(event.newEditor)
+        val surface = event.newEditor?.getDesignSurface()
         if (surface != null) {
           val psiFileType = newFile.toPsiFile(project)?.typeOf()
           if (psiFileType is DrawableFileType) {
@@ -217,7 +217,7 @@ class IssuePanelService(private val project: Project) {
   /**
    * Return if the current issue panel of the given [DesignSurface] or the shared issue panel is showing.
    */
-  fun isShowingIssuePanel(surface: DesignSurface) : Boolean {
+  fun isShowingIssuePanel(surface: DesignSurface<*>) : Boolean {
     if (StudioFlags.NELE_USE_SHARED_ISSUE_PANEL_FOR_DESIGN_TOOLS.get()) {
       return isSharedIssueTabShowing(sharedIssueTab)
     }
@@ -271,7 +271,7 @@ class IssuePanelService(private val project: Project) {
     if (name != null) {
       return name
     }
-    val surface = getDesignSurface(editors[0]) ?: return DEFAULT_SHARED_ISSUE_PANEL_TAB_NAME
+    val surface = editors[0].getDesignSurface() ?: return DEFAULT_SHARED_ISSUE_PANEL_TAB_NAME
     if (surface.name != null) {
       return surface.name
     }
@@ -283,7 +283,7 @@ class IssuePanelService(private val project: Project) {
    */
   private fun isDesignEditor(editor: FileEditor): Boolean {
     val virtualFile = editor.file ?: return false
-    return isComposeFile(virtualFile) || isSupportedDesignerFileType(virtualFile) || getDesignSurface(editor) != null
+    return isComposeFile(virtualFile) || isSupportedDesignerFileType(virtualFile) || editor.getDesignSurface() != null
   }
 
   private fun isComposeFile(file: VirtualFile): Boolean {
@@ -312,23 +312,11 @@ class IssuePanelService(private val project: Project) {
     }
   }
 
-  private fun getDesignSurface(editor: FileEditor?): DesignSurface? {
-    when (editor) {
-      is DesignToolsSplitEditor -> return editor.designerEditor.component.surface
-      is SplitEditor<*> -> {
-        // Check if there is a design surface in the context of presentation. For example, Compose and CustomView preview.
-        val component = (editor.preview as? SourceCodePreview)?.currentRepresentation?.component ?: return null
-        return DataManager.getInstance().getDataContext(component).getData(DESIGN_SURFACE)
-      }
-      else -> return null
-    }
-  }
-
   /**
    * Select the highest severity issue related to the provided [NlComponent] and scroll the viewport to issue.
    * TODO: Remove the dependency of [NlComponent]
    */
-  fun showIssueForComponent(surface: DesignSurface, userInvoked: Boolean, component: NlComponent, collapseOthers: Boolean) {
+  fun showIssueForComponent(surface: DesignSurface<*>, userInvoked: Boolean, component: NlComponent, collapseOthers: Boolean) {
     // TODO: The shared issue panel should support this feature.
     if (StudioFlags.NELE_USE_SHARED_ISSUE_PANEL_FOR_DESIGN_TOOLS.get()) {
       setSharedIssuePanelVisibility(true)
@@ -352,7 +340,7 @@ class IssuePanelService(private val project: Project) {
   /**
    * Return the visibility of issue panel for the given [DesignSurface].
    */
-  fun isIssuePanelVisible(surface: DesignSurface): Boolean {
+  fun isIssuePanelVisible(surface: DesignSurface<*>): Boolean {
     return if (StudioFlags.NELE_USE_SHARED_ISSUE_PANEL_FOR_DESIGN_TOOLS.get()) {
       isSharedIssueTabShowing(sharedIssueTab)
     }
@@ -400,7 +388,7 @@ class IssuePanelService(private val project: Project) {
  * @param show whether to show or hide the issue panel.
  * @param userInvoked if true, this was the direct consequence of a user action.
  */
-fun DesignSurface.setIssuePanelVisibilityNoTracking(show: Boolean, userInvoked: Boolean) {
+fun DesignSurface<*>.setIssuePanelVisibilityNoTracking(show: Boolean, userInvoked: Boolean) {
   if (StudioFlags.NELE_USE_SHARED_ISSUE_PANEL_FOR_DESIGN_TOOLS.get()) {
     IssuePanelService.getInstance(project).setSharedIssuePanelVisibility(show)
   }
@@ -420,7 +408,7 @@ fun DesignSurface.setIssuePanelVisibilityNoTracking(show: Boolean, userInvoked: 
  * @param show whether to show or hide the issue panel.
  * @param userInvoked if true, this was the direct consequence of a user action.
  */
-fun DesignSurface.setIssuePanelVisibility(show: Boolean, userInvoked: Boolean) {
+fun DesignSurface<*>.setIssuePanelVisibility(show: Boolean, userInvoked: Boolean) {
   analyticsManager.trackShowIssuePanel()
   setIssuePanelVisibilityNoTracking(show, userInvoked)
 }
@@ -437,4 +425,16 @@ private fun createTabName(title: String, issueCount: Int?): String {
     .append(" ").append(HtmlChunk.tag("font").attr("color", toHtmlColor(UIUtil.getInactiveTextColor())).addText("$issueCount"))
     .wrapWithHtmlBody()
     .toString()
+}
+
+fun FileEditor.getDesignSurface(): DesignSurface<*>? {
+  when (this) {
+    is DesignToolsSplitEditor -> return designerEditor.component.surface
+    is SplitEditor<*> -> {
+      // Check if there is a design surface in the context of presentation. For example, Compose and CustomView preview.
+      val component = (preview as? SourceCodePreview)?.currentRepresentation?.component ?: return null
+      return DataManager.getInstance().getDataContext(component).getData(DESIGN_SURFACE)
+    }
+    else -> return null
+  }
 }

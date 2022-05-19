@@ -49,6 +49,8 @@ import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.concurrency.disposableCallbackFlow
 import com.android.tools.idea.concurrency.launchWithProgress
 import com.android.tools.idea.concurrency.smartModeFlow
+import com.android.tools.idea.editors.build.ProjectBuildStatusManager
+import com.android.tools.idea.editors.build.ProjectStatus
 import com.android.tools.idea.editors.documentChangeFlow
 import com.android.tools.idea.editors.fast.CompilationResult
 import com.android.tools.idea.editors.fast.FastPreviewManager
@@ -255,6 +257,18 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
                                    composePreviewViewProvider: ComposePreviewViewProvider) :
   PreviewRepresentation, ComposePreviewManagerEx, UserDataHolderEx by UserDataHolderBase(), AndroidCoroutinesAware,
   FastPreviewSurface {
+
+  companion object {
+    /**
+     * The refresh flow has to be shared across all instances to support viewing multiple files at the same time,
+     * because changes in any of the active files could affect the Previews in any of the active representations.
+     *
+     * Each instance subscribes itself to the flow when it is activated, and it is automatically unsubscribed
+     * when the [activationScope] is cancelled (see [onActivate], [initializeFlows] and [onDeactivate])
+     */
+    private val refreshFlow: MutableSharedFlow<RefreshRequest> = MutableSharedFlow(replay = 1)
+  }
+
   /**
    * Fake device id to identify this preview with the live literals service. This allows live literals to track how
    * many "users" it has.
@@ -292,8 +306,6 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
    * Whether the preview needs a full refresh or not.
    */
   private val invalidated = AtomicBoolean(true)
-
-  private val refreshFlow: MutableSharedFlow<RefreshRequest> = MutableSharedFlow(replay = 1)
 
   private val previewFreshnessTracker = CodeOutOfDateTracker.create(module, this) {
     invalidate()
@@ -1086,7 +1098,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
       }
 
       if (Bridge.hasNativeCrash() && composeWorkBench is ComposePreviewViewImpl) {
-        (composeWorkBench.component as WorkBench<DesignSurface>).handleLayoutlibNativeCrash { requestRefresh() }
+        (composeWorkBench.component as WorkBench<DesignSurface<*>>).handleLayoutlibNativeCrash { requestRefresh() }
         return@launchWithProgress
       }
 
@@ -1221,8 +1233,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
    * We will only do quick refresh if there is a single preview.
    * When live literals is enabled, we want to try to preserve the same class loader as much as possible.
    */
-  private fun shouldQuickRefresh() =
-    !isLiveLiteralsEnabled && StudioFlags.COMPOSE_QUICK_ANIMATED_PREVIEW.get() && renderedElements.count() == 1
+  private fun shouldQuickRefresh() = !isLiveLiteralsEnabled && renderedElements.count() == 1
 
   private suspend fun requestFastPreviewRefresh(): CompilationResult? = coroutineScope {
     val currentStatus = status()

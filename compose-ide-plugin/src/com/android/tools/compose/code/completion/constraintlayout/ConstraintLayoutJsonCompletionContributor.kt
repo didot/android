@@ -22,6 +22,9 @@ import com.android.tools.compose.code.completion.constraintlayout.provider.Const
 import com.android.tools.compose.code.completion.constraintlayout.provider.ConstraintSetNamesProvider
 import com.android.tools.compose.code.completion.constraintlayout.provider.ConstraintsProvider
 import com.android.tools.compose.code.completion.constraintlayout.provider.EnumValuesCompletionProvider
+import com.android.tools.compose.code.completion.constraintlayout.provider.KeyFrameChildFieldsCompletionProvider
+import com.android.tools.compose.code.completion.constraintlayout.provider.KeyFramesFieldsProvider
+import com.android.tools.compose.code.completion.constraintlayout.provider.OnSwipeFieldsProvider
 import com.android.tools.compose.code.completion.constraintlayout.provider.TransitionFieldsProvider
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.getModuleSystem
@@ -34,6 +37,8 @@ import com.intellij.json.psi.JsonStringLiteral
 
 internal const val BASE_DEPTH_FOR_LITERAL_IN_PROPERTY = 2
 
+internal const val BASE_DEPTH_FOR_NAME_IN_PROPERTY_OBJECT = BASE_DEPTH_FOR_LITERAL_IN_PROPERTY + BASE_DEPTH_FOR_LITERAL_IN_PROPERTY
+
 /** Depth for a literal of a property of the list of ConstraintSets. With respect to the ConstraintSets root element. */
 private const val CONSTRAINT_SET_LIST_PROPERTY_DEPTH = BASE_DEPTH_FOR_LITERAL_IN_PROPERTY + BASE_DEPTH_FOR_LITERAL_IN_PROPERTY
 
@@ -45,6 +50,12 @@ private const val TRANSITION_PROPERTY_DEPTH = CONSTRAINT_SET_PROPERTY_DEPTH
 
 /** Depth for a literal of a property of a Constraints block. With respect to the ConstraintSets root element. */
 internal const val CONSTRAINT_BLOCK_PROPERTY_DEPTH = CONSTRAINT_SET_PROPERTY_DEPTH + BASE_DEPTH_FOR_LITERAL_IN_PROPERTY
+
+/** Depth for a literal of a property of an OnSwipe block. With respect to the Transitions root element. */
+internal const val ONSWIPE_PROPERTY_DEPTH = TRANSITION_PROPERTY_DEPTH + BASE_DEPTH_FOR_LITERAL_IN_PROPERTY
+
+/** Depth for a literal of a property of a KeyFrames block. With respect to the Transitions root element. */
+internal const val KEYFRAMES_PROPERTY_DEPTH = ONSWIPE_PROPERTY_DEPTH
 
 /**
  * [CompletionContributor] for the JSON5 format supported in ConstraintLayout-Compose (and MotionLayout).
@@ -139,6 +150,58 @@ class ConstraintLayoutJsonCompletionContributor : CompletionContributor() {
       // TODO(b/207030860): Guarantee that provided names for 'from' or 'to' are distinct from each other,
       //  ie: both shouldn't reference the same ConstraintSet
       ConstraintSetNamesProvider
+    )
+    extend(
+      CompletionType.BASIC,
+      // Complete fields of a KeyFrames block
+      jsonPropertyName()
+        .withPropertyParentAtLevel(BASE_DEPTH_FOR_NAME_IN_PROPERTY_OBJECT, TransitionField.KeyFrames.keyWord)
+        .withTransitionsParentAtLevel(KEYFRAMES_PROPERTY_DEPTH),
+      KeyFramesFieldsProvider
+    )
+    extend(
+      CompletionType.BASIC,
+      // Complete fields of an OnSwipe block
+      jsonPropertyName()
+        .withPropertyParentAtLevel(BASE_DEPTH_FOR_NAME_IN_PROPERTY_OBJECT, TransitionField.OnSwipe.keyWord)
+        .withTransitionsParentAtLevel(ONSWIPE_PROPERTY_DEPTH),
+      OnSwipeFieldsProvider
+    )
+    extend(
+      CompletionType.BASIC,
+      // Complete the possible IDs for the OnSwipe `anchor` property
+      jsonStringValue()
+        .withPropertyParentAtLevel(BASE_DEPTH_FOR_LITERAL_IN_PROPERTY, OnSwipeField.AnchorId.keyWord),
+      ConstraintIdsProvider
+    )
+    extend(
+      CompletionType.BASIC,
+      // Complete the known values for the OnSwipe `side` property
+      jsonStringValue()
+        .withPropertyParentAtLevel(BASE_DEPTH_FOR_LITERAL_IN_PROPERTY, OnSwipeField.Side.keyWord),
+      EnumValuesCompletionProvider(OnSwipeSide::class)
+    )
+    extend(
+      CompletionType.BASIC,
+      // Complete the known values for the OnSwipe `direction` property
+      jsonStringValue()
+        .withPropertyParentAtLevel(BASE_DEPTH_FOR_LITERAL_IN_PROPERTY, OnSwipeField.Direction.keyWord),
+      EnumValuesCompletionProvider(OnSwipeDirection::class)
+    )
+    extend(
+      CompletionType.BASIC,
+      // Complete the known values for the OnSwipe `mode` property
+      jsonStringValue()
+        .withPropertyParentAtLevel(BASE_DEPTH_FOR_LITERAL_IN_PROPERTY, OnSwipeField.Mode.keyWord),
+      EnumValuesCompletionProvider(OnSwipeMode::class)
+    )
+    extend(
+      CompletionType.BASIC,
+      // Complete the fields for any of the possible KeyFrames children
+      jsonPropertyName()
+        // A level deeper considering the array surrounding the object
+        .withPropertyParentAtLevel(BASE_DEPTH_FOR_NAME_IN_PROPERTY_OBJECT + 1, KeyFrameField.values().map { it.keyWord }),
+      KeyFrameChildFieldsCompletionProvider
     )
     //endregion
   }

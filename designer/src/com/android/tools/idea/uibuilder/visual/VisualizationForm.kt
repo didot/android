@@ -28,16 +28,15 @@ import com.android.tools.editor.PanZoomListener
 import com.android.tools.idea.common.error.Issue
 import com.android.tools.idea.common.error.IssuePanel
 import com.android.tools.idea.common.error.IssuePanelSplitter
+import com.android.tools.idea.common.error.getDesignSurface
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.common.surface.LayoutScannerConfiguration.Companion.DISABLED
 import com.android.tools.idea.common.surface.LayoutScannerEnabled
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.projectsystem.ProjectSystemSyncManager
 import com.android.tools.idea.res.ResourceNotificationManager
 import com.android.tools.idea.res.ResourceNotificationManager.ResourceChangeListener
 import com.android.tools.idea.res.getFolderType
-import com.android.tools.idea.startup.ClearResourceCacheAfterFirstBuild.Companion.getInstance
 import com.android.tools.idea.uibuilder.analytics.NlAnalyticsManager
 import com.android.tools.idea.uibuilder.graphics.NlConstants
 import com.android.tools.idea.uibuilder.lint.CommonLintUserDataHandler.updateVisualLintIssues
@@ -54,9 +53,8 @@ import com.android.tools.idea.uibuilder.visual.visuallint.ToggleOnlyShowLayoutWi
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintAnalyticsManager
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintBaseConfigIssues
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintIssueProvider
+import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintService
 import com.android.tools.idea.uibuilder.visual.visuallint.analyzeAfterModelUpdate
-import com.android.tools.idea.util.listenUntilNextSync
-import com.android.tools.idea.util.runWhenSmartAndSyncedOnEdt
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableSet
 import com.intellij.openapi.Disposable
@@ -101,11 +99,10 @@ import javax.swing.JPanel
  * Form of layout visualization which offers multiple previews for different devices in the same time. It provides a
  * convenient way to user to preview the layout in different devices.
  */
-class VisualizationForm(project: Project, parentDisposable: Disposable) : VisualizationContent, ConfigurationSetListener,
-                                                                          ResourceChangeListener, PanZoomListener {
-  private val myProject: Project
+class VisualizationForm(private val project: Project, parentDisposable: Disposable, private val initializer: ContentInitializer)
+  : VisualizationContent, ConfigurationSetListener, ResourceChangeListener, PanZoomListener {
   val surface: NlDesignSurface
-  private val myWorkBench: WorkBench<DesignSurface>
+  private val myWorkBench: WorkBench<DesignSurface<*>>
   private val myRoot = JPanel(BorderLayout())
   private var myFile: VirtualFile? = null
   private val myResourceNotifyingFilesLock = ReentrantLock()
@@ -161,14 +158,13 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
 
   init {
     Disposer.register(parentDisposable, this)
-    myProject = project
     myCurrentConfigurationSet = VisualizationToolSettings.getInstance().globalState.lastSelectedConfigurationSet
     myCurrentModelsProvider = myCurrentConfigurationSet.createModelsProvider(this)
     val surfaceLayoutManager = myGridSurfaceLayoutManager
     val config = if (StudioFlags.NELE_VISUAL_LINT.get() && StudioFlags.NELE_ATF_IN_VISUAL_LINT.get()) LayoutScannerEnabled() else DISABLED
     // Custom issue panel integration used.
     config.isIntegrateWithDefaultIssuePanel = false
-    surface = NlDesignSurface.builder(myProject, this@VisualizationForm)
+    surface = NlDesignSurface.builder(project, this@VisualizationForm)
       .setIsPreview(false)
       .setSceneManagerProvider { surface: NlDesignSurface, model: NlModel ->
         val sceneManager = LayoutlibSceneManager(model, surface, config)
@@ -184,10 +180,10 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
         }
         sceneManager
       }
-      .setActionManagerProvider { surface: DesignSurface ->
+      .setActionManagerProvider { surface: DesignSurface<*> ->
         VisualizationActionManager((surface as NlDesignSurface?)!!) { myCurrentModelsProvider }
       }
-      .setInteractionHandlerProvider { surface: DesignSurface ->
+      .setInteractionHandlerProvider { surface: DesignSurface<*> ->
         VisualizationInteractionHandler(surface) { myCurrentModelsProvider }
       }
       .setLayoutManager(surfaceLayoutManager)
@@ -199,7 +195,7 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     surface.addPanZoomListener(this)
     updateScreenMode()
     surface.name = VISUALIZATION_DESIGN_SURFACE_NAME
-    myWorkBench = WorkBench(myProject, "Visualization", null, this)
+    myWorkBench = WorkBench(project, "Visualization", null, this)
     myWorkBench.setLoadingText("Loading...")
     myWorkBench.setToolContext(surface)
     val mainComponent: JComponent = if (StudioFlags.NELE_VISUAL_LINT.get()) {
@@ -247,7 +243,7 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     group.addSeparator()
     group.add(DefaultActionGroup(ConfigurationSetMenuAction(this, myCurrentConfigurationSet)))
     if (virtualFile != null) {
-      PsiManager.getInstance(myProject).findFile(virtualFile)?.let { psiFile ->
+      PsiManager.getInstance(project).findFile(virtualFile)?.let { psiFile ->
         AndroidFacet.getInstance(psiFile)?.let { facet ->
           group.addAll(myCurrentModelsProvider.createActions(psiFile, facet))
         }
@@ -307,7 +303,8 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     try {
       registeredFiles = HashSet(myResourceNotifyingFiles)
       myResourceNotifyingFiles.clear()
-    } finally {
+    }
+    finally {
       myResourceNotifyingFilesLock.unlock()
     }
     for (file in registeredFiles) {
@@ -338,45 +335,20 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     myFile = editor.file
     myCancelPendingModelLoad.set(true)
     if (isActive) {
-      initPreviewForm()
+      if (myContentPanel == null) {
+        initializer.initContent(project, this) { initModel() }
+      }
+      else {
+        initModel()
+      }
     }
     return true
   }
 
-  private fun initPreviewForm() {
-    if (myContentPanel == null) {
-      // First time: Make sure we have compiled the project at least once...
-      getInstance(myProject).runWhenResourceCacheClean({ initPreviewFormAfterInitialBuild() }) { buildError() }
-    }
-    else {
-      // Subsequent times: Setups a Nele model in preparation for creating a preview image
-      initNeleModel()
-    }
-  }
-
-  private fun initPreviewFormAfterInitialBuild() {
-    myWorkBench.setLoadingText("Waiting for build to finish...")
-    myProject.runWhenSmartAndSyncedOnEdt(this, { result: ProjectSystemSyncManager.SyncResult ->
-      if (result.isSuccessful) {
-        initPreviewFormAfterBuildOnEventDispatchThread()
-      }
-      else {
-        buildError()
-        myProject.listenUntilNextSync(this, object : ProjectSystemSyncManager.SyncResultListener {
-          override fun syncEnded(result: ProjectSystemSyncManager.SyncResult) {
-            initPreviewFormAfterBuildOnEventDispatchThread()
-          }
-        })
-      }
-    })
-  }
-
-  // Build was either cancelled or there was an error
-  private fun buildError() {
-    myWorkBench.loadingStopped("Previews are unavailable until after a successful project sync")
-  }
-
-  private fun initPreviewFormAfterBuildOnEventDispatchThread() {
+  /**
+   * Called by [VisualizationForm.ContentInitializer] to initialize the content panel.
+   */
+  fun createContentPanel() {
     if (Disposer.isDisposed(this)) {
       return
     }
@@ -388,11 +360,24 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
       // The toolbar is in the root panel which contains myWorkBench. To traverse to toolbar we need to traverse out from myWorkBench.
       myWorkBench.isFocusCycleRoot = false
     }
-    initNeleModel()
   }
 
-  private fun initNeleModel() {
-    DumbService.getInstance(myProject).smartInvokeLater { initNeleModelWhenSmart() }
+  /**
+   * Called by [VisualizationForm.ContentInitializer] when content is still loading.
+   */
+  fun showLoadingMessage() {
+    myWorkBench.setLoadingText("Waiting for build to finish...")
+  }
+
+  /**
+   * Called by [VisualizationForm.ContentInitializer] when build was either cancelled or there was an error.
+   */
+  fun showErrorMessage() {
+    myWorkBench.loadingStopped("Previews are unavailable until after a successful project sync")
+  }
+
+  private fun initModel() {
+    DumbService.getInstance(project).smartInvokeLater { initNeleModelWhenSmart() }
   }
 
   @UiThread
@@ -402,7 +387,7 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     if (myFile == null) {
       return
     }
-    val file = PsiManager.getInstance(myProject).findFile(myFile!!)
+    val file = PsiManager.getInstance(project).findFile(myFile!!)
     val facet = (if (file != null) AndroidFacet.getInstance(file) else null) ?: return
     updateActionToolbar(myActionToolbarPanel)
 
@@ -439,7 +424,7 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
           ApplicationManager.getApplication().invokeLater {
             surface.invalidate()
             val lastScaling =
-              VisualizationToolProjectSettings.getInstance(myProject).projectState.scale
+              VisualizationToolProjectSettings.getInstance(project).projectState.scale
             if (!surface.setScale(lastScaling)) {
               // Update scroll area because the scaling doesn't change, which keeps the old scroll area and may not suitable to new
               // configuration set.
@@ -504,7 +489,7 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     if (file == null) {
       return
     }
-    val facet = AndroidFacet.getInstance(file, myProject)
+    val facet = AndroidFacet.getInstance(file, project)
     if (facet != null) {
       myResourceNotifyingFilesLock.lock()
       try {
@@ -512,10 +497,11 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
           // File is registered already.
           return
         }
-      } finally {
+      }
+      finally {
         myResourceNotifyingFilesLock.unlock()
       }
-      val manager = ResourceNotificationManager.getInstance(myProject)
+      val manager = ResourceNotificationManager.getInstance(project)
       manager.addListener(this, facet, file, null)
     }
   }
@@ -524,7 +510,7 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     if (file == null) {
       return
     }
-    val facet = AndroidFacet.getInstance(file, myProject)
+    val facet = AndroidFacet.getInstance(file, project)
     if (facet != null) {
       myResourceNotifyingFilesLock.lock()
       try {
@@ -532,10 +518,11 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
           // File is not registered.
           return
         }
-      } finally {
+      }
+      finally {
         myResourceNotifyingFilesLock.unlock()
       }
-      val manager = ResourceNotificationManager.getInstance(myProject)
+      val manager = ResourceNotificationManager.getInstance(project)
       manager.removeListener(this, facet, myFile, null)
     }
   }
@@ -585,7 +572,8 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     myCancelRenderingTaskLock.lock()
     myCancelRenderingTask = try {
       cancelTask
-    } finally {
+    }
+    finally {
       myCancelRenderingTaskLock.unlock()
     }
     var renderFuture = CompletableFuture.completedFuture<Void?>(null)
@@ -656,10 +644,18 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     }
     registerResourceNotification(myFile)
     isActive = true
-    initPreviewForm()
+    if (myContentPanel == null) {
+      initializer.initContent(project, this) { initModel() }
+    }
+    else {
+      initModel()
+    }
     surface.activate()
     analyticsManager.trackVisualizationToolWindow(true)
     surface.issueModel.addIssueProvider(myLintIssueProvider)
+    FileEditorManager.getInstance(project).selectedEditor?.getDesignSurface()?.let {
+      VisualLintService.getInstance().removeIssues(it)
+    }
   }
 
   /**
@@ -680,6 +676,7 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     }
     analyticsManager.trackVisualizationToolWindow(false)
     surface.issueModel.removeIssueProvider(myLintIssueProvider)
+    (FileEditorManager.getInstance(project).selectedEditor?.getDesignSurface() as? NlDesignSurface)?.updateErrorDisplay()
   }
 
   override fun onSelectedConfigurationSetChanged(newConfigurationSet: ConfigurationSet) {
@@ -704,11 +701,11 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     updateScreenMode()
     updateActionToolbar(myActionToolbarPanel)
     // Dispose old models and create new models with new configuration set.
-    initNeleModel()
+    initModel()
   }
 
   override fun zoomChanged(previousScale: Double, newScale: Double) {
-    VisualizationToolProjectSettings.getInstance(myProject).projectState.scale = surface.scale
+    VisualizationToolProjectSettings.getInstance(project).projectState.scale = surface.scale
   }
 
   override fun panningChanged(adjustmentEvent: AdjustmentEvent) = Unit
@@ -744,7 +741,7 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
     }
   }
 
-  private class VisualizationTraversalPolicy(private val mySurface: DesignSurface) : DefaultFocusTraversalPolicy() {
+  private class VisualizationTraversalPolicy(private val mySurface: DesignSurface<*>) : DefaultFocusTraversalPolicy() {
     override fun getDefaultComponent(aContainer: Container): Component {
       return mySurface.layeredPane
     }
@@ -752,6 +749,11 @@ class VisualizationForm(project: Project, parentDisposable: Disposable) : Visual
 
   private class EmptyProgressIndicator : AbstractProgressIndicatorBase() {
     override fun isRunning(): Boolean = true
+  }
+
+
+  interface ContentInitializer {
+    fun initContent(project: Project, form: VisualizationForm, onComplete: () -> Unit)
   }
 
   companion object {

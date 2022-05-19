@@ -146,3 +146,67 @@ internal enum class TransitionField(override val keyWord: String): ConstraintLay
   KeyFrames("KeyFrames"),
   OnSwipe("onSwipe")
 }
+
+internal enum class OnSwipeField(override val keyWord: String): ConstraintLayoutKeyWord {
+  AnchorId("anchor"),
+  Direction("direction"),
+  Side("side"),
+  Mode("mode")
+}
+
+internal enum class OnSwipeSide(override val keyWord: String): ConstraintLayoutKeyWord {
+  Top("top"),
+  Left("left"),
+  Right("right"),
+  Bottom("bottom"),
+  Middle("middle"),
+  Start("start"),
+  End("end")
+}
+
+internal enum class OnSwipeDirection(override val keyWord: String): ConstraintLayoutKeyWord {
+  Up("up"),
+  Down("down"),
+  Left("left"),
+  Right("right"),
+  Start("start"),
+  End("end"),
+  Clockwise("clockwise"),
+  AntiClockwise("anticlockwise")
+}
+
+internal enum class OnSwipeMode(override val keyWord: String): ConstraintLayoutKeyWord {
+  Velocity("velocity"),
+  Spring("spring")
+}
+
+internal enum class KeyFrameField(override val keyWord: String): ConstraintLayoutKeyWord {
+  Positions("KeyPositions"),
+  Attributes("KeyAttributes"),
+  Cycles("KeyCycles")
+}
+
+/**
+ * Common fields used by any of [KeyFrameField].
+ */
+internal enum class KeyFrameChildCommonField(override val keyWord: String): ConstraintLayoutKeyWord {
+  TargetId("target"),
+  Frames("frames"),
+  Easing("transitionEasing"),
+  Fit("curveFit"),
+}
+
+internal enum class KeyPositionField(override val keyWord: String): ConstraintLayoutKeyWord {
+  PercentX("percentX"),
+  PercentY("percentY"),
+  PercentWidth("percentWidth"),
+  PercentHeight("percentHeight"),
+  PathArc("pathMotionArc"),
+  Type("type")
+}
+
+internal enum class KeyCycleField(override val keyWord: String): ConstraintLayoutKeyWord {
+  Period("period"),
+  Offset("offset"),
+  Phase("phase")
+}

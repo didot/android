@@ -24,17 +24,15 @@ import com.android.tools.idea.common.surface.InteractionHandlerBase
 import com.android.tools.idea.common.surface.SceneView
 import com.android.tools.idea.common.surface.navigateToComponent
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
-import com.android.tools.idea.concurrency.AndroidDispatchers.uiThread
 import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
 import com.android.tools.idea.uibuilder.graphics.NlConstants
 import com.android.tools.idea.uibuilder.model.viewGroupHandler
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.JdkConstants
 import java.awt.Cursor
 import java.awt.Rectangle
 
-class NlInteractionHandler(private val surface: DesignSurface): InteractionHandlerBase(surface) {
+class NlInteractionHandler(private val surface: DesignSurface<*>): InteractionHandlerBase(surface) {
   private val scope = AndroidCoroutineScope(surface)
 
   override fun createInteractionOnPressed(@SwingCoordinate mouseX: Int, @SwingCoordinate mouseY: Int, modifiersEx: Int): Interaction? {

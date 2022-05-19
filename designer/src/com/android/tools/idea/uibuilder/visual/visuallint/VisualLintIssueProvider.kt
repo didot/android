@@ -64,9 +64,9 @@ class VisualLintRenderIssue private constructor(private val builder: Builder): I
   override val category = "Visual Lint Issue"
   override val hyperlinkListener = builder.hyperlinkListener
   override fun shouldHighlight(model: NlModel): Boolean {
-    return models.contains(model)
+    return components.filterNot { it.isSuppressed() }.map { it.model }.distinct().contains(model)
   }
-  override val description: String get() = builder.contentDescriptionProvider!!.invoke(models.size).stringBuilder.toString()
+  override val description: String get() = builder.contentDescriptionProvider!!.invoke(unsuppressedModelCount).stringBuilder.toString()
 
   /** Returns the text range of the issue. */
   private var range: TextRange? = null
@@ -104,13 +104,24 @@ class VisualLintRenderIssue private constructor(private val builder: Builder): I
 
   override fun hashCode() = Objects.hash(severity, summary, category)
 
+  /**
+   * Get the number of [NlModel] which is not suppressed.
+   */
+  private val unsuppressedModelCount: Int
+    get() = components.filterNot { it.isSuppressed() }.map { it.model }.distinct().count()
+
   fun isSuppressed(): Boolean {
-    return components.all { component ->
-      component.getAttribute(SdkConstants.TOOLS_URI, SdkConstants.ATTR_IGNORE)
-        ?.split(",")
-        ?.mapNotNull { VisualLintErrorType.getTypeByIgnoredAttribute(it) }
-        ?.contains(this@VisualLintRenderIssue.type) ?: false
-    }
+    return components.all { component -> component.isSuppressed() }
+  }
+
+  /**
+   * Helper function to check if a [NlComponent] suppresses this [VisualLintRenderIssue].
+   */
+  private fun NlComponent.isSuppressed(): Boolean {
+    return getAttribute(SdkConstants.TOOLS_URI, SdkConstants.ATTR_IGNORE)
+      ?.split(",")
+      ?.mapNotNull { VisualLintErrorType.getTypeByIgnoredAttribute(it) }
+      ?.contains(this@VisualLintRenderIssue.type) ?: false
   }
 
   /** Builder for [VisualLintRenderIssue] */

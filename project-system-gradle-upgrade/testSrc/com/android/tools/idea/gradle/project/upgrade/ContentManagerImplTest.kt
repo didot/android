@@ -29,8 +29,8 @@ import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessit
 import com.android.tools.idea.gradle.project.upgrade.Java8DefaultRefactoringProcessor.NoLanguageLevelAction
 import com.android.tools.idea.gradle.project.upgrade.R8FullModeDefaultRefactoringProcessor.NoPropertyPresentAction
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.Severity
-import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.AgpVersionNotLocatedError
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.AllDone
+import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.Blocked
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.InvalidVersionError
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.Loading
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.ReadyToRun
@@ -125,13 +125,27 @@ class ContentManagerImplTest {
   }
 
   @Test
-  fun testToolWindowModelStartsDisabledWithNoFiles() {
+  fun testToolWindowModelStartsBlockedWithNoFiles() {
     val toolWindowModel = ToolWindowModel(project, { currentAgpVersion })
-    assertThat(toolWindowModel.uiState.get()).isEqualTo(AgpVersionNotLocatedError)
+    assertThat(toolWindowModel.uiState.get()).isEqualTo(Blocked)
   }
 
   @Test
-  fun testToolWindowModelStartsDisabledWithUnsupportedDependency() {
+  fun testToolWindowDisplaysUpgradeWithNoFiles() {
+    val contentManager = ContentManagerImpl(project)
+    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Upgrade Assistant")!!
+    val model = ToolWindowModel(project, { currentAgpVersion })
+    val view = ContentManagerImpl.View(model, toolWindow.contentManager)
+    assertThat(treeString(view.tree)).isEqualTo(
+      """
+        Upgrade
+          Upgrade AGP dependency from $currentAgpVersion to $latestAgpVersion
+      """.trimIndent()
+    )
+  }
+
+  @Test
+  fun testToolWindowModelStartsBlockedWithUnsupportedDependency() {
     projectRule.fixture.addFileToProject(
       "build.gradle",
       """
@@ -143,7 +157,81 @@ class ContentManagerImplTest {
       """.trimIndent()
     )
     val toolWindowModel = ToolWindowModel(project, { currentAgpVersion })
-    assertThat(toolWindowModel.uiState.get()).isEqualTo(AgpVersionNotLocatedError)
+    assertThat(toolWindowModel.uiState.get()).isEqualTo(Blocked)
+  }
+
+  @Test
+  fun testToolWindowDisplaysUpgradeWithUnsupportedDependency() {
+    val contentManager = ContentManagerImpl(project)
+    projectRule.fixture.addFileToProject(
+      "build.gradle",
+      """
+        buildscript {
+          dependencies {
+            classpath deps.ANDROID_GRADLE_PLUGIN
+          }
+        }
+      """.trimIndent()
+    )
+    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Upgrade Assistant")!!
+    val model = ToolWindowModel(project, { currentAgpVersion })
+    val view = ContentManagerImpl.View(model, toolWindow.contentManager)
+    assertThat(treeString(view.tree)).isEqualTo(
+      """
+        Upgrade
+          Upgrade AGP dependency from $currentAgpVersion to $latestAgpVersion
+      """.trimIndent()
+    )
+  }
+
+  @Test
+  fun testToolWindowModelStartsInAllDoneWithNoFilesForNullUpgrade() {
+    val toolWindowModel = ToolWindowModel(project, { latestAgpVersion })
+    assertThat(toolWindowModel.uiState.get()).isEqualTo(AllDone)
+  }
+
+  @Test
+  fun testToolWindowTreeIsEmptyWithNoFilesForNullUpgrade() {
+    val contentManager = ContentManagerImpl(project)
+    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Upgrade Assistant")!!
+    val model = ToolWindowModel(project, { latestAgpVersion })
+    val view = ContentManagerImpl.View(model, toolWindow.contentManager)
+    assertThat(treeString(view.tree)).isEmpty()
+  }
+
+  @Test
+  fun testToolWindowModelStartsInAllDoneWithUnrecognizedDependencyForNullUpgrade() {
+    projectRule.fixture.addFileToProject(
+      "build.gradle",
+      """
+        buildscript {
+          dependencies {
+            classpath deps.ANDROID_GRADLE_PLUGIN
+          }
+        }
+      """.trimIndent()
+    )
+    val toolWindowModel = ToolWindowModel(project, { latestAgpVersion })
+    assertThat(toolWindowModel.uiState.get()).isEqualTo(AllDone)
+  }
+
+  @Test
+  fun testToolWindowTreeIsEmptyWithUnrecognizedDependencyForNullUpgrade() {
+    val contentManager = ContentManagerImpl(project)
+    projectRule.fixture.addFileToProject(
+      "build.gradle",
+      """
+        buildscript {
+          dependencies {
+            classpath deps.ANDROID_GRADLE_PLUGIN
+          }
+        }
+      """.trimIndent()
+    )
+    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Upgrade Assistant")!!
+    val model = ToolWindowModel(project, { latestAgpVersion })
+    val view = ContentManagerImpl.View(model, toolWindow.contentManager)
+    assertThat(treeString(view.tree)).isEmpty()
   }
 
   @Test
@@ -178,7 +266,7 @@ class ContentManagerImplTest {
     assertThat(step.isEnabled).isFalse()
     assertThat(step.isChecked).isTrue()
     val stepPresentation = step.userObject as ToolWindowModel.DefaultStepPresentation
-    assertThat(stepPresentation.processor).isInstanceOf(AgpClasspathDependencyRefactoringProcessor::class.java)
+    assertThat(stepPresentation.processor).isInstanceOf(AgpVersionRefactoringProcessor::class.java)
     assertThat(stepPresentation.treeText).contains("Upgrade AGP dependency from $currentAgpVersion to $latestAgpVersion")
   }
 
@@ -214,9 +302,9 @@ class ContentManagerImplTest {
     assertThat(mandatoryCodependentNode.isChecked).isTrue()
     view.tree.setNodeState(mandatoryCodependentNode, false)
     assertThat(mandatoryCodependentNode.isChecked).isFalse()
-    val classpathRefactoringProcessorNode = mandatoryCodependentNode.firstChild as CheckedTreeNode
-    assertThat(classpathRefactoringProcessorNode.isChecked).isFalse()
-    assertThat(classpathRefactoringProcessorNode.isEnabled).isFalse()
+    val agpVersionRefactoringProcessorNode = mandatoryCodependentNode.firstChild as CheckedTreeNode
+    assertThat(agpVersionRefactoringProcessorNode.isChecked).isFalse()
+    assertThat(agpVersionRefactoringProcessorNode.isEnabled).isFalse()
   }
 
   @Test
@@ -426,7 +514,7 @@ class ContentManagerImplTest {
     val view = ContentManagerImpl.View(model, toolWindow.contentManager)
     assertThat(view.okButton.isEnabled).isFalse()
     assertThat(view.okButton.text).isEqualTo("Run selected steps")
-    assertThat(view.previewButton.isEnabled).isFalse()
+    assertThat(view.previewButton.isEnabled).isTrue()
     assertThat(view.previewButton.text).isEqualTo("Show Usages")
     assertThat(view.refreshButton.isEnabled).isTrue()
     assertThat(view.refreshButton.text).isEqualTo("Refresh")

@@ -154,7 +154,7 @@ interface InteractionHandler {
   fun mouseExited()
 }
 
-abstract class InteractionHandlerBase(private val surface: DesignSurface) : InteractionHandler {
+abstract class InteractionHandlerBase(private val surface: DesignSurface<*>) : InteractionHandler {
   private var cursorWhenNoInteraction: Cursor? = null
 
   override fun createInteractionOnDragEnter(dragEvent: DropTargetDragEvent): Interaction? {
@@ -168,7 +168,7 @@ abstract class InteractionHandlerBase(private val surface: DesignSurface) : Inte
       return null
     }
 
-    val model = sceneView.model
+    val model = sceneView.sceneManager.model
     val item = DnDTransferItem.getTransferItem(event.getTransferable(), true /* allow placeholders */)
     if (item == null) {
       event.reject()

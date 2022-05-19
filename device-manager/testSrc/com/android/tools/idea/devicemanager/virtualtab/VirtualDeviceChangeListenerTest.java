@@ -76,6 +76,42 @@ public final class VirtualDeviceChangeListenerTest {
   }
 
   @Test
+  public void deviceChangedAvdIsNull() throws InterruptedException {
+    // Arrange
+    CountDownLatch latch = new CountDownLatch(1);
+    IDeviceChangeListener listener = new VirtualDeviceChangeListener(myModel, (model, online) -> newSetOnline(model, online, latch));
+
+    Mockito.when(myDevice.isEmulator()).thenReturn(true);
+    Mockito.when(myDevice.getState()).thenReturn(DeviceState.OFFLINE);
+    Mockito.when(myDevice.getAvdData()).thenReturn(Futures.immediateFuture(null));
+
+    // Act
+    listener.deviceChanged(myDevice, IDevice.CHANGE_STATE);
+
+    // Assert
+    CountDownLatchAssert.await(latch);
+    Mockito.verify(myModel).setAllOnline();
+  }
+
+  @Test
+  public void deviceChangedNameIsNull() throws InterruptedException {
+    // Arrange
+    CountDownLatch latch = new CountDownLatch(1);
+    IDeviceChangeListener listener = new VirtualDeviceChangeListener(myModel, (model, online) -> newSetOnline(model, online, latch));
+
+    Mockito.when(myDevice.isEmulator()).thenReturn(true);
+    Mockito.when(myDevice.getState()).thenReturn(DeviceState.OFFLINE);
+    Mockito.when(myDevice.getAvdData()).thenReturn(Futures.immediateFuture(new AvdData(null, null)));
+
+    // Act
+    listener.deviceChanged(myDevice, IDevice.CHANGE_STATE);
+
+    // Assert
+    CountDownLatchAssert.await(latch);
+    Mockito.verify(myModel).setAllOnline();
+  }
+
+  @Test
   public void deviceChangedCaseOffline() throws InterruptedException {
     // Arrange
     CountDownLatch latch = new CountDownLatch(1);
@@ -91,7 +127,7 @@ public final class VirtualDeviceChangeListenerTest {
 
     // Assert
     CountDownLatchAssert.await(latch);
-    Mockito.verify(myModel).setOnline(new VirtualDeviceName("Pixel_6_API_31"), false);
+    Mockito.verify(myModel).setOnline(new VirtualDeviceName("/usr/local/google/home/user/.android/avd/Pixel_6_API_31.avd"), false);
   }
 
   @Test
@@ -110,7 +146,7 @@ public final class VirtualDeviceChangeListenerTest {
 
     // Assert
     CountDownLatchAssert.await(latch);
-    Mockito.verify(myModel).setOnline(new VirtualDeviceName("Pixel_6_API_31"), true);
+    Mockito.verify(myModel).setOnline(new VirtualDeviceName("/usr/local/google/home/user/.android/avd/Pixel_6_API_31.avd"), true);
   }
 
   private static @NotNull FutureCallback<@NotNull Key> newSetOnline(@NotNull VirtualDeviceTableModel model,

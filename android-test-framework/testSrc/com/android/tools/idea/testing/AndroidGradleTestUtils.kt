@@ -61,8 +61,6 @@ import com.android.tools.idea.gradle.model.impl.IdeViewBindingOptionsImpl
 import com.android.tools.idea.gradle.model.impl.ndk.v2.IdeNativeAbiImpl
 import com.android.tools.idea.gradle.model.impl.ndk.v2.IdeNativeModuleImpl
 import com.android.tools.idea.gradle.model.impl.ndk.v2.IdeNativeVariantImpl
-import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeAndroidProject
-import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeVariantAbi
 import com.android.tools.idea.gradle.model.ndk.v2.NativeBuildSystem
 import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
@@ -83,6 +81,7 @@ import com.android.tools.idea.gradle.project.sync.InternedModels
 import com.android.tools.idea.gradle.project.sync.idea.AdditionalArtifactsPaths
 import com.android.tools.idea.gradle.project.sync.idea.AndroidGradleProjectResolver
 import com.android.tools.idea.gradle.project.sync.idea.GradleSyncExecutor.ALWAYS_SKIP_SYNC
+import com.android.tools.idea.gradle.project.sync.idea.GradleSyncExecutor.SKIPPED_SYNC
 import com.android.tools.idea.gradle.project.sync.idea.IdeaSyncPopulateProjectTask
 import com.android.tools.idea.gradle.project.sync.idea.ModuleUtil
 import com.android.tools.idea.gradle.project.sync.idea.ModuleUtil.getIdeModuleSourceSet
@@ -182,7 +181,6 @@ import org.jetbrains.plugins.gradle.model.data.GradleSourceSetData
 import org.jetbrains.plugins.gradle.service.project.data.ExternalProjectDataCache
 import org.jetbrains.plugins.gradle.service.project.data.GradleExtensionsDataService
 import org.jetbrains.plugins.gradle.util.GradleConstants
-import org.jetbrains.plugins.gradle.util.isBuildSrcModule
 import org.jetbrains.plugins.gradle.util.setBuildSrcModule
 import java.io.File
 import java.io.IOException
@@ -1190,6 +1188,15 @@ fun switchTestProjectVariantsFromAndroidModel(
   PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 }
 
+/**
+ * Note: applicable to test projects set up via [AndroidProjectRule.withAndroidModels] and similar methods.
+ */
+fun Project.readAndClearLastSyncRequest(): GradleSyncInvoker.Request? {
+  return getUserData(SKIPPED_SYNC).also {
+    putUserData(SKIPPED_SYNC, null)
+  }
+}
+
 private fun setupTestProjectFromAndroidModelCore(
   project: Project,
   rootProjectBasePath: File,
@@ -1913,11 +1920,11 @@ fun verifySyncSkipped(project: Project, disposable: Disposable) {
 }
 
 fun switchVariant(project: Project, moduleGradlePath: String, variant: String) {
-  BuildVariantUpdater.getInstance(project).updateSelectedBuildVariant(project, project.gradleModule(moduleGradlePath)!!.name, variant)
+  BuildVariantUpdater.getInstance(project).updateSelectedBuildVariant(project.gradleModule(moduleGradlePath)!!, variant)
 }
 
 fun switchAbi(project: Project, moduleGradlePath: String, abi: String) {
-  BuildVariantUpdater.getInstance(project).updateSelectedAbi(project, project.gradleModule(moduleGradlePath)!!.name, abi)
+  BuildVariantUpdater.getInstance(project).updateSelectedAbi(project.gradleModule(moduleGradlePath)!!, abi)
 }
 
 inline fun <reified F, reified M> Module.verifyModel(getFacet: Module.() -> F?, getModel: F.() -> M) {
@@ -1959,7 +1966,7 @@ private fun setupDataNodesForSelectedVariant(
     } ?: return@forEach
 
     // Now we need to recreate these nodes using the information from the new variant.
-    moduleNode.setupCompilerOutputPaths(newVariant)
+    moduleNode.setupCompilerOutputPaths(newVariant, false)
     // Then patch in any Kapt generated sources that we need
     val libraryFilePaths = LibraryFilePaths.getInstance(project)
     moduleNode.setupAndroidDependenciesForMpss({ path: GradleSourceSetProjectPath -> moduleIdToDataMap[path] }, { id ->

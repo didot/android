@@ -22,6 +22,7 @@ import com.android.tools.idea.common.model.DnDTransferItem
 import com.android.tools.idea.common.model.ItemTransferable
 import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.common.model.NlModel
+import com.android.tools.idea.common.scene.SceneManager
 import com.android.tools.idea.uibuilder.LayoutTestCase
 import com.android.tools.idea.uibuilder.scene.TestSceneManager
 import com.android.tools.idea.uibuilder.surface.layout.PositionableContent
@@ -267,20 +268,20 @@ class DesignSurfaceTest : LayoutTestCase() {
   }
 }
 
-class TestInteractionHandler(surface: DesignSurface) : InteractionHandlerBase(surface) {
+class TestInteractionHandler(surface: DesignSurface<*>) : InteractionHandlerBase(surface) {
   override fun createInteractionOnPressed(mouseX: Int, mouseY: Int, modifiersEx: Int): Interaction? = null
 
   override fun createInteractionOnDrag(mouseX: Int, mouseY: Int, modifiersEx: Int): Interaction? = null
 }
 
-class TestLayoutManager(private val surface: DesignSurface) : PositionableContentLayoutManager() {
+class TestLayoutManager(private val surface: DesignSurface<*>) : PositionableContentLayoutManager() {
   override fun layoutContainer(content: Collection<PositionableContent>, availableSize: Dimension) {}
 
   override fun preferredLayoutSize(content: Collection<PositionableContent>, availableSize: Dimension): Dimension =
     surface.sceneViews.map { it.getContentSize(null) }.firstOrNull() ?: Dimension(0, 0)
 }
 
-class TestActionHandler(surface: DesignSurface) : DesignSurfaceActionHandler(surface) {
+class TestActionHandler(surface: DesignSurface<*>) : DesignSurfaceActionHandler(surface) {
   override fun getPasteTarget(): NlComponent? = null
   override fun canHandleChildren(component: NlComponent, pasted: MutableList<NlComponent>): Boolean = false
   override fun getFlavor(): DataFlavor = ItemTransferable.DESIGNER_FLAVOR
@@ -292,14 +293,15 @@ class TestActionHandler(surface: DesignSurface) : DesignSurfaceActionHandler(sur
   override fun isPastePossible(dataContext: DataContext): Boolean = false
 }
 
-class TestDesignSurface(project: Project, disposible: Disposable)
-  : DesignSurface(project,
-                  disposible,
-                  java.util.function.Function { ModelBuilder.TestActionManager(it) },
-                  java.util.function.Function { TestInteractionHandler(it) },
-                  java.util.function.Function { TestLayoutManager(it) },
-                  java.util.function.Function { TestActionHandler(it) },
-                  ZoomControlsPolicy.VISIBLE) {
+class TestDesignSurface(project: Project, disposible: Disposable) :
+  DesignSurface<SceneManager>(
+    project,
+    disposible,
+    java.util.function.Function { ModelBuilder.TestActionManager(it) },
+    java.util.function.Function { TestInteractionHandler(it) },
+    java.util.function.Function { TestLayoutManager(it) },
+    java.util.function.Function { TestActionHandler(it) },
+    ZoomControlsPolicy.VISIBLE) {
   override fun getSelectionAsTransferable(): ItemTransferable {
     return ItemTransferable(DnDTransferItem(0, ImmutableList.of()))
   }

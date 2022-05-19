@@ -38,6 +38,13 @@ import com.android.testutils.file.createInMemoryFileSystemAndFolder
 import com.android.testutils.file.someRoot
 import com.android.tools.adtui.workbench.PropertiesComponentMock
 import com.android.tools.app.inspection.AppInspection
+import com.android.tools.idea.appinspection.inspector.api.AppInspectionAppProguardedException
+import com.android.tools.idea.appinspection.inspector.api.AppInspectionArtifactNotFoundException
+import com.android.tools.idea.appinspection.inspector.api.AppInspectionCannotFindAdbDeviceException
+import com.android.tools.idea.appinspection.inspector.api.AppInspectionLibraryMissingException
+import com.android.tools.idea.appinspection.inspector.api.AppInspectionProcessNoLongerExistsException
+import com.android.tools.idea.appinspection.inspector.api.AppInspectionServiceException
+import com.android.tools.idea.appinspection.inspector.api.AppInspectionVersionIncompatibleException
 import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescriptor
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.appinspection.test.DEFAULT_TEST_INSPECTION_STREAM
@@ -72,6 +79,7 @@ import com.android.tools.idea.util.ListenerCollection
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
+import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo.AttachErrorCode
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo.AttachErrorState
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorEvent.DynamicLayoutInspectorEventType
 import com.intellij.execution.RunManager
@@ -95,8 +103,8 @@ import java.nio.file.Paths
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 import javax.swing.JPanel
+import com.android.tools.idea.layoutinspector.view.inspection.LayoutInspectorViewProtocol as ViewProtocol
 import layoutinspector.compose.inspection.LayoutInspectorComposeProtocol as ComposeProtocol
-import layoutinspector.view.inspection.LayoutInspectorViewProtocol as ViewProtocol
 
 private val MODERN_PROCESS = MODERN_DEVICE.createProcess(streamId = DEFAULT_TEST_INSPECTION_STREAM.streamId)
 private val OTHER_MODERN_PROCESS = MODERN_DEVICE.createProcess(name = "com.other", streamId = DEFAULT_TEST_INSPECTION_STREAM.streamId)
@@ -588,7 +596,7 @@ class AppInspectionInspectorClientTest {
     InspectorClientSettings.isCapturingModeOn = true
     val banner = InspectorBanner(inspectorRule.project)
     inspectionRule.viewInspector.interceptWhen({ it.hasStartFetchCommand() }) {
-      layoutinspector.view.inspection.LayoutInspectorViewProtocol.Response.newBuilder().apply {
+      com.android.tools.idea.layoutinspector.view.inspection.LayoutInspectorViewProtocol.Response.newBuilder().apply {
         startFetchResponseBuilder.error = "here's my error"
       }.build()
     }
@@ -603,7 +611,7 @@ class AppInspectionInspectorClientTest {
     InspectorClientSettings.isCapturingModeOn = false
     val banner = InspectorBanner(inspectorRule.project)
     inspectionRule.viewInspector.interceptWhen({ it.hasStartFetchCommand() }) {
-      layoutinspector.view.inspection.LayoutInspectorViewProtocol.Response.newBuilder().apply {
+      com.android.tools.idea.layoutinspector.view.inspection.LayoutInspectorViewProtocol.Response.newBuilder().apply {
         startFetchResponseBuilder.error = "here's my error"
       }.build()
     }
@@ -781,8 +789,9 @@ class AppInspectionInspectorClientTest {
 
   private fun verifyActivityRestartBanner(banner: InspectorBanner, runConfigActionExpected: Boolean) {
     invokeAndWaitIfNeeded { UIUtil.dispatchAllInvocationEvents() }
-    assertThat(banner.text.text).isEqualTo("The activity was restarted. This can be avoided by enabling " +
-                                           "\"Connect without restarting activity\" in the run configuration options.")
+    assertThat(banner.text.text).isEqualTo("The activity was restarted. This can be avoided by selecting " +
+                                           "\"Enable view attribute inspection\" in the developer options on the device or " +
+                                           "by enabling \"Connect without restarting activity\" in the run configuration options.")
     val service = InspectorBannerService.getInstance(inspectorRule.project)
     service.DISMISS_ACTION.actionPerformed(mock())
     invokeAndWaitIfNeeded { UIUtil.dispatchAllInvocationEvents() }
@@ -967,11 +976,12 @@ class AppInspectionInspectorClientWithFailingClientTest {
   private val disposableRule = DisposableRule()
   private val inspectionRule = AppInspectionInspectorRule(disposableRule.disposable)
   private var throwOnState: AttachErrorState = AttachErrorState.UNKNOWN_ATTACH_ERROR_STATE
+  private var exceptionToThrow: Exception = RuntimeException("expected")
   private val monitor = spy(InspectorClientLaunchMonitor(ListenerCollection.createWithDirectExecutor())).also {
     doAnswer { invocation ->
       val state = invocation.arguments[0] as AttachErrorState
       if (state == throwOnState) {
-        error("expected")
+        throw exceptionToThrow
       }
       null
     }.`when`(it).updateProgress(any(AttachErrorState::class.java))
@@ -1021,5 +1031,61 @@ class AppInspectionInspectorClientWithFailingClientTest {
       DynamicLayoutInspectorEventType.ATTACH_ERROR,
       DynamicLayoutInspectorEventType.SESSION_DATA
     ).inOrder()
+  }
+
+  @Test
+  fun noHardwareAcceleration() = runBlocking {
+    throwOnState = AttachErrorState.UNKNOWN_ATTACH_ERROR_STATE // do not throw !!!
+
+    val inspectorState = FakeInspectorState(inspectionRule.viewInspector, inspectionRule.composeInspector)
+    inspectorState.simulateNoHardwareAccelerationErrorFromStartCapturing()
+
+    val startFetchReceived = ReportingCountDownLatch(1)
+    inspectionRule.viewInspector.listenWhen({ it.hasStartFetchCommand() }) { command ->
+      assertThat(command.startFetchCommand.continuous).isTrue()
+      startFetchReceived.countDown()
+    }
+
+    inspectorRule.attachDevice(MODERN_DEVICE)
+    inspectorRule.processNotifier.fireConnected(MODERN_PROCESS)
+    startFetchReceived.await(TIMEOUT, TIMEOUT_UNIT) // If here, we already successfully connected (and sent an initial command)
+
+    val usages = usageTrackerRule.testTracker.usages
+      .filter { it.studioEvent.kind == AndroidStudioEvent.EventKind.DYNAMIC_LAYOUT_INSPECTOR_EVENT }
+    assertThat(usages).hasSize(4)
+    val event2 = usages[2].studioEvent.dynamicLayoutInspectorEvent
+    assertThat(event2.type).isEqualTo(DynamicLayoutInspectorEventType.ATTACH_ERROR)
+    assertThat(event2.errorInfo.attachErrorCode).isEqualTo(AttachErrorCode.NO_HARDWARE_ACCELERATION)
+  }
+
+  @Test
+  fun testErrorsFromAppInspection() {
+    checkException(AppInspectionCannotFindAdbDeviceException("expected"), AttachErrorCode.APP_INSPECTION_CANNOT_FIND_DEVICE)
+    checkException(AppInspectionProcessNoLongerExistsException("expected"), AttachErrorCode.APP_INSPECTION_PROCESS_NO_LONGER_EXISTS)
+    checkException(AppInspectionVersionIncompatibleException("expected"), AttachErrorCode.APP_INSPECTION_INCOMPATIBLE_VERSION)
+    checkException(AppInspectionLibraryMissingException("expected"), AttachErrorCode.APP_INSPECTION_MISSING_LIBRARY)
+    checkException(AppInspectionAppProguardedException("expected"), AttachErrorCode.APP_INSPECTION_PROGUARDED_APP)
+    checkException(AppInspectionArtifactNotFoundException("expected"), AttachErrorCode.APP_INSPECTION_ARTIFACT_NOT_FOUND)
+    checkException(object : AppInspectionServiceException("expected") {}, AttachErrorCode.UNKNOWN_APP_INSPECTION_ERROR)
+  }
+
+  private fun checkException(exception: Exception, expected: AttachErrorCode) {
+    throwOnState = AttachErrorState.ATTACH_SUCCESS
+    exceptionToThrow = exception
+    inspectorRule.attachDevice(MODERN_DEVICE)
+    inspectorRule.processNotifier.fireConnected(MODERN_PROCESS)
+    invokeAndWaitIfNeeded { UIUtil.dispatchAllInvocationEvents() }
+    assertThat(inspectorRule.inspectorClient.isConnected).isFalse()
+    val usages = usageTrackerRule.testTracker.usages
+      .filter { it.studioEvent.kind == AndroidStudioEvent.EventKind.DYNAMIC_LAYOUT_INSPECTOR_EVENT }
+    assertThat(usages).hasSize(3)
+    assertThat(usages.map { it.studioEvent.dynamicLayoutInspectorEvent.type }).containsExactly(
+      DynamicLayoutInspectorEventType.ATTACH_REQUEST,
+      DynamicLayoutInspectorEventType.ATTACH_ERROR,
+      DynamicLayoutInspectorEventType.SESSION_DATA
+    ).inOrder()
+    assertThat(usages[1].studioEvent.dynamicLayoutInspectorEvent.errorInfo.attachErrorCode).isEqualTo(expected)
+    inspectorRule.disconnect()
+    usageTrackerRule.testTracker.usages.clear()
   }
 }

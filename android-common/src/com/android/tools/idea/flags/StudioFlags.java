@@ -129,21 +129,10 @@ public final class StudioFlags {
     "When enabled, profiler will track and display events defined through developer APIs",
     false);
 
-  public static final Flag<Boolean> PROFILEABLE = Flag.create(
-    PROFILER, "profileable", "Support profileable processes on S+",
-    "Show profileable processes on S and later",
-    true);
-
   public static final Flag<Boolean> PROFILER_MIGRATION_TO_APPINSPECTION = Flag.create(
     PROFILER, "profiler.migration.to.appinspection", "Enable migration support for network and system events profiling.",
     "Show migration messaging to guide users to the App Inspection tool window",
     true);
-
-  // PROFILEABLE_IN_QR is an extension of PROFILEABLE. When it's true, it assumes PROFILEABLE is also true.
-  public static final Flag<Boolean> PROFILEABLE_IN_QR = Flag.create(
-    PROFILER, "profileable.qr", "Support profileable processes on Q & R",
-    "Show profileable processes on Q and R",
-    PROFILEABLE.get() && true);
 
   public static final Flag<Boolean> PROFILEABLE_BUILDS = Flag.create(
     PROFILER, "profileable.builds", "Support building profileable apps",
@@ -769,6 +758,10 @@ public final class StudioFlags {
   public static final Flag<Boolean> DYNAMIC_LAYOUT_INSPECTOR_ENABLE_RECOMPOSITION_HIGHLIGHTS = Flag.create(
     LAYOUT_INSPECTOR, "dynamic.layout.inspector.enable.recomposition.highlights", "Enable recomposition highlights",
     "Enable recomposition highlights on the image in the layout inspector.", true);
+
+  public static final Flag<Boolean> DYNAMIC_LAYOUT_INSPECTOR_AUTO_CONNECT_TO_FOREGROUND_PROCESS_ENABLED = Flag.create(
+    LAYOUT_INSPECTOR, "dynamic.layout.inspector.enable.auto.connect.foreground", "Enable automatically connecting to foreground process",
+    "When this flag is enabled, LayoutInspector will automatically connect to whatever debuggable process is in the foreground on the phone.", false);
   //endregion
 
   //region Embedded Emulator
@@ -1100,13 +1093,6 @@ public final class StudioFlags {
     true
   );
 
-  public static final Flag<Boolean> COMPOSE_ANIMATED_PREVIEW = Flag.create(
-    COMPOSE, "preview.animated.enable",
-    "Enable animated compose preview",
-    "If enabled, a user can switch compose preview to be animated",
-    true
-  );
-
   public static final Flag<Boolean> COMPOSE_ANIMATED_PREVIEW_SHOW_CLICK = Flag.create(
     COMPOSE, "preview.animated.click.enable",
     "Enable displaying clicks on the animated preview",
@@ -1175,13 +1161,6 @@ public final class StudioFlags {
     "Enable the blueprint mode for Compose previews",
     "If enabled, the user can change the mode of Compose previews, between design and blueprint mode",
     false
-  );
-
-  public static final Flag<Boolean> COMPOSE_QUICK_ANIMATED_PREVIEW = Flag.create(
-    COMPOSE, "preview.animated.quick",
-    "Speed up transition between static and animated compose previews",
-    "If enabled, a transition between static and animated compose preview is almost instant",
-    true
   );
 
   public static final Flag<Boolean> COMPOSE_COLORBLIND_MODE = Flag.create(

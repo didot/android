@@ -33,7 +33,6 @@ import com.android.tools.idea.res.ResourceRepositoryManager
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.ide.GeneralSettings
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.progress.EmptyProgressIndicator
@@ -88,7 +87,7 @@ private const val SPACING_1 = 6
 private const val SPACING_2 = 24
 private const val SPACING_TOTAL = SPACING_1 + SPACING_2
 
-class HostPanel(private val surface: DesignSurface) : AdtSecondaryPanel(CardLayout()) {
+class HostPanel(private val surface: DesignSurface<*>) : AdtSecondaryPanel(CardLayout()) {
 
   private val asyncIcon = AsyncProcessIcon("find NavHostFragments")
   @VisibleForTesting

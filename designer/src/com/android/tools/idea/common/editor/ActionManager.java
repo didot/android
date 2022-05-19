@@ -33,7 +33,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Provides and handles actions for a {@link DesignerEditor}.
  */
-public abstract class ActionManager<S extends DesignSurface> {
+public abstract class ActionManager<S extends DesignSurface<?>> {
   protected final S mySurface;
 
   protected ActionManager(@NotNull S surface) {
@@ -127,6 +127,15 @@ public abstract class ActionManager<S extends DesignSurface> {
    */
   @Nullable
   public JComponent getSceneViewLeftBar(@NotNull SceneView sceneView) {
+    return null;
+  }
+
+  /**
+   * Returns the right bar for a {@link SceneView}.
+   * It is at the right of the {@link SceneView}.
+   */
+  @Nullable
+  public JComponent getSceneViewRightBar(@NotNull SceneView sceneView) {
     return null;
   }
 }

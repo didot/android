@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.compose.preview.animation
 
-import androidx.compose.animation.tooling.ComposeAnimatedProperty
 import androidx.compose.animation.tooling.ComposeAnimation
 import androidx.compose.animation.tooling.ComposeAnimationType
 import androidx.compose.animation.tooling.TransitionInfo
@@ -101,7 +100,7 @@ typealias ComposeAnimationEventTracker = (type: ComposeAnimationToolingEvent.Com
  * that can be controlled by scrubbing or through a set of controllers, such as play/pause and jump to end. The [AnimationInspectorPanel]
  * therefore allows a detailed inspection of Compose animations.
  */
-internal class AnimationInspectorPanel(override val surface: DesignSurface) : JPanel(
+internal class AnimationInspectorPanel(override val surface: DesignSurface<*>) : JPanel(
   TabularLayout("Fit,*", "Fit,*")), Disposable, ComposeAnimationPreview {
 
   override val component = this

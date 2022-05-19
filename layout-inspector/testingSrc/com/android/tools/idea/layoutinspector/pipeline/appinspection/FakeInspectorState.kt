@@ -34,10 +34,10 @@ import com.android.tools.idea.layoutinspector.pipeline.appinspection.dsl.ViewStr
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.inspectors.FakeComposeLayoutInspector
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.inspectors.FakeViewLayoutInspector
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.inspectors.sendEvent
+import com.android.tools.idea.layoutinspector.view.inspection.LayoutInspectorViewProtocol
 import com.google.common.truth.Truth.assertThat
 import layoutinspector.compose.inspection.LayoutInspectorComposeProtocol
 import layoutinspector.compose.inspection.LayoutInspectorComposeProtocol.GetParameterDetailsCommand
-import layoutinspector.view.inspection.LayoutInspectorViewProtocol
 
 // Hand-crafted state loosely based on new basic activity app. Real data would look a lot more scattered.
 class FakeInspectorState(
@@ -843,9 +843,21 @@ class FakeInspectorState(
   }
 
   fun simulateComposeVersionWithoutUpdateSettingsCommand() {
-    composeInspector.interceptWhen({ it.hasUpdateSettingsCommand() }) { _ ->
+    composeInspector.interceptWhen({ it.hasUpdateSettingsCommand() }) {
       LayoutInspectorComposeProtocol.Response.newBuilder().apply {
         unknownCommandResponse = LayoutInspectorComposeProtocol.UnknownCommandResponse.getDefaultInstance()
+      }.build()
+    }
+  }
+
+  fun simulateNoHardwareAccelerationErrorFromStartCapturing() {
+    viewInspector.interceptWhen({ it.hasStartFetchCommand() }) {
+      LayoutInspectorViewProtocol.Response.newBuilder().apply {
+        startFetchResponseBuilder.apply {
+          error = "Activity must be hardware accelerated for live inspection"
+
+          code = LayoutInspectorViewProtocol.ErrorCode.NO_HARDWARE_ACCELERATION
+        }
       }.build()
     }
   }

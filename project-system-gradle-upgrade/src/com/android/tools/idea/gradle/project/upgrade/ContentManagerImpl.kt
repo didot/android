@@ -34,8 +34,8 @@ import com.android.tools.idea.gradle.plugin.AndroidPluginInfo
 import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider
 import com.android.tools.idea.gradle.project.sync.GradleSyncListener
 import com.android.tools.idea.gradle.project.sync.GradleSyncState
+import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentRefactoringProcessor.BlockReason
 import com.android.tools.idea.gradle.repositories.IdeGoogleMavenRepository
-import com.android.tools.idea.observable.BindingsManager
 import com.android.tools.idea.observable.ListenerManager
 import com.android.tools.idea.observable.core.ObjectValueProperty
 import com.android.tools.idea.observable.core.OptionalValueProperty
@@ -76,10 +76,12 @@ import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.content.ContentFactory
 import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeModelAdapter
 import com.intellij.util.ui.tree.TreeUtil
 import java.awt.BorderLayout
-import java.lang.Exception
+import java.awt.event.ActionEvent
+import javax.swing.AbstractAction
 import javax.swing.BoxLayout
 import javax.swing.Icon
 import javax.swing.JButton
@@ -129,6 +131,8 @@ class ToolWindowModel(
     protected abstract val controlsEnabledState: ControlsEnabledState
     val runEnabled: Boolean
       get() = controlsEnabledState.runEnabled
+    val showPreviewEnabled: Boolean
+      get() = controlsEnabledState.showPreviewEnabled
     val comboEnabled: Boolean
       get() = controlsEnabledState.comboEnabled
     protected abstract val layoutState: LayoutState
@@ -167,6 +171,11 @@ class ToolWindowModel(
       override val layoutState = LayoutState.READY
       override val runTooltip = ""
     }
+    object Blocked : UIState() {
+      override val controlsEnabledState = ControlsEnabledState.NO_RUN_BUT_PREVIEW
+      override val layoutState = LayoutState.READY
+      override val runTooltip = "Upgrade Blocked"
+    }
     object Loading : UIState() {
       override val controlsEnabledState = ControlsEnabledState.NEITHER
       override val layoutState = LayoutState.LOADING
@@ -199,19 +208,6 @@ class ToolWindowModel(
                                  "you should commit or revert changes to the build files so that changes from the upgrade process " +
                                  "can be handled separately."
     }
-    object AgpVersionNotLocatedError : UIState() {
-      override val controlsEnabledState = ControlsEnabledState.NO_RUN
-      override val layoutState = LayoutState.READY
-      override val loadingText = ""
-      override val statusMessage = StatusMessage(
-        Severity.ERROR,
-        "Cannot find AGP version in build files.",
-        "https://developer.android.com/studio/build/agp-upgrade-assistant#project-structure"
-      )
-      override val runTooltip = "Cannot locate the version specification for the Android Gradle Plugin dependency, " +
-                                "possibly because the project's build files use features not currently support by the " +
-                                "Upgrade Assistant (for example: using constants defined in buildSrc)."
-    }
     class InvalidVersionError(
       override val statusMessage: StatusMessage
     ) : UIState() {
@@ -238,10 +234,11 @@ class ToolWindowModel(
         get() = statusMessage.text
     }
 
-    enum class ControlsEnabledState(val runEnabled: Boolean, val comboEnabled: Boolean) {
-      BOTH(true, true),
-      NO_RUN(false, true),
-      NEITHER(false, false),
+    enum class ControlsEnabledState(val runEnabled: Boolean, val showPreviewEnabled: Boolean, val comboEnabled: Boolean) {
+      BOTH(true, true, true),
+      NO_RUN(false, false, true),
+      NO_RUN_BUT_PREVIEW(false, true, true),
+      NEITHER(false, false, false),
     }
 
     enum class LayoutState(val showLoadingState: Boolean, val showTree: Boolean) {
@@ -290,6 +287,12 @@ class ToolWindowModel(
           findNecessityNode(AgpUpgradeComponentNecessity.OPTIONAL_CODEPENDENT)?.let { if (node.isChecked) enableNode(it) else disableNode(it) }
         }
         AgpUpgradeComponentNecessity.OPTIONAL_CODEPENDENT -> findNecessityNode(AgpUpgradeComponentNecessity.MANDATORY_CODEPENDENT)?.let { it.isEnabled = !anyChildrenChecked(parentNode) }
+      }
+      if (processorsForCheckedPresentations().any { it.isBlocked }) {
+        uiState.set(UIState.Blocked)
+      }
+      else {
+        uiState.set(UIState.ReadyToRun)
       }
     }
   }
@@ -400,6 +403,11 @@ class ToolWindowModel(
     }
     else {
       newProcessor.showBuildOutputOnSyncFailure = false
+      newProcessor.backFromPreviewAction = object : AbstractAction(UIUtil.replaceMnemonicAmpersand("&Back")) {
+        override fun actionPerformed(e: ActionEvent?) {
+          ToolWindowManager.getInstance(project).getToolWindow("Upgrade Assistant")?.run { if (isAvailable) show() }
+        }
+      }
       val application = ApplicationManager.getApplication()
       if (application.isUnitTestMode) {
         parseAndSetEnabled(newProcessor)
@@ -413,20 +421,23 @@ class ToolWindowModel(
     val application = ApplicationManager.getApplication()
     newProcessor.ensureParsedModels()
     val projectFilesClean = isCleanEnoughProject(project)
-    val classpathUsageFound = !newProcessor.classpathRefactoringProcessor.isAlwaysNoOpForProject
     if (application.isUnitTestMode) {
-      setEnabled(newProcessor, projectFilesClean, classpathUsageFound)
+      setEnabled(newProcessor, projectFilesClean)
     } else {
-      invokeLater(ModalityState.NON_MODAL) { setEnabled(newProcessor, projectFilesClean, classpathUsageFound) }
+      invokeLater(ModalityState.NON_MODAL) { setEnabled(newProcessor, projectFilesClean) }
     }
   }
 
-  private fun setEnabled(newProcessor: AgpUpgradeRefactoringProcessor, projectFilesClean: Boolean, classpathUsageFound: Boolean) {
+  private fun setEnabled(newProcessor: AgpUpgradeRefactoringProcessor, projectFilesClean: Boolean) {
     refreshTree(newProcessor)
     processor = newProcessor
-    if (!classpathUsageFound && newProcessor.current != newProcessor.new) {
-      newProcessor.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.FAILURE_PREDICTED)
-      uiState.set(UIState.AgpVersionNotLocatedError)
+    if (processorsForCheckedPresentations().any { it.isBlocked }) {
+      newProcessor.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.BLOCKED)
+      // at this stage, agpVersionRefactoringProcessor will always be enabled.
+      if (newProcessor.agpVersionRefactoringProcessor.isBlocked) {
+        newProcessor.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.FAILURE_PREDICTED)
+      }
+      uiState.set(UIState.Blocked)
     }
     else if (!projectFilesClean) {
       uiState.set(UIState.ProjectFilesNotCleanWarning)
@@ -462,11 +473,15 @@ class ToolWindowModel(
     treeModel.nodeStructureChanged(root)
   }
 
+  private fun processorsForCheckedPresentations(): List<AgpUpgradeComponentRefactoringProcessor> = processor?.let {
+    CheckboxTreeHelper.getCheckedNodes(DefaultStepPresentation::class.java, null, treeModel)
+      .map { it.processor }
+  } ?: listOf()
+
   fun runUpgrade(showPreview: Boolean) = processor?.let { processor ->
     if (!showPreview) uiState.set(UIState.RunningUpgrade)
-    processor.components().forEach { it.isEnabled = false }
-    CheckboxTreeHelper.getCheckedNodes(DefaultStepPresentation::class.java, null, treeModel)
-      .forEach { it.processor.isEnabled = true }
+    processor.componentRefactoringProcessors.forEach { it.isEnabled = false }
+    processorsForCheckedPresentations().forEach { it.isEnabled = true }
 
     if (ApplicationManager.getApplication().isUnitTestMode) {
       processor.run()
@@ -494,6 +509,8 @@ class ToolWindowModel(
     val shortDescription: String?
     val additionalInfo: String?
       get() = null
+    val isBlocked: Boolean
+    val blockReasons: List<BlockReason>
   }
 
   interface StepUiWithComboSelectorPresentation {
@@ -569,6 +586,10 @@ class ToolWindowModel(
       get() = processor.getReadMoreUrl()
     override val shortDescription: String?
       get() = processor.getShortDescription()
+    override val isBlocked: Boolean
+      get() = processor.isBlocked
+    override val blockReasons: List<BlockReason>
+      get() = processor.blockProcessorReasons()
   }
 }
 
@@ -598,11 +619,6 @@ class ContentManagerImpl(val project: Project): ContentManager {
   }
 
   class View(val model: ToolWindowModel, contentManager: com.intellij.ui.content.ContentManager) {
-    /*
-    Experiment of usage of observable property bindings I have found in our code base.
-    Taking inspiration from com/android/tools/idea/avdmanager/ConfigureDeviceOptionsStep.java:85 at the moment (Jan 2021).
-     */
-    private val myBindings = BindingsManager()
     private val myListeners = ListenerManager()
 
     val tree: CheckboxTree = CheckboxTree(UpgradeAssistantTreeCellRenderer(), null).apply {
@@ -719,11 +735,11 @@ class ContentManagerImpl(val project: Project): ContentManager {
       addActionListener { this@View.model.runUpgrade(true) }
       this@View.model.uiState.get().let { uiState ->
         toolTipText = uiState.runTooltip
-        isEnabled = uiState.runEnabled
+        isEnabled = uiState.showPreviewEnabled
       }
       myListeners.listen(this@View.model.uiState) { uiState ->
         toolTipText = uiState.runTooltip
-        isEnabled = uiState.runEnabled
+        isEnabled = uiState.showPreviewEnabled
       }
     }
     val messageLabel = JBLabel().apply {
@@ -895,6 +911,17 @@ class ContentManagerImpl(val project: Project): ContentManager {
             text.append("<a href='$url'>Read more</a><icon src='AllIcons.Ide.External_link_arrow'>.")
           }
           selectedStep.additionalInfo?.let { text.append(it) }
+          if (selectedStep.isBlocked) {
+            text.append("<br><br><div><b>This step is blocked</b></div>")
+            text.append("<ul>")
+            selectedStep.blockReasons.forEach { reason ->
+              reason.shortDescription.let { text.append("<li>$it") }
+              reason.description?.let { text.append("<br>${it.replace("\n", "<br>")}") }
+              reason.helpLinkUrl?.let { text.append("  <a href='$it'>Read more</a><icon src='AllIcons.Ide.External_link_arrow'>.") }
+              text.append("</li>")
+            }
+            text.append("</ul>")
+          }
           label.text = text.toString()
           detailsPanel.add(label)
           if (selectedStep is ToolWindowModel.StepUiWithComboSelectorPresentation) {
@@ -958,7 +985,12 @@ class ContentManagerImpl(val project: Project): ContentManager {
               }
             }
             textRenderer.append(o.treeText, SimpleTextAttributes.REGULAR_ATTRIBUTES, true)
-            if (o is ToolWindowModel.StepUiWithComboSelectorPresentation) {
+            if ((o as? ToolWindowModel.StepUiPresentation)?.isBlocked == true) {
+              textRenderer.icon = AllIcons.General.Error
+              textRenderer.isIconOnTheRight = true
+              textRenderer.iconTextGap = 10
+            }
+            else if (o is ToolWindowModel.StepUiWithComboSelectorPresentation) {
               textRenderer.icon = AllIcons.Actions.Edit
               textRenderer.isIconOnTheRight = true
               textRenderer.iconTextGap = 10
@@ -971,9 +1003,11 @@ class ContentManagerImpl(val project: Project): ContentManager {
   }
 }
 
-private fun AgpUpgradeRefactoringProcessor.components() = this.componentRefactoringProcessors + this.classpathRefactoringProcessor
 private fun AgpUpgradeRefactoringProcessor.activeComponentsForNecessity(necessity: AgpUpgradeComponentNecessity) =
-  this.components().filter { it.isEnabled }.filter { it.necessity() == necessity }.filter { !it.isAlwaysNoOpForProject }
+  this.componentRefactoringProcessorsWithAgpVersionProcessorLast
+    .filter { it.isEnabled }
+    .filter { it.necessity() == necessity }
+    .filter { !it.isAlwaysNoOpForProject || it.isBlocked }
 
 fun AgpUpgradeComponentNecessity.treeText() = when (this) {
   AgpUpgradeComponentNecessity.MANDATORY_INDEPENDENT -> "Upgrade prerequisites"

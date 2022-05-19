@@ -34,7 +34,7 @@ import javax.swing.JComponent
 /**
  * [ActionManager] to be used by the Compose Preview.
  */
-internal class PreviewSurfaceActionManager(private val surface: DesignSurface) : ActionManager<DesignSurface>(surface) {
+internal class PreviewSurfaceActionManager(private val surface: DesignSurface<LayoutlibSceneManager>) : ActionManager<DesignSurface<LayoutlibSceneManager>>(surface) {
   private val copyResultImageAction = CopyResultImageAction(
     {
       // Copy the model of the current selected object (if any)
@@ -73,9 +73,7 @@ internal class PreviewSurfaceActionManager(private val surface: DesignSurface) :
           StudioFlags.COMPOSE_ANIMATION_INSPECTOR.ifEnabled {
             AnimationInspectorAction { sceneView.scene.sceneManager.model.dataContext }
           },
-          StudioFlags.COMPOSE_ANIMATED_PREVIEW.ifEnabled {
-            EnableInteractiveAction { sceneView.scene.sceneManager.model.dataContext }
-          },
+          EnableInteractiveAction { sceneView.scene.sceneManager.model.dataContext },
           DeployToDeviceAction { sceneView.scene.sceneManager.model.dataContext },
           StudioFlags.COMPOSE_FAST_PREVIEW.ifEnabled {
             ComposePreviewIssuePanelAction(

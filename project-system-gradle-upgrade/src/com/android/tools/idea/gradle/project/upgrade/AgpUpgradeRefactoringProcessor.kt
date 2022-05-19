@@ -17,7 +17,6 @@ package com.android.tools.idea.gradle.project.upgrade
 
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.analytics.UsageTracker
-import com.android.tools.idea.concurrency.addCallback
 import com.android.tools.idea.gradle.dsl.api.GradleBuildModel
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencyModel
@@ -33,13 +32,9 @@ import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.GradleSyncListener
 import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.*
 import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.Companion.standardRegionNecessity
-import com.android.tools.idea.projectsystem.ProjectSystemSyncManager
-import com.android.tools.idea.projectsystem.getProjectSystem
-import com.android.tools.idea.projectsystem.toReason
 import com.android.tools.idea.stats.withProjectId
 import com.android.tools.idea.util.toIoFile
 import com.google.common.annotations.VisibleForTesting
-import com.google.common.util.concurrent.MoreExecutors.directExecutor
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventCategory.PROJECT_SYSTEM
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.EventKind.UPGRADE_ASSISTANT_COMPONENT_EVENT
@@ -57,6 +52,7 @@ import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAs
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAssistantEventKind.SYNC_FAILED
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAssistantEventKind.SYNC_SKIPPED
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAssistantEventKind.SYNC_SUCCEEDED
+import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo.UpgradeAssistantEventKind.BLOCKED
 import com.google.wireless.android.sdk.stats.UpgradeAssistantProcessorEvent
 import com.intellij.find.findUsages.PsiElement2UsageTargetAdapter
 import com.intellij.notification.NotificationListener
@@ -259,8 +255,11 @@ class AgpUpgradeRefactoringProcessor(
 ) : GradleBuildModelRefactoringProcessor(project) {
 
   val uuid = UUID.randomUUID().toString()
-  val classpathRefactoringProcessor = AgpClasspathDependencyRefactoringProcessor(this)
+  val agpVersionRefactoringProcessor by lazy { componentRefactoringProcessors.firstNotNullOf { it as? AgpVersionRefactoringProcessor } }
+  val componentRefactoringProcessorsWithAgpVersionProcessorLast
+    get() = componentRefactoringProcessors.sortedBy { if (it is AgpVersionRefactoringProcessor) 1 else 0 }
   val componentRefactoringProcessors = listOf(
+    AgpVersionRefactoringProcessor(this),
     GMavenRepositoryRefactoringProcessor(this),
     GradleVersionRefactoringProcessor(this),
     GradlePluginsRefactoringProcessor(this),
@@ -286,6 +285,9 @@ class AgpUpgradeRefactoringProcessor(
   var usages: Array<UsageInfo> = listOf<UsageInfo>().toTypedArray()
   var executedUsages: Array<out UsageInfo> = listOf<UsageInfo>().toTypedArray()
 
+  final fun blockProcessorExecution() =
+    componentRefactoringProcessors.any { it.isEnabled && it.isBlocked }
+
   override fun createUsageViewDescriptor(usages: Array<out UsageInfo>): UsageViewDescriptor {
     return object : UsageViewDescriptorAdapter() {
       override fun getElements(): Array<PsiElement> {
@@ -303,7 +305,6 @@ class AgpUpgradeRefactoringProcessor(
     projectBuildModel.reparse()
     val usages = ArrayList<UsageInfo>()
 
-    usages.addAll(classpathRefactoringProcessor.findUsages())
     componentRefactoringProcessors.forEach { processor ->
       usages.addAll(processor.findUsages())
     }
@@ -517,18 +518,20 @@ class AgpUpgradeRefactoringProcessor(
   //  it's possible that rather than overriding customizeUsagesView (which is only called from previewRefactoring()) we
   //  could just inline its effect.
   override fun customizeUsagesView(viewDescriptor: UsageViewDescriptor, usageView: UsageView) {
-    val refactoringRunnable = Runnable {
-      val notExcludedUsages = UsageViewUtil.getNotExcludedUsageInfos(usageView)
-      val usagesToRefactor = this.usages.filter { notExcludedUsages.contains(it) } // preserve found order
-      val infos = usagesToRefactor.toArray(UsageInfo.EMPTY_ARRAY)
-      if (ensureElementsWritable(infos, viewDescriptor)) {
-        execute(infos)
+    if (!blockProcessorExecution()) {
+      // if the processor is blocked, don't offer a button that executes the processor.
+      val refactoringRunnable = Runnable {
+        val notExcludedUsages = UsageViewUtil.getNotExcludedUsageInfos(usageView)
+        val usagesToRefactor = this.usages.filter { notExcludedUsages.contains(it) } // preserve found order
+        val infos = usagesToRefactor.toArray(UsageInfo.EMPTY_ARRAY)
+        if (ensureElementsWritable(infos, viewDescriptor)) {
+          execute(infos)
+        }
       }
+      val canNotMakeString = AndroidBundle.message("project.upgrade.usageView.need.reRun")
+      val label = AndroidBundle.message("project.upgrade.usageView.doAction")
+      usageView.addPerformOperationAction(refactoringRunnable, commandName, canNotMakeString, label, false)
     }
-    val canNotMakeString = AndroidBundle.message("project.upgrade.usageView.need.reRun")
-    val label = AndroidBundle.message("project.upgrade.usageView.doAction")
-    usageView.addPerformOperationAction(refactoringRunnable, commandName, canNotMakeString, label, false)
-
     usageView.setRerunAction(object : AbstractAction() {
       override fun actionPerformed(e: ActionEvent?) = doRun()
     })
@@ -541,6 +544,11 @@ class AgpUpgradeRefactoringProcessor(
   }
 
   override fun execute(usages: Array<out UsageInfo>) {
+    if (blockProcessorExecution()) {
+      LOG.warn("${this.commandName} has blocked components")
+      trackProcessorUsage(BLOCKED, usages.size, projectBuildModel.context.allRequestedFiles.size)
+      return
+    }
     projectBuildModel.context.agpVersion = AndroidGradlePluginVersion.tryParse(new.toString())
     trackProcessorUsage(EXECUTE, usages.size, projectBuildModel.context.allRequestedFiles.size)
     executedUsages = usages
@@ -603,7 +611,6 @@ class AgpUpgradeRefactoringProcessor(
         }
         // Ensure that we have the information about no-ops, which might also involve inspecting Psi directly (and thus should not be
         // done on the EDT).
-        classpathRefactoringProcessor.initializeComponentCaches()
         componentRefactoringProcessors.forEach { it.initializeComponentCaches() }
       },
       commandName, true, project)
@@ -763,6 +770,17 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
     }
   }
 
+  sealed class BlockReason(
+    val shortDescription: String,
+    val description: String? = null,
+    val helpLinkUrl: String? = null
+  )
+
+  open fun blockProcessorReasons(): List<BlockReason> = listOf()
+
+  val isBlocked: Boolean
+    get() = blockProcessorReasons().isNotEmpty()
+
   constructor(project: Project, current: GradleVersion, new: GradleVersion): super(project) {
     this.current = current
     this.new = new
@@ -804,12 +822,18 @@ abstract class AgpUpgradeComponentRefactoringProcessor: GradleBuildModelRefactor
   protected abstract fun findComponentUsages(): Array<out UsageInfo>
 
   override fun previewRefactoring(usages: Array<out UsageInfo>) {
+    // TODO(b/231690925): what should we do if the component is blocked?
     trackComponentUsage(PREVIEW_REFACTORING, usages.size, projectBuildModel.context.allRequestedFiles.size)
     super.previewRefactoring(usages)
   }
 
   override fun execute(usages: Array<out UsageInfo>) {
     projectBuildModel.context.agpVersion = AndroidGradlePluginVersion.tryParse(new.toString())
+    if (isBlocked) {
+      LOG.warn("${this.commandName} refactoring is blocked")
+      trackComponentUsage(BLOCKED, usages.size, projectBuildModel.context.allRequestedFiles.size)
+      return
+    }
     trackComponentUsage(EXECUTE, usages.size, projectBuildModel.context.allRequestedFiles.size)
     super.execute(usages)
   }
@@ -1062,7 +1086,6 @@ internal fun AgpUpgradeRefactoringProcessor.trackProcessorUsage(
                     .apply { usages?.let { setUsages(it) } }
                     .apply { files?.let { setFiles(it) } }
                     .build())
-  processorEvent.addComponentInfo(classpathRefactoringProcessor.getComponentInfo())
   componentRefactoringProcessors.forEach {
     processorEvent.addComponentInfo(it.getComponentInfo())
   }
@@ -1091,10 +1114,3 @@ private fun AgpUpgradeComponentRefactoringProcessor.trackComponentUsage(
 
   UsageTracker.log(studioEvent)
 }
-
-private fun ProjectSystemSyncManager.SyncResult?.forStats() = when {
-  this == ProjectSystemSyncManager.SyncResult.SKIPPED -> SYNC_SKIPPED
-  this?.isSuccessful == true -> SYNC_SUCCEEDED
-  else -> SYNC_FAILED
-}
-

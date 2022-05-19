@@ -54,7 +54,6 @@ import com.android.tools.idea.common.model.NlComponent;
 import com.android.tools.idea.common.scene.SceneComponent;
 import com.android.tools.idea.common.surface.DesignSurface;
 import com.android.tools.idea.configurations.ConfigurationManager;
-import com.android.tools.idea.ui.resourcechooser.common.ResourcePickerSources;
 import com.android.tools.idea.ui.resourcechooser.util.ResourceChooserHelperKt;
 import com.android.tools.idea.ui.resourcemanager.ResourcePickerDialog;
 import com.android.tools.idea.uibuilder.actions.ChainStyleViewActions;
@@ -94,7 +93,6 @@ import com.intellij.ui.JBColor;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.LafIconLookup;
-import icons.AndroidIcons;
 import icons.StudioIcons;
 import java.awt.Color;
 import java.awt.Component;
@@ -1208,7 +1206,7 @@ public class CommonActions {
                         @InputEventMask int modifiers) {
       myComponent = component;
       myMarginPopup = createIfNeeded();
-      DesignSurface surface = editor.getScene().getDesignSurface();
+      DesignSurface<?> surface = editor.getScene().getDesignSurface();
       getAnalyticsManager(editor).trackDefaultMargins();
       RelativePoint relativePoint = new RelativePoint(surface, new Point(0, 0));
       JBPopup popup = JBPopupFactory.getInstance().createComponentPopupBuilder(myMarginPopup, myMarginPopup.getTextField())

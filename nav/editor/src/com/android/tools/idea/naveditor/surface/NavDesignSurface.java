@@ -108,7 +108,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.jetbrains.android.dom.navigation.NavigationSchema;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -121,7 +120,7 @@ import org.jetbrains.annotations.TestOnly;
 /**
  * {@link DesignSurface} for the navigation editor.
  */
-public class NavDesignSurface extends DesignSurface {
+public class NavDesignSurface extends DesignSurface<NavSceneManager> {
   private static final int SCROLL_DURATION_MS = 300;
   private static final Object CONNECTION_CLIENT_PROPERTY_KEY = new Object();
   private static final String FAILED_DEPENDENCY = "Failed to add navigation dependency";
@@ -233,7 +232,7 @@ public class NavDesignSurface extends DesignSurface {
 
   @NotNull
   @Override
-  protected SceneManager createSceneManager(@NotNull NlModel model) {
+  protected NavSceneManager createSceneManager(@NotNull NlModel model) {
     return new NavSceneManager(model, this);
   }
 

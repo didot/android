@@ -48,7 +48,6 @@ import com.android.tools.idea.uibuilder.graphics.NlConstants
 import com.android.tools.idea.uibuilder.model.NlComponentRegistrar
 import com.android.tools.idea.uibuilder.scene.LayoutlibSceneManager
 import com.android.tools.idea.uibuilder.surface.NlDesignSurface
-import com.android.tools.idea.uibuilder.surface.NlScreenViewProvider
 import com.android.tools.idea.uibuilder.surface.NlSupportedActions
 import com.android.tools.idea.uibuilder.surface.layout.GridSurfaceLayoutManager
 import com.android.tools.idea.uibuilder.surface.layout.SingleDirectionLayoutManager
@@ -122,11 +121,9 @@ fun createPreviewDesignSurface(
     .setZoomControlsPolicy(zoomControlsPolicy)
     .setSupportedActions(COMPOSE_SUPPORTED_ACTIONS)
     .setShouldRenderErrorsPanel(true)
+    .setScreenViewProvider(COMPOSE_SCREEN_VIEW_PROVIDER, false)
+    .setMaxFitIntoZoomLevel(2.0) // Set fit into limit to 200%
     .build()
-    .apply {
-      setScreenViewProvider(COMPOSE_SCREEN_VIEW_PROVIDER, false)
-      setMaxFitIntoZoomLevel(2.0) // Set fit into limit to 200%
-    }
 
 /**
  * Refresh the preview with the existing [PreviewElement]s.

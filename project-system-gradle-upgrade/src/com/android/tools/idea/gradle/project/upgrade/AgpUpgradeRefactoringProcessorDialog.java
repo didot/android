@@ -142,13 +142,13 @@ public class AgpUpgradeRefactoringProcessorDialog extends DialogWrapper {
 
     StringBuilder sb = new StringBuilder();
     sb.append("<p>The following commands will be executed to upgrade your project");
-    if (myProcessor.getClasspathRefactoringProcessor().isEnabled()) {
+    if (myProcessor.getAgpVersionRefactoringProcessor().isEnabled()) {
       sb.append(" from Android Gradle Plugin version ").append(myProcessor.getCurrent())
         .append(" to version ").append(myProcessor.getNew());
     }
     sb.append(":</p>");
     sb.append("<br/><ul>");
-    for (AgpUpgradeComponentRefactoringProcessor p : myProcessor.getComponentRefactoringProcessors()) {
+    for (AgpUpgradeComponentRefactoringProcessor p : myProcessor.getComponentRefactoringProcessorsWithAgpVersionProcessorLast()) {
       if (p.isEnabled() && !p.isAlwaysNoOpForProject()) {
         sb.append("<li>").append(p.getCommandName()).append(".");
         String url = p.getReadMoreUrl();
@@ -157,9 +157,6 @@ public class AgpUpgradeRefactoringProcessorDialog extends DialogWrapper {
         }
         sb.append("</li>");
       }
-    }
-    if (myProcessor.getClasspathRefactoringProcessor().isEnabled()) {
-      sb.append("<li>").append(myProcessor.getClasspathRefactoringProcessor().getCommandName()).append(".").append("</li>");
     }
     sb.append("</ul>");
 

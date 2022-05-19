@@ -21,7 +21,6 @@ import com.android.tools.idea.common.error.IssueModel;
 import com.android.tools.idea.common.error.IssuePanelService;
 import com.android.tools.idea.common.error.IssuePanelServiceKt;
 import com.android.tools.idea.common.surface.DesignSurface;
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.uibuilder.surface.NlSupportedActions;
 import com.android.tools.idea.uibuilder.surface.NlSupportedActionsKt;
 import com.intellij.openapi.actionSystem.ActionManager;
@@ -41,7 +40,7 @@ public class IssueNotificationAction extends ToggleAction {
   public static final String NO_ISSUE = "No Issue";
   public static final String SHOW_ISSUE = "Show Warnings and Errors";
   private static final String DEFAULT_TOOLTIP = "Toggle visibility of issue panel";
-  private static final Icon DISABLED_ICON = IconUtil.desaturate(StudioIcons.Common.ERROR);
+  private static final Icon DISABLED_ICON = IconUtil.desaturate(StudioIcons.Common.ERROR_INLINE);
 
   /**
    * Returns the icon and description to be used when the surface is active but there are no errors.
@@ -64,7 +63,7 @@ public class IssueNotificationAction extends ToggleAction {
       return;
     }
     super.update(event);
-    DesignSurface surface = event.getData(DesignerDataKeys.DESIGN_SURFACE);
+    DesignSurface<?> surface = event.getData(DesignerDataKeys.DESIGN_SURFACE);
     Presentation presentation = event.getPresentation();
 
     if (surface == null || !NlSupportedActionsKt.isActionSupported(surface, NlSupportedActions.TOGGLE_ISSUE_PANEL)) {
@@ -101,7 +100,7 @@ public class IssueNotificationAction extends ToggleAction {
 
   @Override
   public boolean isSelected(@NotNull AnActionEvent e) {
-    DesignSurface surface = e.getData(DesignerDataKeys.DESIGN_SURFACE);
+    DesignSurface<?> surface = e.getData(DesignerDataKeys.DESIGN_SURFACE);
     if (surface == null) {
       return false;
     }
@@ -110,7 +109,7 @@ public class IssueNotificationAction extends ToggleAction {
 
   @Override
   public void setSelected(@NotNull AnActionEvent e, boolean state) {
-    DesignSurface surface = e.getData(DesignerDataKeys.DESIGN_SURFACE);
+    DesignSurface<?> surface = e.getData(DesignerDataKeys.DESIGN_SURFACE);
     if (surface == null) {
       return;
     }
@@ -121,13 +120,13 @@ public class IssueNotificationAction extends ToggleAction {
   private static Icon getIssueTypeIcon(@NotNull IssueModel issueModel) {
     Icon icon;
     if (issueModel.getErrorCount() > 0) {
-      icon = StudioIcons.Common.ERROR;
+      icon = StudioIcons.Common.ERROR_INLINE;
     }
     else if (issueModel.getWarningCount() > 0) {
-      icon = StudioIcons.Common.WARNING;
+      icon = StudioIcons.Common.WARNING_INLINE;
     }
     else if (issueModel.getIssueCount() > 0) {
-      icon = StudioIcons.Common.INFO;
+      icon = StudioIcons.Common.INFO_INLINE;
     }
     else {
       icon = DISABLED_ICON;

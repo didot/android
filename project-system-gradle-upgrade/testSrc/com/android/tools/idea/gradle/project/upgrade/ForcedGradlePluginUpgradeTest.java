@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.openapi.ui.Messages.OK;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -105,7 +106,7 @@ public class ForcedGradlePluginUpgradeTest extends PlatformTestCase {
     when(myRefactoringProcessorInstantiator.showAndGetAgpUpgradeDialog(any(), same(false))).thenReturn(false);
     GradlePluginUpgrade.performForcedPluginUpgrade(getProject(), alphaPluginVersion, latestPluginVersion);
     verify(myRefactoringProcessorInstantiator).showAndGetAgpUpgradeDialog(any(), same(false));
-    verifyNoInteractions(myProcessor);
+    verify(myProcessor, never()).run();
     // TODO(xof): this is suboptimal and should probably show the same message as if we cancelled from the first dialog.
     assertThat(mySyncMessages.getReportedMessages()).isEmpty();
   }

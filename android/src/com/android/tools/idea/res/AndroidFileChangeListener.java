@@ -257,39 +257,19 @@ public class AndroidFileChangeListener implements Disposable {
     if (psiFile.getName().endsWith(".versions.toml")) {
       return true;
     }
-    if (fileType == PropertiesFileType.INSTANCE) {
-      if (FN_GRADLE_PROPERTIES.equals(psiFile.getName()) || FN_GRADLE_WRAPPER_PROPERTIES.equals(psiFile.getName())) {
-        return true;
-      }
+    if (fileType == PropertiesFileType.INSTANCE &&
+        (FN_GRADLE_PROPERTIES.equals(psiFile.getName()) || FN_GRADLE_WRAPPER_PROPERTIES.equals(psiFile.getName()))) {
+      return true;
     }
 
     return false;
   }
 
-
   private void dispatch(@Nullable VirtualFile file, @NotNull Consumer<PsiTreeChangeListener> invokeCallback) {
     if (file != null) {
-      dispatchToRegistry(file, invokeCallback);
+      myRegistry.dispatchToRepositories(file, invokeCallback);
     }
     dispatchToResourceNotificationManager(invokeCallback);
-  }
-
-  private void dispatchToRegistry(@NotNull VirtualFile file,
-                                  @NotNull Consumer<PsiTreeChangeListener> invokeCallback) {
-    while (file != null) {
-      ResourceFolderRegistry.CachedRepositories cached = myRegistry.getCached(file);
-      if (cached != null) {
-        if (cached.namespaced != null) {
-          invokeCallback.consume(cached.namespaced.getPsiListener());
-        }
-        if (cached.nonNamespaced != null) {
-          invokeCallback.consume(cached.nonNamespaced.getPsiListener());
-        }
-        return;
-      }
-
-      file = file.getParent();
-    }
   }
 
   private void dispatchToResourceNotificationManager(@NotNull Consumer<PsiTreeChangeListener> invokeCallback) {
@@ -368,20 +348,8 @@ public class AndroidFileChangeListener implements Disposable {
         return;
       }
 
-      ResourceFolderRegistry.CachedRepositories cachedRepositories;
-      if (created.isDirectory()) {
-        cachedRepositories = myRegistry.getCached(parent);
-      }
-      else {
-        VirtualFile grandParent = parent.getParent();
-        cachedRepositories = grandParent == null ? null : myRegistry.getCached(grandParent);
-      }
-
-      if (cachedRepositories != null) {
-        ResourceUpdateTracer.log(() -> "AndroidFileChangeListener.MyVfsListener.onFileOrDirectoryCreated: Dispatching to repositories");
-        onFileOrDirectoryCreated(created, cachedRepositories.namespaced);
-        onFileOrDirectoryCreated(created, cachedRepositories.nonNamespaced);
-      }
+      VirtualFile resDir = created.isDirectory() ? parent : parent.getParent();
+      myRegistry.dispatchToRepositories(resDir, (repository, dir) -> onFileOrDirectoryCreated(created, repository));
     }
 
     private @NotNull String pathForLogging(@Nullable VirtualFile parent, @NotNull String childName) {

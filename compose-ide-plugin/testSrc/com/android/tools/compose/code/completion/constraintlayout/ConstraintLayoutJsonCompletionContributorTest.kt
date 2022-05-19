@@ -411,6 +411,464 @@ internal class ConstraintLayoutJsonCompletionContributorTest {
     // 'constraints' options is already populated
     assertThat(myFixture.lookupElementStrings!!).containsExactly("dimensions", "transforms")
   }
+
+  @Test
+  fun completeOnSwipeFieldsAndValues() {
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            onSwipe: {
+              anchor: 'a',
+              $caret
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    assertThat(myFixture.lookupElementStrings!!).containsExactly("side", "direction", "mode")
+
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            onSwipe: {
+              side: 'midd$caret',
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            onSwipe: {
+              side: 'middle',
+            }
+          }
+        }
+      }
+    """.trimIndent())
+
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            onSwipe: {
+              direction: 'anticl$caret',
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            onSwipe: {
+              direction: 'anticlockwise',
+            }
+          }
+        }
+      }
+    """.trimIndent())
+
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            onSwipe: {
+              mode: 'sp$caret',
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            onSwipe: {
+              mode: 'spring',
+            }
+          }
+        }
+      }
+    """.trimIndent())
+
+    myFixture.completeJson5Text("""
+      {
+        ConstraintSets: {
+          start: {
+            a: {},
+            b: {},
+            c: {}
+          },
+          end: {
+            c: {},
+            d: {},
+            e: {}
+          }
+        },
+        Transitions: {
+          default: {
+            onSwipe: {
+              anchor: '$caret'
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    assertThat(myFixture.lookupElementStrings!!).containsExactly("parent", "a", "b", "c", "d", "e")
+  }
+
+  @Test
+  fun completeKeyFramesFields() {
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              $caret
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    assertThat(myFixture.lookupElementStrings!!).containsExactly("KeyAttributes", "KeyPositions", "KeyCycles")
+  }
+
+  @Test
+  fun completeKeyAttributesFields() {
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                $caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    assertThat(myFixture.lookupElementStrings!!).containsExactly(
+      "target",
+      "frames",
+      "transitionEasing",
+      "curveFit",
+      // Attributes specific:
+      "alpha",
+      "scaleX",
+      "scaleY",
+      "rotationX",
+      "rotationY",
+      "rotationZ",
+      "translationX",
+      "translationY",
+      "translationZ",
+    )
+  }
+
+  @Test
+  fun completeKeyPositionsFields() {
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyPositions: [{
+                $caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    assertThat(myFixture.lookupElementStrings!!).containsExactly(
+      "target",
+      "frames",
+      "transitionEasing",
+      "curveFit",
+      // Position specific:
+      "percentX",
+      "percentY",
+      "percentWidth",
+      "percentHeight",
+      "pathMotionArc",
+      "type"
+    )
+  }
+
+  @Test
+  fun completeKeyCyclesFields() {
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyCycles: [{
+                $caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    assertThat(myFixture.lookupElementStrings!!).containsExactly(
+      "target",
+      "frames",
+      "transitionEasing",
+      "curveFit",
+      // Cycles specific:
+      "period",
+      "offset",
+      "phase",
+      // Shared with KeyAttributes:
+      "alpha",
+      "scaleX",
+      "scaleY",
+      "rotationX",
+      "rotationY",
+      "rotationZ",
+      "translationX",
+      "translationY",
+      "translationZ",
+    )
+  }
+
+  @Test
+  fun completeKeyFrameChildPropertyWithAtLeastOneElement() {
+    // `frames` with empty array
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                frames: [],
+                alph$caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                frames: [],
+                alpha: [0],
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+
+    // No `frames` property
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                alph$caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                alpha: [0],
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+
+    // Completing `frames` for first time
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                fram$caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                frames: [0],
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+  }
+
+  @Test
+  fun completeKeyFrameChildPropertyWithArray() {
+    // A completed number based property should be initialized with an array matching the same number of items as the `frames` property
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                frames: [25, 75],
+                alph$caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                frames: [25, 75],
+                alpha: [0, 0],
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+
+    // Completed parameter should match `frames` size array regardless of the size of other parameters
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyCycles: [{
+                frames: [25, 50, 75],
+                offset: [0.2, 0.8],
+                phas$caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyCycles: [{
+                frames: [25, 50, 75],
+                offset: [0.2, 0.8],
+                phase: [0, 0, 0],
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+
+    // Text based properties should not be initialized with an array
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                frames: [25, 50, 75],
+                targe$caret
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              KeyAttributes: [{
+                frames: [25, 50, 75],
+                target: '$caret',
+              }]
+            }
+          }
+        }
+      }
+    """.trimIndent())
+  }
+
+  @Test
+  fun completionIsCaseSensitive() {
+    // Using wrong casing
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            keyFr$caret
+          }
+        }
+      }
+    """.trimIndent())
+    // Not changes in result
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            keyFr
+          }
+        }
+      }
+    """.trimIndent())
+
+    // With correct casing
+    myFixture.completeJson5Text("""
+      {
+        Transitions: {
+          default: {
+            KeyFr$caret
+          }
+        }
+      }
+    """.trimIndent())
+    // Expression completed properly
+    myFixture.checkResult("""
+      {
+        Transitions: {
+          default: {
+            KeyFrames: {
+              $caret
+            }
+          }
+        }
+      }
+    """.trimIndent())
+  }
 }
 
 private fun CodeInsightTestFixture.completeJson5Text(@Language("JSON5") text: String) {

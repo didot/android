@@ -33,6 +33,8 @@ import com.android.tools.idea.common.surface.layout.MatchParentLayoutManager
 import com.android.tools.idea.compose.preview.navigation.PreviewNavigationHandler
 import com.android.tools.idea.compose.preview.scene.ComposeSceneComponentProvider
 import com.android.tools.idea.compose.preview.scene.ComposeSceneUpdateListener
+import com.android.tools.idea.editors.build.ProjectBuildStatusManager
+import com.android.tools.idea.editors.build.ProjectStatus
 import com.android.tools.idea.editors.notifications.NotificationPanel
 import com.android.tools.idea.editors.shortcuts.asString
 import com.android.tools.idea.editors.shortcuts.getBuildAndRefreshShortcut
@@ -256,7 +258,7 @@ internal class ComposePreviewViewImpl(private val project: Project,
                                       onUnPinAction: AnAction) :
   ComposePreviewView, Pannable, DataProvider {
 
-  private val workbench = WorkBench<DesignSurface>(project, "Compose Preview", null, parentDisposable, 0)
+  private val workbench = WorkBench<DesignSurface<*>>(project, "Compose Preview", null, parentDisposable, 0)
 
   private val log = Logger.getInstance(ComposePreviewViewImpl::class.java)
 

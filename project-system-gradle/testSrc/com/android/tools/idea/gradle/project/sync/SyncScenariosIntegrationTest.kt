@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.gradle.project.sync
 
+import com.android.sdklib.devices.Abi
+import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.gradle.project.sync.internal.dump
 import com.android.tools.idea.gradle.structure.model.PsProjectImpl
 import com.android.tools.idea.gradle.structure.model.meta.DslText
@@ -23,8 +25,9 @@ import com.android.tools.idea.projectsystem.getAndroidTestModule
 import com.android.tools.idea.projectsystem.getMainModule
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.testing.GradleIntegrationTest
+import com.android.tools.idea.testing.OpenPreparedProjectOptions
 import com.android.tools.idea.testing.TestProjectToSnapshotPaths
-import com.android.tools.idea.testing.assertAreEqualToSnapshots
+import com.android.tools.idea.testing.findAppModule
 import com.android.tools.idea.testing.gradleModule
 import com.android.tools.idea.testing.onEdt
 import com.android.tools.idea.testing.openPreparedProject
@@ -32,13 +35,15 @@ import com.android.tools.idea.testing.prepareGradleProject
 import com.android.tools.idea.testing.requestSyncAndWait
 import com.android.tools.idea.testing.saveAndDump
 import com.google.common.truth.Expect
-import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
+import com.intellij.openapi.roots.OrderRootType
+import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.util.PathUtil
 import org.jetbrains.android.AndroidTestBase
@@ -46,6 +51,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestName
 import java.io.File
+import kotlin.test.fail
 
 @RunsInEdt
 class SyncScenariosIntegrationTest : GradleIntegrationTest {
@@ -109,6 +115,66 @@ class SyncScenariosIntegrationTest : GradleIntegrationTest {
     }
   }
 
+  /**
+   * Manually added Sources on Librarys should only be removed if Gradle does not provide any.
+   */
+  @Test
+  fun testAddedSourcesOnNoSourceLibraryArentRemoved() {
+    val basePath = prepareGradleProject(TestProjectToSnapshotPaths.SIMPLE_APPLICATION, "project")
+    val libWithNoSources = "com.google.truth:truth:0.44"
+    val libWithSources = "junit:junit:4.12"
+
+    val buildFile = basePath.resolve("app").resolve("build.gradle")
+    buildFile.writeText(buildFile.readText() + """
+      dependencies {
+        implementation("$libWithNoSources")
+        implementation("$libWithSources")
+      }
+    """)
+
+    openPreparedProject("project") { project ->
+      // Emulate adding source to the lib1 library.
+      var table = LibraryTablesRegistrar.getInstance().getLibraryTable(project)
+      var noSourceLib = table.getLibraryByName("Gradle: $libWithNoSources")!!
+      var sourceLib = table.getLibraryByName("Gradle: $libWithSources")!!
+      assertThat(noSourceLib.getUrls(OrderRootType.SOURCES)).isEmpty()
+      assertThat(sourceLib.getUrls(OrderRootType.SOURCES)).isNotNull()
+
+
+      val fakeSourceRoot = "/some/path/to/a/source/jar.jar"
+      noSourceLib.modifiableModel.apply {
+        addRoot(fakeSourceRoot, OrderRootType.SOURCES)
+        WriteCommandAction.runWriteCommandAction(project) { commit() }
+      }
+
+      sourceLib.modifiableModel.apply {
+        addRoot(fakeSourceRoot, OrderRootType.SOURCES)
+        WriteCommandAction.runWriteCommandAction(project) { commit() }
+      }
+
+      assertThat(noSourceLib.getUrls(OrderRootType.SOURCES)).hasLength(1)
+      assertThat(noSourceLib.getUrls(OrderRootType.SOURCES)[0]).isEqualTo(fakeSourceRoot)
+
+      // The library with sources from Gradle has both the original and added sources before we sync
+      assertThat(sourceLib.getUrls(OrderRootType.SOURCES)).hasLength(2)
+      assertThat(sourceLib.getUrls(OrderRootType.SOURCES)[0]).isNotEqualTo(fakeSourceRoot)
+
+      project.requestSyncAndWait()
+
+      table = LibraryTablesRegistrar.getInstance().getLibraryTable(project)
+      noSourceLib = table.getLibraryByName("Gradle: $libWithNoSources")!!
+      sourceLib = table.getLibraryByName("Gradle: $libWithSources")!!
+
+      // The added source to the library that doesn't provide one should be kept
+      assertThat(noSourceLib.getUrls(OrderRootType.SOURCES)).hasLength(1)
+      assertThat(noSourceLib.getUrls(OrderRootType.SOURCES)[0]).isEqualTo(fakeSourceRoot)
+
+      // The added source to the library that provides one should be removed by the Gradle import
+      assertThat(sourceLib.getUrls(OrderRootType.SOURCES)).hasLength(1)
+      assertThat(sourceLib.getUrls(OrderRootType.SOURCES)[0]).isNotEqualTo(fakeSourceRoot)
+    }
+  }
+
   @Test
   fun testPsdSampleRenamingModule() {
     prepareGradleProject(TestProjectToSnapshotPaths.PSD_SAMPLE_GROOVY, "project")
@@ -133,6 +199,26 @@ class SyncScenariosIntegrationTest : GradleIntegrationTest {
       val afterRename = project.dumpModule(":container1:deep") { getMainModule() }
       // Do not use expect since IDEA does not show the diff UI in this case.
       assertThat(afterRename).isEqualTo(beforeRename.replace("nested1", "container1"))
+    }
+  }
+
+  @Test
+  fun testUnsupportedAbisIgnored() {
+    val basePath = prepareGradleProject(TestProjectToSnapshotPaths.BASIC_CMAKE_APP, "project")
+    val buildFile = basePath.resolve("app").resolve("build.gradle")
+    buildFile.writeText(buildFile.readText() + """
+      android {
+        defaultConfig {
+          ndk {
+            abiFilters 'invalidABIName'
+          }
+        }
+      }
+    """)
+
+    openPreparedProject("project", OpenPreparedProjectOptions({ }, { }, { fail() })) { project ->
+      val abis = GradleAndroidModel.get(project.findAppModule())!!.supportedAbis
+      assertThat(abis).containsExactly(Abi.X86)
     }
   }
 

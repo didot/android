@@ -59,6 +59,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
@@ -133,26 +134,37 @@ val androidCoroutineExceptionHandler = CoroutineExceptionHandler { ctx, throwabl
 @Suppress("FunctionName") // mirroring upstream API.
 fun SupervisorJob(disposable: Disposable): Job {
   return SupervisorJob().also { job ->
-    Disposer.register(
-      disposable,
-      Disposable {
-        if (!job.isCancelled) {
-          job.cancel(CancellationException("$disposable has been disposed."))
-        }
-      }
-    )
+    cancelJobOnDispose(disposable, job)
   }
 }
 
 /**
  * Returns a [CoroutineScope] containing:
- *   - a [Job] tied to the [Disposable] lifecycle of this object
+ *   - a [SupervisorJob] tied to the [Disposable] lifecycle of [disposable]
  *   - [AndroidDispatchers.workerThread]
  *   - a [CoroutineExceptionHandler] that logs unhandled exception at `ERROR` level.
+ *
+ * The optional [context] parameter can be used to override the [Job], [CoroutineDispatcher]
+ * and [CoroutineExceptionHandler] of the [CoroutineContext] of the returned [CoroutineScope].
+ *
+ * Note: This method creates a "top-level" (or "root") [CoroutineScope]. Use [createChildScope]
+ * to create a [CoroutineScope] to create a child scope that is tied to both a [Disposable]
+ * and a parent scope.
  */
 @Suppress("FunctionName") // Mirroring coroutines API, with many functions that look like constructors.
 fun AndroidCoroutineScope(disposable: Disposable, context: CoroutineContext = EmptyCoroutineContext): CoroutineScope {
-  return CoroutineScope(SupervisorJob(disposable) + AndroidDispatchers.workerThread + androidCoroutineExceptionHandler + context)
+  return CoroutineScope(SupervisorJob(disposable) + workerThread + androidCoroutineExceptionHandler + context)
+}
+
+/**
+ * Ensure [job] is cancelled if it is still active when [disposable] is disposed.
+ */
+private fun cancelJobOnDispose(disposable: Disposable, job: Job) {
+  Disposer.register(disposable) {
+    if (!job.isCancelled) {
+      job.cancel(CancellationException("$disposable has been disposed."))
+    }
+  }
 }
 
 /**
@@ -234,7 +246,7 @@ val Project.coroutineScope: CoroutineScope
  */
 class UniqueTaskCoroutineLauncher(private val coroutineScope: CoroutineScope, description: String) {
   // This mutex makes sure that the previous job is cancelled before a new one is started. This prevents several jobs to be executed at the
-  // same time meaning that several tasks also cannot be executed at the same time and therefore we do not need a mutex on a task execution
+  // same time meaning that several tasks also cannot be executed at the same time, and therefore we do not need a mutex on a task execution
   // itself.
   private val jobMutex = Mutex()
 
@@ -263,21 +275,37 @@ class UniqueTaskCoroutineLauncher(private val coroutineScope: CoroutineScope, de
 }
 
 /**
- * Utility function for quickly creating a scope that is a child of the current scope. It can be optionally a supervisor scope.
+ * Utility function for creating a scope that is a child of the current scope.
+ *
+ * * The new scope can optionally be a [supervisor][isSupervisor] scope.
+ *
+ * * An optional [parentDisposable] can be used to ensure the new scope is
+ *   [cancelled][CoroutineScope.cancel] when the [parentDisposable] is
+ *   [disposed][Disposer.dispose]. The new scope is, as usual, also cancelled
+ *   with its parent scope.
  */
-fun CoroutineScope.createChildScope(isSupervisor: Boolean = false): CoroutineScope = CoroutineScope(
-  this.coroutineContext + if (isSupervisor) SupervisorJob(this.coroutineContext[Job]) else Job(this.coroutineContext[Job]))
+fun CoroutineScope.createChildScope(isSupervisor: Boolean = false,
+                                    context: CoroutineContext = EmptyCoroutineContext,
+                                    parentDisposable: Disposable? = null): CoroutineScope {
+  val newJob = if (isSupervisor) SupervisorJob(this.coroutineContext.job) else Job(this.coroutineContext.job)
+  return CoroutineScope(this.coroutineContext + newJob + context).also { newScope ->
+    // Attach new scope to [parentDisposable] lifecycle
+    parentDisposable?.apply {
+      cancelJobOnDispose(parentDisposable, newScope.coroutineContext.job)
+    }
+  }
+}
 
 /**
  * Immediately returns the completed result. If deferred is not complete for any reason, return null.
  */
 suspend fun <T> Deferred<T>.getCompletedOrNull(): T? {
   if (isCompleted) {
-    try {
-      return this.await()
+    return try {
+      this.await()
     }
     catch (t: Throwable) {
-      return null
+      null
     }
   }
   return null
@@ -324,10 +352,10 @@ suspend fun <T> runReadAction(compute: Computable<T>): T = coroutineScope {
       }
     }
     catch (_: CannotRunReadActionException) {
-      // Wait until the current write finishes
+      // Wait until the current write finishes.
       val writeFinished = CompletableDeferred<Boolean>()
       ApplicationManager.getApplication().invokeLater { writeFinished.complete(true) }
-      // This will suspend the coroutine until the write lock has finished
+      // This will suspend the coroutine until the write lock has finished.
       writeFinished.await()
     }
   }
@@ -355,7 +383,7 @@ suspend fun <T> runWriteActionAndWait(compute: Computable<T>): T = coroutineScop
 class RetriesExceededException(message: String? = null) : Exception(message)
 
 /**
- * Runs the given [callable] in a read action with action priority (see [ProgressIndicatorUtils.runInReadActionWithWriteActionPriority].
+ * Runs the given [callable] in a read action with action priority (see [ProgressIndicatorUtils.runInReadActionWithWriteActionPriority]).
  * The [callable] will be retried [maxRetries] if cancelled because a write action taking priority. This will wait [maxWaitTime] [maxWaitTimeUnit]
  * before throwing a [TimeoutException].
  *
@@ -435,7 +463,7 @@ interface CallbackFlowWithDisposableScope<T> : CoroutineScope {
  *  - The [parentDisposable] is disposed, if not null.
  *  - The flow is closed.
  *
- * This allow for any callbacks to use that [Disposable] and dispose the listeners when the flow is not needed.
+ * This allows for any callbacks to use that [Disposable] and dispose the listeners when the flow is not needed.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 fun <T> disposableCallbackFlow(debugName: String,
