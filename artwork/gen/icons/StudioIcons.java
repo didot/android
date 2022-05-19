@@ -59,14 +59,14 @@ public final class StudioIcons {
     /** 16x16 */ public static final @NotNull Icon ERROR = load("studio/icons/common/error.svg", 1118023429, 2);
     /** 16x16 */ public static final @NotNull Icon EXPORT = load("studio/icons/common/export.svg", 593586009, 2);
     /** 16x16 */ public static final @NotNull Icon FILTER = load("studio/icons/common/filter.svg", -2134244780, 2);
-    /** 17x16 */ public static final @NotNull Icon GRID_VIEW = load("studio/icons/common/grid-view.svg", 1462364029, 2);
+    /** 16x16 */ public static final @NotNull Icon GRID_VIEW = load("studio/icons/common/grid-view.svg", 2049642377, 2);
     /** 16x16 */ public static final @NotNull Icon HELP = load("studio/icons/common/help.svg", 991073187, 2);
     /** 16x16 */ public static final @NotNull Icon IMPORT_DATA = load("studio/icons/common/import-data.svg", -1016873592, 2);
     /** 16x16 */ public static final @NotNull Icon INFO_INLINE_SELECTED = load("studio/icons/common/info-inline-selected.svg", -1651116757, 0);
     /** 16x16 */ public static final @NotNull Icon INFO_INLINE = load("studio/icons/common/info-inline.svg", 642144639, 2);
     /** 16x16 */ public static final @NotNull Icon INFO = load("studio/icons/common/info.svg", -2014216141, 2);
     /** 16x16 */ public static final @NotNull Icon LINK = load("studio/icons/common/link.svg", 1068637459, 2);
-    /** 17x16 */ public static final @NotNull Icon LIST_VIEW = load("studio/icons/common/list-view.svg", -1274134323, 2);
+    /** 16x16 */ public static final @NotNull Icon LIST_VIEW = load("studio/icons/common/list-view.svg", -285060557, 2);
     /** 16x16 */ public static final @NotNull Icon LOCKED_INLINE_SELECTED = load("studio/icons/common/locked-inline-selected.svg", -824727311, 0);
     /** 16x16 */ public static final @NotNull Icon LOCKED_INLINE = load("studio/icons/common/locked-inline.svg", 1063994069, 2);
     /** 16x16 */ public static final @NotNull Icon MISSING = load("studio/icons/common/missing.svg", -285097998, 2);
