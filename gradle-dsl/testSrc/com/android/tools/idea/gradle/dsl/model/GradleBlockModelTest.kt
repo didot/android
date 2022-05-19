@@ -112,7 +112,7 @@ class GradleBlockModelTest : GradleFileModelTestCase() {
     PLUGGABLE_BLOCK_NESTED("pluggableBlock/pluggableBlockNested");
 
     override fun toFile(basePath: @SystemDependent String, extension: String): File {
-      return super.toFile("$basePath/gradleBuildModelImpl/$path", extension)
+      return super.toFile("$basePath/$path", extension)
     }
   }
 }
