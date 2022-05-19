@@ -23,8 +23,7 @@ import org.jetbrains.android.facet.AndroidFacet
 /**
  * Returns true if called in Android Studio or if the project has an Android or an Apk facet.
  */
-fun isAndroidEnvironment(project: Project): Boolean =
-  IdeInfo.getInstance().isAndroidStudio || project.hasAndroidOrApkFacet()
+fun isAndroidEnvironment(project: Project): Boolean = true
 
 /**
  * Checks if the project contains a module with an Android or an Apk facet.
