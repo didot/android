@@ -22,7 +22,8 @@
 
     <customizableActionGroupProvider implementation="com.android.tools.idea.emulator.actions.EmulatorCustomizableActionGroupProvider"/>
 
-    <toolWindow id="Android Emulator"
+    <facet.toolWindow id="Android Emulator"
+                facetIdList="android,apk"
                 anchor="right"
                 secondary="true"
                 canCloseContents="true"

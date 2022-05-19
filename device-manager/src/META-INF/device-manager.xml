@@ -15,7 +15,8 @@
   -->
 <idea-plugin>
   <extensions defaultExtensionNs="com.intellij">
-    <toolWindow id="Device Manager"
+    <facet.toolWindow id="Device Manager"
+                facetIdList="android,apk"
                 anchor="right"
                 icon="StudioIcons.Shell.ToolWindows.MULTI_PREVIEW"
                 factoryClass="com.android.tools.idea.devicemanager.DeviceManagerToolWindowFactory"/>
