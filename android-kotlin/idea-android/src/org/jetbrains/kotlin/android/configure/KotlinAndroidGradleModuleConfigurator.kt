@@ -37,7 +37,7 @@ import org.jetbrains.kotlin.idea.compiler.configuration.IdeKotlinVersion
 import org.jetbrains.kotlin.idea.configuration.BuildSystemType
 import org.jetbrains.kotlin.idea.configuration.NotificationMessageCollector
 import org.jetbrains.kotlin.idea.configuration.createConfigureKotlinNotificationCollector
-import org.jetbrains.kotlin.idea.configuration.getBuildSystemType
+import org.jetbrains.kotlin.idea.configuration.buildSystemType
 import org.jetbrains.kotlin.idea.framework.ui.ConfigureDialogWithModulesAndVersion
 import org.jetbrains.kotlin.idea.gradle.KotlinIdeaGradleBundle
 import org.jetbrains.kotlin.idea.gradleJava.configuration.KotlinWithGradleConfigurator
@@ -56,7 +56,7 @@ class KotlinAndroidGradleModuleConfigurator : KotlinWithGradleConfigurator() {
 
     override val presentableText: String = "Android with Gradle"
 
-    public override fun isApplicable(module: Module): Boolean = module.getBuildSystemType() == BuildSystemType.AndroidGradle
+    public override fun isApplicable(module: Module): Boolean = module.buildSystemType == BuildSystemType.AndroidGradle
 
     override val kotlinPluginName: String = KOTLIN_ANDROID
 
