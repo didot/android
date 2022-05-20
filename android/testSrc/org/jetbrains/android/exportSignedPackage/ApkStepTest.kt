@@ -15,13 +15,13 @@
  */
 package org.jetbrains.android.exportSignedPackage
 
+import com.android.testutils.MockitoAwareLightPlatformTestCase
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.help.AndroidWebHelpProvider
 import com.google.common.truth.Truth
-import com.intellij.testFramework.LightPlatformTestCase
 import org.mockito.Mockito
 
-class ApkStepTest : LightPlatformTestCase() {
+class ApkStepTest : MockitoAwareLightPlatformTestCase() {
   fun testGetHelpId() {
     val wizard = Mockito.mock(ExportSignedPackageWizard::class.java)
     whenever(wizard.project).thenReturn(project)
