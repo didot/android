@@ -409,17 +409,17 @@ public class TestUtils {
 
   @NonNull
   public static String getEmbeddedJdk8Path() {
-    if (System.getenv("JDK_8") != null) {
-      Path jdkPath = Paths.get(System.getenv("JDK_8"));
+    if (System.getenv("JDK_18") != null) {
+      Path jdkPath = Paths.get(System.getenv("JDK_18"));
       if (Files.isDirectory(jdkPath)) {
         return jdkPath.toString();
       }
       else {
-        Logger.getInstance(TestUtils.class).warn("Ignore env.JDK_8 because it is not a directory: " + jdkPath);
+        Logger.getInstance(TestUtils.class).warn("Ignore env.JDK_18 because it is not a directory: " + jdkPath);
       }
     }
 
-    assert Runtime.version().feature() == 8 : "To continue we need to know where JDK8 is. env.JDK_8 didn't work.";
+    assert Runtime.version().feature() == 8 : "To continue we need to know where JDK8 is. env.JDK_18 didn't work.";
     return SystemProperties.getJavaHome();
   }
 
