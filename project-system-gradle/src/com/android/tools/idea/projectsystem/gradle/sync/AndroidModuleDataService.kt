@@ -166,7 +166,7 @@ internal constructor(private val myModuleValidatorFactory: AndroidModuleValidato
       // not sure why Android Studio wants to do something (maybe it's OK to skip the remaining in Android Studio as well).
       return;
     }
-    
+
     // TODO(b/200268010): this only triggers when we have actually run sync, as opposed to having loaded models from cache.  That means
     //  that we should be able to move this to some kind of sync listener.
     val data = project.getUserData(PROJECT_SYNC_REQUEST)
@@ -241,7 +241,6 @@ internal constructor(private val myModuleValidatorFactory: AndroidModuleValidato
 private fun createAndroidFacet(module: Module, facetModel: ModifiableFacetModel): AndroidFacet {
   val facetType = AndroidFacet.getFacetType()
   val facet = facetType.createFacet(module, AndroidFacet.NAME, facetType.createDefaultConfiguration(), null)
-  @Suppress("UnstableApiUsage")
   facetModel.addFacet(facet, ExternalSystemApiUtil.toExternalSource(SYSTEM_ID))
   return facet
 }

@@ -47,7 +47,6 @@ class SurfaceState {
    * This field is public because [PersistentStateComponent] needs to access its getter and setter. Do not access this field directly,
    * use [saveFileScale] and [loadFileScale] instead.
    */
-  @field:Suppress("MemberVisibilityCanBePrivate")
   var filePathToZoomLevelMap: MutableMap<String, Double> = HashMap()
 
   @Transient

@@ -1,3 +1,4 @@
+// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.android.tools.idea.gradle.project.upgrade
 
 import com.android.ide.common.repository.GradleVersion
@@ -491,7 +492,7 @@ class ContentManager(val project: Project) {
     val model = ToolWindowModel(
       project, currentVersionProvider = { AndroidPluginInfo.find(project)?.pluginVersion }, recommended = recommended)
     val view = View(model, toolWindow.contentManager)
-    val content = ContentFactory.SERVICE.getInstance().createContent(view.content, model.current.contentDisplayName(), true)
+    val content = ContentFactory.getInstance().createContent(view.content, model.current.contentDisplayName(), true)
     content.setDisposer(model)
     content.isPinned = true
     toolWindow.contentManager.addContent(content)

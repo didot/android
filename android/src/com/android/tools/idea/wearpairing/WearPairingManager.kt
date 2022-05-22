@@ -354,7 +354,6 @@ object WearPairingManager : AndroidDebugBridge.IDeviceChangeListener, AndroidSta
 
   @Slow
   private fun getAvailableDevices(): Pair<Map<String, IDevice>, HashMap<String, PairingDevice>> {
-    @Suppress("UnstableApiUsage")
     ApplicationManager.getApplication().assertIsNonDispatchThread()
 
     val deviceTable = hashMapOf<String, PairingDevice>()

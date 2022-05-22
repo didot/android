@@ -120,7 +120,6 @@ fun NdkVariant.format(): String = """{
     }
   """
 
-@Suppress("DEPRECATION")
 fun GradleAndroidModel.format(): String = "\n" + """
     androidProject = ${androidProject.format()}
     selectedMainCompileLevel2Dependencies = ${selectedMainCompileLevel2Dependencies.format()}

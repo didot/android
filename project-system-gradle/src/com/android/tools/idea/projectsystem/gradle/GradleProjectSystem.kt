@@ -262,7 +262,6 @@ private val IdeAndroidArtifact.scopeType: ScopeType
 
 fun createSourceProvidersFromModel(model: GradleAndroidModel): SourceProviders {
   val all =
-    @Suppress("DEPRECATION")
     (
       model.allSourceProviders.associateWith { createIdeaSourceProviderFromModelSourceProvider(it, ScopeType.MAIN) } +
       model.allUnitTestSourceProviders.associateWith { createIdeaSourceProviderFromModelSourceProvider(it, ScopeType.UNIT_TEST) } +
@@ -326,12 +325,11 @@ fun createSourceProvidersFromModel(model: GradleAndroidModel): SourceProviders {
 
   return SourceProvidersImpl(
     mainIdeaSourceProvider = model.defaultSourceProvider.toIdeaSourceProvider(),
-    currentSourceProviders = @Suppress("DEPRECATION") model.activeSourceProviders.map { it.toIdeaSourceProvider() },
-    currentUnitTestSourceProviders = @Suppress("DEPRECATION") model.unitTestSourceProviders.map { it.toIdeaSourceProvider() },
-    currentAndroidTestSourceProviders = @Suppress("DEPRECATION") model.androidTestSourceProviders.map { it.toIdeaSourceProvider() },
-    currentTestFixturesSourceProviders = @Suppress("DEPRECATION") model.testFixturesSourceProviders.map { it.toIdeaSourceProvider() },
-    currentAndSomeFrequentlyUsedInactiveSourceProviders = @Suppress(
-      "DEPRECATION") model.allSourceProviders.map { it.toIdeaSourceProvider() },
+    currentSourceProviders = model.activeSourceProviders.map { it.toIdeaSourceProvider() },
+    currentUnitTestSourceProviders = model.unitTestSourceProviders.map { it.toIdeaSourceProvider() },
+    currentAndroidTestSourceProviders = model.androidTestSourceProviders.map { it.toIdeaSourceProvider() },
+    currentTestFixturesSourceProviders = model.testFixturesSourceProviders.map { it.toIdeaSourceProvider() },
+    currentAndSomeFrequentlyUsedInactiveSourceProviders = model.allSourceProviders.map { it.toIdeaSourceProvider() },
     mainAndFlavorSourceProviders =
     run {
       val flavorNames = model.selectedVariant.productFlavors.toSet()

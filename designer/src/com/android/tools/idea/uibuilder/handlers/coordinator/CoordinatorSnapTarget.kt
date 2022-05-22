@@ -70,7 +70,6 @@ class CoordinatorSnapTarget constructor(type: Type) : BaseTarget(), NonPlacehold
   }
 
   override fun render(list: DisplayList, sceneContext: SceneContext) {
-    @Suppress("ConstantConditionIf")
     if (DEBUG) {
       val color = if (mIsOver) Color.orange else Color.green
       list.addRect(sceneContext, myLeft, myTop, myRight, myBottom, color)

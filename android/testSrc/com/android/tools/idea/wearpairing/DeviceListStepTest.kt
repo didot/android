@@ -176,7 +176,6 @@ class DeviceListStepTest : LightPlatform4TestCase() {
     }
   }
 
-  @Suppress("UnstableApiUsage")
   @Test
   fun listItemShowPlayStoreIcon() {
     val fakeUi = createDeviceListStepUi()

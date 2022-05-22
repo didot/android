@@ -105,10 +105,7 @@ class ResolvedLibraryDependencyNode(
   private fun createChildren(): List<AbstractResolvedDependencyNode<*>> = dependency
     .getTransitiveDependencies()
     .sortedWith(PsDependencyComparator(this.uiSettings))
-    .map { transitiveLibrary ->
-      @Suppress("UNCHECKED_CAST")
-      (ResolvedLibraryDependencyNode(this, transitiveLibrary as PsResolvedLibraryDependency))
-    }
+    .map { transitiveLibrary -> ResolvedLibraryDependencyNode(this, transitiveLibrary) }
 }
 
 class ResolvedJarDependencyNode(

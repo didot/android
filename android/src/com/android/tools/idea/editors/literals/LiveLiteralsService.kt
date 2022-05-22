@@ -1,3 +1,4 @@
+// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.android.tools.idea.editors.literals
 
 import com.android.annotations.concurrency.GuardedBy
@@ -157,7 +158,6 @@ class LiveLiteralsService private constructor(private val project: Project,
     private var showingHighlights = false
     private val outHighlighters = mutableSetOf<RangeHighlighter>()
 
-    @Suppress("IncorrectParentDisposable")
     private fun clearAll() {
       if (project.isDisposed()) return
       val highlightManager = HighlightManager.getInstance(project)

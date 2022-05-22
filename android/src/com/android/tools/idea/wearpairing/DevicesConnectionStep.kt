@@ -827,7 +827,6 @@ private fun createWarningPanel(errorMessage: String, icon: Icon = StudioIcons.Co
 suspend fun <T> Future<T>.await(): T {
   // There is no good way to convert a Java Future to a suspendCoroutine
   if (this is CompletionStage<*>) {
-    @Suppress("UNCHECKED_CAST")
     return this.await()
   }
 
