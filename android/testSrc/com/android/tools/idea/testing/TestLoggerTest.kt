@@ -27,7 +27,7 @@ class TestLoggerTest : UsefulTestCase() {
 
   @Test
   fun testLoggerWritesToLogFile() {
-    val logFile = Paths.get(TestLoggerFactory.getTestLogDir(), "idea.log")
+    val logFile = Paths.get(TestLoggerFactory.getTestLogDir().toString(), "idea.log")
     val before = logFile.readText()
     thisLogger().warn("A sample warning message")
     val after = logFile.readText()
