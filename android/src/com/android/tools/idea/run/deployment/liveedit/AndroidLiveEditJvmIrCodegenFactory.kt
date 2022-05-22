@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.backend.jvm.JvmGeneratorExtensionsImpl
 import org.jetbrains.kotlin.backend.jvm.JvmIrSerializerImpl
 import org.jetbrains.kotlin.backend.jvm.JvmIrTypeSystemContext
 import org.jetbrains.kotlin.backend.jvm.intrinsics.IrIntrinsicMethods
+import org.jetbrains.kotlin.backend.jvm.ir.getIoFile
 import org.jetbrains.kotlin.backend.jvm.ir.getKtFile
 import org.jetbrains.kotlin.backend.jvm.jvmLoweringPhases
 import org.jetbrains.kotlin.backend.jvm.serialization.JvmIdSignatureDescriptor
@@ -260,7 +261,7 @@ open class AndroidLiveEditJvmIrCodegenFactory(
     /* JvmBackendContext creates new unbound symbols, have to resolve them. */
     ExternalDependenciesGenerator(symbolTable, irProviders).generateUnboundSymbolsAsDependencies()
 
-    context.state.factory.registerSourceFiles(irModuleFragment.files.map(IrFile::getKtFile))
+    context.state.factory.registerSourceFiles(irModuleFragment.files.map(IrFile::getIoFile))
 
     phases.invokeToplevel(phaseConfig, context, irModuleFragment)
 

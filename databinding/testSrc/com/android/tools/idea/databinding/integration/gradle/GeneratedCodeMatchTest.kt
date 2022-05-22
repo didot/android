@@ -41,11 +41,6 @@ import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture
 import org.apache.commons.io.FileUtils
-import org.jetbrains.org.objectweb.asm.ClassReader
-import org.jetbrains.org.objectweb.asm.ClassVisitor
-import org.jetbrains.org.objectweb.asm.FieldVisitor
-import org.jetbrains.org.objectweb.asm.MethodVisitor
-import org.jetbrains.org.objectweb.asm.Opcodes
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
@@ -61,7 +56,7 @@ import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 import java.io.File
 import java.io.IOException
-import java.util.*
+import java.util.TreeSet
 import java.util.jar.JarFile
 
 private fun String.pkgToPath(): String {
