@@ -136,8 +136,9 @@ class ProjectDumper(
         val (filePath, suffix) = splitPathAndSuffix()
         val file = File(filePath)
         val existenceSuffix = if (!file.exists()) " [-]" else ""
-        val maskedPath = (if (file.isRooted) filePath.replaceKnownPaths() else filePath) + suffix + existenceSuffix
-        if (IdeInfo.getInstance().isAndroidStudio) maskedPath else convertToMaskedMavenPath(maskedPath)
+        val maskedPath = (if (file.isRooted) filePath.replaceKnownPaths() else filePath)
+        val maskedMavenPath = convertToMaskedMavenPath(maskedPath)
+        (if (file.isRooted) maskedMavenPath.replaceKnownPaths() else maskedMavenPath) + suffix + existenceSuffix
       }
     }
   }
@@ -147,10 +148,16 @@ class ProjectDumper(
     var res = maskedPath
     val gradleFilesPrefix = "<GRADLE>/caches/modules-2/files-2.1/"
     if (res.startsWith(gradleFilesPrefix)) {
-      val pkgEndIndex = res.indexOf('/', gradleFilesPrefix.length)
-      val pkg = res.substring(gradleFilesPrefix.length, pkgEndIndex)
-      val remaining = res.substring(pkgEndIndex).replace("/$gradleLongHashStub/", "/")
-      res = "<M2>/" + pkg.replace('.', '/') + remaining
+      val parts = res.substringAfter(gradleFilesPrefix).split("/");
+
+      val pkg = parts[0]
+      val artifact = parts[1]
+      val version = parts[2]
+      // parts[3] - gradle SHA
+      val jarFile = parts[4]
+      assert(jarFile.startsWith("$artifact-$version.")) { "\"$jarFile\" should start with \"$artifact-$version.\"" }
+
+      res = "<M2>/${pkg.replace('.', '/')}/${artifact}/${version}/${jarFile}"
     }
     return res
   }
