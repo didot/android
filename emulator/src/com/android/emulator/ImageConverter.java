@@ -105,7 +105,9 @@ public class ImageConverter {
     String libName = getLibName();
     Path homePath = Paths.get(PathManager.getHomePath());
     // Installed Studio.
-    Path libFile = homePath.resolve("plugins/android/resources/native").resolve(libName);
+    Path libFile = homePath.resolve("plugins/android/resources/native")
+      .resolve(getPlatformName())
+      .resolve(libName);
     if (Files.exists(libFile)) {
       return libFile;
     }
