@@ -74,7 +74,7 @@ class FragmentHandlerTest : LayoutTestCase() {
     val tag = XmlElementFactory.getInstance(getProject()).createTagFromText(
         "    <fragment\n" +
         "        android:id=\"@+id/fragment\"\n" +
-        "        android:name=\"androidx.navigation.fragment.NavHostFragment\"\n/>");
+        "        android:name=\"androidx.navigation.fragment.NavHostFragment\"\n/>")
 
     mockStatic<ViewEditor>(testRootDisposable).whenever<String> {
       ViewEditor.displayResourceInput(eq(model), eq("Navigation Graphs"), eq(EnumSet.of(ResourceType.NAVIGATION)))

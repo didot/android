@@ -85,7 +85,7 @@ class VariablesTableTest : AndroidGradleTestCase() {
   }
 
   override fun tearDown() {
-    TestDialogManager.setTestDialog(defaultTestDialog);
+    TestDialogManager.setTestDialog(defaultTestDialog)
     super.tearDown()
   }
 
