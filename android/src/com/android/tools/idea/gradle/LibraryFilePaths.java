@@ -29,13 +29,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class LibraryFilePaths {
   // Key: libraryId, Value: ExtraArtifactsPaths for the library.
-  @NotNull private final Map<String, ArtifactPaths> myPathsMap = new HashMap<>();
+  @NotNull private final Map<String, ArtifactPaths> myPathsMap = new ConcurrentHashMap<>();
 
   // for 2019-05 gradle cache layout
   private static final Pattern gradleCachePattern = Pattern.compile("^[a-f0-9]{30,48}$");
