@@ -60,7 +60,6 @@ import org.jetbrains.plugins.groovy.lang.psi.GroovyPsiElement
 import org.jetbrains.plugins.groovy.lang.psi.GroovyRecursiveElementVisitor
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.GrMethodCall
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.literals.GrLiteral
-
 /**
  * This class and its methods attempt to answer the question of whether a given (Gradle-based) project uses the Version Catalog
  * feature, introduced as experimental in Gradle version 7.0 and made stable in version 7.4.  (Once Studio support for Version Catalogs
@@ -80,7 +79,6 @@ class GradleVersionCatalogDetector(private val project: Project): Disposable {
 
   private val fileDocumentManager = FileDocumentManager.getInstance()
   init {
-    ApplicationManager.getApplication().assertReadAccessAllowed()
     val documentListener = object : DocumentListener {
       override fun documentChanged(event: DocumentEvent) {
         if (_gradleVersion == null && _settingsVisitorResults == null) return
@@ -93,7 +91,9 @@ class GradleVersionCatalogDetector(private val project: Project): Disposable {
         }
       }
     }
-    EditorFactory.getInstance().eventMulticaster.addDocumentListener(documentListener, this)
+    runReadAction {
+      EditorFactory.getInstance().eventMulticaster.addDocumentListener(documentListener, this)
+    }
   }
 
   companion object {
