@@ -69,7 +69,7 @@ class GradleDefaultBlockModels : BlockModelProvider<GradleBuildModel, GradleDslF
       },
 
       BuildScriptModel::class.java from {
-        BuildScriptModelImpl(it.ensurePropertyElement(BuildScriptDslElement.BUILDSCRIPT))
+        BuildScriptModelImpl(it.ensurePropertyElementAt(BuildScriptDslElement.BUILDSCRIPT, 0))
       },
 
       ConfigurationsModel::class.java from {
