@@ -81,6 +81,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.event.CaretEvent
@@ -1079,7 +1080,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     }
 
     refreshJob.invokeOnCompletion {
-      Disposer.dispose(refreshProgressIndicator)
+      invokeLater { Disposer.dispose(refreshProgressIndicator) }
     }
 
     return refreshJob
