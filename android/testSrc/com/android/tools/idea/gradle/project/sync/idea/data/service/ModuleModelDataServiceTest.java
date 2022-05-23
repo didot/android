@@ -33,10 +33,10 @@ public class ModuleModelDataServiceTest extends AndroidGradleTestCase {
     );
 
     List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(getProject()).getFacets(AndroidFacet.ID);
-    assertEquals(2, androidFacets.size());
+    assertEquals(8, androidFacets.size());
 
     List<GradleFacet> androidGradleFacets = ProjectFacetManager.getInstance(getProject()).getFacets(GradleFacet.getFacetTypeId());
-    assertEquals(2, androidGradleFacets.size());
+    assertEquals(8, androidGradleFacets.size());
 
     List<JavaFacet> androidJavaFacets = ProjectFacetManager.getInstance(getProject()).getFacets(JavaFacet.getFacetTypeId());
     assertEquals(2, androidJavaFacets.size());
@@ -64,10 +64,10 @@ public class ModuleModelDataServiceTest extends AndroidGradleTestCase {
     );
 
     List<AndroidFacet> androidFacets = ProjectFacetManager.getInstance(getProject()).getFacets(AndroidFacet.ID);
-    assertEquals(2, androidFacets.size());
+    assertEquals(8, androidFacets.size());
 
     List<GradleFacet> androidGradleFacets = ProjectFacetManager.getInstance(getProject()).getFacets(GradleFacet.getFacetTypeId());
-    assertEquals(2, androidGradleFacets.size());
+    assertEquals(8, androidGradleFacets.size());
 
     List<JavaFacet> androidJavaFacets = ProjectFacetManager.getInstance(getProject()).getFacets(JavaFacet.getFacetTypeId());
     assertEquals(2, androidJavaFacets.size());
