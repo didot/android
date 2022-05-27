@@ -64,7 +64,7 @@ class VariablesTableTest : AndroidGradleTestCase() {
     override val libraryUpdateCheckerDaemon: PsLibraryUpdateCheckerDaemon get() = throw UnsupportedOperationException()
     override val sdkIndexCheckerDaemon: PsSdkIndexCheckerDaemon get() =  throw UnsupportedOperationException()
     override val uiSettings: PsUISettings get() = throw UnsupportedOperationException()
-    override val selectedModule: String? get() = throw UnsupportedOperationException()
+    override val selectedModule: String get() = throw UnsupportedOperationException()
     override val mainConfigurable: ProjectStructureConfigurable get() = throw UnsupportedOperationException()
     override fun getArtifactRepositorySearchServiceFor(module: PsModule): ArtifactRepositorySearchService = throw UnsupportedOperationException()
     override fun setSelectedModule(gradlePath: String, source: Any) = throw UnsupportedOperationException()
@@ -891,7 +891,7 @@ class VariablesTableTest : AndroidGradleTestCase() {
   }
 }
 
-private val DefaultMutableTreeNode.appModuleChild: Any?
+private val DefaultMutableTreeNode.appModuleChild: ModuleNode
   get() = children().asSequence().find { it.toString() == ":app" } as ModuleNode
 
 private fun PsProject.applyAllChanges() {

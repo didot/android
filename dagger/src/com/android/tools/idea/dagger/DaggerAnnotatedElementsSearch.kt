@@ -262,7 +262,7 @@ private fun createTypeFromCanonicalText(
 }
 
 
-private fun KotlinType.toPsi(context: PsiElement): PsiType? {
+private fun KotlinType.toPsi(context: PsiElement): PsiType {
   val notNullableType = makeNotNullable()
 
   // Extracted from ultraLightUtils.kt#KtUltraLightSupport.mapType

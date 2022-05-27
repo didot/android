@@ -315,7 +315,7 @@ class KotlinDslParser(
 
   override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression, parent: GradlePropertiesDslElement) {
 
-    fun parentBlockFromReceiver(receiver: KtExpression): GradlePropertiesDslElement? {
+    fun parentBlockFromReceiver(receiver: KtExpression): GradlePropertiesDslElement {
       var current = parent
       receiver.accept(object : KtTreeVisitorVoid() {
         override fun visitReferenceExpression(expression: KtReferenceExpression) {
@@ -338,10 +338,6 @@ class KotlinDslParser(
     when (val selector = expression.selectorExpression) {
       is KtCallExpression -> {
         val parentBlock = parentBlockFromReceiver(receiver)
-        if (parentBlock == null) {
-          super.visitDotQualifiedExpression(expression, parent)
-          return
-        }
         visitCallExpression(selector, parentBlock)
       }
       else -> super.visitDotQualifiedExpression(expression, parent)
@@ -353,7 +349,7 @@ class KotlinDslParser(
     psiElement: PsiElement,
     name: GradleNameElement,
     expression: KtDotQualifiedExpression
-  ) : GradleDslExpression? {
+  ) : GradleDslExpression {
     val receiver = expression.receiverExpression
     val selector = expression.selectorExpression
     when (selector) {
@@ -726,7 +722,7 @@ class KotlinDslParser(
   private fun getClosureBlock(
     parentElement: GradleDslElement, closableBlock : KtBlockExpression, propertyName: GradleNameElement) : GradleDslClosure {
     val closureElement = GradleDslClosure(parentElement, closableBlock, propertyName)
-    closableBlock.statements?.requireNoNulls()?.forEach {
+    closableBlock.statements.requireNoNulls().forEach {
       it.accept(this, closureElement)
     }
     return closureElement
