@@ -155,7 +155,7 @@ fun ProjectDumper.dump(module: Module) {
     val moduleRootModel = moduleRootManager as ModuleRootModel
     moduleRootModel.contentEntries.forEach { dump(it) }
     val sourceFolderManager = SourceFolderManager.getInstance(module.project) as SourceFolderManagerImpl
-    val sourceFolders = sourceFolderManager.state?.sourceFolders?.filter { it.moduleName == module.name }.orEmpty()
+    val sourceFolders = sourceFolderManager.state.sourceFolders.filter { it.moduleName == module.name }
     sourceFolders.sortedBy { it.url.toPrintablePath() }.forEach {
       dump(it)
     }
