@@ -21,6 +21,7 @@ import com.android.ide.common.resources.Locale;
 import com.android.ide.common.resources.LocaleManager;
 import com.android.ide.common.resources.configuration.FolderConfiguration;
 import com.android.ide.common.resources.configuration.LocaleQualifier;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.SimpleListCellRenderer;
@@ -173,6 +174,7 @@ public class FlagManager {
         // This shouldn't happen in production, but IconLoader.findIcon can throw exceptions
         // when IconLoader.STRICT is set to true, which is the case when running unit tests
         // or with idea.is.internal=true
+        Logger.getInstance(FlagManager.class).error(t);
       }
       if (flagImage == null) {
         flagImage = StudioIcons.LayoutEditor.Toolbar.EMPTY_FLAG;
