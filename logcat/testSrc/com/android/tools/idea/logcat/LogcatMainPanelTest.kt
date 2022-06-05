@@ -38,6 +38,8 @@ import com.android.tools.idea.concurrency.AndroidExecutors
 import com.android.tools.idea.concurrency.waitForCondition
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.logcat.LogcatPanelConfig.FormattingConfig
+import com.android.tools.idea.logcat.devices.Device
+import com.android.tools.idea.logcat.actions.PopupActionGroupAction
 import com.android.tools.idea.logcat.filters.AndroidLogcatFilterHistory
 import com.android.tools.idea.logcat.filters.LogcatFilterField.IMPLICIT_LINE
 import com.android.tools.idea.logcat.filters.LogcatFilterField.LINE
@@ -51,6 +53,7 @@ import com.android.tools.idea.logcat.messages.FormattingOptions.Style.COMPACT
 import com.android.tools.idea.logcat.messages.FormattingOptions.Style.STANDARD
 import com.android.tools.idea.logcat.messages.LogcatColors
 import com.android.tools.idea.logcat.messages.TagFormat
+import com.android.tools.idea.logcat.service.LogcatService
 import com.android.tools.idea.logcat.settings.AndroidLogcatSettings
 import com.android.tools.idea.logcat.testing.TestDevice
 import com.android.tools.idea.logcat.testing.setDevices
@@ -91,14 +94,16 @@ import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.tools.SimpleActionGroup
 import com.intellij.util.ConcurrencyUtil
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import java.awt.BorderLayout
 import java.awt.BorderLayout.CENTER
 import java.awt.BorderLayout.NORTH
@@ -147,23 +152,37 @@ class LogcatMainPanelTest {
   @RunsInEdt
   @Test
   fun createsComponents() {
-    val logcatMainPanel = logcatMainPanel()
+    // In prod, splitter actions are provided by the Splitting Tabs component. In tests, we create a stand-in
+    val splitterActions = SimpleActionGroup().apply {
+      add(object : AnAction("Splitter Action") {
+        override fun actionPerformed(e: AnActionEvent) {}
+      })
+    }
+
+    val logcatMainPanel = logcatMainPanel(splitterPopupActionGroup = splitterActions)
 
     val borderLayout = logcatMainPanel.layout as BorderLayout
-
     assertThat(logcatMainPanel.componentCount).isEqualTo(3)
     assertThat(borderLayout.getLayoutComponent(NORTH)).isInstanceOf(LogcatHeaderPanel::class.java)
     assertThat(borderLayout.getLayoutComponent(CENTER)).isSameAs(logcatMainPanel.editor.component)
     assertThat(borderLayout.getLayoutComponent(WEST)).isInstanceOf(ActionToolbar::class.java)
     val toolbar = borderLayout.getLayoutComponent(WEST) as ActionToolbar
-    assertThat(toolbar.actions.map { if (it is Separator) "-" else it.templatePresentation.text }).containsExactly(
+    assertThat(toolbar.actions.mapToStrings()).containsExactly(
       "Clear Logcat",
+      "Restart Logcat",
       "Scroll to the End (clicking on a particular line stops scrolling and keeps that line visible)",
       "Previous Occurrence",
       "Next Occurrence",
       "Soft-Wrap",
       "-",
       "Configure Logcat Formatting Options",
+      "  Standard View",
+      "  Compact View",
+      "  -",
+      "  Modify Views",
+      "-",
+      "Split Panels",
+      "  Splitter Action",
       "-",
       "Screen Capture",
       "Screen Record",
@@ -277,12 +296,13 @@ class LogcatMainPanelTest {
   @RunsInEdt
   @Test
   fun installPopupHandler() {
-    val popupActionGroup = SimpleActionGroup().apply {
-      add(object : AnAction("An Action") {
+    // In prod, splitter actions are provided by the Splitting Tabs component. In tests, we create a stand-in
+    val splitterActions = SimpleActionGroup().apply {
+      add(object : AnAction("Splitter Action") {
         override fun actionPerformed(e: AnActionEvent) {}
       })
     }
-    val logcatMainPanel = logcatMainPanel(popupActionGroup = popupActionGroup).apply {
+    val logcatMainPanel = logcatMainPanel(splitterPopupActionGroup = splitterActions).apply {
       size = Dimension(100, 100)
       editor.document.setText("foo") // put some text so 'Fold Lines Like This' is enabled
     }
@@ -298,7 +318,7 @@ class LogcatMainPanelTest {
       "Copy",
       "Fold Lines Like This",
       "-",
-      "An Action",
+      "Splitter Action",
       "-",
       "Clear Logcat",
     )
@@ -354,7 +374,7 @@ class LogcatMainPanelTest {
     fakeAdbLibSession.hostServices.setDevices(testDevice)
     val logcatMainPanel = runInEdtAndGet {
       logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceManager != null }
+        waitForCondition(TIMEOUT_SEC, SECONDS) { it.getConnectedDevice() != null }
         it.editor.document.setText("not-empty")
       }
     }
@@ -379,7 +399,7 @@ class LogcatMainPanelTest {
 
     val logcatMainPanel = runInEdtAndGet {
       logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceManager != null }
+        waitForCondition(TIMEOUT_SEC, SECONDS) { it.getConnectedDevice() != null }
         it.editor.document.setText("not-empty")
       }
     }
@@ -400,10 +420,10 @@ class LogcatMainPanelTest {
     fakeAdbLibSession.hostServices.setDevices(testDevice)
     val logcatMainPanel = runInEdtAndGet {
       logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceManager != null }
+        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceContext.selectedDevice != null }
       }
     }
-    assertThat(logcatMainPanel.deviceManager?.device).isEqualTo(device)
+    assertThat(logcatMainPanel.deviceContext.selectedDevice).isEqualTo(device)
   }
 
   @Test
@@ -415,10 +435,10 @@ class LogcatMainPanelTest {
     fakeAdbLibSession.hostServices.setDevices(testDevice)
     val logcatMainPanel = runInEdtAndGet {
       logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceManager != null }
+        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceContext.selectedDevice != null }
       }
     }
-    assertThat(logcatMainPanel.deviceManager?.device).isEqualTo(device)
+    assertThat(logcatMainPanel.deviceContext.selectedDevice).isEqualTo(device)
   }
 
   @Test
@@ -430,10 +450,10 @@ class LogcatMainPanelTest {
     fakeAdbLibSession.hostServices.setDevices(testDevice)
     val logcatMainPanel = runInEdtAndGet {
       logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceManager != null }
+        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceContext.selectedDevice != null }
       }
     }
-    assertThat(logcatMainPanel.deviceManager?.device).isEqualTo(device)
+    assertThat(logcatMainPanel.deviceContext.selectedDevice).isEqualTo(device)
   }
 
   @Test
@@ -445,10 +465,10 @@ class LogcatMainPanelTest {
     fakeAdbLibSession.hostServices.setDevices(testDevice)
     val logcatMainPanel = runInEdtAndGet {
       logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceManager != null }
+        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceContext.selectedDevice != null }
       }
     }
-    assertThat(logcatMainPanel.deviceManager?.device).isEqualTo(device)
+    assertThat(logcatMainPanel.deviceContext.selectedDevice).isEqualTo(device)
   }
 
   /**
@@ -944,7 +964,7 @@ class LogcatMainPanelTest {
   }
 
   private fun logcatMainPanel(
-    popupActionGroup: ActionGroup = EMPTY_GROUP,
+    splitterPopupActionGroup: ActionGroup = EMPTY_GROUP,
     logcatColors: LogcatColors = LogcatColors(),
     state: LogcatPanelConfig? = LogcatPanelConfig(device = null, FormattingConfig.Preset(STANDARD), filter = "", isSoftWrap = false),
     logcatSettings: AndroidLogcatSettings = AndroidLogcatSettings(),
@@ -958,7 +978,7 @@ class LogcatMainPanelTest {
   ) =
     LogcatMainPanel(
       projectRule.project,
-      popupActionGroup,
+      splitterPopupActionGroup,
       logcatColors,
       state,
       logcatSettings,
@@ -967,20 +987,12 @@ class LogcatMainPanelTest {
       foldingDetector,
       packageNamesProvider,
       adbAdapter,
-      { logcatPresenter, iDevice -> FakeLogcatDeviceManager(iDevice, logcatPresenter, packageNamesProvider) },
       adbSession,
+      FakeLogcatService(),
       zoneId,
     ).also {
       Disposer.register(projectRule.project, it)
     }
-
-  private class FakeLogcatDeviceManager(
-    device: IDevice,
-    logcatPresenter: LogcatPresenter,
-    packageNamesProvider: PackageNamesProvider,
-  ) : LogcatDeviceManager(device, logcatPresenter, packageNamesProvider) {
-    override fun clearLogcat() {}
-  }
 }
 
 private fun LogCatMessage.length() = FormattingOptions().getHeaderWidth() + message.length
@@ -996,4 +1008,22 @@ private fun mockDevice(serialNumber: String, avdName: String = ""): IDevice {
     `when`(it.version).thenReturn(AndroidVersion(30))
     `when`(it.avdData).thenReturn(immediateFuture(AvdData(avdName, avdName)))
   }
+}
+
+private class FakeLogcatService : LogcatService {
+  override suspend fun readLogcat(device: Device): Flow<List<LogCatMessage>> = flowOf(emptyList())
+
+  override suspend fun clearLogcat(device: Device) {
+  }
+
+}
+
+private fun List<AnAction>.mapToStrings(indent: String = ""): List<String> {
+  return flatMap {
+    when (it) {
+      is Separator -> listOf("-")
+      is PopupActionGroupAction -> listOf(it.templateText) + it.getPopupActions().mapToStrings("$indent  ")
+      else -> listOf(it.templateText ?: "null")
+    }
+  }.map { "$indent$it" }
 }

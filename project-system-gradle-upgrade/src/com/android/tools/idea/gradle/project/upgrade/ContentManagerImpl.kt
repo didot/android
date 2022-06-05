@@ -32,6 +32,7 @@ import com.android.tools.adtui.stdui.KeyStrokes
 import com.android.tools.adtui.stdui.registerActionKey
 import com.android.tools.idea.gradle.plugin.AndroidPluginInfo
 import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider
+import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.GradleSyncListener
 import com.android.tools.idea.gradle.project.sync.GradleSyncState
 import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentRefactoringProcessor.BlockReason
@@ -39,8 +40,13 @@ import com.android.tools.idea.gradle.repositories.IdeGoogleMavenRepository
 import com.android.tools.idea.observable.ListenerManager
 import com.android.tools.idea.observable.core.ObjectValueProperty
 import com.android.tools.idea.observable.core.OptionalValueProperty
+import com.google.wireless.android.sdk.stats.GradleSyncStats
 import com.google.wireless.android.sdk.stats.UpgradeAssistantEventInfo
 import com.intellij.build.BuildContentManager
+import com.intellij.history.Label
+import com.intellij.history.LocalHistory
+import com.intellij.history.integration.LocalHistoryImpl
+import com.intellij.history.integration.ui.views.DirectoryHistoryDialog
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI
@@ -58,6 +64,7 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.ComponentValidator
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.ThrowableComputable
 import com.intellij.openapi.wm.RegisterToolWindowTask
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.CheckboxTree
@@ -65,6 +72,7 @@ import com.intellij.ui.CheckboxTreeHelper
 import com.intellij.ui.CheckboxTreeListener
 import com.intellij.ui.CheckedTreeNode
 import com.intellij.ui.DocumentAdapter
+import com.intellij.ui.HyperlinkLabel
 import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.SideBorder
 import com.intellij.ui.SimpleTextAttributes
@@ -95,7 +103,7 @@ import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreeSelectionModel
 
-private val LOG = Logger.getInstance("Upgrade Assistant")
+private val LOG = Logger.getInstance(LOG_CATEGORY)
 
 // "Model" here loosely in the sense of Model-View-Controller
 class ToolWindowModel(
@@ -113,6 +121,7 @@ class ToolWindowModel(
   val selectedVersion: GradleVersion?
     get() = _selectedVersion
   var processor: AgpUpgradeRefactoringProcessor? = null
+  var beforeUpgradeFilesStateLabel: Label? = null
 
   val uiState = ObjectValueProperty<UIState>(UIState.Loading)
 
@@ -147,6 +156,7 @@ class ToolWindowModel(
     override fun equals(other: Any?): Boolean {
       if (this === other) return true
       if (other !is UIState) return false
+      if (other::class !== this::class) return false
 
       if (controlsEnabledState != other.controlsEnabledState) return false
       if (layoutState != other.layoutState) return false
@@ -194,6 +204,12 @@ class ToolWindowModel(
       override val runTooltip = ""
       override val loadingText = "Running Sync"
     }
+    object RunningUpgradeSync : UIState() {
+      override val controlsEnabledState = ControlsEnabledState.NEITHER
+      override val layoutState = LayoutState.LOADING
+      override val runTooltip = ""
+      override val loadingText = "Running Sync"
+    }
     object AllDone : UIState() {
       override val controlsEnabledState = ControlsEnabledState.NO_RUN
       override val layoutState = LayoutState.HIDE_TREE
@@ -224,7 +240,7 @@ class ToolWindowModel(
       override val runTooltip: String
         get() = statusMessage.text
     }
-    class SyncFailed(
+    class UpgradeSyncFailed(
       val errorMessage: String
     ): UIState() {
       override val controlsEnabledState = ControlsEnabledState.NEITHER
@@ -232,6 +248,11 @@ class ToolWindowModel(
       override val statusMessage: StatusMessage = StatusMessage(Severity.ERROR, errorMessage.lines().first())
       override val runTooltip: String
         get() = statusMessage.text
+    }
+    object UpgradeSyncSucceeded : UIState() {
+      override val controlsEnabledState = ControlsEnabledState.NEITHER
+      override val layoutState = LayoutState.HIDE_TREE
+      override val runTooltip = ""
     }
 
     enum class ControlsEnabledState(val runEnabled: Boolean, val showPreviewEnabled: Boolean, val comboEnabled: Boolean) {
@@ -297,6 +318,8 @@ class ToolWindowModel(
     }
   }
 
+  private var processorRequestedSync: Boolean = false
+
   init {
     Disposer.register(project, this)
     refresh()
@@ -315,15 +338,20 @@ class ToolWindowModel(
     })
   }
 
-  override fun syncStarted(project: Project) = uiState.set(UIState.RunningSync)
+  override fun syncStarted(project: Project) =
+    when(processorRequestedSync) {
+      true -> uiState.set(UIState.RunningUpgradeSync)
+      false -> uiState.set(UIState.RunningSync)
+    }
   override fun syncFailed(project: Project, errorMessage: String) = syncFinished(success = false, errorMessage = errorMessage)
   override fun syncSucceeded(project: Project) = syncFinished()
   override fun syncSkipped(project: Project) = syncFinished()
 
   private fun syncFinished(success: Boolean = true, errorMessage: String = "") {
-    when (success) {
-      true -> uiState.set(UIState.Loading).also { refresh(true) }
-      false -> uiState.set(UIState.SyncFailed(errorMessage))
+    when {
+      !processorRequestedSync -> uiState.set(UIState.Loading).also { refresh(true) }
+      success -> uiState.set(UIState.UpgradeSyncSucceeded).also { processorRequestedSync = false }
+      else -> uiState.set(UIState.UpgradeSyncFailed(errorMessage)).also { processorRequestedSync = false }
     }
   }
 
@@ -403,9 +431,13 @@ class ToolWindowModel(
     }
     else {
       newProcessor.showBuildOutputOnSyncFailure = false
+      newProcessor.syncRequestCallback = { processorRequestedSync = true }
+      newProcessor.previewExecutedCallback = {
+        ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)?.run { if (isAvailable) show() }
+      }
       newProcessor.backFromPreviewAction = object : AbstractAction(UIUtil.replaceMnemonicAmpersand("&Back")) {
         override fun actionPerformed(e: ActionEvent?) {
-          ToolWindowManager.getInstance(project).getToolWindow("Upgrade Assistant")?.run { if (isAvailable) show() }
+          ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)?.run { if (isAvailable) show() }
         }
       }
       val application = ApplicationManager.getApplication()
@@ -483,22 +515,45 @@ class ToolWindowModel(
     processor.componentRefactoringProcessors.forEach { it.isEnabled = false }
     processorsForCheckedPresentations().forEach { it.isEnabled = true }
 
+    val runnable = {
+      try {
+        beforeUpgradeFilesStateLabel = LocalHistory.getInstance().putSystemLabel(project, "Before upgrade to ${processor.new}")
+        processor.run()
+      }
+      catch (e: Exception) {
+        processor.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.INTERNAL_ERROR)
+        uiState.set(UIState.CaughtException(StatusMessage(Severity.ERROR, e.message ?: "Unknown error")))
+      }
+    }
+
     if (ApplicationManager.getApplication().isUnitTestMode) {
-      processor.run()
+      runnable.invoke()
     }
     else {
       DumbService.getInstance(processor.project).smartInvokeLater {
-        //TODO (mlazeba/xof): usages view run button should set our state to running again.
         processor.usageView?.close()
         processor.setPreviewUsages(showPreview)
-        try {
-          processor.run()
-        }
-        catch(e: Exception) {
-          processor.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.INTERNAL_ERROR)
-          uiState.set(UIState.CaughtException(StatusMessage(Severity.ERROR, e.message ?: "Unknown error")))
-        }
+        runnable.invoke()
       }
+    }
+  }
+
+  fun runRevert() {
+    try {
+      val rollback = {
+        // TODO (mlazeba/xof): baseDir is deprecated, how can we avoid it here?
+        beforeUpgradeFilesStateLabel!!.revert(project, project.getBaseDir())
+      }
+      ProgressManager.getInstance()
+        .runProcessWithProgressSynchronously(rollback, "Revert to pre-upgrade state\u2026", true, project)
+      // TODO (b/234575703): add separate trigger for revert
+      GradleSyncInvoker.getInstance()
+        .requestProjectSync(project, GradleSyncInvoker.Request(GradleSyncStats.Trigger.TRIGGER_MODIFIER_ACTION_UNDONE))
+    }
+    catch (e: Exception) {
+      uiState.set(UIState.CaughtException(StatusMessage(Severity.ERROR, e.message ?: "Unknown error during revert.")))
+      processor?.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.INTERNAL_ERROR)
+      LOG.error("Error during revert.", e)
     }
   }
 
@@ -599,13 +654,13 @@ class ContentManagerImpl(val project: Project): ContentManager {
       // Force EDT here to ease the testing (see com.intellij.ide.plugins.CreateAllServicesAndExtensionsAction: it instantiates services
       //  on a background thread). There is no performance penalties when already invoked on EDT.
       ToolWindowManager.getInstance(project).registerToolWindow(
-        RegisterToolWindowTask.closable("Upgrade Assistant", icons.GradleIcons.ToolWindowGradle)
+        RegisterToolWindowTask.closable(TOOL_WINDOW_ID, icons.GradleIcons.ToolWindowGradle)
       )
     }
   }
 
   override fun showContent(recommended: GradleVersion?) {
-    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Upgrade Assistant")!!
+    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)!!
     toolWindow.contentManager.removeAllContents(true)
     val model = ToolWindowModel(
       project, currentVersionProvider = { AndroidPluginInfo.find(project)?.pluginVersion }, recommended = recommended
@@ -855,7 +910,7 @@ class ContentManagerImpl(val project: Project): ContentManager {
           label.text = sb.toString()
           detailsPanel.add(label)
         }
-        uiState is ToolWindowModel.UIState.SyncFailed -> {
+        uiState is ToolWindowModel.UIState.UpgradeSyncFailed -> {
           val sb = StringBuilder()
           sb.append("<div><b>Sync Failed</b></div>")
           sb.append("<p>The project failed to sync with the IDE.  ")
@@ -881,6 +936,24 @@ class ContentManagerImpl(val project: Project): ContentManager {
             }
           }
           detailsPanel.add(label)
+          detailsPanel.addRevertInfo(markRevertAsDefault = true)
+        }
+        uiState is ToolWindowModel.UIState.UpgradeSyncSucceeded -> {
+          val sb = StringBuilder()
+          sb.append("<div><b>Sync succeeded</b></div>")
+          sb.append("<p>The upgraded project successfully synced with the IDE.  ")
+          sb.append("You should test that the upgraded project builds and passes its tests successfully before making further changes.</p>")
+          model.processor?.let { processor ->
+            sb.append("<p>The upgrade consisted of the following steps:</p>")
+            sb.append("<ul>")
+            processor.componentRefactoringProcessors.filter { it.isEnabled }.forEach {
+              sb.append("<li>${it.commandName}</li>")
+            }
+            sb.append("</ul>")
+          }
+          label.text = sb.toString()
+          detailsPanel.add(label)
+          detailsPanel.addRevertInfo(markRevertAsDefault = false)
         }
         uiState is ToolWindowModel.UIState.AllDone -> {
           val sb = StringBuilder()
@@ -945,6 +1018,27 @@ class ContentManagerImpl(val project: Project): ContentManager {
       detailsPanel.revalidate()
       detailsPanel.repaint()
     }
+
+    private fun JBPanel<JBPanel<*>>.addRevertInfo(markRevertAsDefault: Boolean) {
+      val revertButton = JButton("Revert Project Files").apply {
+        name = "revert project button"
+        toolTipText = "Revert all project files to a state recorded just before running last upgrade."
+        putClientProperty(DarculaButtonUI.DEFAULT_STYLE_KEY, markRevertAsDefault)
+        addActionListener { this@View.model.runRevert() }
+      }
+      val localHistoryLine = HyperlinkLabel().apply {
+        name = "open local history link"
+        setTextWithHyperlink("You can review the applied changes in <hyperlink>'Local History' dialog</hyperlink>.")
+        addHyperlinkListener {
+          val ideaGateway = LocalHistoryImpl.getInstanceImpl().getGateway()
+          // TODO (mlazeba/xof): baseDir is deprecated, how can we avoid it here? might be better to show RecentChangeDialog instead
+          val dialog = DirectoryHistoryDialog(this@View.model.project, ideaGateway, this@View.model.project.baseDir)
+          dialog.show()
+        }
+      }
+      add(localHistoryLine)
+      add(revertButton)
+    }
   }
 
   private class UpgradeAssistantTreeCellRenderer : CheckboxTree.CheckboxTreeCellRenderer(true, true) {
@@ -1002,6 +1096,8 @@ class ContentManagerImpl(val project: Project): ContentManager {
     }
   }
 }
+
+const val TOOL_WINDOW_ID = "Upgrade Assistant"
 
 private fun AgpUpgradeRefactoringProcessor.activeComponentsForNecessity(necessity: AgpUpgradeComponentNecessity) =
   this.componentRefactoringProcessorsWithAgpVersionProcessorLast

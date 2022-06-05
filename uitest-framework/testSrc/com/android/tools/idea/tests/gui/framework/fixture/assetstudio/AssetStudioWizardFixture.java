@@ -30,10 +30,12 @@ import com.intellij.ui.components.fields.ExtendableTextField;
 import javax.swing.text.JTextComponent;
 import org.fest.swing.core.matcher.JTextComponentMatcher;
 import org.fest.swing.fixture.JButtonFixture;
+import org.fest.swing.fixture.JComboBoxFixture;
 import org.fest.swing.fixture.JRadioButtonFixture;
 import org.fest.swing.fixture.JSliderFixture;
 import org.fest.swing.fixture.JTextComponentFixture;
 import org.fest.swing.timing.Wait;
+import org.jetbrains.android.actions.widgets.SourceSetItem;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -144,6 +146,15 @@ public class AssetStudioWizardFixture extends AbstractWizardFixture<AssetStudioW
     ColorPickerDialogFixture.find(robot())
       .setHexColor(hexColor)
       .clickChoose();
+    return this;
+  }
+
+  @NotNull
+  public AssetStudioWizardFixture selectResFolder(@NotNull String resFolder) {
+    JComboBoxFixture comboBoxFixture =
+      new JComboBoxFixture(robot(), GuiTests.waitUntilShowing(robot(), target(), Matchers.byType(JComboBox.class)));
+    comboBoxFixture.replaceCellReader((comboBox, index) -> ((SourceSetItem)comboBox.getItemAt(index)).getSourceSetName());
+    comboBoxFixture.selectItem(resFolder);
     return this;
   }
 

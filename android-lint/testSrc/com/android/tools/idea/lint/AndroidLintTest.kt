@@ -86,6 +86,7 @@ import com.android.tools.idea.lint.inspections.AndroidLintMotionSceneFileValidat
 import com.android.tools.idea.lint.inspections.AndroidLintNetworkSecurityConfigInspection
 import com.android.tools.idea.lint.inspections.AndroidLintNewApiInspection
 import com.android.tools.idea.lint.inspections.AndroidLintNonResizeableActivityInspection
+import com.android.tools.idea.lint.inspections.AndroidLintNotificationPermissionInspection
 import com.android.tools.idea.lint.inspections.AndroidLintObsoleteLayoutParamInspection
 import com.android.tools.idea.lint.inspections.AndroidLintObsoleteSdkIntInspection
 import com.android.tools.idea.lint.inspections.AndroidLintOldTargetApiInspection
@@ -626,6 +627,27 @@ class AndroidLintTest : AndroidTestCase() {
       "/src/p1/p2/LocationTest.kt", "kt")
   }
 
+  fun testNotificationPermission() {
+    val manifest = myFixture.addFileToProject("AndroidManifest.xml", """
+      <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="p1.p2">
+          <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="33" />
+          <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+      </manifest>
+      """.trimIndent())
+    doTestWithFix(
+      AndroidLintNotificationPermissionInspection(),
+      "Add Permission POST_NOTIFICATIONS",
+      "/src/test/pkg/notificationPermission.kt", "kt")
+    val updatedManifest = manifest.text
+    assertEquals("""
+      <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="p1.p2">
+          <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="33" />
+          <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+          <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+      </manifest>
+    """.trimIndent(), updatedManifest)
+  }
+
   fun testUselessLeaf() {
     doTestWithFix(AndroidLintUselessLeafInspection(),
                   AndroidLintBundle.message("android.lint.fix.remove.unnecessary.view"),
@@ -1058,7 +1080,9 @@ class AndroidLintTest : AndroidTestCase() {
     val proguardCfgPath = myFixture.copyFileToProject("$globalTestDir/proguard.cfg", "proguard.cfg")
     myFacet.properties.RUN_PROGUARD = true
     myFacet.properties.myProGuardCfgFiles = listOf(proguardCfgPath.url)
+/* b/233921381
     doGlobalInspectionTest(AndroidLintProguardInspection())
+b/233921381 */
   }
 
   fun testManifestOrder() {

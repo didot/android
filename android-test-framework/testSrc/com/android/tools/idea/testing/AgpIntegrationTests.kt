@@ -38,12 +38,14 @@ enum class AgpVersionSoftwareEnvironmentDescriptor(
    */
   val kotlinVersion: String? = null
 ) {
-  AGP_CURRENT(null, gradleVersion = null),
   AGP_35("3.5.0", gradleVersion = "5.5", kotlinVersion = "1.4.32"),
   AGP_40("4.0.0", gradleVersion = "6.5"),
-
-  // TODO(b/194469137): Use correct Gradle version.
-  AGP_41("4.1.0", gradleVersion = null);
+  AGP_41("4.1.0", gradleVersion = "6.5"),
+  AGP_42("4.2.0", gradleVersion = "6.7.1"),
+  AGP_70("7.0.0", gradleVersion = "7.0.2"),
+  AGP_71("7.1.0", gradleVersion = "7.2"),
+  AGP_72("7.2.0", gradleVersion = "7.3.3"),
+  AGP_CURRENT(null, gradleVersion = null); // Must be last to represent the newest version.
 
   override fun toString(): String {
     return "Agp($agpVersion, g=$gradleVersion, k=$kotlinVersion)"
@@ -55,6 +57,7 @@ interface AgpIntegrationTestDefinition {
   val agpVersion: AgpVersionSoftwareEnvironmentDescriptor
   fun withAgpVersion(agpVersion: AgpVersionSoftwareEnvironmentDescriptor): AgpIntegrationTestDefinition
   fun displayName(): String = "$name${if (agpVersion != AGP_CURRENT) "-${agpVersion}" else ""}"
+  fun isCompatible(): Boolean = true
 }
 
 /**
@@ -69,6 +72,7 @@ fun List<AgpIntegrationTestDefinition>.applySelectedAgpVersions(): List<AgpInteg
       pass
     }
     .flatMap { version -> map { it.withAgpVersion(version) } }
+    .filter { it.isCompatible() }
     .sortedWith(compareBy({ it.agpVersion.gradleVersion }, { it.agpVersion.agpVersion }))
 
 /**

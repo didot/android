@@ -21,7 +21,6 @@ import com.android.tools.analytics.LoggedUsage;
 import com.android.tools.analytics.TestUsageTracker;
 import com.android.tools.analytics.UsageTracker;
 import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider;
-import com.android.tools.idea.gradle.project.sync.idea.ModuleUtil;
 import com.android.tools.idea.gradle.util.GradleVersions;
 import com.android.tools.idea.stats.AnonymizerUtil;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
@@ -81,7 +80,7 @@ public class ProjectStructureUsageTrackerTest extends AndroidGradleTestCase {
                                    .setJarDependencyCount(12)
                                    .setAarDependencyCount(49))
                    .addModules(GradleModule.newBuilder()
-                                 .setTotalModuleCount(9)
+                                 .setTotalModuleCount(3)
                                  .setAppModuleCount(1)
                                  .setLibModuleCount(1))
                    .addAndroidModules(GradleAndroidModule.newBuilder()
@@ -98,8 +97,7 @@ public class ProjectStructureUsageTrackerTest extends AndroidGradleTestCase {
                                         .setFlavorCount(0)
                                         .setFlavorDimension(0)
                                         .setSigningConfigCount(1))
-                   // TODO(b/184422212): .setAppId(AnonymizerUtil.anonymizeUtf8("com.example.projectwithappandlib.app"))
-                   .setAppId(AnonymizerUtil.anonymizeUtf8(UNINITIALIZED_APPLICATION_ID))
+                   .setAppId(AnonymizerUtil.anonymizeUtf8("com.example.projectwithappandlib.app"))
                    .build(), usage.getStudioEvent().getGradleBuildDetails());
   }
 

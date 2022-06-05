@@ -77,6 +77,10 @@ private const val ACTION_BORDER_ALPHA = 0xC8
 private const val ACTION_BORDER_ARC_SIZE = 5
 private const val ACTION_BORDER_THICKNESS = 1
 
+private fun chipBorder(color: Color): Border = RoundedLineBorder(UIUtil.toAlpha(color, ACTION_BORDER_ALPHA),
+                                                                ACTION_BORDER_ARC_SIZE,
+                                                                ACTION_BORDER_THICKNESS)
+
 /**
  * Represents the Compose Preview status to be notified to the user.
  */
@@ -107,9 +111,7 @@ private sealed class ComposePreviewStatusNotification(
 
     val color = JBColor(UIUtil.toAlpha(Color(baseColorLight), ACTION_BACKGROUND_ALPHA),
                         UIUtil.toAlpha(Color(baseColorDark), ACTION_BACKGROUND_ALPHA))
-    val border = RoundedLineBorder(UIUtil.toAlpha(color, ACTION_BORDER_ALPHA),
-                                   ACTION_BORDER_ARC_SIZE,
-                                   ACTION_BORDER_THICKNESS)
+    val border = chipBorder(color)
   }
 
 
@@ -117,11 +119,10 @@ private sealed class ComposePreviewStatusNotification(
    * The Preview found a syntax error and paused the updates.
    */
   object SyntaxError : ComposePreviewStatusNotification(
-    AllIcons.General.Error,
+    AllIcons.Process.ProgressPauseSmall,
     message("notification.syntax.errors.title"),
     message("notification.syntax.errors.description"),
-    false,
-    Presentation.Error)
+    false)
 
   /**
    * The Preview found a compilation error and paused the updates.
@@ -276,7 +277,10 @@ class ComposeIssueNotificationAction : AnAction(), CustomComponentAction, Dispos
         actionPresentation?.color ?: super.getBackground()
 
       override fun getBorder(): Border =
-        actionPresentation?.border ?: JBUI.Borders.empty()
+        if (popState == POPPED)
+          chipBorder(JBUI.CurrentTheme.ActionButton.hoverBorder())
+        else
+          actionPresentation?.border ?: JBUI.Borders.empty()
 
       override fun getMargins(): Insets = insets
 
@@ -320,7 +324,10 @@ class ComposeIssueNotificationAction : AnAction(), CustomComponentAction, Dispos
         ),
         listOfNotNull(
           if (it is ComposePreviewStatusNotification.NeedsBuild)
-            actionLink(message("fast.preview.disabled.notification.reenable.action.title"), BuildAndRefresh(composePreviewManager), e.dataContext)
+            actionLink(
+              message("action.build.and.refresh.title")
+                .replace("&&", "&"), // Remove any ampersand escaping for tooltips (not needed in these links)
+              BuildAndRefresh(composePreviewManager), e.dataContext)
           else null,
           if (isAutoDisabled)
             actionLink(message("fast.preview.disabled.notification.reenable.action.title"), ReEnableFastPreview(), e.dataContext)

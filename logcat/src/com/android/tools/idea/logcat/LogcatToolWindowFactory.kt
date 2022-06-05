@@ -24,6 +24,8 @@ import com.android.tools.idea.logcat.LogcatExperimentalSettings.Companion.getIns
 import com.android.tools.idea.logcat.filters.LogcatFilterColorSettingsPage
 import com.android.tools.idea.logcat.messages.LogcatColorSettingsPage
 import com.android.tools.idea.logcat.messages.LogcatColors
+import com.android.tools.idea.logcat.service.LogcatService
+import com.android.tools.idea.logcat.service.LogcatServiceImpl
 import com.android.tools.idea.run.ShowLogcatListener
 import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.options.colors.ColorSettingsPages
@@ -34,15 +36,10 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ex.ToolWindowEx
 import com.intellij.ui.content.Content
 import com.intellij.util.text.UniqueNameGenerator
-import org.jetbrains.annotations.TestOnly
 import org.jetbrains.annotations.VisibleForTesting
 import java.awt.EventQueue
 
-internal class LogcatToolWindowFactory @TestOnly internal constructor(
-  private val processNameMonitorFactory: (Project) -> ProcessNameMonitor
-) : SplittingTabsToolWindowFactory(), DumbAware {
-
-  constructor() : this({ ProcessNameMonitor.getInstance(it) })
+internal class LogcatToolWindowFactory : SplittingTabsToolWindowFactory(), DumbAware {
 
   init {
     if (isLogcatV2Enabled()) {
@@ -59,7 +56,7 @@ internal class LogcatToolWindowFactory @TestOnly internal constructor(
     project.messageBus.connect(project)
       .subscribe(ShowLogcatListener.TOPIC, ShowLogcatListener { device, _ -> showLogcat(toolWindow, device) })
 
-    processNameMonitorFactory(project).start()
+    ProcessNameMonitor.getInstance(project).start()
   }
 
   private fun showLogcat(toolWindow: ToolWindowEx, device: IDevice) {
@@ -70,7 +67,7 @@ internal class LogcatToolWindowFactory @TestOnly internal constructor(
         for (i in 0 until count) {
           val content = contentManager.getContent(i)
           content?.findLogcatPresenters()?.forEach {
-            if (it.getConnectedDevice() == device) {
+            if (it.getConnectedDevice()?.serialNumber == device.serialNumber) {
               contentManager.setSelectedContent(content, true)
               return@activate
             }
@@ -78,7 +75,7 @@ internal class LogcatToolWindowFactory @TestOnly internal constructor(
         }
         // TODO(aalbert): Getting a pretty name for a device is complicated since it requires fetching properties from device. Use serial
         //  number as a tab name for now.
-        createNewTab(toolWindow, device.serialNumber).findLogcatPresenters().firstOrNull()?.selectDevice(device)
+        createNewTab(toolWindow, device.serialNumber).findLogcatPresenters().firstOrNull()?.selectDevice(device.serialNumber)
       }
     }
   }

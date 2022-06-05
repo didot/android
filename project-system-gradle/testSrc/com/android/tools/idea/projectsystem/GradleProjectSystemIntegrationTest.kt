@@ -57,7 +57,7 @@ abstract class GradleProjectSystemIntegrationTestCase : GradleIntegrationTest {
       @Contract(pure = true)
       @JvmStatic
       @Parameterized.Parameters(name = "{0}")
-      fun testProjects(): Collection<*> {
+      fun tests(): Collection<*> {
         return tests.map { listOf(it).toTypedArray() }
       }
     }
@@ -94,6 +94,10 @@ abstract class GradleProjectSystemIntegrationTestCase : GradleIntegrationTest {
   override fun getBaseTestPath(): String = projectRule.fixture.tempDirPath
   override fun getTestDataDirectoryWorkspaceRelativePath(): String = TestProjectPaths.TEST_DATA_PATH
   override fun getAdditionalRepos(): Collection<File> = listOf()
+
+  override fun getAgpVersionSoftwareEnvironmentDescriptor(): AgpVersionSoftwareEnvironmentDescriptor {
+    return testDefinition?.agpVersion ?: AgpVersionSoftwareEnvironmentDescriptor.AGP_CURRENT
+  }
 
   @Test
   fun testGetDependentLibraries() {
@@ -155,16 +159,16 @@ abstract class GradleProjectSystemIntegrationTestCase : GradleIntegrationTest {
 
       switchVariant(project, ":app", "release")
       expect.that(project.appModuleSystem().getPackageName()).isEqualTo("one.name")
-      expect.that(project.appModuleSystem().getTestPackageName()).isEqualTo("one.name.test_app")
+      expect.that(project.appModuleSystem().getTestPackageName()).isNull()
       expect.that(project.libModuleSystem().getPackageName()).isEqualTo("one.name.lib")
-      expect.that(project.libModuleSystem().getTestPackageName()).isEqualTo("one.name.lib.test")
+      expect.that(project.libModuleSystem().getTestPackageName()).isNull()
 
       val releaseBuildResult = project.buildAndWait { it.assemble(arrayOf(project.appModule()), TestCompileType.ANDROID_TESTS) }
       expect.that(releaseBuildResult.errors()).isEmpty()
       expect.that(project.appModuleSystem().getPackageName()).isEqualTo("one.name")
-      expect.that(project.appModuleSystem().getTestPackageName()).isEqualTo("one.name.test_app")
+      expect.that(project.appModuleSystem().getTestPackageName()).isNull()
       expect.that(project.libModuleSystem().getPackageName()).isEqualTo("one.name.lib")
-      expect.that(project.libModuleSystem().getTestPackageName()).isEqualTo("one.name.lib.test")
+      expect.that(project.libModuleSystem().getTestPackageName()).isNull()
     }
   }
 
@@ -177,10 +181,7 @@ abstract class GradleProjectSystemIntegrationTestCase : GradleIntegrationTest {
     try {
       prepareGradleProject(
         testProjectPath,
-        "project",
-        gradleVersion = testDefinition.agpVersion.gradleVersion,
-        gradlePluginVersion = testDefinition.agpVersion.agpVersion,
-        kotlinVersion = testDefinition.agpVersion.kotlinVersion
+        "project"
       )
       openPreparedProject("project", action = test)
     }

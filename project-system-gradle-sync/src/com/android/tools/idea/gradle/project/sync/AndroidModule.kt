@@ -20,6 +20,7 @@ import com.android.ide.common.repository.GradleCoordinate
 import com.android.ide.common.repository.GradleVersion
 import com.android.ide.gradle.model.ArtifactIdentifier
 import com.android.ide.gradle.model.ArtifactIdentifierImpl
+import com.android.ide.gradle.model.LegacyApplicationIdModel
 import com.android.ide.gradle.model.artifacts.AdditionalClassifierArtifactsModel
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType
 import com.android.tools.idea.gradle.model.IdeArtifactLibrary
@@ -79,7 +80,7 @@ sealed class GradleModule(val gradleProject: BasicGradleProject) {
   val findModelRoot: Model get() = gradleProject
   val id = createUniqueModuleId(gradleProject)
 
-  var projectSyncIssues: List<IdeSyncIssue>? = null; private set
+  var projectSyncIssues: List<IdeSyncIssue> = emptyList(); private set
   fun setSyncIssues(issues: List<IdeSyncIssue>) {
     projectSyncIssues = issues
   }
@@ -95,7 +96,7 @@ sealed class GradleModule(val gradleProject: BasicGradleProject) {
  */
 sealed class DeliverableGradleModule(
   val gradleProject: BasicGradleProject,
-  val projectSyncIssues: List<IdeSyncIssue>?
+  val projectSyncIssues: List<IdeSyncIssue>
 ) : GradleModelCollection {
   protected inner class ModelConsumer(val buildModelConsumer: ProjectImportModelProvider.BuildModelConsumer) {
     inline fun <reified T : Any> T.deliver() {
@@ -138,7 +139,7 @@ class JavaModule(
 
 class DeliverableJavaModule(
   gradleProject: BasicGradleProject,
-  projectSyncIssues: List<IdeSyncIssue>?,
+  projectSyncIssues: List<IdeSyncIssue>,
   private val kotlinGradleModel: KotlinGradleModel?,
   private val kaptGradleModel: KaptGradleModel?
 ): DeliverableGradleModule(gradleProject, projectSyncIssues) {
@@ -168,7 +169,8 @@ sealed class AndroidModule constructor(
   val androidVariantResolver: AndroidVariantResolver,
   private val nativeAndroidProject: IdeNativeAndroidProject?,
   /** New V2 model. It's only set if [nativeAndroidProject] is not set. */
-  private val nativeModule: IdeNativeModule?
+  private val nativeModule: IdeNativeModule?,
+  val legacyApplicationIdModel: LegacyApplicationIdModel?,
 ) : GradleModule(gradleProject) {
   val projectType: IdeAndroidProjectType get() = androidProject.projectType
 
@@ -217,7 +219,8 @@ sealed class AndroidModule constructor(
     /** Old V1 native model. It's only set if [nativeModule] is not set. */
     nativeAndroidProject: IdeNativeAndroidProject?,
     /** New V2 native model. It's only set if [nativeAndroidProject] is not set. */
-    nativeModule: IdeNativeModule?
+    nativeModule: IdeNativeModule?,
+    legacyApplicationIdModel: LegacyApplicationIdModel?,
   ) : AndroidModule(
     agpVersion = agpVersion,
     buildName = buildName,
@@ -232,7 +235,8 @@ sealed class AndroidModule constructor(
     /** Old V1 model. It's only set if [nativeModule] is not set. */
     nativeAndroidProject = nativeAndroidProject,
     /** New V2 model. It's only set if [nativeAndroidProject] is not set. */
-    nativeModule = nativeModule
+    nativeModule = nativeModule,
+    legacyApplicationIdModel = legacyApplicationIdModel,
   )
 
   class V2(
@@ -245,7 +249,8 @@ sealed class AndroidModule constructor(
     defaultVariantName: String?,
     variantFetcher: IdeVariantFetcher,
     androidVariantResolver: AndroidVariantResolver,
-    nativeModule: IdeNativeModule?
+    nativeModule: IdeNativeModule?,
+    legacyApplicationIdModel: LegacyApplicationIdModel?,
   ) : AndroidModule(
     agpVersion = agpVersion,
     buildName = buildName,
@@ -258,7 +263,8 @@ sealed class AndroidModule constructor(
     androidVariantResolver = androidVariantResolver,
     /** Old V1 model. Not used with V2. */
     nativeAndroidProject = null,
-    nativeModule = nativeModule
+    nativeModule = nativeModule,
+    legacyApplicationIdModel = legacyApplicationIdModel,
   )
 
   override fun prepare(): DeliverableGradleModule {
@@ -289,7 +295,7 @@ sealed class AndroidModule constructor(
 
 class DeliverableAndroidModule(
   gradleProject: BasicGradleProject,
-  projectSyncIssues: List<IdeSyncIssue>?,
+  projectSyncIssues: List<IdeSyncIssue>,
   val selectedVariantName: String,
   val selectedAbiName: String?,
   val androidProject: IdeAndroidProjectImpl,
@@ -308,7 +314,7 @@ class DeliverableAndroidModule(
       fetchedVariants,
       selectedVariantName,
       selectedAbiName,
-      projectSyncIssues.orEmpty(),
+      projectSyncIssues,
       nativeModule,
       nativeAndroidProject,
       syncedNativeVariant,
@@ -370,12 +376,12 @@ class NativeVariantsAndroidModule private constructor(
 
 class DeliverableNativeVariantsAndroidModule(
   gradleProject: BasicGradleProject,
-  projectSyncIssues: List<IdeSyncIssue>?,
+  projectSyncIssues: List<IdeSyncIssue>,
   private val nativeVariants: List<IdeNativeVariantAbi>? // Null means V2.
 ) : DeliverableGradleModule(gradleProject, projectSyncIssues) {
   override fun deliverModels(consumer: ProjectImportModelProvider.BuildModelConsumer) {
     with(ModelConsumer(consumer)) {
-      IdeAndroidNativeVariantsModels(nativeVariants, projectSyncIssues.orEmpty()).deliver()
+      IdeAndroidNativeVariantsModels(nativeVariants, projectSyncIssues).deliver()
     }
   }
 }
@@ -390,10 +396,10 @@ private fun collectIdentifiers(
   return variants.asSequence()
     .flatMap {
       sequenceOf(
-        it.mainArtifact.compileClasspath,
-        it.androidTestArtifact?.compileClasspath,
-        it.unitTestArtifact?.compileClasspath,
-        it.testFixturesArtifact?.compileClasspath
+        it.mainArtifact.compileClasspathCore,
+        it.androidTestArtifact?.compileClasspathCore,
+        it.unitTestArtifact?.compileClasspathCore,
+        it.testFixturesArtifact?.compileClasspathCore
       )
         .filterNotNull()
     }

@@ -29,7 +29,7 @@ import com.android.builder.model.v2.models.VariantDependencies
 import com.android.builder.model.v2.models.Versions
 import com.android.builder.model.v2.models.ndk.NativeModule
 import com.android.ide.common.repository.GradleVersion
-import com.android.tools.idea.gradle.model.IdeAndroidProject
+import com.android.ide.gradle.model.LegacyApplicationIdModel
 import com.android.tools.idea.gradle.model.IdeArtifactName
 import com.android.tools.idea.gradle.model.IdeLibrary
 import com.android.tools.idea.gradle.model.LibraryReference
@@ -57,8 +57,9 @@ interface ModelCache {
 
   interface V1 : ModelCache {
     fun variantFrom(
-      androidProject: IdeAndroidProject,
+      androidProject: IdeAndroidProjectImpl,
       variant: Variant,
+      legacyApplicationIdModel: LegacyApplicationIdModel?,
       modelVersion: GradleVersion?,
       androidModuleId: ModuleId
     ): IdeVariantWithPostProcessor
@@ -74,9 +75,10 @@ interface ModelCache {
      * dependency information.
      */
     fun variantFrom(
-      androidProject: IdeAndroidProject,
+      androidProject: IdeAndroidProjectImpl,
       basicVariant: BasicVariant,
       variant: com.android.builder.model.v2.ide.Variant,
+      legacyApplicationIdModel: LegacyApplicationIdModel?,
       modelVersion: GradleVersion?
     ): IdeVariantCoreImpl
 
@@ -127,14 +129,13 @@ interface ModelCache {
       val internedModels = InternedModels(null)
       return if (useV2BuilderModels) {
         modelCacheV2Impl(internedModels)
-      }
-      else {
+      } else {
         modelCacheV1Impl(internedModels, BuildFolderPaths())
       }
     }
 
     @JvmStatic
-    fun create(): ModelCache.V1 {
+    fun create(): V1 {
       val internedModels = InternedModels(null)
       return modelCacheV1Impl(internedModels, BuildFolderPaths())
     }
@@ -188,6 +189,9 @@ fun getDefaultVariant(variantNames: Collection<String>): String? {
   // Otherwise fall back to the first alphabetically
   return sortedNames.first()
 }
+
+internal val GradleVersion.agpModelIncludesApplicationId: Boolean
+   get() = isAtLeast(7, 4, 0, "alpha", 4, false)
 
 internal fun convertArtifactName(name: String): IdeArtifactName = when (name) {
   AndroidProject.ARTIFACT_MAIN -> IdeArtifactName.MAIN

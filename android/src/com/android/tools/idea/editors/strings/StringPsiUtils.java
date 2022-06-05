@@ -17,12 +17,15 @@ package com.android.tools.idea.editors.strings;
 
 import com.android.SdkConstants;
 import com.android.ide.common.resources.Locale;
-import com.android.ide.common.resources.ValueXmlHelper;
+import com.android.ide.common.resources.escape.xml.CharacterDataEscaper;
 import com.android.tools.idea.editors.strings.model.StringResourceKey;
+import com.android.tools.idea.res.StringResourceWriter;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.xml.XmlFile;
 import com.intellij.psi.xml.XmlTag;
+import java.util.Arrays;
+import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -33,13 +36,13 @@ final class StringPsiUtils {
   @Nullable
   static XmlFile getDefaultStringResourceFile(@NotNull Project project, @NotNull StringResourceKey key) {
     VirtualFile directory = key.getDirectory();
-    return directory == null ? null : StringsWriteUtils.getStringResourceFile(project, directory, null);
+    return directory == null ? null : StringResourceWriter.INSTANCE.getStringResourceFile(project, directory);
   }
 
   @Nullable
   static XmlFile getStringResourceFile(@NotNull Project project, @NotNull StringResourceKey key, @NotNull Locale locale) {
     VirtualFile directory = key.getDirectory();
-    return directory == null ? null : StringsWriteUtils.getStringResourceFile(project, directory, locale);
+    return directory == null ? null : StringResourceWriter.INSTANCE.getStringResourceFile(project, directory, locale);
   }
 
   static void addString(@NotNull XmlFile file, @NotNull StringResourceKey key, @NotNull String value) {
@@ -47,6 +50,11 @@ final class StringPsiUtils {
   }
 
   static void addString(@NotNull XmlFile file, @NotNull StringResourceKey key, boolean translatable, @NotNull String value) {
+    addStringBefore(file, key, translatable, value, null);
+  }
+
+  static void addStringBefore(@NotNull XmlFile file, @NotNull StringResourceKey key, boolean translatable, @NotNull String value,
+                              @Nullable StringResourceKey anchor) {
     XmlTag resources = file.getRootTag();
 
     if (resources == null) {
@@ -60,13 +68,30 @@ final class StringPsiUtils {
       string.setAttribute(SdkConstants.ATTR_TRANSLATABLE, Boolean.FALSE.toString());
     }
 
-    resources.addSubTag(string, false);
+    XmlTag beforeTag = null;
+    if (anchor != null) {
+      // Try to find the anchor (next) XmlTag, if it exists.
+      XmlTag[] resourceTags = resources.findSubTags(SdkConstants.TAG_STRING, resources.getNamespace());
+      String resourceId = anchor.getName();
+      Optional<XmlTag> tag = Arrays.stream(resourceTags)
+        .filter(it -> resourceId.equals(it.getAttributeValue(SdkConstants.ATTR_NAME))).findFirst();
+      if (tag.isPresent()) {
+        beforeTag = tag.get();
+      }
+    }
+
+    if (beforeTag == null) {
+      resources.addSubTag(string, false);
+    }
+    else {
+      resources.addBefore(string, beforeTag);
+    }
   }
 
   @NotNull
   private static String escape(@NotNull String value) {
     try {
-      return ValueXmlHelper.escapeResourceStringAsXml(value);
+      return CharacterDataEscaper.escape(value);
     }
     catch (IllegalArgumentException exception) {
       // The invalid XML will be underlined in the editor

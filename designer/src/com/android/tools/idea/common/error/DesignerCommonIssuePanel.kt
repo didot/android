@@ -21,6 +21,7 @@ import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.uibuilder.visual.VisualizationToolWindowFactory
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintIssueProvider
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintRenderIssue
+import com.intellij.analysis.problemsView.toolWindow.ProblemsViewState
 import com.intellij.ide.DataManager
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
@@ -29,6 +30,7 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataProvider
 import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindowManager
@@ -99,8 +101,9 @@ class DesignerCommonIssuePanel(parentDisposable: Disposable, private val project
 
   init {
     Disposer.register(parentDisposable, this)
-
     treeModel.root = DesignerCommonIssueRoot(project, issueProvider)
+    val problemsViewState = ProblemsViewState.getInstance(project)
+    setIssueNodeOrder(problemsViewState.sortBySeverity, problemsViewState.sortByName)
     issueProvider.registerUpdateListener {
       updateTree()
     }
@@ -171,15 +174,18 @@ class DesignerCommonIssuePanel(parentDisposable: Disposable, private val project
     }
   }
 
-  fun setHiddenSeverities(hiddenSeverities: Set<Int>) {
+  fun setViewOptionFilter(filter: (Issue) -> Boolean) {
     val wasEmpty = treeModel.root?.getChildren()?.isEmpty() ?: true
-    issueProvider.filter = { issue ->
-      !hiddenSeverities.contains(issue.severity.myVal)
-    }
+    issueProvider.filter = filter
     treeModel.structureChanged(null)
     if (wasEmpty) {
       TreeUtil.promiseExpandAll(tree)
     }
+  }
+
+  fun setIssueNodeOrder(sortedBySeverity: Boolean, sortedByName: Boolean) {
+    (treeModel.root as? DesignerCommonIssueRoot)?.setComparator(DesignerCommonIssueNodeComparator(sortedBySeverity, sortedByName))
+    treeModel.structureChanged(null)
   }
 
   private fun getSelectedNode(): DesignerCommonIssueNode? {
@@ -202,7 +208,7 @@ class DesignerCommonIssuePanel(parentDisposable: Disposable, private val project
     val sidePanel = DesignerCommonIssueSidePanel(project, issueNode.issue, issueNode.getVirtualFile(), this)
     val previewEditor = sidePanel.editor
     val navigable = issueNode.getNavigatable()
-    if (previewEditor != null && navigable != null) {
+    if (previewEditor != null && navigable is OpenFileDescriptor) {
       navigable.navigateIn(previewEditor)
     }
 

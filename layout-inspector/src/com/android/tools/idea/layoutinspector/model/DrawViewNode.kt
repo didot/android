@@ -63,10 +63,6 @@ private fun getNormalImageLineStroke(scale: Double) = getDashedStroke(::getNorma
 
 fun getDrawNodeLabelHeight(scale: Double) = getLabelFontSize(scale) * 1.6f + 2 * getNormalBorderThickness(scale)
 
-val Rectangle.startX: Float get() = x.toFloat()
-val Rectangle.endX: Float get() = (width - x).toFloat()
-val Rectangle.startY: Float get() = y.toFloat()
-
 /**
  * A node in the hierarchy used to paint the device view. This is separate from the basic hierarchy ([ViewNode.children]) since views
  * can do their own painting interleaved with painting their children, and we need to keep track of the order in which the operations
@@ -220,10 +216,10 @@ class DrawViewChild(owner: ViewNode) : DrawViewNode(owner) {
 
     // Draw gradient for recomposition highlights
     if (showHighlight) {
-      val rect = bounds.bounds
+      val rect = bounds.bounds2D
       g2.paint = GradientPaint(
-        rect.startX, rect.startY, heatmapColor(model, highlightCount, viewSettings),
-        rect.endX, rect.startY, heatmapColor(model, 0f, viewSettings))
+        rect.x.toFloat(), rect.y.toFloat(), heatmapColor(model, highlightCount, viewSettings),
+        (rect.x + rect.width).toFloat(), (rect.y + rect.height).toFloat(), heatmapColor(model, 0f, viewSettings))
       g2.fill(bounds)
     }
   }
@@ -236,7 +232,7 @@ class DrawViewChild(owner: ViewNode) : DrawViewNode(owner) {
 
   private fun heatmapColor(model: InspectorModel, highlightCount: Float, viewSettings: DeviceViewSettings): Color {
     val baseColor = Color(viewSettings.highlightColor)
-    val alpha = ((highlightCount * 128f) / model.maxHighlight).toInt().coerceIn(8, 128)
+    val alpha = ((highlightCount * 192f) / model.maxHighlight).toInt().coerceIn(8, 192)
     return Color(baseColor.red, baseColor.green, baseColor.blue, alpha)
   }
 

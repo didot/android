@@ -1385,13 +1385,29 @@ public final class StudioFlags {
       "Enabled",
       "Enable App Insights tool window and highlighting support.",
       true);
+
+  public static final Flag<Boolean> APP_INSIGHTS_GUTTER_SUPPORT =
+    Flag.create(
+      APP_INSIGHTS,
+      "insights.gutter",
+      "Gutter Support",
+      "Use gutter icons rather than code highlight to display insights in the editor",
+      false);
+
+  public static final Flag<Boolean> NEW_CRASHLYTICS_API_ENABLED =
+    Flag.create(
+      APP_INSIGHTS,
+      "enable.new.crashlytics.api",
+      "Enable new Crashlytics API",
+      "If enabled, new Crashlytics API is adopted.",
+      false);
   // endregion App Insights
 
   // region App Links Assistant
   private static final FlagGroup APP_LINKS_ASSISTANT = new FlagGroup(FLAGS, "applinksassistant", "App Links Assistant");
   public static final Flag<Boolean> KOTLIN_INTENT_HANDLING =
     Flag.create(APP_LINKS_ASSISTANT, "kotlin.intent.handling", "Kotlin Intent Handling",
-                "Support adding logic for intent handling in Kotlin.", false);
+                "Support adding logic for intent handling in Kotlin.", true);
   // endregion App Links Assistant
 
   // region GOOGLE_PLAY_SDK_INDEX
@@ -1409,7 +1425,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> SHOW_SDK_INDEX_CRITICAL_ISSUES = Flag.create(
     GOOGLE_PLAY_SDK_INDEX, "show.sdk.critical.issues", "Show SDK Index critical issues",
     "Whether or not critical issues from library authors should be shown",
-    false
+    true
   );
   public static final Flag<Boolean> SHOW_SDK_INDEX_POLICY_ISSUES = Flag.create(
     GOOGLE_PLAY_SDK_INDEX, "show.sdk.policy.issues", "Show SDK Index policy issues",

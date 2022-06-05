@@ -18,15 +18,21 @@ package com.android.tools.idea.gradle.dsl.parser.toml
 import com.android.tools.idea.gradle.dsl.model.BuildModelContext
 import com.android.tools.idea.gradle.dsl.parser.GradleDslWriter
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement
+import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElementMap
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslLiteral
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslMethodCall
 import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement
-import com.android.tools.idea.gradle.dsl.parser.files.GradleVersionCatalogFile
+import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile
 import com.android.tools.idea.gradle.dsl.parser.findLastPsiElementIn
 import com.android.tools.idea.gradle.dsl.parser.maybeTrimForParent
 import com.intellij.psi.PsiElement
+import com.intellij.psi.impl.source.tree.LeafPsiElement
+import org.toml.lang.psi.TomlArray
+import org.toml.lang.psi.TomlElementTypes
+import org.toml.lang.psi.TomlFile
+import org.toml.lang.psi.TomlInlineTable
 import org.toml.lang.psi.TomlKeyValue
 import org.toml.lang.psi.TomlPsiFactory
 import org.toml.lang.psi.TomlTable
@@ -39,7 +45,7 @@ class TomlDslWriter(private val context: BuildModelContext): GradleDslWriter, To
   override fun deleteDslLiteral(literal: GradleDslLiteral): Unit = Unit
   override fun createDslMethodCall(methodCall: GradleDslMethodCall): PsiElement? = null
   override fun applyDslMethodCall(methodCall: GradleDslMethodCall): Unit = Unit
-  override fun createDslExpressionList(expressionList: GradleDslExpressionList): PsiElement? = null
+  override fun createDslExpressionList(expressionList: GradleDslExpressionList): PsiElement? = createDslElement(expressionList)
   override fun applyDslExpressionList(expressionList: GradleDslExpressionList): Unit = Unit
   override fun applyDslExpressionMap(expressionMap: GradleDslExpressionMap): Unit = Unit
   override fun applyDslPropertiesElement(element: GradlePropertiesDslElement): Unit = Unit
@@ -51,22 +57,48 @@ class TomlDslWriter(private val context: BuildModelContext): GradleDslWriter, To
     val parentPsiElement = ensureParentPsi(element) ?: return null
     val project = parentPsiElement.project
     val factory = TomlPsiFactory(project)
+    val comma = factory.createInlineTable("a = \"b\", c = \"d\"").children[2]
 
     val externalNameInfo = maybeTrimForParent(element, this)
 
     val psi = when (element.parent) {
-      is GradleVersionCatalogFile -> factory.createTable(externalNameInfo.externalNameParts[0])
-      else -> factory.createKeyValue(externalNameInfo.externalNameParts[0], "\"placeholder\"")
+      is GradleDslFile -> when (element) {
+        is GradleDslExpressionMap -> factory.createTable(externalNameInfo.externalNameParts[0])
+        else -> factory.createKeyValue(externalNameInfo.externalNameParts[0], "\"placeholder\"")
+      }
+      is GradleDslExpressionList -> when (element) {
+        is GradleDslExpressionList -> factory.createArray("")
+        is GradleDslExpressionMap -> factory.createInlineTable(" ")
+        else -> factory.createLiteral("\"placeholder\"")
+      }
+      else -> when (element) {
+        is GradleDslExpressionMap -> factory.createKeyValue(externalNameInfo.externalNameParts[0], "{ }")
+        is GradleDslExpressionList -> factory.createKeyValue(externalNameInfo.externalNameParts[0], "[]")
+        else -> factory.createKeyValue(externalNameInfo.externalNameParts[0], "\"placeholder\"")
+      }
     }
 
     val anchor = getAnchorPsi(parentPsiElement, element.anchor)
 
     val addedElement = parentPsiElement.addAfter(psi, anchor)
-    addedElement.addAfter(factory.createNewline(), null)
+
+    if (anchor != null) {
+      when (parentPsiElement) {
+        is TomlTable, is TomlFile -> addedElement.addAfter(factory.createNewline(), null)
+        is TomlInlineTable -> when {
+          anchor is LeafPsiElement && anchor.elementType == TomlElementTypes.L_CURLY -> Unit
+          else -> addedElement.addAfter(comma, null)
+        }
+        is TomlArray -> when {
+          anchor is LeafPsiElement && anchor.elementType == TomlElementTypes.L_BRACKET -> Unit
+          else -> parentPsiElement.addBefore(comma, addedElement)
+        }
+      }
+    }
 
     when (addedElement) {
       is TomlKeyValue -> element.psiElement = addedElement.value
-      is TomlTable -> element.psiElement = addedElement
+      else -> element.psiElement = addedElement
     }
 
     return element.psiElement
@@ -87,6 +119,12 @@ class TomlDslWriter(private val context: BuildModelContext): GradleDslWriter, To
   private fun ensureParentPsi(element: GradleDslElement) = element.parent?.create()
 
   private fun getAnchorPsi(parent: PsiElement, anchorDsl: GradleDslElement?): PsiElement? {
-    return anchorDsl?.let{ findLastPsiElementIn(it) } ?: parent
+    var anchor = anchorDsl?.let{ findLastPsiElementIn(it) }
+    if (anchor == null && (parent is TomlInlineTable || parent is TomlArray)) return parent.firstChild
+    if (anchor == null && parent is TomlTable) return parent.header
+    while (anchor != null && anchor.parent != parent) {
+      anchor = anchor.parent
+    }
+    return anchor ?: parent
   }
 }

@@ -20,8 +20,6 @@ import static com.android.tools.idea.gradle.project.build.invoker.TestCompileTyp
 import com.android.tools.idea.gradle.project.build.invoker.GradleTaskFinder;
 import com.android.tools.idea.gradle.project.build.invoker.TestCompileType;
 import com.android.tools.idea.gradle.util.BuildMode;
-import com.intellij.openapi.compiler.CompileScope;
-import com.intellij.openapi.compiler.CompilerManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import java.nio.file.Path;
@@ -33,7 +31,7 @@ public class GradleModuleTasksProvider {
   @NotNull private final Project myProject;
   @NotNull private final Module[] myModules;
 
-  GradleModuleTasksProvider(@NotNull Module[] modules) {
+  public GradleModuleTasksProvider(@NotNull Module[] modules) {
     myModules = modules;
     if (myModules.length == 0) {
       throw new IllegalArgumentException("No modules provided");
@@ -46,16 +44,7 @@ public class GradleModuleTasksProvider {
   }
 
   public Map<Path, Collection<String>> getUnitTestTasks(@NotNull BuildMode buildMode) {
-    // Make sure all "intermediates/classes" directories are up-to-date.
-    Module[] affectedModules = getAffectedModules(myProject, myModules);
-    return GradleTaskFinder.getInstance().findTasksToExecuteForTest(affectedModules, myModules, buildMode, UNIT_TESTS).asMap();
-  }
-
-  @NotNull
-  private static Module[] getAffectedModules(@NotNull Project project, @NotNull Module[] modules) {
-    final CompilerManager compilerManager = CompilerManager.getInstance(project);
-    CompileScope scope = compilerManager.createModulesCompileScope(modules, true, true);
-    return scope.getAffectedModules();
+    return GradleTaskFinder.getInstance().findTasksToExecute(myModules, buildMode, UNIT_TESTS).asMap();
   }
 
   public Map<Path, Collection<String>> getTasksFor(@NotNull BuildMode buildMode, @NotNull TestCompileType testCompileType) {

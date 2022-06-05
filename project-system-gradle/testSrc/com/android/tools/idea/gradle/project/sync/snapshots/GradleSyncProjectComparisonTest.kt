@@ -244,7 +244,6 @@ open class GradleSyncProjectComparisonTest : GradleIntegrationTest, SnapshotComp
 
     @Test
     fun testSyncKotlinProject() {
-      // TODO(b/125321223): Remove suffixes from the snapshot files when fixed.
       val text = importSyncAndDumpProject(NEW_SYNC_KOTLIN_TEST)
       assertIsEqualToSnapshot(text)
     }
@@ -511,10 +510,12 @@ private fun String.filterOutProperties(): String =
 private fun Sequence<String>.nameProperties() = com.android.tools.idea.testing.nameProperties(this)
 
 private val PROPERTIES_TO_SKIP_BY_PREFIXES = setOf(
+  "PROJECT/BUILD_TASKS/TEST_COMPILE_MODE",
   "PROJECT/LIBRARY_TABLE",
+  "PROJECT/MODULE/BUILD_TASKS/TEST_COMPILE_MODE",
   "PROJECT/MODULE/Classes",
   "PROJECT/MODULE/COMPILER_MODULE_EXTENSION",
   "PROJECT/MODULE/LIBRARY",
   "PROJECT/MODULE/TEST_MODULE_PROPERTIES",
-  "PROJECT/RUN_CONFIGURATION",
+  "PROJECT/RUN_CONFIGURATION"
 )

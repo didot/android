@@ -69,6 +69,8 @@ import com.android.tools.idea.gradle.project.facet.ndk.NdkFacet
 import com.android.tools.idea.gradle.project.importing.GradleProjectImporter
 import com.android.tools.idea.gradle.project.importing.withAfterCreate
 import com.android.tools.idea.gradle.project.model.GradleAndroidModel
+import com.android.tools.idea.gradle.project.model.GradleAndroidModelData
+import com.android.tools.idea.gradle.project.model.GradleAndroidModelDataImpl
 import com.android.tools.idea.gradle.project.model.GradleModuleModel
 import com.android.tools.idea.gradle.project.model.NdkModel
 import com.android.tools.idea.gradle.project.model.NdkModuleModel
@@ -305,7 +307,7 @@ interface AndroidProjectStubBuilder {
   fun androidModuleDependencies(variant: String): List<AndroidModuleDependency>?
   fun androidLibraryDependencies(variant: String): List<AndroidLibraryDependency>?
   fun mainArtifact(variant: String): IdeAndroidArtifactCoreImpl
-  fun androidTestArtifact(variant: String): IdeAndroidArtifactCoreImpl?
+  fun androidTestArtifact(variant: String, applicationId: String?): IdeAndroidArtifactCoreImpl?
   fun unitTestArtifact(variant: String): IdeJavaArtifactCoreImpl?
   fun testFixturesArtifact(variant: String): IdeAndroidArtifactCoreImpl?
   val androidProject: IdeAndroidProjectImpl
@@ -357,8 +359,8 @@ data class AndroidProjectBuilder(
     { dimension -> buildProductFlavorContainersStub(dimension) },
   val mainArtifactStub: AndroidProjectStubBuilder.(variant: String) -> IdeAndroidArtifactCoreImpl =
     { variant -> buildMainArtifactStub(variant) },
-  val androidTestArtifactStub: AndroidProjectStubBuilder.(variant: String) -> IdeAndroidArtifactCoreImpl? =
-    { variant -> buildAndroidTestArtifactStub(variant) },
+  val androidTestArtifactStub: AndroidProjectStubBuilder.(variant: String, applicationId: String?) -> IdeAndroidArtifactCoreImpl? =
+    { variant, applicationId -> buildAndroidTestArtifactStub(variant, applicationId) },
   val unitTestArtifactStub: AndroidProjectStubBuilder.(variant: String) -> IdeJavaArtifactCoreImpl? =
     { variant -> buildUnitTestArtifactStub(variant) },
   val testFixturesArtifactStub: AndroidProjectStubBuilder.(variant: String) -> IdeAndroidArtifactCoreImpl? =
@@ -436,7 +438,7 @@ data class AndroidProjectBuilder(
   fun withMainArtifactStub(mainArtifactStub: AndroidProjectStubBuilder.(variant: String) -> IdeAndroidArtifactCoreImpl) =
     copy(mainArtifactStub = mainArtifactStub)
 
-  fun withAndroidTestArtifactStub(androidTestArtifactStub: AndroidProjectStubBuilder.(variant: String) -> IdeAndroidArtifactCoreImpl) =
+  fun withAndroidTestArtifactStub(androidTestArtifactStub: AndroidProjectStubBuilder.(variant: String, applicationId: String?) -> IdeAndroidArtifactCoreImpl) =
     copy(androidTestArtifactStub = androidTestArtifactStub)
 
   fun withUnitTestArtifactStub(unitTestArtifactStub: AndroidProjectStubBuilder.(variant: String) -> IdeJavaArtifactCoreImpl) =
@@ -506,7 +508,7 @@ data class AndroidProjectBuilder(
           androidLibraryDependencyList(variant)
 
         override fun mainArtifact(variant: String): IdeAndroidArtifactCoreImpl = mainArtifactStub(variant)
-        override fun androidTestArtifact(variant: String): IdeAndroidArtifactCoreImpl? = androidTestArtifactStub(variant)
+        override fun androidTestArtifact(variant: String, applicationId: String?): IdeAndroidArtifactCoreImpl? = androidTestArtifactStub(variant, applicationId)
         override fun unitTestArtifact(variant: String): IdeJavaArtifactCoreImpl? = unitTestArtifactStub(variant)
         override fun testFixturesArtifact(variant: String): IdeAndroidArtifactCoreImpl? = testFixturesArtifactStub(variant)
         override val variants: List<IdeVariantCoreImpl> = variants()
@@ -728,7 +730,7 @@ fun AndroidProjectStubBuilder.buildMainArtifactStub(
     classesFolder = listOf(buildPath.resolve("intermediates/javac/$variant/classes")),
     variantSourceProvider = null,
     multiFlavorSourceProvider = null,
-    ideSetupTaskNames = setOf("generate".appendCapitalized(variant).appendCapitalized("sources")),
+    ideSetupTaskNames = listOf("generate".appendCapitalized(variant).appendCapitalized("sources")),
     generatedSourceFolders = listOf(
       buildPath.resolve("generated/aidl_source_output_dir/${variant}/out"),
       buildPath.resolve("generated/ap_generated_sources/${variant}/out"),
@@ -736,8 +738,8 @@ fun AndroidProjectStubBuilder.buildMainArtifactStub(
       buildPath.resolve("generated/source/buildConfig/${variant}"),
     ),
     isTestArtifact = false,
-    compileClasspath = dependenciesStub,
-    runtimeClasspath = dependenciesStub,
+    compileClasspathCore = dependenciesStub,
+    runtimeClasspathCore = dependenciesStub,
     unresolvedDependencies = emptyList(),
     applicationId = "applicationId",
     signingConfigName = "defaultConfig",
@@ -765,6 +767,7 @@ fun AndroidProjectStubBuilder.buildMainArtifactStub(
 
 fun AndroidProjectStubBuilder.buildAndroidTestArtifactStub(
   variant: String,
+  applicationId: String?,
 ): IdeAndroidArtifactCoreImpl {
   val dependenciesStub = buildDependenciesStub(
     dependencies = toIdeModuleDependencies(androidModuleDependencies(variant).orEmpty()) +
@@ -790,7 +793,7 @@ fun AndroidProjectStubBuilder.buildAndroidTestArtifactStub(
     classesFolder = listOf(buildPath.resolve("intermediates/javac/${variant}AndroidTest/classes")),
     variantSourceProvider = null,
     multiFlavorSourceProvider = null,
-    ideSetupTaskNames = setOf("ideAndroidTestSetupTask1", "ideAndroidTestSetupTask2"),
+    ideSetupTaskNames = listOf("ideAndroidTestSetupTask1", "ideAndroidTestSetupTask2"),
     generatedSourceFolders = listOf(
       buildPath.resolve("generated/aidl_source_output_dir/${variant}AndroidTest/out"),
       buildPath.resolve("generated/ap_generated_sources/${variant}AndroidTest/out"),
@@ -798,10 +801,10 @@ fun AndroidProjectStubBuilder.buildAndroidTestArtifactStub(
       buildPath.resolve("generated/source/buildConfig/androidTest/${variant}"),
     ),
     isTestArtifact = true,
-    compileClasspath = dependenciesStub,
-    runtimeClasspath = dependenciesStub,
+    compileClasspathCore = dependenciesStub,
+    runtimeClasspathCore = dependenciesStub,
     unresolvedDependencies = emptyList(),
-    applicationId = "applicationId",
+    applicationId = applicationId,
     signingConfigName = "defaultConfig",
     isSigned = false,
     generatedResourceFolders = listOf(
@@ -853,13 +856,13 @@ fun AndroidProjectStubBuilder.buildUnitTestArtifactStub(
     classesFolder = listOf(buildPath.resolve("intermediates/javac/${variant}UnitTest/classes")),
     variantSourceProvider = null,
     multiFlavorSourceProvider = null,
-    ideSetupTaskNames = setOf("ideUnitTestSetupTask1", "ideUnitTestSetupTask2"),
+    ideSetupTaskNames = listOf("ideUnitTestSetupTask1", "ideUnitTestSetupTask2"),
     generatedSourceFolders = listOf(
       buildPath.resolve("generated/ap_generated_sources/${variant}UnitTest/out"),
     ),
     isTestArtifact = true,
-    compileClasspath = dependencies,
-    runtimeClasspath = dependencies,
+    compileClasspathCore = dependencies,
+    runtimeClasspathCore = dependencies,
     unresolvedDependencies = emptyList(),
     mockablePlatformJar = mockablePlatformJar
   )
@@ -906,11 +909,11 @@ fun AndroidProjectStubBuilder.buildTestFixturesArtifactStub(
     classesFolder = listOf(buildPath.resolve("intermediates/javac/${variant}testFixtures/classes")),
     variantSourceProvider = null,
     multiFlavorSourceProvider = null,
-    ideSetupTaskNames = setOf("ideTestFixturesSetupTask1", "ideTestFixturesSetupTask2"),
+    ideSetupTaskNames = listOf("ideTestFixturesSetupTask1", "ideTestFixturesSetupTask2"),
     generatedSourceFolders = emptyList(),
     isTestArtifact = false,
-    compileClasspath = dependenciesStub,
-    runtimeClasspath = dependenciesStub,
+    compileClasspathCore = dependenciesStub,
+    runtimeClasspathCore = dependenciesStub,
     unresolvedDependencies = emptyList(),
     applicationId = "applicationId",
     signingConfigName = "defaultConfig",
@@ -954,12 +957,13 @@ fun AndroidProjectStubBuilder.buildVariantStubs(): List<IdeVariantCoreImpl> {
         val buildType = it.buildType
         val flavorNames = flavors.map { it.name }
         val variant = (flavorNames + buildType.name).combineAsCamelCase()
+        val testApplicationId = flavors.firstNotNullResult { it.testApplicationId } ?: defaultConfig.productFlavor.testApplicationId
         IdeVariantCoreImpl(
           variant,
           variant,
           mainArtifact(variant),
           unitTestArtifact(variant),
-          androidTestArtifact(variant),
+          androidTestArtifact(variant, applicationId = testApplicationId),
           testFixturesArtifact(variant),
           buildType.name,
           flavorNames,
@@ -991,8 +995,7 @@ fun AndroidProjectStubBuilder.buildVariantStubs(): List<IdeVariantCoreImpl> {
                                   buildType.manifestPlaceholders.entries
                                  )
             .associate { it.key to it.value },
-          testApplicationId = flavors.firstNotNullResult { it.testApplicationId }
-                              ?: defaultConfig.productFlavor.testApplicationId,
+          deprecatedPreMergedTestApplicationId = testApplicationId,
           testInstrumentationRunner = flavors.firstNotNullResult { it.testInstrumentationRunner }
                                       ?: defaultConfig.productFlavor.testInstrumentationRunner,
           testInstrumentationRunnerArguments = (defaultConfig.productFlavor.testInstrumentationRunnerArguments.entries +
@@ -1272,7 +1275,7 @@ private fun setupTestProjectFromAndroidModelCore(
   )
   PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
-  val androidModels = mutableListOf<GradleAndroidModel>()
+  val androidModels = mutableListOf<GradleAndroidModelData>()
   val internedModels = InternedModels(null)
   val libraryResolver = IdeLibraryModelResolverImpl { sequenceOf(internedModels.resolve(it)) }
   moduleBuilders.forEach { moduleBuilder ->
@@ -1339,7 +1342,7 @@ private fun setupTestProjectFromAndroidModelCore(
     internedModels.createResolvedLibraryTable()
   )
 
-  setupDataNodesForSelectedVariant(project, toSystemIndependentName(rootProjectBasePath.path), androidModels, projectDataNode)
+  setupDataNodesForSelectedVariant(project, toSystemIndependentName(rootProjectBasePath.path), androidModels, projectDataNode, libraryResolver)
   mergeContentRoots(projectDataNode)
   PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
@@ -1409,7 +1412,7 @@ private fun createAndroidModuleDataNode(
     )
   )
 
-  val gradleAndroidModel = GradleAndroidModel.create(
+  val gradleAndroidModel = GradleAndroidModelDataImpl.create(
     qualifiedModuleName,
     moduleBasePath,
     androidProject,
@@ -1417,10 +1420,8 @@ private fun createAndroidModuleDataNode(
     selectedVariantName
   )
 
-  gradleAndroidModel.setResolver(libraryResolver);
-
   moduleDataNode.addChild(
-    DataNode<GradleAndroidModel>(
+    DataNode(
       AndroidProjectKeys.ANDROID_MODEL,
       gradleAndroidModel,
       null
@@ -1488,10 +1489,11 @@ private fun createAndroidModuleDataNode(
     )
   }
 
-  gradleAndroidModel.selectedVariant.mainArtifact.setup()
-  gradleAndroidModel.selectedVariant.androidTestArtifact?.setup()
-  gradleAndroidModel.selectedVariant.unitTestArtifact?.setup()
-  gradleAndroidModel.selectedVariant.testFixturesArtifact?.setup()
+  val selectedVariant = gradleAndroidModel.selectedVariant(libraryResolver)
+  selectedVariant.mainArtifact.setup()
+  selectedVariant.androidTestArtifact?.setup()
+  selectedVariant.unitTestArtifact?.setup()
+  selectedVariant.testFixturesArtifact?.setup()
 
   return moduleDataNode
 }
@@ -1745,6 +1747,10 @@ interface GradleIntegrationTest {
     val testDataDirectory = getWorkspaceRoot().resolve(toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
     return testDataDirectory.resolve(toSystemDependentName(testDataPath)).toFile()
   }
+
+  fun getAgpVersionSoftwareEnvironmentDescriptor(): AgpVersionSoftwareEnvironmentDescriptor {
+    return AgpVersionSoftwareEnvironmentDescriptor.AGP_CURRENT
+  }
 }
 
 /**
@@ -1754,9 +1760,9 @@ interface GradleIntegrationTest {
 fun GradleIntegrationTest.prepareGradleProject(
   testProjectPath: String,
   name: String,
-  gradleVersion: String? = null,
-  gradlePluginVersion: String? = null,
-  kotlinVersion: String? = null,
+  gradleVersion: String? = getAgpVersionSoftwareEnvironmentDescriptor()?.gradleVersion,
+  gradlePluginVersion: String? = getAgpVersionSoftwareEnvironmentDescriptor()?.agpVersion,
+  kotlinVersion: String? = getAgpVersionSoftwareEnvironmentDescriptor()?.kotlinVersion,
   ndkVersion: String? = null
 ): File {
   if (name == this.getName()) throw IllegalArgumentException("Additional projects cannot be opened under the test name: $name")
@@ -1953,13 +1959,14 @@ fun Project.requestSyncAndWait() {
 private fun setupDataNodesForSelectedVariant(
   project: Project,
   buildId: @SystemIndependent String,
-  androidModuleModels: List<GradleAndroidModel>,
-  projectDataNode: DataNode<ProjectData>
+  androidModuleModels: List<GradleAndroidModelData>,
+  projectDataNode: DataNode<ProjectData>,
+  libraryResolver: IdeLibraryModelResolverImpl
 ) {
   val moduleNodes = ExternalSystemApiUtil.findAll(projectDataNode, ProjectKeys.MODULE)
   val moduleIdToDataMap = createGradleProjectPathToModuleDataMap(buildId, moduleNodes)
   androidModuleModels.forEach { androidModuleModel ->
-    val newVariant = androidModuleModel.selectedVariant
+    val newVariant = androidModuleModel.selectedVariant(libraryResolver)
 
     val moduleNode = moduleNodes.firstOrNull { node ->
       node.data.internalName == androidModuleModel.moduleName
@@ -1975,7 +1982,7 @@ private fun setupDataNodesForSelectedVariant(
         libraryFilePaths.getCachedPathsForArtifact(id)?.javaDoc,
         libraryFilePaths.getCachedPathsForArtifact(id)?.sampleSource
       )
-    }, androidModuleModel, newVariant, project)
+    }, newVariant, project)
     moduleNode.setupAndroidContentEntriesPerSourceSet(androidModuleModel)
   }
 }

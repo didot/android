@@ -64,10 +64,7 @@ public class ExperimentalSettingsConfigurable implements SearchableConfigurable,
   private JCheckBox myTraceGradleSyncCheckBox;
   private JComboBox<TraceProfileItem> myTraceProfileComboBox;
   private TextFieldWithBrowseButton myTraceProfilePathField;
-  private JCheckBox myAnimationPreviewCheckBox;
   private JCheckBox myPreviewPickerCheckBox;
-  private JCheckBox myFastPreviewEnabledCheckbox;
-  private JLabel myFastPreviewEnabledLabel;
   private JLabel myPreviewPickerLabel;
   private JCheckBox myEnableNewLogcatToolCheckBox;
   private BrowserLink myLogcatLearnMoreBrowserLink;
@@ -96,8 +93,6 @@ public class ExperimentalSettingsConfigurable implements SearchableConfigurable,
     myLayoutEditorQualitySlider.setPaintLabels(true);
     myLayoutEditorQualitySlider.setPaintTicks(true);
     myLayoutEditorQualitySlider.setMajorTickSpacing(25);
-    myFastPreviewEnabledCheckbox.setVisible(StudioFlags.COMPOSE_FAST_PREVIEW.get());
-    myFastPreviewEnabledLabel.setVisible(StudioFlags.COMPOSE_FAST_PREVIEW.get());
     myPreviewPickerCheckBox.setVisible(StudioFlags.COMPOSE_PREVIEW_ELEMENT_PICKER.get());
     myPreviewPickerLabel.setVisible(StudioFlags.COMPOSE_PREVIEW_ELEMENT_PICKER.get());
     initTraceComponents();
@@ -136,9 +131,7 @@ public class ExperimentalSettingsConfigurable implements SearchableConfigurable,
            mySettings.TRACE_PROFILE_SELECTION != getTraceProfileSelection() ||
            !mySettings.TRACE_PROFILE_LOCATION.equals(getTraceProfileLocation()) ||
            (int)(myRenderSettings.getQuality() * 100) != getQualitySetting() ||
-           myAnimationPreviewCheckBox.isSelected() != ComposeExperimentalConfiguration.getInstance().isAnimationPreviewEnabled() ||
            myPreviewPickerCheckBox.isSelected() != ComposeExperimentalConfiguration.getInstance().isPreviewPickerEnabled() ||
-           myFastPreviewEnabledCheckbox.isSelected() != ComposeExperimentalConfiguration.getInstance().isFastPreviewEnabled() ||
            myEnableNewLogcatToolCheckBox.isSelected() != LogcatExperimentalSettings.getInstance().getLogcatV2Enabled() ||
            myEnableDeviceMirroringCheckBox.isSelected() != DeviceMirroringSettings.getInstance().getDeviceMirroringEnabled();
   }
@@ -155,9 +148,7 @@ public class ExperimentalSettingsConfigurable implements SearchableConfigurable,
     myRenderSettings.setQuality(getQualitySetting() / 100f);
 
     applyTraceSettings();
-    ComposeExperimentalConfiguration.getInstance().setAnimationPreviewEnabled(myAnimationPreviewCheckBox.isSelected());
     ComposeExperimentalConfiguration.getInstance().setPreviewPickerEnabled(myPreviewPickerCheckBox.isSelected());
-    ComposeExperimentalConfiguration.getInstance().setFastPreviewEnabled(myFastPreviewEnabledCheckbox.isSelected());
     DeviceMirroringSettings.getInstance().setDeviceMirroringEnabled(myEnableDeviceMirroringCheckBox.isSelected());
 
     LogcatExperimentalSettings logcatSettings = LogcatExperimentalSettings.getInstance();
@@ -318,9 +309,7 @@ public class ExperimentalSettingsConfigurable implements SearchableConfigurable,
     myTraceProfileComboBox.setSelectedItem(mySettings.TRACE_PROFILE_SELECTION);
     myTraceProfilePathField.setText(mySettings.TRACE_PROFILE_LOCATION);
     updateTraceComponents();
-    myAnimationPreviewCheckBox.setSelected(ComposeExperimentalConfiguration.getInstance().isAnimationPreviewEnabled());
     myPreviewPickerCheckBox.setSelected(ComposeExperimentalConfiguration.getInstance().isPreviewPickerEnabled());
-    myFastPreviewEnabledCheckbox.setSelected(ComposeExperimentalConfiguration.getInstance().isFastPreviewEnabled());
     myEnableNewLogcatToolCheckBox.setSelected(LogcatExperimentalSettings.getInstance().getLogcatV2Enabled());
     myEnableDeviceMirroringCheckBox.setSelected(DeviceMirroringSettings.getInstance().getDeviceMirroringEnabled());
   }

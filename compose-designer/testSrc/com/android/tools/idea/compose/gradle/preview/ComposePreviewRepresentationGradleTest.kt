@@ -102,13 +102,15 @@ class ComposePreviewRepresentationGradleTest {
       }, 1.0, true)
       fakeUi.root.validate()
     }
-    composePreviewRepresentation.onActivate()
 
-    runBlocking {
-      composePreviewRepresentation.forceRefresh()!!.join()
-      previewView.updateVisibilityAndNotifications()
+    runAndWaitForRefresh { composePreviewRepresentation.onActivate() }
+
+    runAndWaitForRefresh {
+      runBlocking {
+        composePreviewRepresentation.forceRefresh()!!.join()
+        previewView.updateVisibilityAndNotifications()
+      }
     }
-    waitForRefreshToFinish()
     assertTrue(previewView.hasRendered)
     assertTrue(previewView.hasContent)
     assertTrue(!composePreviewRepresentation.status().isRefreshing)

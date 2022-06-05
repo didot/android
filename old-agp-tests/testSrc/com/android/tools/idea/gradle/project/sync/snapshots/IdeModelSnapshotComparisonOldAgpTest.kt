@@ -17,12 +17,15 @@ package com.android.tools.idea.gradle.project.sync.snapshots
 
 import com.android.testutils.junit4.OldAgpSuite
 import com.android.testutils.junit4.OldAgpTest
+import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor
+import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor.AGP_41
+import com.android.tools.idea.testing.applySelectedAgpVersions
 import com.intellij.testFramework.RunsInEdt
 import org.jetbrains.annotations.Contract
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-@OldAgpTest(agpVersions = ["4.1", "4.2", "7.0", "7.1"], gradleVersions = ["LATEST"])
+@OldAgpTest
 @RunsInEdt
 @RunWith(Parameterized::class)
 class IdeModelSnapshotComparisonOldAgpTest : IdeModelSnapshotComparisonTest() {
@@ -30,8 +33,7 @@ class IdeModelSnapshotComparisonOldAgpTest : IdeModelSnapshotComparisonTest() {
     @Suppress("unused")
     @Contract(pure = true)
     @JvmStatic
-    @Parameterized.Parameters(name = "{1}\${0}")
-    fun testProjects(): Collection<*> = testProjectsFor(
-      AgpVersion.values().filter { (OldAgpSuite.AGP_VERSION == null || it.legacyAgpVersion == OldAgpSuite.AGP_VERSION) && it != AgpVersion.CURRENT })
+    @Parameterized.Parameters(name = "{0}")
+    fun testParameters(): Collection<*> = testProjects().applySelectedAgpVersions().filter { it.agpVersion >= AGP_41 }
   }
 }

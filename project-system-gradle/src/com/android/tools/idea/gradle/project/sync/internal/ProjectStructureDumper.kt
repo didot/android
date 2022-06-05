@@ -15,9 +15,15 @@
  */
 package com.android.tools.idea.gradle.project.sync.internal
 
+import com.android.tools.idea.gradle.project.ProjectStructure
+import com.android.tools.idea.gradle.project.build.invoker.GradleTaskFinder
+import com.android.tools.idea.gradle.project.build.invoker.TestCompileType
 import com.android.tools.idea.gradle.project.facet.gradle.GradleFacetConfiguration
 import com.android.tools.idea.gradle.project.facet.ndk.NdkFacetConfiguration
 import com.android.tools.idea.gradle.project.model.AndroidModuleModel
+import com.android.tools.idea.gradle.run.GradleModuleTasksProvider
+import com.android.tools.idea.gradle.util.BuildMode
+import com.android.tools.idea.projectsystem.gradle.getGradleProjectPath
 import com.android.tools.idea.run.AndroidRunConfigurationBase
 import com.android.tools.idea.run.profiler.CpuProfilerConfig
 import com.android.tools.idea.testartifacts.instrumented.AndroidTestRunConfiguration
@@ -67,6 +73,9 @@ import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.config.CompilerSettings
 import org.jetbrains.kotlin.idea.facet.KotlinFacetConfiguration
 import java.io.File
+import java.nio.file.Path
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.pathString
 
 fun ProjectDumper.dumpProject(project: Project) {
   println("<PROJECT>     <== ${File(project.basePath!!)}")
@@ -83,6 +92,24 @@ fun ProjectDumper.dumpProject(project: Project) {
       head("LIBRARY_TABLE")
       nest {
         libraries.sortedBy { it.name }.forEach { dump(it) }
+      }
+    }
+    @Suppress("UnstableApiUsage")
+    dumpTasks { buildMode ->
+      fun List<Module>.sortedModules(): Array<Module> = sortedBy { it.moduleFilePath.replaceKnownPaths() }.toTypedArray()
+
+      val allModules = ModuleManager.getInstance(project).modules.toList().sortedModules()
+      val appModules = ProjectStructure.getInstance(project).appHolderModules.sortedModules()
+      val leafModules = ProjectStructure.getInstance(project).leafHolderModules.sortedModules()
+
+      when (buildMode) {
+        BuildMode.REBUILD -> allModules
+        BuildMode.COMPILE_JAVA -> allModules
+        BuildMode.ASSEMBLE -> leafModules
+        BuildMode.CLEAN -> allModules
+        BuildMode.APK_FROM_BUNDLE -> appModules
+        BuildMode.BUNDLE -> appModules
+        BuildMode.SOURCE_GEN -> allModules
       }
     }
   }
@@ -145,6 +172,59 @@ fun ProjectDumper.dump(module: Module) {
       nest {
         classes.forEach {
           prop("-") { it.replaceKnownPaths() }
+        }
+      }
+    }
+
+    dumpTasks{ arrayOf(module) }
+  }
+}
+
+fun ProjectDumper.dumpTasks(modulesProvider: (buildMode: BuildMode) -> Array<Module>) {
+  val taskFinder = GradleTaskFinder.getInstance()
+  head("BUILD_TASKS")
+  nest {
+    TestCompileType.values().forEach { testCompileMode ->
+      head("TEST_COMPILE_MODE") { testCompileMode.displayName }
+      nest {
+        BuildMode.values().forEach { buildMode ->
+          val modules = modulesProvider(buildMode).takeUnless { it.isEmpty()  } ?: return@forEach
+          val expectedRoot = modules.mapNotNull {it.getGradleProjectPath()?.buildRoot?.let(::File)?.toPath()}.singleOrNull()
+
+          fun Map<Path, MutableCollection<String>>.asFirstEntry(): Set<String> {
+            if (expectedRoot != null && keys.size > 1) {
+              prop("ERROR") {
+                "Multiple project roots for a single module: " +
+                  keys.sortedBy { it.pathString.replaceKnownPaths() }.joinToString(",") { it.absolutePathString().replaceKnownPaths() }
+              }
+            }
+            return entries
+              .sortedBy { it.key.pathString.replaceKnownPaths() }
+              .flatMap { (path, tasks) ->
+              if (path == expectedRoot) tasks
+              else tasks.map { "${path.pathString.replaceKnownPaths()}:$it" }
+            }
+              .toSet()
+          }
+
+          fun getTasks(): Set<String> = taskFinder.findTasksToExecute(modules, buildMode, testCompileMode).asMap().asFirstEntry()
+
+          fun getTestTasks(): Set<String> {
+            val all =
+              if (testCompileMode == TestCompileType.UNIT_TESTS) GradleModuleTasksProvider(modules).getUnitTestTasks(buildMode)
+            else GradleModuleTasksProvider(modules).getTasksFor(buildMode, testCompileMode)
+            return all.asFirstEntry()
+          }
+
+          fun Set<String>.dumpAs(name: String) {
+            prop(name) { this.takeUnless { it.isEmpty() }?.joinToString(", ") }
+          }
+
+          val regularTasks = getTasks()
+          val testTasks = getTestTasks()
+
+          regularTasks.dumpAs(buildMode.toString())
+          (testTasks - regularTasks).dumpAs("$buildMode(test only)")
         }
       }
     }
@@ -309,12 +389,6 @@ private fun ProjectDumper.dump(gradleFacetConfiguration: GradleFacetConfiguratio
 private fun ProjectDumper.dump(androidFacetConfiguration: AndroidFacetConfiguration) {
   with(androidFacetConfiguration.state ?: return) {
     prop("SelectedBuildVariant") { SELECTED_BUILD_VARIANT.nullize() }
-    prop("AssembleTaskName") { ASSEMBLE_TASK_NAME.nullize() }
-    prop("CompileJavaTaskName") { COMPILE_JAVA_TASK_NAME.nullize() }
-    prop("AssembleTestTaskName") { ASSEMBLE_TEST_TASK_NAME.nullize() }
-    prop("CompileJavaTestTaskName") { COMPILE_JAVA_TEST_TASK_NAME.nullize() }
-    prop("CompileJavaTestTaskName") { COMPILE_JAVA_TEST_TASK_NAME.nullize() }
-    AFTER_SYNC_TASK_NAMES.sorted().forEach { prop("- AfterSyncTask") { it } }
     prop("AllowUserConfiguration") {
       @Suppress("DEPRECATION")
       ALLOW_USER_CONFIGURATION.toString()
@@ -327,31 +401,15 @@ private fun ProjectDumper.dump(androidFacetConfiguration: AndroidFacetConfigurat
     TEST_RES_FOLDERS_RELATIVE_PATH?.toPrintablePaths()?.forEach { prop("- TestResFoldersRelativePath") { it } }
     prop("AssetsFolderRelativePath") { ASSETS_FOLDER_RELATIVE_PATH.nullize() }
     prop("LibsFolderRelativePath") { LIBS_FOLDER_RELATIVE_PATH.nullize() }
-    prop("UseCustomApkResourceFolder") { USE_CUSTOM_APK_RESOURCE_FOLDER.toString() }
-    prop("CustomApkResourceFolder") { CUSTOM_APK_RESOURCE_FOLDER.nullize() }
-    prop("CustomCompilerManifest") { CUSTOM_COMPILER_MANIFEST.nullize() }
     prop("ApkPath") { APK_PATH.nullize() }
     prop("ProjectType") { PROJECT_TYPE.toString() }
-    prop("RunProcessResourcesMavenTask") { RUN_PROCESS_RESOURCES_MAVEN_TASK.toString() }
     prop("CustomDebugKeystorePath") { CUSTOM_DEBUG_KEYSTORE_PATH.nullize() }
     prop("PackTestCode") { PACK_TEST_CODE.toString() }
     prop("RunProguard") { RUN_PROGUARD.toString() }
     prop("ProguardLogsFolderRelativePath") { PROGUARD_LOGS_FOLDER_RELATIVE_PATH.nullize() }
     prop("UseCustomManifestPackage") { USE_CUSTOM_MANIFEST_PACKAGE.toString() }
     prop("CustomManifestPackage") { CUSTOM_MANIFEST_PACKAGE.nullize() }
-    prop("AdditionalPackagingCommandLineParameters") { ADDITIONAL_PACKAGING_COMMAND_LINE_PARAMETERS.nullize() }
-    prop("UpdatePropertyFiles") { UPDATE_PROPERTY_FILES.nullize() }
-    prop("EnableManifestMerging") { ENABLE_MANIFEST_MERGING.toString() }
-    prop("EnablePreDexing") { ENABLE_PRE_DEXING.toString() }
-    prop("CompileCustomGeneratedSources") { COMPILE_CUSTOM_GENERATED_SOURCES.toString() }
-    prop("EnableSourcesAutogeneration") { ENABLE_SOURCES_AUTOGENERATION.toString() }
-    prop("EnableMultiDex") { ENABLE_MULTI_DEX.toString() }
-    prop("MainDexList") { MAIN_DEX_LIST.nullize() }
-    prop("MinimalMainDex") { MINIMAL_MAIN_DEX.toString() }
-    prop("IncludeAssetsFromLibraries") { myIncludeAssetsFromLibraries.toString() }
     myProGuardCfgFiles.forEach { prop("- ProGuardCfgFiles") { it } }
-    myNativeLibs.forEach { prop("- NativeLibs") { it.toString() } }
-    myNotImportedProperties.sorted().forEach { prop("- NotImportedProperties") { it.toString() } }
   }
 }
 

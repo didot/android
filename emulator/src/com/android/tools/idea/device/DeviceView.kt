@@ -15,14 +15,17 @@
  */
 package com.android.tools.idea.device
 
+import com.android.tools.adtui.actions.ZoomType
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.device.AndroidKeyEventActionType.ACTION_DOWN_AND_UP
 import com.android.tools.idea.emulator.AbstractDisplayView
+import com.android.tools.idea.emulator.DeviceMirroringSettings
+import com.android.tools.idea.emulator.DeviceMirroringSettingsListener
 import com.android.tools.idea.emulator.PRIMARY_DISPLAY_ID
+import com.android.tools.idea.emulator.isSameAspectRatio
 import com.android.tools.idea.emulator.rotatedByQuadrants
 import com.android.tools.idea.emulator.scaled
 import com.android.tools.idea.emulator.scaledUnbiased
-import com.android.tools.idea.flags.StudioFlags
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
@@ -84,15 +87,17 @@ class DeviceView(
   private val deviceAbi: String,
   initialDisplayOrientation: Int?,
   private val project: Project,
-) : AbstractDisplayView(PRIMARY_DISPLAY_ID), Disposable {
+) : AbstractDisplayView(PRIMARY_DISPLAY_ID), Disposable, DeviceMirroringSettingsListener {
 
   /** Area of the window occupied by the device display image in physical pixels. */
-  private var displayRectangle: Rectangle? = null
+  var displayRectangle: Rectangle? = null
+    private set
   private val displayTransform = AffineTransform()
   private var deviceClient: DeviceClient? = null
-  val deviceController: DeviceController?
+  internal val deviceController: DeviceController?
     get() = deviceClient?.deviceController
   private var decoder: VideoDecoder? = null
+  private var clipboardSynchronizer: DeviceClipboardSynchronizer? = null
 
   /** Size of the device display in device pixels. */
   private val deviceDisplaySize = Dimension()
@@ -102,7 +107,7 @@ class DeviceView(
 
   /** Count of received display frames. */
   @get:VisibleForTesting
-  var frameNumber = 0
+  var frameNumber: Long = 0
     private set
 
   private var connected = false
@@ -143,6 +148,8 @@ class DeviceView(
 
     addKeyListener(MyKeyListener())
 
+    project.messageBus.connect(this).subscribe(DeviceMirroringSettingsListener.TOPIC, this)
+
     AndroidCoroutineScope(this).launch { initializeAgent(initialDisplayOrientation) }
   }
 
@@ -158,9 +165,8 @@ class DeviceView(
           if (width > 0 && height > 0) {
             deviceClient.deviceController.sendControlMessage(SetMaxVideoResolutionMessage(realWidth, realHeight))
           }
-          if (StudioFlags.DEVICE_CLIPBOARD_SYNCHRONIZATION_ENABLED.get()) {
-            val clipboardSynchronizer = DeviceClipboardSynchronizer(deviceClient.deviceController, this)
-            clipboardSynchronizer.setDeviceClipboardAndKeepHostClipboardInSync()
+          if (DeviceMirroringSettings.getInstance().synchronizeClipboard) {
+            clipboardSynchronizer = DeviceClipboardSynchronizer(deviceClient.deviceController, this)
           }
         }
       }
@@ -169,10 +175,9 @@ class DeviceView(
         override fun onNewFrameAvailable() {
           EventQueue.invokeLater { // This is safe because this code doesn't touch PSI or VFS.
             connected = true
-            if (frameNumber == 0) {
+            if (frameNumber == 0L) {
               hideLongRunningOperationIndicatorInstantly()
             }
-            frameNumber++
             if (width != 0 && height != 0) {
               repaint()
             }
@@ -245,6 +250,10 @@ class DeviceView(
     // Draw device display.
     decoder.consumeDisplayFrame { displayFrame ->
       val image = displayFrame.image
+      val rect = displayRectangle
+      if (rect != null && !isSameAspectRatio(image.width, image.height, rect.width, rect.height, 0.01)) {
+        zoom(ZoomType.FIT) // Dimensions of the display image changed - reset zoom level.
+      }
       val scale = roundScale(min(realWidth.toDouble() / image.width, realHeight.toDouble() / image.height))
       val w = image.width.scaled(scale).coerceAtMost(realWidth)
       val h = image.height.scaled(scale).coerceAtMost(realHeight)
@@ -261,6 +270,7 @@ class DeviceView(
 
       deviceDisplaySize.size = displayFrame.displaySize
       displayRotationQuadrants = displayFrame.orientation
+      frameNumber = displayFrame.frameNumber
 
       deviceClient?.apply {
         if (startTime != 0L) {
@@ -284,6 +294,27 @@ class DeviceView(
     }
   }
 
+  override fun settingsChanged(settings: DeviceMirroringSettings) {
+    val controller = deviceClient?.deviceController ?: return
+    if (settings.synchronizeClipboard) {
+      val synchronizer = clipboardSynchronizer
+      if (synchronizer == null) {
+        // Start clipboard synchronization.
+        clipboardSynchronizer = DeviceClipboardSynchronizer(controller, this)
+      }
+      else {
+        // Pass the new value of maxSyncedClipboardLength to the device.
+        synchronizer.setDeviceClipboard()
+      }
+    }
+    else {
+      clipboardSynchronizer?.let {
+        // Stop clipboard synchronization.
+        Disposer.dispose(it)
+        clipboardSynchronizer = null
+      }
+    }
+  }
 
   private fun sendMotionEvent(x: Int, y: Int, action: Int) {
     val displayRectangle = displayRectangle ?: return
@@ -416,7 +447,7 @@ class DeviceView(
         VK_HOME -> AKEYCODE_MOVE_HOME
         VK_END -> AKEYCODE_MOVE_END
         VK_PAGE_UP -> AKEYCODE_PAGE_UP
-        VK_PAGE_DOWN -> AKEYCODE_PAGE_UP
+        VK_PAGE_DOWN -> AKEYCODE_PAGE_DOWN
         else -> AKEYCODE_UNKNOWN
       }
     }
@@ -447,7 +478,8 @@ class DeviceView(
 
     override fun mouseExited(event: MouseEvent) {
       if ((event.modifiersEx and BUTTON1_DOWN_MASK) != 0) {
-        sendMotionEvent(event.x, event.y, MotionEventMessage.ACTION_UP) // Terminate the ongoing dragging.
+        // Moving over the edge of the display view will terminate the ongoing dragging.
+        sendMotionEvent(event.x, event.y, MotionEventMessage.ACTION_MOVE)
       }
       multiTouchMode = false
     }

@@ -16,21 +16,16 @@
 package com.android.tools.idea.devicemanager.virtualtab;
 
 import com.android.ddmlib.AndroidDebugBridge.IDeviceChangeListener;
-import com.android.ddmlib.AvdData;
 import com.android.ddmlib.IDevice;
 import com.android.ddmlib.IDevice.DeviceState;
-import com.android.tools.idea.devicemanager.CountDownLatchAssert;
-import com.android.tools.idea.devicemanager.CountDownLatchFutureCallback;
-import com.android.tools.idea.devicemanager.Key;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import java.util.concurrent.CountDownLatch;
+import com.intellij.openapi.application.Application;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 @RunWith(JUnit4.class)
 public final class VirtualDeviceChangeListenerTest {
@@ -46,7 +41,7 @@ public final class VirtualDeviceChangeListenerTest {
     listener.deviceChanged(myDevice, 0);
 
     // Assert
-    Mockito.verify(myModel, Mockito.never()).setOnline(ArgumentMatchers.any(), ArgumentMatchers.anyBoolean());
+    Mockito.verify(myModel, Mockito.never()).setAllOnline();
   }
 
   @Test
@@ -59,7 +54,7 @@ public final class VirtualDeviceChangeListenerTest {
     listener.deviceChanged(myDevice, 0);
 
     // Assert
-    Mockito.verify(myModel, Mockito.never()).setOnline(ArgumentMatchers.any(), ArgumentMatchers.anyBoolean());
+    Mockito.verify(myModel, Mockito.never()).setAllOnline();
   }
 
   @Test
@@ -72,86 +67,51 @@ public final class VirtualDeviceChangeListenerTest {
     listener.deviceChanged(myDevice, IDevice.CHANGE_STATE);
 
     // Assert
-    Mockito.verify(myModel, Mockito.never()).setOnline(ArgumentMatchers.any(), ArgumentMatchers.anyBoolean());
+    Mockito.verify(myModel, Mockito.never()).setAllOnline();
   }
 
   @Test
-  public void deviceChangedAvdIsNull() throws InterruptedException {
+  public void deviceChangedCaseOffline() {
     // Arrange
-    CountDownLatch latch = new CountDownLatch(1);
-    IDeviceChangeListener listener = new VirtualDeviceChangeListener(myModel, (model, online) -> newSetOnline(model, online, latch));
+    Runnable setAllOnline = myModel::setAllOnline;
+
+    Application application = Mockito.mock(Application.class);
+    Mockito.doAnswer(VirtualDeviceChangeListenerTest::run).when(application).invokeLater(setAllOnline);
+
+    IDeviceChangeListener listener = new VirtualDeviceChangeListener(() -> application, setAllOnline);
 
     Mockito.when(myDevice.isEmulator()).thenReturn(true);
     Mockito.when(myDevice.getState()).thenReturn(DeviceState.OFFLINE);
-    Mockito.when(myDevice.getAvdData()).thenReturn(Futures.immediateFuture(null));
 
     // Act
     listener.deviceChanged(myDevice, IDevice.CHANGE_STATE);
 
     // Assert
-    CountDownLatchAssert.await(latch);
     Mockito.verify(myModel).setAllOnline();
   }
 
   @Test
-  public void deviceChangedNameIsNull() throws InterruptedException {
+  public void deviceChangedCaseOnline() {
     // Arrange
-    CountDownLatch latch = new CountDownLatch(1);
-    IDeviceChangeListener listener = new VirtualDeviceChangeListener(myModel, (model, online) -> newSetOnline(model, online, latch));
+    Runnable setAllOnline = myModel::setAllOnline;
 
-    Mockito.when(myDevice.isEmulator()).thenReturn(true);
-    Mockito.when(myDevice.getState()).thenReturn(DeviceState.OFFLINE);
-    Mockito.when(myDevice.getAvdData()).thenReturn(Futures.immediateFuture(new AvdData(null, null)));
+    Application application = Mockito.mock(Application.class);
+    Mockito.doAnswer(VirtualDeviceChangeListenerTest::run).when(application).invokeLater(setAllOnline);
 
-    // Act
-    listener.deviceChanged(myDevice, IDevice.CHANGE_STATE);
-
-    // Assert
-    CountDownLatchAssert.await(latch);
-    Mockito.verify(myModel).setAllOnline();
-  }
-
-  @Test
-  public void deviceChangedCaseOffline() throws InterruptedException {
-    // Arrange
-    CountDownLatch latch = new CountDownLatch(1);
-    IDeviceChangeListener listener = new VirtualDeviceChangeListener(myModel, (model, online) -> newSetOnline(model, online, latch));
-
-    Mockito.when(myDevice.isEmulator()).thenReturn(true);
-    Mockito.when(myDevice.getState()).thenReturn(DeviceState.OFFLINE);
-    Mockito.when(myDevice.getAvdData())
-      .thenReturn(Futures.immediateFuture(new AvdData("Pixel_6_API_31", "/usr/local/google/home/user/.android/avd/Pixel_6_API_31.avd")));
-
-    // Act
-    listener.deviceChanged(myDevice, IDevice.CHANGE_STATE);
-
-    // Assert
-    CountDownLatchAssert.await(latch);
-    Mockito.verify(myModel).setOnline(new VirtualDeviceName("/usr/local/google/home/user/.android/avd/Pixel_6_API_31.avd"), false);
-  }
-
-  @Test
-  public void deviceChanged() throws InterruptedException {
-    // Arrange
-    CountDownLatch latch = new CountDownLatch(1);
-    IDeviceChangeListener listener = new VirtualDeviceChangeListener(myModel, (model, online) -> newSetOnline(model, online, latch));
+    IDeviceChangeListener listener = new VirtualDeviceChangeListener(() -> application, setAllOnline);
 
     Mockito.when(myDevice.isEmulator()).thenReturn(true);
     Mockito.when(myDevice.getState()).thenReturn(DeviceState.ONLINE);
-    Mockito.when(myDevice.getAvdData())
-      .thenReturn(Futures.immediateFuture(new AvdData("Pixel_6_API_31", "/usr/local/google/home/user/.android/avd/Pixel_6_API_31.avd")));
 
     // Act
     listener.deviceChanged(myDevice, IDevice.CHANGE_STATE);
 
     // Assert
-    CountDownLatchAssert.await(latch);
-    Mockito.verify(myModel).setOnline(new VirtualDeviceName("/usr/local/google/home/user/.android/avd/Pixel_6_API_31.avd"), true);
+    Mockito.verify(myModel).setAllOnline();
   }
 
-  private static @NotNull FutureCallback<@NotNull Key> newSetOnline(@NotNull VirtualDeviceTableModel model,
-                                                                    boolean online,
-                                                                    @NotNull CountDownLatch latch) {
-    return new CountDownLatchFutureCallback<>(VirtualDeviceChangeListener.newSetOnline(model, online), latch);
+  private static @Nullable Void run(@NotNull InvocationOnMock invocation) {
+    ((Runnable)invocation.getArgument(0)).run();
+    return null;
   }
 }

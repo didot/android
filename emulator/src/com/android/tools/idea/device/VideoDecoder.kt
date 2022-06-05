@@ -49,11 +49,12 @@ import org.bytedeco.ffmpeg.global.avutil.AV_NOPTS_VALUE
 import org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGRA
 import org.bytedeco.ffmpeg.global.avutil.av_frame_alloc
 import org.bytedeco.ffmpeg.global.avutil.av_frame_free
-import org.bytedeco.ffmpeg.global.avutil.av_image_alloc
+import org.bytedeco.ffmpeg.global.avutil.av_frame_get_buffer
+import org.bytedeco.ffmpeg.global.avutil.av_frame_make_writable
 import org.bytedeco.ffmpeg.global.avutil.av_image_get_buffer_size
 import org.bytedeco.ffmpeg.global.swscale.SWS_BILINEAR
 import org.bytedeco.ffmpeg.global.swscale.sws_freeContext
-import org.bytedeco.ffmpeg.global.swscale.sws_getContext
+import org.bytedeco.ffmpeg.global.swscale.sws_getCachedContext
 import org.bytedeco.ffmpeg.global.swscale.sws_scale
 import org.bytedeco.ffmpeg.swscale.SwsContext
 import org.bytedeco.javacpp.BytePointer
@@ -310,14 +311,15 @@ internal class VideoDecoder(private val videoChannel: SuspendingSocketChannel, @
       if (renderingFrame == null || renderingFrame.width() != size.width || renderingFrame.height() != size.height) {
         renderingFrame?.let { av_frame_free(it) }
         renderingFrame = createRenderingFrame(size).also { this.renderingFrame = it }
-        swsContext?.let {
-          sws_freeContext(it)
-          swsContext = null
+        if (av_frame_get_buffer(renderingFrame, 4) < 0) {
+          throw RuntimeException("av_frame_get_buffer failed")
         }
       }
+      if (av_frame_make_writable(renderingFrame) < 0) {
+        throw RuntimeException("av_frame_make_writable failed")
+      }
 
-      val swsContext = swsContext ?: createSwsContext(renderingFrame).also { swsContext = it }
-      sws_scale(swsContext, decodingFrame.data(), decodingFrame.linesize(), 0, decodingFrame.height(),
+      sws_scale(getSwsContext(renderingFrame), decodingFrame.data(), decodingFrame.linesize(), 0, decodingFrame.height(),
                 renderingFrame.data(), renderingFrame.linesize())
 
       val numBytes = av_image_get_buffer_size(renderingFrame.format(), renderingFrame.width(), renderingFrame.height(), 1)
@@ -347,11 +349,13 @@ internal class VideoDecoder(private val videoChannel: SuspendingSocketChannel, @
       onNewFrameAvailable()
     }
 
-    private fun createSwsContext(renderingFrame: AVFrame): SwsContext {
-      return sws_getContext(decodingFrame.width(), decodingFrame.height(), decodingFrame.format(),
-                            renderingFrame.width(), renderingFrame.height(), renderingFrame.format(),
-                            SWS_BILINEAR, null, null, null as DoublePointer?) ?:
+    private fun getSwsContext(renderingFrame: AVFrame): SwsContext {
+      val context = sws_getCachedContext(swsContext, decodingFrame.width(), decodingFrame.height(), decodingFrame.format(),
+                                         renderingFrame.width(), renderingFrame.height(), renderingFrame.format(),
+                                         SWS_BILINEAR, null, null, null as DoublePointer?) ?:
              throw VideoDecoderException("Could not allocate SwsContext")
+      swsContext = context
+      return context
     }
 
     private fun createRenderingFrame(size: Dimension): AVFrame {
@@ -359,7 +363,6 @@ internal class VideoDecoder(private val videoChannel: SuspendingSocketChannel, @
         width(size.width)
         height(size.height)
         format(AV_PIX_FMT_BGRA)
-        av_image_alloc(data(), linesize(), size.width, size.height, AV_PIX_FMT_BGRA, 1)
       }
     }
   }

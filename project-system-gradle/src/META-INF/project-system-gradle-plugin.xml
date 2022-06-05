@@ -59,6 +59,7 @@
     <projectService serviceInterface="com.android.tools.idea.gradle.project.sync.GradleSyncState"
         serviceImplementation="com.android.tools.idea.gradle.project.sync.GradleSyncStateImpl"/>
     <projectService serviceImplementation="com.android.tools.idea.gradle.project.sync.GradleSyncStateHolder"/>
+    <projectService serviceImplementation="com.android.tools.idea.gradle.project.sync.messages.GradleSyncMessages"/>
     <projectService serviceImplementation="com.android.tools.idea.gradle.util.LastBuildOrSyncService" />
     <projectService serviceImplementation="com.android.tools.idea.structure.dialog.ProjectStructureConfigurable"/>
     <facet.toolWindow id="Build Variants"
@@ -70,6 +71,7 @@
     <notificationGroup id="Android Gradle Tasks" displayType="BALLOON"/>
     <notificationGroup id="Android SDK Setup Issues" displayType="STICKY_BALLOON" />
     <notificationGroup id="Android Gradle Sync Issues" displayType="STICKY_BALLOON" />
+    <notificationGroup id="Detected Gradle source sets" displayType="BALLOON"/>
     <externalProjectDataService implementation="org.jetbrains.kotlin.android.configure.KotlinGradleAndroidModuleModelProjectDataService"/>
     <externalProjectDataService implementation="com.android.tools.idea.gradle.project.sync.idea.data.service.GradleModuleModelDataService" />
     <externalProjectDataService implementation="com.android.tools.idea.gradle.project.sync.issues.SyncIssueDataService" />
@@ -97,6 +99,11 @@
                            id="EnableAutoPopupInStringLiteralForGradleDependencyCompletion"
                            implementationClass="com.android.tools.idea.gradle.completions.EnableAutoPopupInStringLiteralForGradleDependencyCompletion"
                            order="first"/>
+    <completion.contributor language="TOML"
+                            implementationClass="com.android.tools.idea.gradle.completions.TomlVersionRefCompletionContributor" />
+    <completion.confidence language="TOML"
+                           id="EnableAutoPopupInLiteralForTomlVersionRefDependencyCompletion"
+                           implementationClass="com.android.tools.idea.gradle.completions.EnableAutoPopupInLiteralForTomlVersionRefDependencyCompletion" />
     <renameHandler implementation="com.android.tools.idea.gradle.refactoring.GradleRenameModuleHandler" order="last"/>
     <renameInputValidator implementation="com.android.tools.idea.gradle.refactoring.GradleAwareSourceRootRenameValidator"/>
     <editorNotificationProvider implementation="com.android.tools.idea.gradle.notification.ProjectSyncStatusNotificationProvider"/>
@@ -201,10 +208,6 @@
     </action>
     <action internal="true" id="Android.DumpProjectIdeModels"
             class="com.android.tools.idea.gradle.project.sync.internal.DumpProjectIdeModelAction">
-      <add-to-group group-id="Internal.Android"/>
-    </action>
-    <action internal="true" id="Android.DumpProjectData"
-            class="com.android.tools.idea.gradle.project.sync.internal.DumpProjectDataAction">
       <add-to-group group-id="Internal.Android"/>
     </action>
   </actions>

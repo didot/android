@@ -109,7 +109,7 @@ const val DEVICE_VIEW_ACTION_TOOLBAR_NAME = "DeviceViewPanel.ActionToolbar"
  * Panel that shows the device screen in the layout inspector.
  */
 class DeviceViewPanel(
-  val processes: ProcessesModel?,
+  val processesModel: ProcessesModel?,
   private val layoutInspector: LayoutInspector,
   private val viewSettings: DeviceViewSettings,
   disposableParent: Disposable,
@@ -127,11 +127,10 @@ class DeviceViewPanel(
   private var isSpacePressed = false
   private var isMiddleMousePressed = false
   private var lastPanMouseLocation: Point? = null
-  private val popupStatus = PopupStatus()
 
-  private val selectProcessAction: SelectProcessAction? = if (processes != null) {
+  private val selectProcessAction: SelectProcessAction? = if (processesModel != null) {
     SelectProcessAction(
-      model = processes,
+      model = processesModel,
       supportsOffline = false,
       createProcessLabel = (SelectProcessAction)::createCompactProcessLabel,
       stopPresentation = SelectProcessAction.StopPresentation(
@@ -339,13 +338,13 @@ class DeviceViewPanel(
       }
     }
 
-    processes?.addSelectedProcessListeners(newSingleThreadExecutor()) {
-      if (processes.selectedProcess?.isRunning == true) {
+    processesModel?.addSelectedProcessListeners(newSingleThreadExecutor()) {
+      if (processesModel.selectedProcess?.isRunning == true) {
         if (model.isEmpty) {
           loadingPane.startLoading()
         }
       }
-      if (processes.selectedProcess == null) {
+      if (processesModel.selectedProcess == null) {
           loadingPane.stopLoading()
       }
     }
@@ -427,7 +426,7 @@ class DeviceViewPanel(
 
   fun stopInspectors() {
     loadingPane.stopLoading()
-    processes?.stop()
+    processesModel?.stop()
   }
 
   private fun updateLayeredPaneSize() {
@@ -496,9 +495,6 @@ class DeviceViewPanel(
     }
     if (TOGGLE_3D_ACTION_BUTTON_KEY.`is`(dataId)) {
       return deviceViewPanelActionsToolbar.toggle3dActionButton
-    }
-    if (DEVICE_VIEW_POPUP_STATUS.`is`(dataId)) {
-      return popupStatus
     }
     return null
   }

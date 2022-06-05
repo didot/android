@@ -28,9 +28,11 @@ import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.LangDataKeys;
 import com.intellij.openapi.actionSystem.PlatformCoreDataKeys;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import icons.StudioIcons;
 import java.awt.Dimension;
+import java.io.File;
 import java.net.URL;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
@@ -58,18 +60,32 @@ public abstract class AndroidAssetStudioAction extends AnAction {
            view.getDirectories().length > 0 &&
            AndroidFacet.getInstance(module) != null &&
            ProjectSystemUtil.getProjectSystem(module.getProject()).allowsFileCreation() &&
-           getModulePaths(module, location) != null;
+           getModuleTemplate(module, location) != null;
   }
 
   @Nullable
-  private static AndroidModulePaths getModulePaths(@NotNull Module module, @NotNull VirtualFile location) {
+  private static NamedModuleTemplate getModuleTemplate(@NotNull Module module, @NotNull VirtualFile location) {
     for (NamedModuleTemplate namedTemplate : ProjectSystemUtil.getModuleSystem(module).getModuleTemplates(location)) {
-      AndroidModulePaths paths = namedTemplate.getPaths();
-      if (!paths.getResDirectories().isEmpty()) {
-        return paths;
+      if (!namedTemplate.getPaths().getResDirectories().isEmpty()) {
+        return namedTemplate;
       }
     }
     return null;
+  }
+
+  @Nullable
+  private static File findClosestResFolder(@NotNull AndroidModulePaths paths, @NotNull VirtualFile location) {
+    String toFind = location.getPath();
+    File bestMatch = null;
+    int bestCommonPrefixLength = -1;
+    for (File resDir : paths.getResDirectories()) {
+      int commonPrefixLength = StringUtil.commonPrefixLength(resDir.getPath(), toFind);
+      if (commonPrefixLength > bestCommonPrefixLength) {
+        bestCommonPrefixLength = commonPrefixLength;
+        bestMatch = resDir;
+      }
+    }
+    return bestMatch;
   }
 
   @Override
@@ -101,12 +117,17 @@ public abstract class AndroidAssetStudioAction extends AnAction {
       return;
     }
 
-    AndroidModulePaths paths = getModulePaths(module, location);
-    if (paths == null) {
+    NamedModuleTemplate template = getModuleTemplate(module, location);
+    if (template == null) {
       return;
     }
 
-    ModelWizard wizard = createWizard(facet, paths);
+    File resFolder = findClosestResFolder(template.getPaths(), location);
+    if (resFolder == null) {
+      return;
+    }
+
+    ModelWizard wizard = createWizard(facet, template, resFolder);
     if (wizard != null) {
       StudioWizardDialogBuilder dialogBuilder = new StudioWizardDialogBuilder(wizard, "Asset Studio");
       dialogBuilder.setProject(facet.getModule().getProject())
@@ -123,7 +144,7 @@ public abstract class AndroidAssetStudioAction extends AnAction {
    * such as an error dialog.
    */
   @Nullable
-  protected abstract ModelWizard createWizard(@NotNull AndroidFacet facet, @NotNull AndroidModulePaths paths);
+  protected abstract ModelWizard createWizard(@NotNull AndroidFacet facet, @NotNull NamedModuleTemplate template, @NotNull File resFolder);
 
   @NotNull
   protected abstract Dimension getWizardMinimumSize();

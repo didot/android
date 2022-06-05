@@ -21,7 +21,7 @@ import com.android.sdklib.SdkVersionInfo.RECOMMENDED_MIN_SDK_VERSION
 import com.android.tools.adtui.device.FormFactor
 import com.android.tools.idea.npw.platform.AndroidVersionsInfo.VersionItem
 import com.google.common.collect.Lists
-import com.intellij.ide.util.ProjectPropertiesComponentImpl
+import com.intellij.ide.util.AppPropertyService
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.mock.MockApplication
 import com.intellij.openapi.Disposable
@@ -39,7 +39,7 @@ class AndroidApiLevelComboBoxTest {
   fun setUp() {
     disposable = Disposable { }
     val instance = MockApplication(disposable)
-    instance.registerService(PropertiesComponent::class.java, ProjectPropertiesComponentImpl::class.java)
+    instance.registerService(PropertiesComponent::class.java, AppPropertyService::class.java)
     ApplicationManager.setApplication(instance, disposable)
   }
 

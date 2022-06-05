@@ -106,7 +106,8 @@ import java.util.function.Supplier
 import javax.swing.AbstractAction
 import javax.swing.Action
 
-private val LOG = Logger.getInstance("Upgrade Assistant")
+internal const val LOG_CATEGORY = "Upgrade Assistant"
+private val LOG = Logger.getInstance(LOG_CATEGORY)
 
 abstract class GradleBuildModelRefactoringProcessor : BaseRefactoringProcessor {
   constructor(project: Project) : super(project) {
@@ -526,6 +527,7 @@ class AgpUpgradeRefactoringProcessor(
         val infos = usagesToRefactor.toArray(UsageInfo.EMPTY_ARRAY)
         if (ensureElementsWritable(infos, viewDescriptor)) {
           execute(infos)
+          previewExecutedCallback?.invoke()
         }
       }
       val canNotMakeString = AndroidBundle.message("project.upgrade.usageView.need.reRun")
@@ -557,6 +559,9 @@ class AgpUpgradeRefactoringProcessor(
 
   var showBuildOutputOnSyncFailure = true
 
+  var syncRequestCallback: (() -> Unit)? = null
+  var previewExecutedCallback: (() -> Unit)? = null
+
   override fun performPsiSpoilingRefactoring() {
     super.performPsiSpoilingRefactoring()
     val executedUsagesSize = executedUsages.size
@@ -568,6 +573,7 @@ class AgpUpgradeRefactoringProcessor(
       override fun syncSucceeded(project: Project) = trackProcessorUsage(SYNC_SUCCEEDED, executedUsagesSize, requestedFilesSize)
     }
     val request = GradleSyncInvoker.Request(TRIGGER_AGP_VERSION_UPDATED, dontFocusSyncFailureOutput = !showBuildOutputOnSyncFailure)
+    syncRequestCallback?.invoke()
     GradleSyncInvoker.getInstance().requestProjectSync(project, request, listener)
     UndoManager.getInstance(project).undoableActionPerformed(object : BasicUndoableAction() {
       override fun undo(): Unit =

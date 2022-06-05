@@ -40,12 +40,17 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.module.Module
+import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
+import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.util.PathUtil
+import com.intellij.workspaceModel.ide.getInstance
+import com.intellij.workspaceModel.storage.impl.url.toVirtualFileUrl
+import com.intellij.workspaceModel.storage.url.VirtualFileUrlManager
 import org.jetbrains.android.AndroidTestBase
 import org.junit.Rule
 import org.junit.Test
@@ -214,11 +219,34 @@ class SyncScenariosIntegrationTest : GradleIntegrationTest {
           }
         }
       }
-    """)
+    """.trimIndent())
 
     openPreparedProject("project", OpenPreparedProjectOptions({ }, { }, { fail() })) { project ->
       val abis = GradleAndroidModel.get(project.findAppModule())!!.supportedAbis
       assertThat(abis).containsExactly(Abi.X86)
+    }
+  }
+
+  @Test
+  fun testGradleSourceSetModelClash() {
+    val basePath = prepareGradleProject(TestProjectToSnapshotPaths.SIMPLE_APPLICATION, "project")
+    val buildFile = basePath.resolve("app").resolve("build.gradle")
+    buildFile.writeText(buildFile.readText() + """
+      sourceSets {
+        test.resources.srcDirs += 'src/test/resources'
+      }
+    """.trimIndent())
+
+    openPreparedProject("project") { project ->
+      val modules = ModuleManager.getInstance(project).modules
+      assertThat(modules).hasLength(5)
+      assertThat(modules.map(Module::getName).sorted()).containsExactly(
+        "project", "project.app", "project.app.androidTest", "project.app.main", "project.app.unitTest")
+      val unitTestModule = modules.first { it.name == "project.app.unitTest" }
+      val roots = ModuleRootManager.getInstance(unitTestModule).contentRoots
+      @Suppress("UnstableApiUsage")
+      assertThat(roots.map { it.url }).doesNotContain(
+        basePath.resolve("app/src/test/resources").toPath().toVirtualFileUrl(VirtualFileUrlManager.getInstance(project)).url)
     }
   }
 

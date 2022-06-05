@@ -16,7 +16,6 @@
 package com.android.tools.idea.gradle.project.sync
 
 import com.android.annotations.concurrency.WorkerThread
-import com.android.tools.idea.gradle.project.sync.idea.VariantAndAbi
 import com.android.tools.idea.projectsystem.PROJECT_SYSTEM_SYNC_TOPIC
 import com.android.tools.idea.projectsystem.ProjectSystemSyncManager
 import com.google.common.annotations.VisibleForTesting
@@ -33,7 +32,7 @@ interface GradleSyncInvoker {
   fun fetchAndMergeNativeVariants(project: Project, requestedAbis: Set<String>)
 
   @WorkerThread
-  fun fetchGradleModels(project: Project): List<GradleModuleModels>
+  fun fetchGradleModels(project: Project): GradleProjectModels
 
   data class Request @JvmOverloads constructor(
     val trigger: GradleSyncStats.Trigger,
@@ -59,7 +58,7 @@ interface GradleSyncInvoker {
     }
 
     override fun fetchAndMergeNativeVariants(project: Project, requestedAbis: Set<String>) = Unit
-    override fun fetchGradleModels(project: Project): List<GradleModuleModels> = emptyList()
+    override fun fetchGradleModels(project: Project): GradleProjectModels = GradleProjectModels(emptyList(), null)
   }
 
   companion object {

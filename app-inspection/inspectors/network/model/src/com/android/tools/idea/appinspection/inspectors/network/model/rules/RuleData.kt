@@ -16,12 +16,17 @@
 package com.android.tools.idea.appinspection.inspectors.network.model.rules
 
 import com.android.tools.idea.protobuf.ByteString
+import com.intellij.ui.ColoredTableCellRenderer
+import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.scale.JBUIScale
 import com.intellij.util.ui.ColumnInfo
+import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
 import studio.network.inspection.NetworkInspectorProtocol.InterceptCriteria
 import studio.network.inspection.NetworkInspectorProtocol.InterceptRule
 import studio.network.inspection.NetworkInspectorProtocol.MatchingText.Type
 import studio.network.inspection.NetworkInspectorProtocol.Transformation
+import javax.swing.JTable
 import kotlin.reflect.KProperty
 
 class RuleData(
@@ -44,18 +49,18 @@ class RuleData(
    * [ruleDataListener] with value changes.
    */
   inner class Delegate<T>(private var value: T, private val onSet: (RuleData) -> Unit) {
-    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+    operator fun getValue(thisRef: Any, property: KProperty<*>): T {
       return value
     }
 
-    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+    operator fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
       this.value = value
       onSet(this@RuleData)
     }
   }
 
   inner class CriteriaData(
-    protocol: String = "",
+    protocol: String = "https",
     host: String = "",
     port: String = "",
     path: String = "",
@@ -69,6 +74,9 @@ class RuleData(
     var query: String by Delegate(query, ruleDataListener::onRuleDataChanged)
     var method: String by Delegate(method, ruleDataListener::onRuleDataChanged)
 
+    val url: String
+      get() = "$protocol://${host.ifBlank { "*" }}${port.withPrefixIfNotEmpty(':')}$path${query.withPrefixIfNotEmpty('?')}"
+
     fun toProto(): InterceptCriteria = InterceptCriteria.newBuilder().apply {
       protocol = this@CriteriaData.protocol
       host = this@CriteriaData.host
@@ -77,6 +85,8 @@ class RuleData(
       query = this@CriteriaData.query
       method = this@CriteriaData.method
     }.build()
+
+    private fun String.withPrefixIfNotEmpty(prefix: Char) = if (isBlank()) "" else prefix + this
   }
 
   interface TransformationRuleData {
@@ -109,24 +119,32 @@ class RuleData(
   }
 
   class HeaderReplacedRuleData(
-    val findName: String,
+    val findName: String?,
     val isFindNameRegex: Boolean,
-    val findValue: String,
+    val findValue: String?,
     val isFindValueRegex: Boolean,
-    val newName: String,
-    val newValue: String) : TransformationRuleData {
+    val newName: String?,
+    val newValue: String?) : TransformationRuleData {
     override fun toProto(): Transformation = Transformation.newBuilder().apply {
       headerReplacedBuilder.apply {
-        targetNameBuilder.apply {
-          text = findName
-          type = matchingTextTypeFrom(isFindNameRegex)
+        if (findName != null) {
+          targetNameBuilder.apply {
+            text = findName
+            type = matchingTextTypeFrom(isFindNameRegex)
+          }
         }
-        targetValueBuilder.apply {
-          text = findValue
-          type = matchingTextTypeFrom(isFindValueRegex)
+        if (findValue != null) {
+          targetValueBuilder.apply {
+            text = findValue
+            type = matchingTextTypeFrom(isFindValueRegex)
+          }
         }
-        newName = this@HeaderReplacedRuleData.newName
-        newValue = this@HeaderReplacedRuleData.newValue
+        if (this@HeaderReplacedRuleData.newName != null) {
+          newName = this@HeaderReplacedRuleData.newName
+        }
+        if (this@HeaderReplacedRuleData.newValue != null) {
+          newValue = this@HeaderReplacedRuleData.newValue
+        }
       }
     }.build()
   }
@@ -134,21 +152,36 @@ class RuleData(
   inner class HeaderRulesTableModel : ListTableModel<TransformationRuleData>() {
     init {
       columnInfos = arrayOf(
-        object : ColumnInfo<TransformationRuleData, String>("Name") {
-          override fun valueOf(item: TransformationRuleData): String {
+        object : ColumnInfo<TransformationRuleData, String>("Type") {
+          override fun getWidth(table: JTable) = JBUIScale.scale(40)
+
+          override fun getRenderer(item: TransformationRuleData) = MyRenderer
+
+          override fun valueOf(item: TransformationRuleData) = when (item) {
+            is HeaderAddedRuleData -> "Add"
+            is HeaderReplacedRuleData -> "Edit"
+            else -> ""
+          }
+        },
+        object : ColumnInfo<TransformationRuleData, Pair<String?, String?>>("Name") {
+          override fun getRenderer(item: TransformationRuleData) = MyRenderer
+
+          override fun valueOf(item: TransformationRuleData): Pair<String?, String?> {
             return when (item) {
-              is HeaderAddedRuleData -> item.name
-              is HeaderReplacedRuleData -> item.findName
-              else -> ""
+              is HeaderAddedRuleData -> item.name to null
+              is HeaderReplacedRuleData -> item.findName to item.newName
+              else -> throw UnsupportedOperationException("Unknown item $item")
             }
           }
         },
-        object : ColumnInfo<TransformationRuleData, String>("Value") {
-          override fun valueOf(item: TransformationRuleData): String {
+        object : ColumnInfo<TransformationRuleData, Pair<String?, String?>>("Value") {
+          override fun getRenderer(item: TransformationRuleData) = MyRenderer
+
+          override fun valueOf(item: TransformationRuleData): Pair<String?, String?> {
             return when (item) {
-              is HeaderAddedRuleData -> item.value
-              is HeaderReplacedRuleData -> item.findValue
-              else -> ""
+              is HeaderAddedRuleData -> item.value to null
+              is HeaderReplacedRuleData -> item.findValue to item.newValue
+              else -> throw UnsupportedOperationException("Unknown item $item")
             }
           }
         })
@@ -181,16 +214,27 @@ class RuleData(
   inner class BodyRulesTableModel : ListTableModel<TransformationRuleData>() {
     init {
       columnInfos = arrayOf(
-        object : ColumnInfo<TransformationRuleData, String>("Action") {
+        object : ColumnInfo<TransformationRuleData, String>("Type") {
+          override fun getWidth(table: JTable) = JBUIScale.scale(45)
+
+          override fun getRenderer(item: TransformationRuleData) = MyRenderer
+
+          override fun valueOf(item: TransformationRuleData) = when (item) {
+            is BodyReplacedRuleData -> "Replace"
+            is BodyModifiedRuleData -> "Edit"
+            else -> ""
+          }
+        },
+        object : ColumnInfo<TransformationRuleData, String>("Find") {
           override fun valueOf(item: TransformationRuleData): String {
             return when (item) {
-              is BodyReplacedRuleData -> "Replace All"
-              is BodyModifiedRuleData -> "Replace \"${item.targetText}\""
+              is BodyReplacedRuleData -> ""
+              is BodyModifiedRuleData -> item.targetText
               else -> ""
             }
           }
         },
-        object : ColumnInfo<TransformationRuleData, String>("Body") {
+        object : ColumnInfo<TransformationRuleData, String>("Replace with") {
           override fun valueOf(item: TransformationRuleData): String {
             return when (item) {
               is BodyReplacedRuleData -> item.body
@@ -224,3 +268,26 @@ class RuleData(
 }
 
 fun matchingTextTypeFrom(isRegex: Boolean): Type = if (isRegex) Type.REGEX else Type.PLAIN
+
+private object MyRenderer : ColoredTableCellRenderer() {
+  override fun customizeCellRenderer(table: JTable, item: Any?, selected: Boolean, hasFocus: Boolean, row: Int, column: Int) {
+    clear()
+    border = JBUI.Borders.empty()
+    when (item) {
+      is Pair<*, *> -> {
+        if (item.first == null && item.second == null) {
+          append("Unchanged", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+        }
+        else {
+          (item.first as? String)?.let { append(it) } ?: append("Any", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+          (item.second as? String)?.let {
+            append("  ➔  ", SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES)
+            append(it)
+          }
+        }
+      }
+      is String -> append(item)
+      else -> Unit
+    }
+  }
+}

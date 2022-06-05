@@ -393,6 +393,7 @@ studio_plugin(
     name = "com.google.gct.testing",
     directory = "firebase-testing",
     libs = [
+        "//prebuilts/tools/common/m2:JSch",
         "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-storage-v1-rev1-1.18.0-rc",
         "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-testing-v1-revsnapshot-1.20.0",
         "//tools/studio/google/cloud/testing/firebase-testing/lib:google-api-services-toolresults-v1beta3-rev20151013-1.20.0",
@@ -557,9 +558,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 3,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 
@@ -580,6 +581,7 @@ py_test(
 
 py_test(
     name = "test_updater",
+    timeout = "long",  # b/233245811
     srcs = ["tests/test_updater.py"],
     data = [
         ":android-studio.linux.zip",
@@ -731,6 +733,11 @@ iml_module(
 # managed by go/iml_to_build
 iml_module(
     name = "intellij.android.studio.tests",
+    data = [
+        # These are to be able to create patches in the test.
+        ":updater",
+        ":updater.jar",
+    ],
     iml_files = ["tests/intellij.android.studio.tests.iml"],
     tags = [
         "no_mac",
@@ -742,6 +749,9 @@ iml_module(
         ":android-studio.mac.zip",
         ":android-studio.win.zip",
         ":android-studio.plugin.lst",
+        # These are to be able to create patches in the test.
+        ":updater",
+        ":updater.jar",
     ],
     test_srcs = ["tests/testSrc"],
     visibility = ["//visibility:public"],
@@ -752,5 +762,6 @@ iml_module(
         "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
         "//tools/adt/idea/adt-testutils:intellij.android.adt.testutils[module, test]",
         "//tools/adt/idea/as-driver:as-driver.utils[module, test]",
+        "//tools/base/common:studio.android.sdktools.common[module, test]",
     ],
 )

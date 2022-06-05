@@ -6,7 +6,7 @@ iml_module(
     name = "intellij.android.projectSystem.gradle",
     srcs = ["src"],
     iml_files = ["intellij.android.projectSystem.gradle.iml"],
-    lint_baseline = "//tools/base/lint:studio-checks/empty_baseline.xml",
+    lint_baseline = "lint_baseline.xml",
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
@@ -47,6 +47,7 @@ iml_module(
         "//tools/adt/idea/project-system-gradle/lib:pepk",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
         "//tools/base/lint:studio.android.sdktools.lint-checks[module]",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-toml",
     ],
 )
 
@@ -74,7 +75,7 @@ iml_module(
         "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
     ],
     test_resources = ["testSrc/resources"],
-    test_shard_count = 22,
+    test_shard_count = 23,
     test_srcs = ["testSrc"],
     test_tags = [
         "cpu:3",
@@ -87,6 +88,7 @@ iml_module(
     # do not sort: must match IML order
     deps = [
         "//prebuilts/studio/intellij-sdk:studio-sdk",
+        "//tools/adt/idea/.idea/libraries:kotlin-test[test]",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-gradle",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-java-i18n",

@@ -18,9 +18,10 @@ package com.android.tools.idea.editors.strings;
 import com.android.SdkConstants;
 import com.android.ide.common.resources.Locale;
 import com.android.ide.common.resources.ResourceItem;
-import com.android.ide.common.resources.StringResourceUnescaper;
 import com.android.tools.idea.editors.strings.model.StringResourceKey;
+import com.android.tools.idea.editors.strings.model.StringResourceRepository;
 import com.android.tools.idea.res.IdeResourcesUtil;
+import com.android.tools.idea.res.StringResourceWriter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -38,7 +39,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -48,15 +48,14 @@ import org.jetbrains.annotations.Nullable;
 public class StringResourceData {
   private static final int MAX_LOCALE_LABEL_COUNT = 3;
 
-  private final Map<StringResourceKey, StringResource> myKeyToResourceMap;
+  private final LinkedHashMap<StringResourceKey, StringResource> myKeyToResourceMap;
   private final Project myProject;
-  private final StringResourceUnescaper myUnescaper;
   private final StringResourceRepository myRepository;
 
+  private final StringResourceWriter myStringResourceWriter = StringResourceWriter.INSTANCE;
   private StringResourceData(@NotNull Project project, @NotNull StringResourceRepository repository) {
     myKeyToResourceMap = new LinkedHashMap<>();
     myProject = project;
-    myUnescaper = new StringResourceUnescaper();
     myRepository = repository;
   }
 
@@ -71,11 +70,6 @@ public class StringResourceData {
   @NotNull
   final Project getProject() {
     return myProject;
-  }
-
-  @NotNull
-  final StringResourceUnescaper getUnescaper() {
-    return myUnescaper;
   }
 
   @NotNull
@@ -132,8 +126,7 @@ public class StringResourceData {
         stringResource.setTranslatable(false);
       }
 
-      List<ResourceItem> list = Collections.singletonList(item);
-      return StringsWriteUtils.setAttributeForItems(myProject, SdkConstants.ATTR_TRANSLATABLE, translatableAsString, list);
+      return myStringResourceWriter.setAttribute(myProject, SdkConstants.ATTR_TRANSLATABLE, translatableAsString, item);
     }
     return false;
   }

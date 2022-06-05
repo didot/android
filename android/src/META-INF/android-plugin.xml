@@ -279,6 +279,7 @@
     <applicationService serviceImplementation="com.android.tools.idea.ui.GuiTestingService"/>
     <applicationService serviceImplementation="com.android.tools.idea.ui.designer.overlays.OverlayPersistentStateService"/>
     <applicationService serviceImplementation="com.android.tools.idea.flags.StudioFlagSettings"/>
+    <applicationService serviceImplementation="com.android.tools.idea.instrumentation.threading.ThreadingCheckerHookImpl"/>
     <applicationService serviceImplementation="com.android.tools.idea.logcat.AndroidLogcatService" />
     <applicationService serviceImplementation="com.android.tools.idea.folding.AndroidFoldingSettings"/>
     <applicationService serviceImplementation="com.android.tools.idea.instantapp.InstantAppSdks" />
@@ -511,7 +512,6 @@
     <projectService serviceImplementation="com.android.tools.idea.gradle.project.sync.projectsystem.GradleSyncResultPublisher"/>
     <projectService serviceImplementation="com.android.tools.idea.gradle.project.build.GradleBuildState"/>
     <projectService serviceImplementation="com.android.tools.idea.project.AndroidNotification"/>
-    <projectService serviceImplementation="com.android.tools.idea.gradle.project.sync.messages.GradleSyncMessages"/>
     <projectService serviceImplementation="com.android.tools.idea.run.DevicePickerStateService" />
     <projectService serviceImplementation="com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxDeployableProvider"
                     serviceInterface="com.android.tools.idea.run.deployable.DeployableProvider"/>
@@ -694,7 +694,7 @@
 
     <webHelpProvider implementation="com.android.tools.idea.help.AndroidWebHelpProvider"/>
 
-    <applicationInitializedListener implementation="com.intellij.internal.statistic.updater.StatisticsStateCollectorsScheduler"/>
+    <preloadingActivity implementation="com.intellij.internal.statistic.updater.StatisticsStateCollectorsScheduler"/>
     <statistics.projectUsagesCollector implementation="com.intellij.internal.statistic.collectors.fus.fileTypes.FileTypeUsagesCollector"/>
 
     <iw.actionProvider implementation="com.android.tools.idea.editors.liveedit.ui.LiveEditActionProvider"/>
@@ -762,7 +762,7 @@
   </extensionPoints>
 
   <extensions defaultExtensionNs="com.android">
-    <androidStartupActivity implementation="com.android.tools.idea.gradle.project.sync.setup.post.project.ExpiredPreviewBuildCheck"/>
+    <androidStartupActivity implementation="com.android.tools.idea.initialization.ExpiredPreviewBuildCheck"/>
   </extensions>
   <extensions defaultExtensionNs="com.android.gradle.sync">
     <postSyncProjectCleanupStep implementation="com.android.tools.idea.gradle.project.sync.setup.post.cleanup.SdksCleanupStep"/>

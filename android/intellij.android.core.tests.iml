@@ -10,6 +10,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="library" name="studio-sdk" level="project" />
+    <orderEntry type="library" scope="TEST" name="kotlin-test" level="project" />
     <orderEntry type="library" name="studio-plugin-gradle" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="intellij.android.core" scope="TEST" />
@@ -140,6 +141,7 @@
     <orderEntry type="module" module-name="intellij.android.lint" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.navigator" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.navigator.testutils" scope="TEST" />
+    <orderEntry type="module" module-name="android.sdktools.threading-agent-callback" scope="TEST" />
   </component>
   <component name="TestModuleProperties" production-module="intellij.android.core" />
 </module>

@@ -5,6 +5,7 @@ package org.jetbrains.android;
 import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction;
 
 import com.android.SdkConstants;
+import com.android.testutils.TestUtils;
 import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.model.TestAndroidModel;
 import com.android.tools.idea.rendering.RenderSecurityManager;
@@ -14,15 +15,6 @@ import com.android.tools.idea.testing.IdeComponents;
 import com.android.tools.idea.testing.Sdks;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
-import com.intellij.analysis.AnalysisScope;
-import com.intellij.codeInspection.CommonProblemDescriptor;
-import com.intellij.codeInspection.GlobalInspectionTool;
-import com.intellij.codeInspection.InspectionManager;
-import com.intellij.codeInspection.ex.GlobalInspectionToolWrapper;
-import com.intellij.codeInspection.ex.InspectionManagerEx;
-import com.intellij.codeInspection.ex.InspectionToolWrapper;
-import com.intellij.codeInspection.reference.RefEntity;
-import com.intellij.codeInspection.ui.util.SynchronizedBidiMultiMap;
 import com.intellij.facet.Facet;
 import com.intellij.facet.FacetConfiguration;
 import com.intellij.facet.FacetManager;
@@ -36,6 +28,10 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.module.ModuleTypeId;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.projectRoots.JavaSdk;
+import com.intellij.openapi.projectRoots.ProjectJdkTable;
+import com.intellij.openapi.projectRoots.Sdk;
+import com.intellij.openapi.projectRoots.impl.SdkConfigurationUtil;
 import com.intellij.openapi.roots.LanguageLevelProjectExtension;
 import com.intellij.openapi.roots.ModuleRootModificationUtil;
 import com.intellij.openapi.util.Disposer;
@@ -45,8 +41,6 @@ import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.codeStyle.CodeStyleSchemes;
 import com.intellij.psi.codeStyle.CodeStyleSettings;
 import com.intellij.psi.codeStyle.CodeStyleSettingsManager;
-import com.intellij.testFramework.InspectionTestUtil;
-import com.intellij.testFramework.InspectionsKt;
 import com.intellij.testFramework.PlatformTestUtil;
 import com.intellij.testFramework.ThreadTracker;
 import com.intellij.testFramework.builders.JavaModuleFixtureBuilder;
@@ -55,16 +49,16 @@ import com.intellij.testFramework.fixtures.IdeaTestFixtureFactory;
 import com.intellij.testFramework.fixtures.JavaTestFixtureFactory;
 import com.intellij.testFramework.fixtures.ModuleFixture;
 import com.intellij.testFramework.fixtures.TestFixtureBuilder;
-import com.intellij.testFramework.fixtures.impl.GlobalInspectionContextForTests;
 import com.intellij.testFramework.fixtures.impl.JavaModuleFixtureBuilderImpl;
 import com.intellij.testFramework.fixtures.impl.ModuleFixtureImpl;
 import com.intellij.util.ArrayUtil;
 import com.intellij.util.ui.UIUtil;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.jetbrains.android.dom.manifest.Manifest;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -123,6 +117,11 @@ public abstract class AndroidTestCase extends AndroidTestBase {
     // its own custom manifest file. However, in that case, we will delete it shortly below.
     createManifest();
 
+    Path jdkPath = TestUtils.getJava11Jdk();
+    WriteAction.runAndWait(() -> {
+      cleanJdkTable();
+      setupJdk(jdkPath);
+    });
     myFacet = addAndroidFacet(myModule);
 
     removeFacetOn(myFixture.getProjectDisposable(), myFacet);
@@ -180,6 +179,24 @@ public abstract class AndroidTestCase extends AndroidTestBase {
     myIdeComponents = new IdeComponents(myFixture);
 
     IdeSdks.removeJdksOn(myFixture.getProjectDisposable());
+  }
+
+  private void setupJdk(Path path) {
+    assert path.isAbsolute() : "JDK path should be an absolute path: " + path;
+
+    VfsRootAccess.allowRootAccess(getTestRootDisposable(), path.toString());
+    @Nullable Sdk addedSdk = SdkConfigurationUtil.createAndAddSDK(path.toString(), JavaSdk.getInstance());
+    if (addedSdk != null) {
+      Disposer.register(getTestRootDisposable(), () -> {
+        WriteAction.runAndWait(() -> ProjectJdkTable.getInstance().removeJdk(addedSdk));
+      });
+    }
+  }
+
+  private void cleanJdkTable() {
+    for (Sdk jdk : ProjectJdkTable.getInstance().getAllJdks()) {
+      ProjectJdkTable.getInstance().removeJdk(jdk);
+    }
   }
 
   @Override
@@ -444,7 +461,11 @@ public abstract class AndroidTestCase extends AndroidTestBase {
 
   /** Waits 2 seconds for the app resource repository to finish currently pending updates. */
   protected void waitForResourceRepositoryUpdates() throws InterruptedException, TimeoutException {
-    AndroidTestUtils.waitForResourceRepositoryUpdates(myFacet);
+    waitForResourceRepositoryUpdates(2, TimeUnit.SECONDS);
+  }
+
+  protected void waitForResourceRepositoryUpdates(long timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+    AndroidTestUtils.waitForResourceRepositoryUpdates(myFacet, timeout, unit);
   }
 
   protected final static class MyAdditionalModuleData {
