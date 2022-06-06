@@ -558,9 +558,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 4,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 
@@ -591,6 +591,7 @@ py_test(
         ":updater",
         ":updater.jar",
     ],
+    tags = ["no_windows"],  # b/233968084
 )
 
 py_test(
