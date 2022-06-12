@@ -25,7 +25,7 @@ import com.android.annotations.concurrency.GuardedBy
 import com.android.annotations.concurrency.UiThread
 import com.android.ddmlib.IDevice
 import com.android.tools.idea.adblib.AdbLibService
-import com.android.tools.idea.adblib.utils.getprop
+import com.android.adblib.tools.getprop
 import com.android.tools.idea.avdmanager.AvdLaunchListener
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.addCallback
@@ -60,6 +60,7 @@ import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
 import com.intellij.util.Alarm
 import com.intellij.util.concurrency.EdtExecutorService
+import com.intellij.util.ui.UIUtil
 import icons.StudioIcons
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -425,7 +426,7 @@ internal class EmulatorToolWindowManager private constructor(
         return
       }
 
-      EventQueue.invokeLater { // This is safe because this code doesn't touch PSI or VFS.
+      UIUtil.invokeLaterIfNeeded { // This is safe because this code doesn't touch PSI or VFS.
         addPhysicalDevicePanel(deviceSerialNumber, deviceAbi, title)
       }
     }
@@ -436,7 +437,7 @@ internal class EmulatorToolWindowManager private constructor(
 
   @AnyThread
   private fun physicalDeviceDisconnected(deviceSerialNumber: String) {
-    EventQueue.invokeLater { // This is safe because this code doesn't touch PSI or VFS.
+    UIUtil.invokeLaterIfNeeded { // This is safe because this code doesn't touch PSI or VFS.
       removePhysicalDevicePanel(deviceSerialNumber)
     }
   }

@@ -17,6 +17,10 @@ package com.android.tools.idea.editors.strings;
 
 import com.android.ide.common.resources.Locale;
 import com.android.tools.idea.actions.BrowserHelpAction;
+import com.android.tools.idea.editors.strings.action.AddKeyAction;
+import com.android.tools.idea.editors.strings.action.AddLocaleAction;
+import com.android.tools.idea.editors.strings.action.ReloadStringResourcesAction;
+import com.android.tools.idea.editors.strings.action.RemoveKeysAction;
 import com.android.tools.idea.editors.strings.model.StringResourceKey;
 import com.android.tools.idea.editors.strings.table.FrozenColumnTableEvent;
 import com.android.tools.idea.editors.strings.table.FrozenColumnTableListener;
@@ -61,8 +65,7 @@ public class StringResourceViewPanel implements Disposable {
   private @Nullable Component myToolbar;
   private @Nullable Component myScrollPane;
   private final @NotNull JComponent myXmlLabel;
-  @VisibleForTesting
-  final JTextComponent myXmlTextField;
+  @VisibleForTesting final JTextComponent myXmlTextField;
   private final @NotNull Component myKeyLabel;
   private JTextComponent myKeyTextField;
   private final @NotNull Component myDefaultValueLabel;
@@ -75,8 +78,6 @@ public class StringResourceViewPanel implements Disposable {
   private @Nullable Container myPanel;
   private final @NotNull JBLoadingPanel myLoadingPanel;
 
-  private RemoveKeysAction myRemoveKeysAction;
-  private AddLocaleAction myAddLocaleAction;
   private GoToDeclarationAction myGoToAction;
   private DeleteStringAction myDeleteAction;
 
@@ -116,7 +117,6 @@ public class StringResourceViewPanel implements Disposable {
   }
 
   private void initTable() {
-    myRemoveKeysAction = new RemoveKeysAction(this);
     myDeleteAction = new DeleteStringAction(this);
     myGoToAction = new GoToDeclarationAction(this);
 
@@ -147,15 +147,13 @@ public class StringResourceViewPanel implements Disposable {
   }
 
   private void initToolbar() {
-    myAddLocaleAction = new AddLocaleAction(this);
-
     DefaultActionGroup group = new DefaultActionGroup();
-    group.add(new AddKeyAction(this));
-    group.add(myRemoveKeysAction);
-    group.add(myAddLocaleAction);
+    group.add(new AddKeyAction());
+    group.add(new RemoveKeysAction());
+    group.add(new AddLocaleAction());
     group.add(new FilterKeysAction(myTable));
     group.add(new FilterLocalesAction(myTable));
-    group.add(new ReloadStringResourcesAction(this));
+    group.add(new ReloadStringResourcesAction());
     group.add(new BrowserHelpAction("Translations editor", "https://developer.android.com/r/studio-ui/translations-editor.html"));
 
     ActionToolbar toolbar = ActionManager.getInstance().createActionToolbar("TranslationsEditorToolbar", group, true);
@@ -240,11 +238,7 @@ public class StringResourceViewPanel implements Disposable {
     myPanel.setLayout(layout);
   }
 
-  public void removeSelectedKeys() {
-    myRemoveKeysAction.perform();
-  }
-
-  void reloadData() {
+  public void reloadData() {
     myLoadingPanel.setLoadingText("Updating string resource data");
     myLoadingPanel.startLoading();
 
@@ -254,7 +248,7 @@ public class StringResourceViewPanel implements Disposable {
   }
 
   @NotNull
-  AndroidFacet getFacet() {
+  public AndroidFacet getFacet() {
     return myFacet;
   }
 
@@ -271,12 +265,6 @@ public class StringResourceViewPanel implements Disposable {
   @NotNull
   JComponent getPreferredFocusedComponent() {
     return myTable.getScrollableTable();
-  }
-
-  @VisibleForTesting
-  @NotNull
-  AddLocaleAction getAddLocaleAction() {
-    return myAddLocaleAction;
   }
 
   private final class CellSelectionListener implements FrozenColumnTableListener {

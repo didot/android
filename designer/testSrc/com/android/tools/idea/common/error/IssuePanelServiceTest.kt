@@ -24,8 +24,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.RegisterToolWindowTask
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
-import com.intellij.openapi.wm.impl.ToolWindowHeadlessManagerImpl
 import com.intellij.testFramework.runInEdtAndWait
+import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -189,16 +189,16 @@ class IssuePanelServiceTest {
 
 class TestToolWindowManager(private val project: Project)
   : ToolWindowHeadlessManagerImpl(project) {
-  private val toolWindows = mutableMapOf<String, ToolWindow>()
+  private val idToToolWindow = mutableMapOf<String, ToolWindow>()
 
   override fun doRegisterToolWindow(id: String): ToolWindow {
     val window = TestToolWindow(project)
-    toolWindows[id] = window
+    idToToolWindow[id] = window
     return window
   }
 
   override fun getToolWindow(id: String?): ToolWindow? {
-    return toolWindows[id]
+    return idToToolWindow[id]
   }
 }
 

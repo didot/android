@@ -21,14 +21,10 @@ import com.android.adblib.testing.FakeAdbLibSession
 import com.android.ddmlib.AvdData
 import com.android.ddmlib.IDevice
 import com.android.ddmlib.IDevice.DeviceState.ONLINE
-import com.android.ddmlib.Log.LogLevel.ERROR
-import com.android.ddmlib.Log.LogLevel.INFO
-import com.android.ddmlib.Log.LogLevel.WARN
-import com.android.ddmlib.logcat.LogCatHeader
-import com.android.ddmlib.logcat.LogCatMessage
 import com.android.sdklib.AndroidVersion
 import com.android.testutils.MockitoKt.eq
 import com.android.testutils.MockitoKt.mock
+import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.swing.FakeMouse.Button.CTRL_LEFT
 import com.android.tools.adtui.swing.FakeUi
 import com.android.tools.adtui.swing.popup.PopupRule
@@ -36,10 +32,9 @@ import com.android.tools.analytics.UsageTrackerRule
 import com.android.tools.idea.FakeAndroidProjectDetector
 import com.android.tools.idea.concurrency.AndroidExecutors
 import com.android.tools.idea.concurrency.waitForCondition
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.logcat.LogcatPanelConfig.FormattingConfig
-import com.android.tools.idea.logcat.devices.Device
 import com.android.tools.idea.logcat.actions.PopupActionGroupAction
+import com.android.tools.idea.logcat.devices.Device
 import com.android.tools.idea.logcat.filters.AndroidLogcatFilterHistory
 import com.android.tools.idea.logcat.filters.LogcatFilterField.IMPLICIT_LINE
 import com.android.tools.idea.logcat.filters.LogcatFilterField.LINE
@@ -47,6 +42,11 @@ import com.android.tools.idea.logcat.filters.ProjectAppFilter
 import com.android.tools.idea.logcat.filters.StringFilter
 import com.android.tools.idea.logcat.folding.FoldingDetector
 import com.android.tools.idea.logcat.hyperlinks.HyperlinkDetector
+import com.android.tools.idea.logcat.message.LogLevel
+import com.android.tools.idea.logcat.message.LogLevel.INFO
+import com.android.tools.idea.logcat.message.LogLevel.WARN
+import com.android.tools.idea.logcat.message.LogcatHeader
+import com.android.tools.idea.logcat.message.LogcatMessage
 import com.android.tools.idea.logcat.messages.AndroidLogcatFormattingOptions
 import com.android.tools.idea.logcat.messages.FormattingOptions
 import com.android.tools.idea.logcat.messages.FormattingOptions.Style.COMPACT
@@ -93,11 +93,11 @@ import com.intellij.testFramework.replaceService
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.tools.SimpleActionGroup
+import com.intellij.ui.EditorNotificationPanel
 import com.intellij.util.ConcurrencyUtil
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -114,6 +114,7 @@ import java.time.ZoneId
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit.SECONDS
+import javax.swing.JPanel
 import javax.swing.JPopupMenu
 
 /**
@@ -141,12 +142,6 @@ class LogcatMainPanelTest {
       AndroidLogcatFormattingOptions::class.java,
       androidLogcatFormattingOptions,
       projectRule.project)
-    StudioFlags.LOGCAT_CLICK_TO_ADD_FILTER.override(true)
-  }
-
-  @After
-  fun tearDown() {
-    StudioFlags.LOGCAT_CLICK_TO_ADD_FILTER.clearOverride()
   }
 
   @RunsInEdt
@@ -164,11 +159,15 @@ class LogcatMainPanelTest {
     val borderLayout = logcatMainPanel.layout as BorderLayout
     assertThat(logcatMainPanel.componentCount).isEqualTo(3)
     assertThat(borderLayout.getLayoutComponent(NORTH)).isInstanceOf(LogcatHeaderPanel::class.java)
-    assertThat(borderLayout.getLayoutComponent(CENTER)).isSameAs(logcatMainPanel.editor.component)
+    val centerComponent: JPanel = borderLayout.getLayoutComponent(CENTER) as JPanel
+    assertThat(centerComponent.components[0]).isInstanceOf(EditorNotificationPanel::class.java)
+    assertThat(centerComponent.components[0].isVisible).isFalse()
+    assertThat(centerComponent.components[1]).isSameAs(logcatMainPanel.editor.component)
     assertThat(borderLayout.getLayoutComponent(WEST)).isInstanceOf(ActionToolbar::class.java)
     val toolbar = borderLayout.getLayoutComponent(WEST) as ActionToolbar
     assertThat(toolbar.actions.mapToStrings()).containsExactly(
       "Clear Logcat",
+      "Pause Logcat",
       "Restart Logcat",
       "Scroll to the End (clicking on a particular line stops scrolling and keeps that line visible)",
       "Previous Occurrence",
@@ -217,8 +216,8 @@ class LogcatMainPanelTest {
     }
 
     logcatMainPanel.messageProcessor.appendMessages(listOf(
-      LogCatMessage(LogCatHeader(WARN, 1, 2, "app1", "tag1", Instant.ofEpochMilli(1000)), "message1"),
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(WARN, 1, 2, "app1", "", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -234,8 +233,8 @@ class LogcatMainPanelTest {
   fun applyFilter() = runBlocking {
     val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
     logcatMainPanel.processMessages(listOf(
-      LogCatMessage(LogCatHeader(WARN, 1, 2, "app1", "tag1", Instant.ofEpochMilli(1000)), "message1"),
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(WARN, 1, 2, "app1", "", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -637,7 +636,6 @@ class LogcatMainPanelTest {
     logcatMainPanel.messageProcessor.onIdle {
       assertThat(logcatMainPanel.editor.document.text)
         .isEqualTo("1970-01-01 04:00:10.000     1-2     ExampleTag              com.example.app                      I  message\n")
-
     }
   }
 
@@ -645,21 +643,70 @@ class LogcatMainPanelTest {
   fun processMessage_addsUpdatesBacklog(): Unit = runBlocking {
     val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
     val messages = listOf(
-      LogCatMessage(LogCatHeader(WARN, 1, 2, "app1", "tag1", Instant.ofEpochMilli(1000)), "message1"),
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(WARN, 1, 2, "app1", "", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     )
 
     logcatMainPanel.processMessages(messages)
 
     assertThat(logcatMainPanel.messageBacklog.get().messages).containsExactlyElementsIn(messages)
+    logcatMainPanel.messageProcessor.onIdle {
+      assertThat(logcatMainPanel.editor.document.text).isEqualTo("""
+        1970-01-01 04:00:01.000     1-2     tag1                    app1                                 W  message1
+        1970-01-01 04:00:01.000     1-2     tag2                    app2                                 I  message2
+        
+      """.trimIndent())
+    }
+  }
+
+  @Test
+  fun processMessage_paused_doesNotUpdateDocument(): Unit = runBlocking {
+    val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
+    val messages = listOf(
+      LogcatMessage(LogcatHeader(WARN, 1, 2, "app1", "", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+    )
+    logcatMainPanel.pauseLogcat()
+
+    logcatMainPanel.processMessages(messages)
+
+    assertThat(logcatMainPanel.messageBacklog.get().messages).containsExactlyElementsIn(messages)
+    logcatMainPanel.messageProcessor.onIdle {
+      assertThat(logcatMainPanel.editor.document.text).isEmpty()
+    }
+  }
+
+  @Test
+  fun processMessage_pauseResume_doesUpdateDocument(): Unit = runBlocking {
+    val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
+    val messages = listOf(
+      LogcatMessage(LogcatHeader(WARN, 1, 2, "app1", "", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+    )
+    logcatMainPanel.pauseLogcat()
+    logcatMainPanel.processMessages(messages)
+
+    runInEdtAndWait {
+      logcatMainPanel.resumeLogcat()
+    }
+
+    assertThat(logcatMainPanel.messageBacklog.get().messages).containsExactlyElementsIn(messages)
+
+    waitForCondition(2, SECONDS) {
+      logcatMainPanel.editor.document.text == """
+        1970-01-01 04:00:01.000     1-2     tag1                    app1                                 W  message1
+        1970-01-01 04:00:01.000     1-2     tag2                    app2                                 I  message2
+        
+      """.trimIndent()
+    }
   }
 
   @Test
   fun processMessage_updatesTags(): Unit = runBlocking {
     val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
     val messages = listOf(
-      LogCatMessage(LogCatHeader(WARN, 1, 2, "app1", "tag1", Instant.ofEpochMilli(1000)), "message1"),
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(WARN, 1, 2, "app1", "", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     )
 
     logcatMainPanel.processMessages(messages)
@@ -671,13 +718,13 @@ class LogcatMainPanelTest {
   fun processMessage_updatesPackages(): Unit = runBlocking {
     val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
     val messages = listOf(
-      LogCatMessage(LogCatHeader(WARN, 1, 2, "app1", "tag1", Instant.ofEpochMilli(1000)), "message1"),
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "?", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(WARN, 1, 2, "app1", "", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     )
 
     logcatMainPanel.processMessages(messages)
 
-    assertThat(logcatMainPanel.getPackageNames()).containsExactly("app1", "pid-1")
+    assertThat(logcatMainPanel.getPackageNames()).containsExactly("app1", "app2")
   }
 
   @Test
@@ -702,7 +749,7 @@ class LogcatMainPanelTest {
   fun setFormattingOptions_reloadsMessages() = runBlocking {
     val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
     logcatMainPanel.processMessages(listOf(
-      LogCatMessage(LogCatHeader(WARN, 1, 2, "app1", "tag1", Instant.ofEpochMilli(1000)), "message1"),
+      LogcatMessage(LogcatHeader(WARN, 1, 2, "app1", "", "tag1", Instant.ofEpochMilli(1000)), "message1"),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -854,7 +901,7 @@ class LogcatMainPanelTest {
     val fakeUi = runInEdtAndGet { FakeUi(logcatMainPanel.editor.contentComponent, createFakeWindow = true) }
 
     logcatMainPanel.messageProcessor.appendMessages(listOf(
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -878,7 +925,7 @@ class LogcatMainPanelTest {
     val fakeUi = runInEdtAndGet { FakeUi(logcatMainPanel.editor.contentComponent, createFakeWindow = true) }
 
     logcatMainPanel.messageProcessor.appendMessages(listOf(
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -902,7 +949,7 @@ class LogcatMainPanelTest {
     val fakeUi = runInEdtAndGet { FakeUi(logcatMainPanel.editor.contentComponent, createFakeWindow = true) }
 
     logcatMainPanel.messageProcessor.appendMessages(listOf(
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -926,7 +973,7 @@ class LogcatMainPanelTest {
     val fakeUi = runInEdtAndGet { FakeUi(logcatMainPanel.editor.contentComponent, createFakeWindow = true) }
 
     logcatMainPanel.messageProcessor.appendMessages(listOf(
-      LogCatMessage(LogCatHeader(INFO, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(INFO, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -950,7 +997,7 @@ class LogcatMainPanelTest {
     val fakeUi = runInEdtAndGet { FakeUi(logcatMainPanel.editor.contentComponent, createFakeWindow = true) }
 
     logcatMainPanel.messageProcessor.appendMessages(listOf(
-      LogCatMessage(LogCatHeader(ERROR, 1, 2, "app2", "tag2", Instant.ofEpochMilli(1000)), "message2"),
+      LogcatMessage(LogcatHeader(LogLevel.ERROR, 1, 2, "app2", "", "tag2", Instant.ofEpochMilli(1000)), "message2"),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -961,6 +1008,18 @@ class LogcatMainPanelTest {
         assertThat(logcatMainPanel.headerPanel.filter).isEqualTo("package:mine | level:error")
       }
     }
+  }
+
+  @Test
+  fun pauseLogcat_showsBanner(): Unit = runBlocking {
+    val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
+
+    logcatMainPanel.pauseLogcat()
+
+    val banner = TreeWalker(logcatMainPanel).descendants().first { it is EditorNotificationPanel } as EditorNotificationPanel
+
+    assertThat(banner.isVisible).isTrue()
+    assertThat(banner.text).isEqualTo("Logcat is paused")
   }
 
   private fun logcatMainPanel(
@@ -995,7 +1054,7 @@ class LogcatMainPanelTest {
     }
 }
 
-private fun LogCatMessage.length() = FormattingOptions().getHeaderWidth() + message.length
+private fun LogcatMessage.length() = FormattingOptions().getHeaderWidth() + message.length
 
 private fun mockDevice(serialNumber: String, avdName: String = ""): IDevice {
   return mock<IDevice>().also {
@@ -1011,7 +1070,7 @@ private fun mockDevice(serialNumber: String, avdName: String = ""): IDevice {
 }
 
 private class FakeLogcatService : LogcatService {
-  override suspend fun readLogcat(device: Device): Flow<List<LogCatMessage>> = flowOf(emptyList())
+  override suspend fun readLogcat(device: Device): Flow<List<LogcatMessage>> = flowOf(emptyList())
 
   override suspend fun clearLogcat(device: Device) {
   }

@@ -279,7 +279,6 @@
     <applicationService serviceImplementation="com.android.tools.idea.ui.GuiTestingService"/>
     <applicationService serviceImplementation="com.android.tools.idea.ui.designer.overlays.OverlayPersistentStateService"/>
     <applicationService serviceImplementation="com.android.tools.idea.flags.StudioFlagSettings"/>
-    <applicationService serviceImplementation="com.android.tools.idea.instrumentation.threading.ThreadingCheckerHookImpl"/>
     <applicationService serviceImplementation="com.android.tools.idea.logcat.AndroidLogcatService" />
     <applicationService serviceImplementation="com.android.tools.idea.folding.AndroidFoldingSettings"/>
     <applicationService serviceImplementation="com.android.tools.idea.instantapp.InstantAppSdks" />
@@ -692,7 +691,7 @@
 
     <webHelpProvider implementation="com.android.tools.idea.help.AndroidWebHelpProvider"/>
 
-    <preloadingActivity implementation="com.intellij.internal.statistic.updater.StatisticsStateCollectorsScheduler"/>
+    <applicationInitializedListener implementation="com.intellij.internal.statistic.updater.StatisticsStateCollectorsScheduler"/>
     <statistics.projectUsagesCollector implementation="com.intellij.internal.statistic.collectors.fus.fileTypes.FileTypeUsagesCollector"/>
 
     <iw.actionProvider implementation="com.android.tools.idea.editors.liveedit.ui.LiveEditActionProvider"/>

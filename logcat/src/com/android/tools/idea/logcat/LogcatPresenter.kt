@@ -16,9 +16,9 @@
 package com.android.tools.idea.logcat
 
 import com.android.annotations.concurrency.UiThread
-import com.android.ddmlib.logcat.LogCatMessage
 import com.android.tools.idea.logcat.devices.Device
 import com.android.tools.idea.logcat.filters.LogcatFilter
+import com.android.tools.idea.logcat.message.LogcatMessage
 import com.android.tools.idea.logcat.messages.FormattingOptions
 import com.android.tools.idea.logcat.messages.TextAccumulator
 import com.android.tools.idea.logcat.settings.AndroidLogcatSettings
@@ -59,7 +59,7 @@ internal interface LogcatPresenter : TagsProvider, PackageNamesProvider, Disposa
   /**
    * Processes incoming messages from logcat
    */
-  suspend fun processMessages(messages: List<LogCatMessage>)
+  suspend fun processMessages(messages: List<LogcatMessage>)
 
   /**
    * Emits formatted text to the message view
@@ -78,4 +78,14 @@ internal interface LogcatPresenter : TagsProvider, PackageNamesProvider, Disposa
   fun countFilterMatches(filter: String): Int
 
   fun foldImmediately()
+
+  fun isLogcatPaused(): Boolean
+
+  fun pauseLogcat()
+
+  fun resumeLogcat()
+
+  fun getFilter(): String
+
+  fun setFilter(filter: String)
 }

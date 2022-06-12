@@ -159,7 +159,6 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.codeStyle.CodeStyleSettingsManager
 import com.intellij.testFramework.PlatformTestUtil
-import com.intellij.testFramework.UsefulTestCase
 import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture
 import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl.ensureIndexesUpToDate
 import com.intellij.testFramework.replaceService
@@ -168,7 +167,6 @@ import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.util.ThrowableConsumer
 import org.jetbrains.android.AndroidTestBase
 import org.jetbrains.android.facet.AndroidFacet
-import org.jetbrains.android.util.firstNotNullResult
 import org.jetbrains.annotations.SystemDependent
 import org.jetbrains.annotations.SystemIndependent
 import org.jetbrains.kotlin.idea.gradleJava.configuration.CompilerArgumentsCacheMergeManager
@@ -957,7 +955,7 @@ fun AndroidProjectStubBuilder.buildVariantStubs(): List<IdeVariantCoreImpl> {
         val buildType = it.buildType
         val flavorNames = flavors.map { it.name }
         val variant = (flavorNames + buildType.name).combineAsCamelCase()
-        val testApplicationId = flavors.firstNotNullResult { it.testApplicationId } ?: defaultConfig.productFlavor.testApplicationId
+        val testApplicationId = flavors.firstNotNullOfOrNull { it.testApplicationId } ?: defaultConfig.productFlavor.testApplicationId
         IdeVariantCoreImpl(
           variant,
           variant,
@@ -967,20 +965,20 @@ fun AndroidProjectStubBuilder.buildVariantStubs(): List<IdeVariantCoreImpl> {
           testFixturesArtifact(variant),
           buildType.name,
           flavorNames,
-          minSdkVersion = flavors.firstNotNullResult { it.minSdkVersion }
+          minSdkVersion = flavors.firstNotNullOfOrNull { it.minSdkVersion }
                           ?: defaultConfig.productFlavor.minSdkVersion
                           ?: IdeApiVersionImpl(1, null, "1"),
-          targetSdkVersion = flavors.firstNotNullResult { it.targetSdkVersion }
+          targetSdkVersion = flavors.firstNotNullOfOrNull { it.targetSdkVersion }
                              ?: defaultConfig.productFlavor.targetSdkVersion,
-          maxSdkVersion = flavors.firstNotNullResult { it.maxSdkVersion }
+          maxSdkVersion = flavors.firstNotNullOfOrNull { it.maxSdkVersion }
                           ?: defaultConfig.productFlavor.maxSdkVersion,
-          versionCode = flavors.firstNotNullResult { it.versionCode }
+          versionCode = flavors.firstNotNullOfOrNull { it.versionCode }
                         ?: defaultConfig.productFlavor.versionCode,
-          versionNameWithSuffix = (flavors.firstNotNullResult { it.versionName } ?: defaultConfig.productFlavor.versionName) +
+          versionNameWithSuffix = (flavors.firstNotNullOfOrNull { it.versionName } ?: defaultConfig.productFlavor.versionName) +
                                   defaultConfig.productFlavor.versionNameSuffix.orEmpty() + buildType.versionNameSuffix.orEmpty(),
           versionNameSuffix = buildType.versionNameSuffix,
           instantAppCompatible = false,
-          vectorDrawablesUseSupportLibrary = flavors.firstNotNullResult { it.vectorDrawables?.useSupportLibrary }
+          vectorDrawablesUseSupportLibrary = flavors.firstNotNullOfOrNull { it.vectorDrawables?.useSupportLibrary }
                                              ?: defaultConfig.productFlavor.vectorDrawables?.useSupportLibrary ?: false,
           resourceConfigurations = (defaultConfig.productFlavor.resourceConfigurations + flavors.flatMap { it.resourceConfigurations })
             .distinct(),
@@ -996,14 +994,14 @@ fun AndroidProjectStubBuilder.buildVariantStubs(): List<IdeVariantCoreImpl> {
                                  )
             .associate { it.key to it.value },
           deprecatedPreMergedTestApplicationId = testApplicationId,
-          testInstrumentationRunner = flavors.firstNotNullResult { it.testInstrumentationRunner }
+          testInstrumentationRunner = flavors.firstNotNullOfOrNull { it.testInstrumentationRunner }
                                       ?: defaultConfig.productFlavor.testInstrumentationRunner,
           testInstrumentationRunnerArguments = (defaultConfig.productFlavor.testInstrumentationRunnerArguments.entries +
                                                 flavors.flatMap { it.testInstrumentationRunnerArguments.entries }
                                                )
             .associate { it.key to it.value },
           testedTargetVariants = listOf(),
-          deprecatedPreMergedApplicationId = (flavors.firstNotNullResult { it.applicationId }
+          deprecatedPreMergedApplicationId = (flavors.firstNotNullOfOrNull { it.applicationId }
                                               ?: defaultConfig.productFlavor.applicationId
                                              ) +
                                              defaultConfig.productFlavor.applicationIdSuffix.orEmpty() +
@@ -1020,6 +1018,7 @@ fun AndroidProjectStubBuilder.buildAndroidProjectStub(): IdeAndroidProjectImpl {
   val defaultVariant = debugBuildType ?: releaseBuildType
   val defaultVariantName = defaultVariant?.sourceProvider?.name ?: "main"
   val buildTypes = listOfNotNull(debugBuildType, releaseBuildType)
+  val projectType = projectType
   return IdeAndroidProjectImpl(
     agpVersion = agpVersion,
     name = projectName,
@@ -1045,6 +1044,7 @@ fun AndroidProjectStubBuilder.buildAndroidProjectStub(): IdeAndroidProjectImpl {
     buildToolsVersion = "buildToolsVersion",
     isBaseSplit = true,
     dynamicFeatures = dynamicFeatures,
+    baseFeature = null,
     viewBindingOptions = viewBindingOptions,
     dependenciesInfo = dependenciesInfo,
     groupId = null,
@@ -1278,6 +1278,7 @@ private fun setupTestProjectFromAndroidModelCore(
   val androidModels = mutableListOf<GradleAndroidModelData>()
   val internedModels = InternedModels(null)
   val libraryResolver = IdeLibraryModelResolverImpl { sequenceOf(internedModels.resolve(it)) }
+  val featureToBase = mutableMapOf<String, String>()
   moduleBuilders.forEach { moduleBuilder ->
     val gradlePath = moduleBuilder.gradlePath
     val moduleRelativeBasePath = gradlePath.substring(1).replace(':', File.separatorChar)
@@ -1298,6 +1299,13 @@ private fun setupTestProjectFromAndroidModelCore(
           moduleBuilder.agpVersion ?: LatestKnownPluginVersionProvider.INSTANCE.get(),
           internedModels
         )
+        featureToBase.putAll(androidProject.dynamicFeatures.map {it to gradlePath})
+
+        fun IdeAndroidProjectImpl.populateBaseFeature(): IdeAndroidProjectImpl {
+          return if (projectType != IdeAndroidProjectType.PROJECT_TYPE_DYNAMIC_FEATURE) this
+          else copy(baseFeature = featureToBase[gradlePath] ?: error("Base feature must appear fist in a test project. ($gradlePath)"))
+        }
+
         createAndroidModuleDataNode(
           qualifiedModuleName = qualifiedModuleName,
           gradlePath = gradlePath,
@@ -1308,7 +1316,7 @@ private fun setupTestProjectFromAndroidModelCore(
           gradleVersion = moduleBuilder.gradleVersion,
           agpVersion = moduleBuilder.agpVersion,
           gradlePlugins = gradlePlugins,
-          androidProject = androidProject,
+          androidProject = androidProject.populateBaseFeature(),
           variants = variants.let { if (!setupAllVariants) it.filter { it.name == moduleBuilder.selectedBuildVariant } else it },
           libraryResolver = libraryResolver,
           ndkModel = ndkModel,
@@ -1755,6 +1763,26 @@ interface GradleIntegrationTest {
 fun GradleIntegrationTest.prepareGradleProject(
   testProjectPath: String,
   name: String,
+  agpVersion: AgpVersionSoftwareEnvironmentDescriptor,
+  ndkVersion: String? = null
+): File {
+  return prepareGradleProject(
+    testProjectPath = testProjectPath,
+    name = name,
+    gradleVersion = agpVersion.gradleVersion,
+    gradlePluginVersion = agpVersion.agpVersion,
+    kotlinVersion = agpVersion.kotlinVersion,
+    ndkVersion = ndkVersion
+  )
+}
+
+/**
+ * Prepares a test project created from a [testProjectPath] under the given [name] so that it can be opened with [openPreparedProject].
+ */
+@JvmOverloads
+fun GradleIntegrationTest.prepareGradleProject(
+  testProjectPath: String,
+  name: String,
   gradleVersion: String? = getAgpVersionSoftwareEnvironmentDescriptor().gradleVersion,
   gradlePluginVersion: String? = getAgpVersionSoftwareEnvironmentDescriptor().agpVersion,
   kotlinVersion: String? = getAgpVersionSoftwareEnvironmentDescriptor().kotlinVersion,
@@ -1946,6 +1974,13 @@ private fun Project.verifyModelsAttached() {
 
 fun Project.requestSyncAndWait() {
   AndroidGradleTests.syncProject(this, GradleSyncInvoker.Request.testRequest())
+  if (ApplicationManager.getApplication().isDispatchThread) {
+    AndroidGradleTests.waitForSourceFolderManagerToProcessUpdates(this)
+  } else {
+    runInEdtAndWait {
+      AndroidGradleTests.waitForSourceFolderManagerToProcessUpdates(this)
+    }
+  }
 }
 
 /**

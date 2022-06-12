@@ -6,7 +6,7 @@ iml_module(
     name = "intellij.android.nav.safeargs",
     srcs = ["src"],
     iml_files = ["intellij.android.nav.safeargs.iml"],
-    lint_baseline = "//tools/base/lint:studio-checks/empty_baseline.xml",
+    lint_baseline = "lint_baseline.xml",
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
@@ -46,8 +46,9 @@ iml_module(
         "//prebuilts/studio/sdk:build-tools/latest",
         "//prebuilts/studio/sdk:platforms/latest",
         "//tools/adt/idea/nav/safeargs/testData",
+        "//tools/base/build-system:android_gradle_plugin.zip",
+        "//tools/base/build-system:android_gradle_plugin_runtime_dependencies",
         "//tools/base/build-system:gradle-distrib",
-        "//tools/base/build-system:studio_repo",
         "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
     ],
     test_srcs = ["testSrc"],
@@ -72,6 +73,7 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:studio-analytics-proto[test]",
         "//tools/adt/idea/sdk-updates:intellij.android.sdkUpdates[module, test]",
         "//tools/adt/idea/project-system:intellij.android.projectSystem[module, test]",
+        "//tools/adt/idea/.idea/libraries:mockito",
     ],
 )
 

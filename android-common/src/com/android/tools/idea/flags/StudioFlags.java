@@ -399,11 +399,6 @@ public final class StudioFlags {
     "Enable all the various tools related to visual linting of layouts.",
     true);
 
-  public static final Flag<Boolean> NELE_VISUAL_LINT_TOGGLE_ISSUE_LAYOUTS = Flag.create(
-    NELE, "visual.lint.toggle.issue.layouts", "Checkbox to show the the layouts with issue only.",
-    "Provide a checkbox in Layout Validation Tool to allow user only show the layouts with issue detected by visual lint.",
-    false);
-
   public static final Flag<Boolean> NELE_ATF_IN_VISUAL_LINT = Flag.create(
     NELE, "visual.lint.atf", "Enable ATF integration in visual linting for layouts",
     "Enable ATF integration in visual linting of layouts.",
@@ -585,6 +580,14 @@ public final class StudioFlags {
     "To allow toggling between automatic or user managed ADB server mode.",
     false);
 
+  public static final Flag<Boolean> ADB_DEVICE_MONITOR_TOOL_WINDOW_ENABLED = Flag.create(
+    RUNDEBUG,
+    "adb.device.monitor.enable",
+    "Enable the \"Device Monitor\" tool window",
+    "Enable the \"Device Monitor\" tool window which shows the list of JDWP proceses of Android Devices.\n" +
+    "Changing the value of this flag requires restarting Android Studio.",
+    true);
+
   public static final Flag<Boolean> ADBLIB_MIGRATION_DEVICE_EXPLORER = Flag.create(
     RUNDEBUG,
     "adblib.migration.device.explorer",
@@ -632,7 +635,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> LOGCAT_EXPRESSION_FILTER_ENABLE = Flag.create(
     LOGCAT,
     "logcat.expression.filter.enable",
-    "Enable expression filter in Logcat",
+    "Enable expression filter in Logcat (deprecated)",
     "Enables the expression filter in Logcat",
     false
   );
@@ -641,17 +644,10 @@ public final class StudioFlags {
   public static final Flag<Boolean> LOGCAT_SUPPRESSED_TAGS_ENABLE = Flag.create(
     LOGCAT,
     "logcat.suppressed.tags.enable",
-    "Enable Suppressed Tags Dialog in Logcat",
+    "Enable Suppressed Tags Dialog in Logcat (deprecated)",
     "Enables a dialog that allows the user to maintain a global set of tags to be suppressed in Logcat",
     false
   );
-
-  public static final Flag<Boolean> ADBLIB_MIGRATION_LOGCAT = Flag.create(
-    LOGCAT,
-    "adblib.migration.logcat",
-    "Use adblib in the logcat toolwindow",
-    "Use adblib instead of ddmlib in the logcat toolwindow",
-    true);
 
   public static final Flag<Boolean> LOGCAT_NAMED_FILTERS_ENABLE = Flag.create(
     LOGCAT,
@@ -674,7 +670,7 @@ public final class StudioFlags {
     "logcat.click.to.add.filter",
     "Enable Logcat click to add/remove filter feature",
     "Enable Logcat click to add/remove filter feature",
-    false
+    true
   );
 
   public static final Flag<Boolean> LOGCAT_IS_FILTER = Flag.create(
@@ -1392,7 +1388,7 @@ public final class StudioFlags {
       "insights.gutter",
       "Gutter Support",
       "Use gutter icons rather than code highlight to display insights in the editor",
-      false);
+      true);
 
   public static final Flag<Boolean> NEW_CRASHLYTICS_API_ENABLED =
     Flag.create(

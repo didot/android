@@ -18,7 +18,6 @@ package com.android.tools.idea.logcat
 import com.android.adblib.AdbLibSession
 import com.android.annotations.concurrency.UiThread
 import com.android.ddmlib.IDevice
-import com.android.ddmlib.logcat.LogCatMessage
 import com.android.tools.adtui.toolwindow.splittingtabs.state.SplittingTabsStateProvider
 import com.android.tools.idea.adb.processnamemonitor.ProcessNameMonitor
 import com.android.tools.idea.adblib.AdbLibService
@@ -39,8 +38,10 @@ import com.android.tools.idea.logcat.actions.LogcatFormatAction
 import com.android.tools.idea.logcat.actions.LogcatSplitterActions
 import com.android.tools.idea.logcat.actions.LogcatToggleUseSoftWrapsToolbarAction
 import com.android.tools.idea.logcat.actions.NextOccurrenceToolbarAction
+import com.android.tools.idea.logcat.actions.PauseLogcatAction
 import com.android.tools.idea.logcat.actions.PreviousOccurrenceToolbarAction
 import com.android.tools.idea.logcat.actions.RestartLogcatAction
+import com.android.tools.idea.logcat.actions.ToggleFilterAction
 import com.android.tools.idea.logcat.devices.Device
 import com.android.tools.idea.logcat.filters.AndroidLogcatFilterHistory
 import com.android.tools.idea.logcat.filters.LogcatFilter
@@ -50,6 +51,7 @@ import com.android.tools.idea.logcat.folding.EditorFoldingDetector
 import com.android.tools.idea.logcat.folding.FoldingDetector
 import com.android.tools.idea.logcat.hyperlinks.EditorHyperlinkDetector
 import com.android.tools.idea.logcat.hyperlinks.HyperlinkDetector
+import com.android.tools.idea.logcat.message.LogcatMessage
 import com.android.tools.idea.logcat.messages.AndroidLogcatFormattingOptions
 import com.android.tools.idea.logcat.messages.DocumentAppender
 import com.android.tools.idea.logcat.messages.FormattingOptions
@@ -74,6 +76,7 @@ import com.android.tools.idea.logcat.util.MostRecentlyAddedSet
 import com.android.tools.idea.logcat.util.createLogcatEditor
 import com.android.tools.idea.logcat.util.isCaretAtBottom
 import com.android.tools.idea.logcat.util.isScrollAtBottom
+import com.android.tools.idea.logcat.util.toggleFilterTerm
 import com.android.tools.idea.run.ClearLogcatListener
 import com.android.tools.idea.ui.screenshot.ScreenshotAction
 import com.google.wireless.android.sdk.stats.LogcatUsageEvent
@@ -103,6 +106,9 @@ import com.intellij.openapi.editor.ex.util.EditorUtil
 import com.intellij.openapi.editor.impl.ContextMenuPopupHandler
 import com.intellij.openapi.project.Project
 import com.intellij.tools.SimpleActionGroup
+import com.intellij.ui.EditorNotificationPanel
+import com.intellij.ui.JBColor
+import com.intellij.util.ui.JBUI.Borders
 import com.intellij.util.ui.components.BorderLayoutPanel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -122,9 +128,9 @@ import java.awt.event.MouseEvent.BUTTON1
 import java.awt.event.MouseWheelEvent
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicReference
+import javax.swing.BorderFactory
 import javax.swing.Icon
 import kotlin.math.max
-import kotlin.text.RegexOption.LITERAL
 
 // This is probably a massive overkill as we do not expect this many tags/packages in a real Logcat
 private const val MAX_TAGS = 1000
@@ -161,8 +167,11 @@ internal class LogcatMainPanel(
   zoneId: ZoneId = ZoneId.systemDefault()
 ) : BorderLayoutPanel(), LogcatPresenter, SplittingTabsStateProvider, DataProvider, Disposable {
 
+  private var isLogcatPaused: Boolean = false
+
   @VisibleForTesting
   internal val editor: EditorEx = createLogcatEditor(project)
+  private val pausedBanner = EditorNotificationPanel()
   private val document = editor.document
   private val documentAppender = DocumentAppender(project, document, logcatSettings.bufferSize)
   private val coroutineScope = AndroidCoroutineScope(this)
@@ -230,7 +239,14 @@ internal class LogcatMainPanel(
     //  device/client.
     addToTop(headerPanel)
     addToLeft(toolbar.component)
-    addToCenter(editor.component)
+
+    val centerPanel = BorderLayoutPanel()
+    pausedBanner.text = LogcatBundle.message("logcat.main.panel.pause.banner.text")
+    pausedBanner.border = BorderFactory.createCompoundBorder(Borders.customLine(JBColor.border(), 1, 1, 0, 1), Borders.empty(0, 5, 0, 0))
+    centerPanel.addToTop(pausedBanner)
+    centerPanel.addToCenter(editor.component)
+    pausedBanner.isVisible = false
+    addToCenter(centerPanel)
 
     initScrollToEndStateHandling()
 
@@ -259,12 +275,12 @@ internal class LogcatMainPanel(
     }
 
     coroutineScope.launch {
-      var job : Job? = null
+      var job: Job? = null
       logcatServiceChannel.consumeEach {
         job?.cancel()
         job = when (it) {
           is StartLogcat -> startLogcat(it.device)
-          StopLogcat -> stopLogcat().let { null }
+          StopLogcat -> unselectDevice().let { null }
         }
       }
     }
@@ -275,6 +291,7 @@ internal class LogcatMainPanel(
       add(CopyAction().withText(ActionsBundle.message("action.EditorCopy.text")).withIcon(AllIcons.Actions.Copy))
       add(SearchWebAction().withText(ActionsBundle.message("action.\$SearchWeb.text")))
       add(LogcatFoldLinesLikeThisAction(editor))
+      add(ToggleFilterAction(this@LogcatMainPanel, logcatFilterParser))
       add(Separator.create())
       actions.forEach { add(it) }
       add(Separator.create())
@@ -319,11 +336,14 @@ internal class LogcatMainPanel(
     scrollPane.verticalScrollBar.addMouseMotionListener(mouseListener)
   }
 
-  override suspend fun processMessages(messages: List<LogCatMessage>) {
+  override suspend fun processMessages(messages: List<LogcatMessage>) {
     messageBacklog.get().addAll(messages)
     tags.addAll(messages.map { it.header.tag })
-    packages.addAll(messages.map(LogCatMessage::getPackageNameOrPid))
-    messageProcessor.appendMessages(messages)
+    packages.addAll(messages.map { it.header.getAppName() })
+    if (!isLogcatPaused) {
+      // When paused, we don't send message to the document.
+      messageProcessor.appendMessages(messages)
+    }
   }
 
   override fun getState(): String {
@@ -401,6 +421,7 @@ internal class LogcatMainPanel(
   private fun createToolbarActions(project: Project): ActionGroup {
     return SimpleActionGroup().apply {
       add(ClearLogcatAction(this@LogcatMainPanel))
+      add(PauseLogcatAction(this@LogcatMainPanel))
       add(RestartLogcatAction(this@LogcatMainPanel))
       add(ScrollToTheEndToolbarAction(editor).apply {
         @Suppress("DialogTitleCapitalization")
@@ -414,10 +435,25 @@ internal class LogcatMainPanel(
       add(Separator.create())
       add(LogcatSplitterActions(splitterPopupActionGroup))
       add(Separator.create())
-      //add(DeviceScreenshotAction(project, deviceContext))
       add(ScreenshotAction())
       add(ScreenRecorderAction(project, deviceContext))
     }
+  }
+
+  @UiThread
+  override fun isLogcatPaused(): Boolean = isLogcatPaused
+
+  @UiThread
+  override fun pauseLogcat() {
+    isLogcatPaused = true
+    pausedBanner.isVisible = true
+  }
+
+  @UiThread
+  override fun resumeLogcat() {
+    isLogcatPaused = false
+    pausedBanner.isVisible = false
+    reloadMessages()
   }
 
   @UiThread
@@ -441,7 +477,7 @@ internal class LogcatMainPanel(
       withContext(uiThread) {
         document.setText("")
         if (connectedDevice.get()?.sdk == 26) {
-          processMessages(listOf(LogCatMessage(
+          processMessages(listOf(LogcatMessage(
             SYSTEM_HEADER,
             "WARNING: Logcat was not cleared on the device itself because of a bug in Android 8.0 (Oreo).")))
         }
@@ -494,7 +530,7 @@ internal class LogcatMainPanel(
     }
   }
 
-  private fun stopLogcat() {
+  private fun unselectDevice() {
     // TODO(aalbert) : Get rid of this when we have our own Screenshot/Screen record actions
     deviceContext.fireDeviceSelected(null)
     connectedDevice.set(null)
@@ -505,7 +541,7 @@ internal class LogcatMainPanel(
     ignoreCaretAtBottom = false
   }
 
-  private fun formatMessages(textAccumulator: TextAccumulator, messages: List<LogCatMessage>) {
+  private fun formatMessages(textAccumulator: TextAccumulator, messages: List<LogcatMessage>) {
     messageFormatter.formatMessages(formattingOptions, textAccumulator, messages)
   }
 
@@ -530,6 +566,12 @@ internal class LogcatMainPanel(
     return filterHint?.getFilter()
   }
 
+  override fun getFilter(): String = headerPanel.filter
+
+  override fun setFilter(filter: String) {
+    headerPanel.filter = filter
+  }
+
   private fun EditorEx.addFilterHintHandlers() {
     // Note that adding & removing a filter to an existing filter properly is not trivial. For example, if the existing filter contains
     // logical operators & parens, just appending/deleting the filter term can result in unexpected results or even in an invalid filter.
@@ -542,7 +584,7 @@ internal class LogcatMainPanel(
         if (e.isControlDown && e.button == BUTTON1) {
           val hintFilter = e.getHintFilter()
           if (hintFilter != null) {
-            val newFilter = calculateNewFilter(hintFilter)
+            val newFilter = toggleFilterTerm(logcatFilterParser, headerPanel.filter, hintFilter)
             if (newFilter != null) {
               headerPanel.filter = newFilter
             }
@@ -554,7 +596,7 @@ internal class LogcatMainPanel(
       override fun mouseMoved(e: MouseEvent) {
         if (e.isControlDown) {
           val hintFilter = e.getHintFilter()
-          if (hintFilter != null && calculateNewFilter(hintFilter) != null) {
+          if (hintFilter != null && toggleFilterTerm(logcatFilterParser, headerPanel.filter, hintFilter) != null) {
             contentComponent.cursor = HAND_CURSOR
             return
           }
@@ -564,24 +606,11 @@ internal class LogcatMainPanel(
     })
   }
 
-  private fun calculateNewFilter(filter: String): String? {
-    val oldFilter = headerPanel.filter
-    val newFilter = when {
-      oldFilter.contains(filter) -> oldFilter.replace("""\b+${filter.toRegex(LITERAL)}\b+""".toRegex(), " ").trim()
-      oldFilter.isEmpty() -> filter
-      else -> headerPanel.filter + " $filter"
-    }
-
-    return if (logcatFilterParser.isValid(newFilter)) newFilter else null
-  }
-
   private sealed class LogcatServiceEvent {
     class StartLogcat(val device: Device) : LogcatServiceEvent()
     object StopLogcat : LogcatServiceEvent()
   }
 }
-
-private fun LogCatMessage.getPackageNameOrPid() = if (header.appName == "?") "pid-${header.pid}" else header.appName
 
 private fun LogcatPanelConfig?.getFormattingOptions(): FormattingOptions =
   this?.formattingConfig?.toFormattingOptions() ?: AndroidLogcatFormattingOptions.getDefaultOptions()

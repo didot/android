@@ -36,6 +36,6 @@ class DesignerCommonIssueSidePanelTest {
     val panel = DesignerCommonIssueSidePanel(rule.project, issue, null, rule.testRootDisposable)
 
     val descriptionPane = UIUtil.findComponentOfType(panel, DescriptionEditorPane::class.java)
-    assertEquals(listener, descriptionPane!!.hyperlinkListeners.single())
+    assertEquals(listener, descriptionPane!!.hyperlinkListeners.first())
   }
 }

@@ -17,61 +17,35 @@ package com.android.tools.asdriver.tests;
 
 import com.android.tools.asdriver.proto.ASDriver;
 import com.android.tools.asdriver.proto.AndroidStudioGrpc;
-import com.sun.tools.attach.AttachNotSupportedException;
-import com.sun.tools.attach.VirtualMachine;
-import com.sun.tools.attach.VirtualMachineDescriptor;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.NoSuchElementException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Predicate;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class AndroidStudio implements AutoCloseable {
 
   private final AndroidStudioGrpc.AndroidStudioBlockingStub androidStudio;
-  private final Process process;
-  private final AndroidStudioInstallation installation;
-  private XvfbServer xvfbServer;
-  private BufferedReader logReader;
+  private final ProcessHandle process;
 
-  public AndroidStudio(AndroidStudioInstallation installation,
+  static public AndroidStudio run(AndroidStudioInstallation installation,
+                       Display display,
                        Map<String, String> env) throws IOException, InterruptedException {
-    this.installation = installation;
     Path workDir = installation.getWorkDir();
 
 
     ProcessBuilder pb = new ProcessBuilder(workDir.resolve("android-studio/bin/studio.sh").toString());
-    pb.redirectError(installation.getStderr().toFile());
-    pb.redirectOutput(installation.getStdout().toFile());
     pb.environment().clear();
 
     for (Map.Entry<String, String> entry : env.entrySet()) {
       pb.environment().put(entry.getKey(), entry.getValue());
     }
-    String display = System.getenv("DISPLAY");
-    if (display == null || display.isEmpty()) {
-      // If a display is provided use that, otherwise create one.
-      xvfbServer = new XvfbServer();
-      display = xvfbServer.launchUnusedDisplay();
-      System.out.println("Display: " + display);
-    }
-    else {
-      System.out.println("Display inherited from parent: " + display);
-    }
-    pb.environment().put("DISPLAY", display);
+    pb.environment().put("DISPLAY", display.getDisplay());
     pb.environment().put("XDG_DATA_HOME", workDir.resolve("data").toString());
     String shell = System.getenv("SHELL");
     if (shell != null && !shell.isEmpty()) {
@@ -79,159 +53,50 @@ public class AndroidStudio implements AutoCloseable {
     }
 
     System.out.println("Starting Android Studio");
-    process = pb.start();
-    int port = waitForDriverServer(installation.getStdout(), 30000);
+    installation.getStdout().reset();
+    installation.getStderr().reset();
+    pb.redirectOutput(installation.getStdout().getPath().toFile());
+    pb.redirectError(installation.getStderr().getPath().toFile());
+    ProcessHandle process = pb.start().toHandle();
+    int port = waitForDriverServer(installation.getIdeaLog());
+    return new AndroidStudio(process, port);
+  }
+
+  static AndroidStudio attach(AndroidStudioInstallation installation) throws IOException, InterruptedException {
+    int pid = waitForDriverPid(installation.getIdeaLog());
+    ProcessHandle process = ProcessHandle.of(pid).get();
+    int port = waitForDriverServer(installation.getIdeaLog());
+    return new AndroidStudio(process, port);
+  }
+
+  private AndroidStudio(ProcessHandle process, int port) {
+    this.process = process;
     ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
     androidStudio = AndroidStudioGrpc.newBlockingStub(channel);
   }
 
-  /**
-   * Waits for Android Studio to <i>restart</i>. Restarting is done from within Android Studio
-   * itself, meaning a new process is spawned whose handle we would have to find if needed.
-   */
-  public static void waitForRestart(int timeoutMillis) throws InterruptedException, TimeoutException {
-    long startTime = System.currentTimeMillis();
-    while (true) {
-      if (isAnyInstanceOfStudioRunning()) {
-        return;
-      }
-      Thread.sleep(500);
-      long elapsedTime = System.currentTimeMillis() - startTime;
-      if (elapsedTime >= timeoutMillis) {
-        throw new TimeoutException(String.format("Timed out after %dms waiting for Android Studio to restart", elapsedTime));
-      }
-    }
+  static private int waitForDriverPid(LogFile reader) throws IOException, InterruptedException {
+    Matcher matcher = reader.waitForMatchingLine(".*STDOUT - as-driver started on pid: (\\d+).*", true, 30, TimeUnit.SECONDS);
+    return Integer.parseInt(matcher.group(1));
   }
 
-  /**
-   * Terminates all running instances of Android Studio.
-   */
-  public static void terminateAllStudioInstances() {
-    System.out.println("Terminating all instances of Android Studio");
-    int numTerminated = 0;
-    for (VirtualMachineDescriptor vmd : getRunningStudioInstances()) {
-      if (vmd.displayName().equals("com.intellij.idea.Main")) {
-        long pid = Long.parseLong(vmd.id());
-        Optional<ProcessHandle> of = ProcessHandle.of(pid);
-        of.ifPresent(ProcessHandle::destroy);
-        numTerminated++;
-      }
-    }
-    System.out.printf("Terminated %d Android Studio instance(s)%n", numTerminated);
+  static private int waitForDriverServer(LogFile reader) throws IOException, InterruptedException {
+    Matcher matcher = reader.waitForMatchingLine(".*STDOUT - as-driver server listening at: (\\d+).*", true, 30, TimeUnit.SECONDS);
+    return Integer.parseInt(matcher.group(1));
   }
 
-  /**
-   * Gets all instances of Android Studio that are running, not just ones that the test may have
-   * started.
-   */
-  private static List<VirtualMachineDescriptor> getRunningStudioInstances() {
-    Predicate<? super VirtualMachineDescriptor> filterAndroidStudioInstances = (vmd) -> {
-      if (vmd.displayName().equals("com.intellij.idea.Main")) {
-        try {
-          VirtualMachine vm = VirtualMachine.attach(vmd.id());
-          Properties properties = vm.getSystemProperties();
-          if (Objects.equals(properties.getProperty("idea.platform.prefix"), "AndroidStudio")) {
-            return true;
-          }
-        }
-        catch (AttachNotSupportedException | IOException e) {
-          // Ignore any VMs we can't attach to
-        }
-      }
-      return false;
-    };
-
-    return VirtualMachine.list().stream().filter(filterAndroidStudioInstances).collect(Collectors.toList());
-  }
-
-  /**
-   * Checks whether <i>any</i> instance of Android Studio is running, not just one that the test
-   * might have started.
-   */
-  public static boolean isAnyInstanceOfStudioRunning() {
-    return !getRunningStudioInstances().isEmpty();
-  }
-
-  /**
-   * Thinly wraps {@code XvfbServer.debugTakeScreenshot}.
-   */
-  public void debugTakeScreenshot(String fileName) {
-    if (xvfbServer == null) {
-      System.out.println("Can't take a screenshot; xvfbServer is null");
-      return;
-    }
-    try {
-      xvfbServer.debugTakeScreenshot(fileName);
-    }
-    catch (Exception e) {
-      System.out.println("Capturing a screenshot didn't work (ignoring): " + e.getMessage());
-    }
-  }
-
-  /**
-   * Waits for the server to be started by monitoring the standard out.
-   *
-   * @return the port at which the server was started.
-   */
-  private int waitForDriverServer(Path stdout, int timeoutMillis) throws IOException, InterruptedException {
-    try (BufferedReader reader = new BufferedReader(new FileReader(stdout.toFile()))) {
-      String pattern = "as-driver server listening at: (.*)";
-      Matcher matcher = waitForMatchingLine(reader, pattern, timeoutMillis);
-      return Integer.parseInt(matcher.group(1));
-    }
-  }
-
-  public int waitFor() throws InterruptedException {
-    return process.waitFor();
-  }
-
-  public boolean waitFor(long timeout, TimeUnit unit) throws InterruptedException {
-    return process.waitFor(timeout, unit);
-  }
-
-  public Matcher waitForLog(String regex, int timeoutMillis) throws IOException, InterruptedException {
-    if (logReader == null) {
-      logReader = new BufferedReader(new FileReader(installation.getIdeaLog().toFile()));
-    }
-    return waitForMatchingLine(logReader, regex, timeoutMillis);
-  }
-
-  private Matcher waitForMatchingLine(BufferedReader reader, String regex, int timeoutMillis) throws IOException, InterruptedException {
-    Pattern pattern = Pattern.compile(regex);
-    long now = System.currentTimeMillis();
-    long elapsed = 0;
-    Matcher matcher = null;
-    while (elapsed < timeoutMillis) {
-      String line = reader.readLine();
-      matcher = line == null ? null : pattern.matcher(line);
-      if (matcher != null && matcher.matches()) {
-        break;
-      }
-      if (line == null) {
-        Thread.sleep(Math.min(1000, timeoutMillis - elapsed));
-      }
-      elapsed = System.currentTimeMillis() - now;
-    }
-    if (matcher == null) {
-      throw new InterruptedException(String.format("Timed out after %dms while waiting for line", timeoutMillis));
-    }
-    return matcher;
+  public void waitForProcess() throws ExecutionException, InterruptedException {
+    process.onExit().get();
   }
 
   @Override
   public void close() throws Exception {
-    try {
-      kill(1);
-      waitFor();
-    }
-    finally {
-      if (logReader != null) {
-        logReader.close();
-      }
-      if (xvfbServer != null) {
-        xvfbServer.kill();
-      }
-    }
+    // We must terminate the process on close. If we don't and expect the test to gracefully terminate it always, it means
+    // that if the test has an assertEquals, when the assertion exception is thrown the try-catch will attempt to close
+    // this object that has not been asked to terminate, blocking forever until the test times out, swallowing the
+    // assertion information.
+    process.destroyForcibly();
+    waitForProcess();
   }
 
   public String version() {
@@ -256,15 +121,35 @@ public class AndroidStudio implements AutoCloseable {
     return response.getResult() == ASDriver.ShowToolWindowResponse.Result.OK;
   }
 
-  public boolean executeAction(String action) {
+  public void executeAction(String action) {
     ASDriver.ExecuteActionRequest rq = ASDriver.ExecuteActionRequest.newBuilder().setActionId(action).build();
     ASDriver.ExecuteActionResponse response = androidStudio.executeAction(rq);
-    return response.getResult() == ASDriver.ExecuteActionResponse.Result.OK;
+    switch (response.getResult()) {
+      case OK:
+        return;
+      case ACTION_NOT_FOUND:
+        throw new NoSuchElementException(String.format("No action found by this ID: %s", action));
+      default:
+        throw new IllegalStateException(String.format("Unhandled response: %s", response.getResult()));
+    }
   }
 
-  public boolean updateStudio() {
-    ASDriver.UpdateStudioRequest request = ASDriver.UpdateStudioRequest.newBuilder().build();
-    ASDriver.UpdateStudioResponse response = androidStudio.updateStudio(request);
-    return response.getResult() == ASDriver.UpdateStudioResponse.Result.OK;
+  public void invokeComponent(String componentText) {
+    InvokeComponentRequestBuilder builder = new InvokeComponentRequestBuilder();
+    builder.addComponentTextMatch(componentText);
+    invokeComponent(builder);
+  }
+
+  public void invokeComponent(InvokeComponentRequestBuilder requestBuilder) {
+    ASDriver.InvokeComponentResponse response = androidStudio.invokeComponent(requestBuilder.build());
+    switch (response.getResult()) {
+      case OK:
+        return;
+      case ERROR:
+        throw new IllegalStateException(String.format("Could not invoke component with these matchers: %s. Check the Android Studio " +
+                                                       "stderr log for the cause.", requestBuilder));
+      default:
+        throw new IllegalStateException(String.format("Unhandled response: %s", response.getResult()));
+    }
   }
 }

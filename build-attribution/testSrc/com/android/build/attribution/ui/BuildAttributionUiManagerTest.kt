@@ -32,8 +32,8 @@ import com.intellij.build.BuildContentManager
 import com.intellij.build.BuildContentManagerImpl
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindowManager
-import com.intellij.openapi.wm.impl.ToolWindowHeadlessManagerImpl
 import com.intellij.testFramework.PlatformTestUtil
+import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
 import com.intellij.ui.content.impl.ContentImpl
 import org.jetbrains.android.AndroidTestCase
 import java.util.UUID
@@ -59,7 +59,7 @@ class BuildAttributionUiManagerTest : AndroidTestCase() {
 
     // Add a fake build tab
     project.getService(BuildContentManager::class.java).addContent(
-      ContentImpl(JPanel(), BuildContentManagerImpl.Build_Tab_Title_Supplier.get(), true)
+      ContentImpl(JPanel(), BuildContentManagerImpl.BUILD_TAB_TITLE_SUPPLIER.get(), true)
     )
 
     buildAttributionUiManager = BuildAttributionUiManagerImpl(project)
@@ -387,7 +387,7 @@ class BuildAttributionUiManagerTest : AndroidTestCase() {
   }
 
   private fun selectBuildTab() {
-    contentManager().let { it.setSelectedContent(it.findContent(BuildContentManagerImpl.Build_Tab_Title_Supplier.get())) }
+    contentManager().let { it.setSelectedContent(it.findContent(BuildContentManagerImpl.BUILD_TAB_TITLE_SUPPLIER.get())) }
   }
 
   private fun selectBuildAnalyzerTab() = contentManager().let { it.setSelectedContent(it.findContent("Build Analyzer")) }
@@ -406,5 +406,5 @@ class BuildAttributionUiManagerTest : AndroidTestCase() {
   private fun verifyBuildAnalyzerTabNotSelected() =
     Truth.assertThat(contentManager().findContent("Build Analyzer").isSelected).isFalse()
 
-  private fun contentManager() = windowManager.getToolWindow(BuildContentManagerImpl.Build_Tab_Title_Supplier.get())!!.contentManager
+  private fun contentManager() = windowManager.getToolWindow(BuildContentManagerImpl.BUILD_TAB_TITLE_SUPPLIER.get())!!.contentManager
 }

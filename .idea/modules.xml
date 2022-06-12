@@ -15,6 +15,7 @@
       <module fileurl="file://$PROJECT_DIR$/../../vendor/google/game-tools/main/android.game-tools.main.iml" filepath="$PROJECT_DIR$/../../vendor/google/game-tools/main/android.game-tools.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../vendor/google/game-tools/packaging/android.game-tools.packaging.iml" filepath="$PROJECT_DIR$/../../vendor/google/game-tools/packaging/android.game-tools.packaging.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/adblib/android.sdktools.adblib.iml" filepath="$PROJECT_DIR$/../../base/adblib/android.sdktools.adblib.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../base/adblib-ddmlibcompatibility/android.sdktools.adblib.ddmlibcompatibility.iml" filepath="$PROJECT_DIR$/../../base/adblib-ddmlibcompatibility/android.sdktools.adblib.ddmlibcompatibility.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/adblib-tools/android.sdktools.adblib.tools.iml" filepath="$PROJECT_DIR$/../../base/adblib-tools/android.sdktools.adblib.tools.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../analytics-library/testing/android.sdktools.analytics-testing.iml" filepath="$PROJECT_DIR$/../../analytics-library/testing/android.sdktools.analytics-testing.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/apkparser/analyzer/android.sdktools.analyzer.iml" filepath="$PROJECT_DIR$/../../base/apkparser/analyzer/android.sdktools.analyzer.iml" />
@@ -158,6 +159,8 @@
       <module fileurl="file://$PROJECT_DIR$/device-explorer/intellij.android.device-explorer.tests.iml" filepath="$PROJECT_DIR$/device-explorer/intellij.android.device-explorer.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/device-manager/intellij.android.device-manager.iml" filepath="$PROJECT_DIR$/device-manager/intellij.android.device-manager.iml" />
       <module fileurl="file://$PROJECT_DIR$/device-manager/intellij.android.device-manager.tests.iml" filepath="$PROJECT_DIR$/device-manager/intellij.android.device-manager.tests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/device-monitor/intellij.android.device-monitor.iml" filepath="$PROJECT_DIR$/device-monitor/intellij.android.device-monitor.iml" />
+      <module fileurl="file://$PROJECT_DIR$/device-monitor/intellij.android.device-monitor.tests.iml" filepath="$PROJECT_DIR$/device-monitor/intellij.android.device-monitor.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/emulator/intellij.android.emulator.iml" filepath="$PROJECT_DIR$/emulator/intellij.android.emulator.iml" />
       <module fileurl="file://$PROJECT_DIR$/emulator/intellij.android.emulator.tests.iml" filepath="$PROJECT_DIR$/emulator/intellij.android.emulator.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/gradle-tooling/studio-gradle-tooling-api/intellij.android.gradle-tooling.api.iml" filepath="$PROJECT_DIR$/gradle-tooling/studio-gradle-tooling-api/intellij.android.gradle-tooling.api.iml" />
@@ -231,6 +234,7 @@
       <module fileurl="file://$PROJECT_DIR$/sdk-updates/intellij.android.sdkUpdates.tests.iml" filepath="$PROJECT_DIR$/sdk-updates/intellij.android.sdkUpdates.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/server-flags/intellij.android.server-flags.iml" filepath="$PROJECT_DIR$/server-flags/intellij.android.server-flags.iml" />
       <module fileurl="file://$PROJECT_DIR$/smali/intellij.android.smali.iml" filepath="$PROJECT_DIR$/smali/intellij.android.smali.iml" />
+      <module fileurl="file://$PROJECT_DIR$/studio/integration/intellij.android.studio.integration/intellij.android.studio.integration.iml" filepath="$PROJECT_DIR$/studio/integration/intellij.android.studio.integration/intellij.android.studio.integration.iml" />
       <module fileurl="file://$PROJECT_DIR$/studio/tests/intellij.android.studio.tests.iml" filepath="$PROJECT_DIR$/studio/tests/intellij.android.studio.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/sync-perf-tests/intellij.android.sync-perf-tests.iml" filepath="$PROJECT_DIR$/sync-perf-tests/intellij.android.sync-perf-tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-templates/intellij.android.templates.iml" filepath="$PROJECT_DIR$/android-templates/intellij.android.templates.iml" />
@@ -238,6 +242,8 @@
       <module fileurl="file://$PROJECT_DIR$/android-test-framework/intellij.android.testFramework.iml" filepath="$PROJECT_DIR$/android-test-framework/intellij.android.testFramework.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-test-retention/intellij.android.testRetention.iml" filepath="$PROJECT_DIR$/android-test-retention/intellij.android.testRetention.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-test-retention/intellij.android.testRetention.tests.iml" filepath="$PROJECT_DIR$/android-test-retention/intellij.android.testRetention.tests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/threading-checker/intellij.android.threading-checker.iml" filepath="$PROJECT_DIR$/threading-checker/intellij.android.threading-checker.iml" />
+      <module fileurl="file://$PROJECT_DIR$/threading-checker/intellij.android.threading-checker.tests.iml" filepath="$PROJECT_DIR$/threading-checker/intellij.android.threading-checker.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-transport/intellij.android.transport.iml" filepath="$PROJECT_DIR$/android-transport/intellij.android.transport.iml" />
       <module fileurl="file://$PROJECT_DIR$/transport-database/intellij.android.transportDatabase.iml" filepath="$PROJECT_DIR$/transport-database/intellij.android.transportDatabase.iml" />
       <module fileurl="file://$PROJECT_DIR$/studio-updater/intellij.android.updater.studio-updater.iml" filepath="$PROJECT_DIR$/studio-updater/intellij.android.updater.studio-updater.iml" />

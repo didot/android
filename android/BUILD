@@ -124,6 +124,7 @@ iml_module(
         "//tools/base/lint:studio.android.sdktools.lint-checks[module]",
         "//tools/base/manifest-parser:studio.android.sdktools.manifest-parser[module]",
         "//tools/base/threading-agent-callback:studio.android.sdktools.threading-agent-callback[module]",
+        "//tools/adt/idea/threading-checker:intellij.android.threading-checker[module]",
     ],
 )
 
@@ -509,7 +510,7 @@ maven_repository(
         "@maven//:commons-lang.commons-lang_2.4",
         "@maven//:commons-logging.commons-logging_1.1.1",
         "@maven//:junit.junit_4.13.2",
-        "@maven//:org.jacoco.org.jacoco.ant_0.8.7",
+        "@maven//:org.jacoco.org.jacoco.ant_0.8.8",
         "@maven//:org.jdeferred.jdeferred-android-aar_1.2.3",
         "@maven//:org.jetbrains.kotlin.kotlin-android-extensions-runtime_1.5.21",
         "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.5.21",
@@ -611,6 +612,7 @@ iml_module(
         },
         "other": {
             "shard_count": 3,
+            "tags": ["no_windows"],
         },
     },
     test_class = "com.android.tools.idea.IdeaTestSuite",

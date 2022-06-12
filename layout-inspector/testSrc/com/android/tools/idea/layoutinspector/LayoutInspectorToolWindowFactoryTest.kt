@@ -16,7 +16,6 @@
 package com.android.tools.idea.layoutinspector
 
 import com.android.ddmlib.testing.FakeAdbRule
-import com.android.fakeadbserver.DeviceState
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.eq
 import com.android.testutils.MockitoKt.mock
@@ -27,6 +26,7 @@ import com.android.tools.idea.appinspection.ide.ui.RecentProcess
 import com.android.tools.idea.appinspection.internal.AppInspectionTarget
 import com.android.tools.idea.appinspection.test.TestProcessDiscovery
 import com.android.tools.idea.concurrency.waitForCondition
+import com.android.tools.idea.layoutinspector.pipeline.ForegroundProcessDetection
 import com.android.tools.idea.layoutinspector.pipeline.appinspection.AppInspectionInspectorRule
 import com.android.tools.idea.layoutinspector.tree.InspectorTreeSettings
 import com.android.tools.idea.layoutinspector.ui.DeviceViewContentPanel
@@ -46,7 +46,7 @@ import com.intellij.openapi.project.ex.ProjectEx
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowBalloonShowOptions
-import com.intellij.openapi.wm.impl.ToolWindowHeadlessManagerImpl
+import com.intellij.openapi.wm.ex.ToolWindowManagerListener
 import com.intellij.project.TestProjectManager
 import com.intellij.testFramework.ApplicationRule
 import com.intellij.testFramework.DisposableRule
@@ -55,6 +55,7 @@ import com.intellij.testFramework.TemporaryDirectory
 import com.intellij.testFramework.createTestOpenProjectOptions
 import com.intellij.testFramework.replaceService
 import com.intellij.testFramework.runInEdtAndWait
+import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstance
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
@@ -62,8 +63,12 @@ import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.anyString
+import org.mockito.Mockito.`when`
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
+import org.mockito.Mockito.verifyNoMoreInteractions
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.util.concurrent.TimeUnit
@@ -88,7 +93,7 @@ class LayoutInspectorToolWindowFactoryTest {
 
   private class FakeToolWindow(
     project: Project,
-    private val listener: LayoutInspectorToolWindowManagerListener
+    private val listener: ToolWindowManagerListener
   ) : ToolWindowHeadlessManagerImpl.MockToolWindow(project) {
     var shouldBeAvailable = true
     var visible = false
@@ -125,6 +130,37 @@ class LayoutInspectorToolWindowFactoryTest {
 
   @get:Rule
   val ruleChain = RuleChain.outerRule(inspectionRule).around(inspectorRule).around(disposableRule)!!
+
+  @Test
+  fun foregroundProcessDetectionOnlyStartsIfWindowIsNotMinimized() {
+    val mockForegroundProcessDetection = mock<ForegroundProcessDetection>()
+    val listener = ForegroundProcessDetectionWindowManagerListener(mockForegroundProcessDetection, false)
+    val toolWindow = FakeToolWindow(inspectorRule.project, listener)
+
+    verifyNoInteractions(mockForegroundProcessDetection)
+
+    toolWindow.show()
+    toolWindow.hide()
+
+    verify(mockForegroundProcessDetection).startListeningForEvents()
+    verify(mockForegroundProcessDetection).stopListeningForEvents()
+  }
+
+  @Test
+  fun foregroundProcessDetectionStartsImmediatelyIfWindowIsVisibleAtCreation() {
+    val mockForegroundProcessDetection = mock<ForegroundProcessDetection>()
+    val listener = ForegroundProcessDetectionWindowManagerListener(mockForegroundProcessDetection, true)
+    val toolWindow = FakeToolWindow(inspectorRule.project, listener)
+
+    toolWindow.show()
+
+    verify(mockForegroundProcessDetection, times(2)).startListeningForEvents()
+
+    toolWindow.hide()
+
+    verify(mockForegroundProcessDetection).stopListeningForEvents()
+    verifyNoMoreInteractions(mockForegroundProcessDetection)
+  }
 
   @Test
   fun clientOnlyLaunchedIfWindowIsNotMinimized() {
@@ -232,8 +268,7 @@ class LayoutInspectorToolWindowFactoryDisposeTest {
   @Test
   fun testResetSelectedProcessAfterProjectIsClosed() = runBlocking {
     val device = MODERN_DEVICE
-    adbRule.attachDevice(device.serial, device.manufacturer, device.model, device.version, device.apiLevel.toString(),
-                         DeviceState.HostConnectionType.USB)
+    adbRule.attachDevice(device.serial, device.manufacturer, device.model, device.version, device.apiLevel.toString())
     ApplicationManager.getApplication().replaceService(AppInspectionDiscoveryService::class.java, mock(), disposableRule.disposable)
     val service = AppInspectionDiscoveryService.instance
     val discovery = TestProcessDiscovery()

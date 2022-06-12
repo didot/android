@@ -5,7 +5,7 @@ iml_module(
     name = "intellij.android.adb",
     srcs = ["src"],
     iml_files = ["intellij.android.adb.iml"],
-    lint_baseline = "//tools/base/lint:studio-checks/empty_baseline.xml",
+    lint_baseline = "lint_baseline.xml",
     resources = ["resources"],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
@@ -22,6 +22,7 @@ iml_module(
         "//tools/adt/idea/.idea/libraries:kotlinx-coroutines-guava",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-platform-images",
         "//tools/base/pixelprobe:studio.android.sdktools.pixelprobe[module]",
+        "//tools/base/adblib-tools:studio.android.sdktools.adblib.tools[module]",
     ],
 )
 

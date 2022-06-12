@@ -15,9 +15,8 @@
  */
 package com.android.tools.idea
 
-import com.android.tools.idea.gradle.project.sync.snapshots.IdeV2ModelSnapshotComparisonTest
-import com.android.tools.idea.gradle.project.sync.snapshots.IdeModelSnapshotComparisonTest
-import com.android.tools.idea.gradle.project.sync.snapshots.IdeModelSnapshotComparisonOldAgpTest
+import com.android.tools.idea.gradle.project.sync.SyncedProjectsAllAgpTest
+import com.android.tools.idea.gradle.project.sync.snapshots.SyncedProjectTest
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
 
@@ -28,8 +27,7 @@ import org.junit.runners.Suite
  */
 @RunWith(Suite::class)
 @Suite.SuiteClasses(
-  IdeV2ModelSnapshotComparisonTest::class,
-  IdeModelSnapshotComparisonTest::class,
-  IdeModelSnapshotComparisonOldAgpTest::class
+  SyncedProjectTest::class,
+  SyncedProjectsAllAgpTest::class,
 )
 class IdeModelTestSuite

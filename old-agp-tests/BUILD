@@ -117,6 +117,7 @@ maven_repository(
         "@maven//:com.google.code.gson.gson_2.8.0",
         "@maven//:com.google.dagger.dagger_2.6",
         "@maven//:com.google.guava.guava_19.0",
+        "@maven//:com.google.guava.guava_23.0",
         "@maven//:com.google.guava.guava_28.1-jre",
         "@maven//:com.google.truth.truth_0.44",
         "@maven//:com.linkedin.testbutler.test-butler-app_1.3.1",
@@ -246,7 +247,7 @@ local_old_agp_test(
 local_old_agp_test(
     agp_version = AGP_7_2,
     gradle_version = GRADLE_7_3_3,
-    shard_count = 4,
+    shard_count = 5,
     tags = [
         "block-network",
         "no_test_mac",

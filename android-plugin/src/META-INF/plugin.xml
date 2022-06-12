@@ -7,7 +7,7 @@
     ]]>
   </description>
   <category>Android</category>
-  <version>2022.1.1 Canary 4</version>
+  <version>dev build</version>
   <vendor>JetBrains, Google</vendor>
   <depends>com.intellij.platform.images</depends>
   <depends>com.intellij.modules.java</depends>
@@ -48,9 +48,11 @@
   <xi:include href="/META-INF/gradle-dsl.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/META-INF/logcat.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/META-INF/intellij.android.device-explorer.xml" xpointer="xpointer(/idea-plugin/*)"/>
+  <xi:include href="/META-INF/intellij.android.device-monitor.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/META-INF/android-npw.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/META-INF/android-templates.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/META-INF/android-lint-plugin.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/META-INF/device-manager.xml" xpointer="xpointer(/idea-plugin/*)"/>
+  <xi:include href="/META-INF/threading-checker.xml" xpointer="xpointer(/idea-plugin/*)"/>
   <xi:include href="/META-INF/wear-pairing.xml" xpointer="xpointer(/idea-plugin/*)"/>
 </idea-plugin>

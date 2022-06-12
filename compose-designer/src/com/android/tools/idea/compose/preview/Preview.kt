@@ -20,7 +20,9 @@ import com.android.ide.common.rendering.api.Bridge
 import com.android.tools.adtui.workbench.WorkBench
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.scene.render
+import com.android.tools.idea.common.surface.DelegateInteractionHandler
 import com.android.tools.idea.common.surface.DesignSurface
+import com.android.tools.idea.common.surface.LayoutlibInteractionHandler
 import com.android.tools.idea.common.surface.handleLayoutlibNativeCrash
 import com.android.tools.idea.common.util.ControllableTicker
 import com.android.tools.idea.compose.preview.PreviewGroup.Companion.ALL_PREVIEW_GROUP
@@ -32,6 +34,7 @@ import com.android.tools.idea.compose.preview.animation.ComposePreviewAnimationM
 import com.android.tools.idea.compose.preview.designinfo.hasDesignInfoProviders
 import com.android.tools.idea.compose.preview.literals.LiveLiteralsPsiFileSnapshotFilter
 import com.android.tools.idea.compose.preview.navigation.PreviewNavigationHandler
+import com.android.tools.idea.compose.preview.scene.ComposeSceneComponentProvider
 import com.android.tools.idea.compose.preview.util.CodeOutOfDateTracker
 import com.android.tools.idea.compose.preview.util.FpsCalculator
 import com.android.tools.idea.compose.preview.util.PreviewElement
@@ -44,6 +47,7 @@ import com.android.tools.idea.compose.preview.util.toDisplayString
 import com.android.tools.idea.concurrency.AndroidCoroutinesAware
 import com.android.tools.idea.concurrency.AndroidDispatchers.uiThread
 import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
+import com.android.tools.idea.concurrency.UniqueTaskCoroutineLauncher
 import com.android.tools.idea.concurrency.createChildScope
 import com.android.tools.idea.concurrency.disposableCallbackFlow
 import com.android.tools.idea.concurrency.launchWithProgress
@@ -77,6 +81,7 @@ import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.MEUI
 import com.android.tools.idea.uibuilder.scene.LayoutlibSceneManager
 import com.android.tools.idea.uibuilder.scene.executeCallbacks
 import com.android.tools.idea.uibuilder.surface.NlDesignSurface
+import com.android.tools.idea.uibuilder.surface.NlInteractionHandler
 import com.android.tools.idea.util.runWhenSmartAndSyncedOnEdt
 import com.intellij.ide.ActivityTracker
 import com.intellij.ide.PowerSaveMode
@@ -85,6 +90,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
+import com.intellij.openapi.actionSystem.DataProvider
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.Logger
@@ -110,7 +116,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
@@ -285,6 +290,11 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
    */
   private var fpsLimit = StudioFlags.COMPOSE_INTERACTIVE_FPS_LIMIT.get()
 
+  /**
+   * [UniqueTaskCoroutineLauncher] for ensuring that only one fast preview request is launched at a time.
+   */
+  private var fastPreviewCompilationLauncher: UniqueTaskCoroutineLauncher? = null
+
   init {
     val project = psiFile.project
     project.messageBus.connect(this).subscribe(PowerSaveMode.TOPIC, PowerSaveMode.Listener {
@@ -364,7 +374,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     val quickRefresh = shouldQuickRefresh() && !isFromAnimationInspection // We should call this before assigning newValue to instanceIdFilter
     val peerPreviews = previewElementProvider.previewElements().count()
     previewElementProvider.instanceFilter = element
-    composeWorkBench.hasComponentsOverlay = false
+    sceneComponentProvider.enabled = false
     val startUpStart = System.currentTimeMillis()
     forceRefresh(quickRefresh)?.invokeOnCompletion {
       surface.sceneManagers.forEach { it.resetTouchEventsCounter() }
@@ -374,7 +384,9 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
       }
       fpsCounter.resetAndStart()
       ticker.start()
-      composeWorkBench.isInteractive = true
+      delegateInteractionHandler.delegate = interactiveInteractionHandler
+      composeWorkBench.showPinToolbar = false
+      composeWorkBench.updateVisibilityAndNotifications()
 
       if (StudioFlags.COMPOSE_ANIMATED_PREVIEW_SHOW_CLICK.get()) {
         // While in interactive mode, display a small ripple when clicking
@@ -399,14 +411,16 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
   }
 
   private fun onStaticPreviewStart() {
-    composeWorkBench.hasComponentsOverlay = true
+    sceneComponentProvider.enabled = true
     surface.background = defaultSurfaceBackground
   }
 
   private fun onInteractivePreviewStop() {
     interactiveMode = ComposePreviewManager.InteractiveMode.STOPPING
     surface.disableMouseClickDisplay()
-    composeWorkBench.isInteractive = false
+    delegateInteractionHandler.delegate = staticPreviewInteractionHandler
+    composeWorkBench.showPinToolbar = true
+    composeWorkBench.updateVisibilityAndNotifications()
     ticker.stop()
     previewElementProvider.clearInstanceIdFilter()
     logInteractiveSessionMetrics()
@@ -436,8 +450,8 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
           ComposePreviewAnimationManager.onAnimationInspectorOpened()
           previewElementProvider.instanceFilter = value
           animationInspection.set(true)
-          composeWorkBench.hasComponentsOverlay = false
-          composeWorkBench.isAnimationPreview = true
+          sceneComponentProvider.enabled = false
+          composeWorkBench.showPinToolbar = false
 
           // Open the animation inspection panel
           composeWorkBench.bottomPanel = ComposePreviewAnimationManager.createAnimationInspectorPanel(surface, this) {
@@ -465,7 +479,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     ComposePreviewAnimationManager.closeCurrentInspector()
     // Swap the components back
     composeWorkBench.bottomPanel = null
-    composeWorkBench.isAnimationPreview = false
+    composeWorkBench.showPinToolbar = true
     previewElementProvider.instanceFilter = null
   }
 
@@ -498,27 +512,55 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
   override val previewedFile: PsiFile?
     get() = psiFilePointer.element
 
+  private val dataProvider = DataProvider {
+    when (it) {
+      COMPOSE_PREVIEW_MANAGER.name -> this@ComposePreviewRepresentation
+      // The Compose preview NlModels do not point to the actual file but to a synthetic file
+      // generated for Layoutlib. This ensures we return the right file.
+      CommonDataKeys.VIRTUAL_FILE.name -> psiFilePointer.virtualFile
+      CommonDataKeys.PROJECT.name -> project
+      else -> null
+    }
+  }
+
+  private val delegateInteractionHandler = DelegateInteractionHandler()
+  private val sceneComponentProvider = ComposeSceneComponentProvider()
+
   private val composeWorkBench: ComposePreviewView = invokeAndWaitIfNeeded {
     composePreviewViewProvider.invoke(
       project,
       psiFilePointer,
       projectBuildStatusManager,
-      navigationHandler, {
-        return@invoke when (it) {
-          COMPOSE_PREVIEW_MANAGER.name -> this@ComposePreviewRepresentation
-          // The Compose preview NlModels do not point to the actual file but to a synthetic file
-          // generated for Layoutlib. This ensures we return the right file.
-          CommonDataKeys.VIRTUAL_FILE.name -> psiFilePointer.virtualFile
-          CommonDataKeys.PROJECT.name -> project
-          else -> null
-        }
-      }, this,
+      dataProvider,
+      createMainDesignSurfaceBuilder(
+        project,
+        navigationHandler,
+        delegateInteractionHandler,
+        dataProvider, // Will be overridden by the preview provider
+        this,
+        sceneComponentProvider),
+      listOf(
+        createPinnedDesignSurfaceBuilder(
+          project,
+          navigationHandler,
+          delegateInteractionHandler,
+          dataProvider,
+          this,
+          sceneComponentProvider
+        )
+      ),
+      this,
       PinAllPreviewElementsAction(
         {
           PinnedPreviewElementManager.getInstance(project).isPinned(psiFile)
         }, previewElementProvider),
       UnpinAllPreviewElementsAction)
   }
+
+  private val staticPreviewInteractionHandler = NlInteractionHandler(composeWorkBench.mainSurface).also {
+    delegateInteractionHandler.delegate = it
+  }
+  private val interactiveInteractionHandler = LayoutlibInteractionHandler(composeWorkBench.mainSurface)
 
   private val pinnedSurface: NlDesignSurface
     get() = composeWorkBench.pinnedSurface
@@ -1234,19 +1276,25 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
    */
   private fun shouldQuickRefresh() = !isLiveLiteralsEnabled && renderedElements.count() == 1
 
-  private suspend fun requestFastPreviewRefresh(): CompilationResult? = coroutineScope {
+  private suspend fun requestFastPreviewRefresh(): CompilationResult? {
     val currentStatus = status()
-    if (!currentStatus.hasSyntaxErrors) {
-      psiFilePointer.element?.let {
-        val result = fastCompile(this@ComposePreviewRepresentation, it)
-        if (result is CompilationResult.Success) {
-          forceRefresh()
-        }
-        return@coroutineScope result
-      }
+    var result: CompilationResult? = null
+    val launcher = fastPreviewCompilationLauncher ?: UniqueTaskCoroutineLauncher(this, "Compilation Launcher").also {
+      fastPreviewCompilationLauncher = it
     }
+    launcher.launch {
+      if (!currentStatus.hasSyntaxErrors) {
+        psiFilePointer.element?.let {
+          result = fastCompile(this@ComposePreviewRepresentation, it)
+          if (result is CompilationResult.Success) {
+            forceRefresh()
+          }
+        }
+      }
 
-    return@coroutineScope null
+    }?.join()
+
+    return result
   }
 
   override fun requestFastPreviewRefreshAsync(): Deferred<CompilationResult?> =
