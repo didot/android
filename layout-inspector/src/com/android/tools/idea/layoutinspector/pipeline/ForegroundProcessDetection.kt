@@ -17,6 +17,7 @@ package com.android.tools.idea.layoutinspector.pipeline
 
 import com.android.tools.idea.appinspection.api.process.ProcessesModel
 import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescriptor
+import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.appinspection.internal.process.toDeviceDescriptor
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.flags.StudioFlags
@@ -24,6 +25,7 @@ import com.android.tools.idea.run.AndroidRunConfigurationBase
 import com.android.tools.idea.transport.TransportClient
 import com.android.tools.idea.transport.TransportDeviceManager
 import com.android.tools.idea.transport.TransportProxy
+import com.android.tools.idea.transport.TransportService
 import com.android.tools.idea.transport.manager.StreamConnected
 import com.android.tools.idea.transport.manager.StreamDisconnected
 import com.android.tools.idea.transport.manager.StreamEvent
@@ -41,21 +43,108 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import org.jetbrains.annotations.TestOnly
+import org.jetbrains.annotations.VisibleForTesting
 import java.util.concurrent.ConcurrentHashMap
+
+/**
+* Object used to create an initialized instance of [ForegroundProcessDetection].
+* Doing this in a designated object is useful to facilitate testing.
+*/
+object ForegroundProcessDetectionInitializer {
+
+  @VisibleForTesting
+  fun getDefaultForegroundProcessListener(processModel: ProcessesModel): ForegroundProcessListener {
+    return object : ForegroundProcessListener {
+      override fun onNewProcess(device: DeviceDescriptor, foregroundProcess: ForegroundProcess) {
+        // set the foreground process to be the selected process.
+        processModel.selectedProcess = getProcessDescriptor(processModel, foregroundProcess)
+      }
+    }
+  }
+
+  private fun getDefaultTransportClient(): TransportClient {
+    // The following line has the side effect of starting the transport service if it has not been already.
+    // The consequence of not doing this is gRPC calls are never responded to.
+    TransportService.getInstance()
+    return TransportClient(TransportService.channelName)
+  }
+
+  fun initialize(
+    processModel: ProcessesModel,
+    deviceModel: DeviceModel,
+    coroutineScope: CoroutineScope,
+    foregroundProcessListener: ForegroundProcessListener = getDefaultForegroundProcessListener(processModel),
+    transportClient: TransportClient = getDefaultTransportClient()
+  ): ForegroundProcessDetection {
+    val foregroundProcessDetection = ForegroundProcessDetection(
+      deviceModel,
+      transportClient,
+      foregroundProcessListener,
+      coroutineScope
+    )
+
+    processModel.addSelectedProcessListeners {
+      val selectedProcessDevice = processModel.selectedProcess?.device
+      if (selectedProcessDevice != null && selectedProcessDevice != deviceModel.selectedDevice) {
+        // If the selectedProcessDevice is different from the selectedDeviceModel.selectedDevice,
+        // it means that the change of processModel.selectedProcess was not triggered by ForegroundProcessDetection.
+        // For example if the user deployed an app on a device from Studio.
+        // When this happens, we should start polling the selectedProcessDevice.
+        foregroundProcessDetection.startPollingDevice(selectedProcessDevice)
+      }
+    }
+
+    return foregroundProcessDetection
+  }
+
+  /**
+   * Match a [ForegroundProcess] with a [ProcessDescriptor].
+   */
+  private fun getProcessDescriptor(processModel: ProcessesModel, foregroundProcess: ForegroundProcess): ProcessDescriptor? {
+    return processModel.processes.firstOrNull { it.pid == foregroundProcess.pid }
+  }
+}
 
 /**
  * Keeps track of the currently selected device.
  *
- * The selected device is controlled by [ForegroundProcessDetection].
+ * The selected device is controlled by [ForegroundProcessDetection],
+ * and it is used by [SelectedDeviceAction].
  */
 class DeviceModel(private val processesModel: ProcessesModel) {
+
+  @TestOnly
+  constructor(processesModel: ProcessesModel, foregroundProcessDetectionSupportedDeviceTest: Set<DeviceDescriptor>) : this(processesModel) {
+    foregroundProcessDetectionSupportedDevices.addAll(foregroundProcessDetectionSupportedDeviceTest)
+  }
+
   var selectedDevice: DeviceDescriptor? = null
     internal set
+
+  /**
+   * The set of connected devices that support foreground process detection.
+   */
+  internal val foregroundProcessDetectionSupportedDevices = mutableSetOf<DeviceDescriptor>()
 
   val devices: Set<DeviceDescriptor>
     get() {
       return processesModel.devices
     }
+
+  val selectedProcess: ProcessDescriptor?
+    get() {
+      return processesModel.selectedProcess
+    }
+
+  val processes: Set<ProcessDescriptor>
+    get() {
+      return processesModel.processes
+    }
+
+  fun supportsForegroundProcessDetection(device: DeviceDescriptor): Boolean {
+    return foregroundProcessDetectionSupportedDevices.contains(device)
+  }
 }
 
 /**
@@ -121,6 +210,7 @@ class ForegroundProcessDetection(
       manager.streamActivityFlow()
         .collect { activity ->
           val streamChannel = activity.streamChannel
+          val streamDevice = streamChannel.stream.device.toDeviceDescriptor()
           if (activity is StreamConnected) {
             connectedStreams[streamChannel.stream.streamId] = streamChannel
 
@@ -130,22 +220,42 @@ class ForegroundProcessDetection(
                 .collect { streamEvent ->
                   val foregroundProcess = streamEvent.toForegroundProcess()
                   if (foregroundProcess != null) {
-                    foregroundProcessListener.onNewProcess(streamChannel.stream.device.toDeviceDescriptor(), foregroundProcess)
+                    foregroundProcessListener.onNewProcess(streamDevice, foregroundProcess)
                   }
                 }
             }
 
-            // start polling on the new device, if we're not already polling on another device.
-            val streamDevice = activity.streamChannel.stream.device.toDeviceDescriptor()
-            if (deviceModel.selectedDevice == null && deviceModel.devices.contains(streamDevice)) {
-              startPollingDevice(streamDevice)
+            launch {
+              // start listening for handshake events
+              // if the device does not support foreground process detection we should fall back to a process picker for that device.
+              streamChannel.eventFlow(
+                StreamEventQuery(eventKind = Common.Event.Kind.LAYOUT_INSPECTOR_TRACKING_FOREGROUND_PROCESS_SUPPORTED)
+              )
+                .collect { streamEvent ->
+                  if (streamEvent.event.hasLayoutInspectorTrackingForegroundProcessSupported()) {
+                    val deviceSupportsForegroundProcessDetection = streamEvent.event.layoutInspectorTrackingForegroundProcessSupported.supported
+                    if (deviceSupportsForegroundProcessDetection) {
+                      deviceModel.foregroundProcessDetectionSupportedDevices.add(streamDevice)
+
+                      // TODO make sure this doesn't happen when the tool window is collapsed
+                      // If there are no devices connected, we can automatically connect to the first device.
+                      // So the user doesn't have to hand pick the device.
+                      if (deviceModel.selectedDevice == null && deviceModel.devices.contains(streamDevice)) {
+                        startPollingDevice(streamDevice)
+                      }
+                    }
+                  }
+                }
             }
+
+            sendStartHandshakeCommand(activity.streamChannel.stream)
           }
           else if (activity is StreamDisconnected) {
             val stream = activity.streamChannel.stream
-            connectedStreams.remove(stream.streamId)!!
+            connectedStreams.remove(stream.streamId)
+            deviceModel.foregroundProcessDetectionSupportedDevices.remove(streamDevice)
 
-            if (stream.device.serial == deviceModel.selectedDevice?.serial) {
+            if (streamDevice.serial == deviceModel.selectedDevice?.serial) {
               deviceModel.selectedDevice = null
             }
           }
@@ -172,8 +282,14 @@ class ForegroundProcessDetection(
     }
 
     if (newStream != null) {
-      sendStartOnDevicePollingCommand(newStream.stream)
-      deviceModel.selectedDevice = newDevice
+      val isStreamSupported = deviceModel.supportsForegroundProcessDetection(newDevice)
+      if (!isStreamSupported) {
+        deviceModel.selectedDevice = null
+      }
+      else {
+        sendStartOnDevicePollingCommand(newStream.stream)
+        deviceModel.selectedDevice = newDevice
+      }
     }
   }
 
@@ -183,6 +299,14 @@ class ForegroundProcessDetection(
 
   fun stopListeningForEvents() {
     // TODO stop/resume on-device polling
+  }
+
+  /**
+   * Sends the command that initiates the handshake, the device will respond by sending an event of type
+   * LAYOUT_INSPECTOR_TRACKING_FOREGROUND_PROCESS_SUPPORTED.
+   */
+  private fun sendStartHandshakeCommand(stream: Common.Stream) {
+    sendCommand(Commands.Command.CommandType.IS_TRACKING_FOREGROUND_PROCESS_SUPPORTED, stream.streamId)
   }
 
   /**

@@ -16,6 +16,7 @@
 package com.android.tools.idea.editors.strings.action
 
 import com.android.testutils.MockitoKt.mock
+import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.editors.strings.StringResourceEditor
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
@@ -30,7 +31,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 import org.mockito.Mock
-import org.mockito.Mockito.`when` as whenever
 import org.mockito.junit.MockitoJUnit
 import org.mockito.junit.MockitoRule
 
@@ -133,11 +133,11 @@ class PanelActionTest {
     var doUpdateInvoked = false
       private set
 
-    override fun doUpdate(e: AnActionEvent): Boolean =
+    override fun doUpdate(event: AnActionEvent): Boolean =
         doUpdateResult.also { doUpdateInvoked = true }
 
-    override fun actionPerformed(e: AnActionEvent) {
-      assertThat(e.panel).isSameAs(stringResourceEditor.panel)
+    override fun actionPerformed(event: AnActionEvent) {
+      assertThat(event.panel).isSameAs(stringResourceEditor.panel)
     }
   }
 }

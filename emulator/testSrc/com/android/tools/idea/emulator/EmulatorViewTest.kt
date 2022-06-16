@@ -20,6 +20,7 @@ import com.android.emulator.control.ThemingStyle
 import com.android.testutils.ImageDiffUtil
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
+import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.TestUtils
 import com.android.tools.adtui.actions.ZoomType
 import com.android.tools.adtui.swing.FakeKeyboardFocusManager
@@ -55,7 +56,6 @@ import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.Mockito.atLeast
 import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when`
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.KeyboardFocusManager
@@ -92,15 +92,15 @@ class EmulatorViewTest {
   @Before
   fun setUp() {
     val fileEditorManager = mock<FileEditorManagerEx>()
-    `when`(fileEditorManager.openFile(any(), anyBoolean())).thenAnswer { invocation ->
+    whenever(fileEditorManager.openFile(any(), anyBoolean())).thenAnswer { invocation ->
       filesOpened.add(invocation.getArgument(0))
       return@thenAnswer emptyArray<FileEditor>()
     }
-    `when`(fileEditorManager.selectedEditors).thenReturn(FileEditor.EMPTY_ARRAY)
-    `when`(fileEditorManager.openFiles).thenReturn(VirtualFile.EMPTY_ARRAY)
+    whenever(fileEditorManager.selectedEditors).thenReturn(FileEditor.EMPTY_ARRAY)
+    whenever(fileEditorManager.openFiles).thenReturn(VirtualFile.EMPTY_ARRAY)
     @Suppress("UnstableApiUsage")
-    `when`(fileEditorManager.openFilesWithRemotes).thenReturn(VirtualFile.EMPTY_ARRAY)
-    `when`(fileEditorManager.allEditors).thenReturn(FileEditor.EMPTY_ARRAY)
+    whenever(fileEditorManager.openFilesWithRemotes).thenReturn(VirtualFile.EMPTY_ARRAY)
+    whenever(fileEditorManager.allEditors).thenReturn(FileEditor.EMPTY_ARRAY)
     emulatorViewRule.project.registerComponentInstance(FileEditorManager::class.java, fileEditorManager, testRootDisposable)
   }
 
@@ -240,7 +240,7 @@ class EmulatorViewTest {
     assertThat(shortDebugString(call.request)).isEqualTo("""eventType: keypress key: "PageDown"""")
 
     val mockFocusManager: KeyboardFocusManager = mock()
-    `when`(mockFocusManager.redispatchEvent(any(Component::class.java), any(KeyEvent::class.java))).thenCallRealMethod()
+    whenever(mockFocusManager.redispatchEvent(any(Component::class.java), any(KeyEvent::class.java))).thenCallRealMethod()
     replaceKeyboardFocusManager(mockFocusManager, testRootDisposable)
     // Shift+Tab should trigger a forward local focus traversal.
     with(ui.keyboard) {
@@ -357,7 +357,7 @@ class EmulatorViewTest {
 
     // Check EmulatorShowFoldingControlsAction.
     val mockLafManager = mock<LafManager>()
-    `when`(mockLafManager.currentLookAndFeel).thenReturn(DarculaLookAndFeelInfo())
+    whenever(mockLafManager.currentLookAndFeel).thenReturn(DarculaLookAndFeelInfo())
     ApplicationManager.getApplication().replaceService(LafManager::class.java, mockLafManager, emulatorViewRule.testRootDisposable)
 
     emulatorViewRule.executeAction("android.emulator.folding.controls", view)
@@ -415,9 +415,9 @@ class EmulatorViewTest {
 
     val mousePosition = Point(150, 75)
     val pointerInfo = mock<PointerInfo>()
-    `when`(pointerInfo.location).thenReturn(mousePosition)
+    whenever(pointerInfo.location).thenReturn(mousePosition)
     val mouseInfoMock = mockStatic<MouseInfo>(testRootDisposable)
-    mouseInfoMock.`when`<Any?> { MouseInfo.getPointerInfo() }.thenReturn(pointerInfo)
+    mouseInfoMock.whenever<Any?> { MouseInfo.getPointerInfo() }.thenReturn(pointerInfo)
 
     ui.keyboard.setFocus(view)
     ui.mouse.moveTo(mousePosition)
@@ -514,12 +514,12 @@ class EmulatorViewTest {
     ui.mouse.moveTo(135, 190)
     ui.mouse.press(135, 190)
 
-    ui.keyboard.release(VK_CONTROL)
-
     // Here we expect the GRPC call from `press()`, as `moveTo()` should not send any GRPC call.
     val call = emulator.getNextGrpcCall(2, TimeUnit.SECONDS)
     assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/sendTouch")
     assertThat(shortDebugString(call.request)).contains("pressure") // Should have non-zero pressure.
+
+    ui.keyboard.release(VK_CONTROL)
   }
 
   @Test
@@ -538,7 +538,7 @@ class EmulatorViewTest {
 
     // Activate the virtual scene camera
     val mouseInfoMock = mockStatic<MouseInfo>(testRootDisposable)
-    mouseInfoMock.`when`<Any?> { MouseInfo.getPointerInfo() }.thenReturn(mock<PointerInfo>())
+    mouseInfoMock.whenever<Any?> { MouseInfo.getPointerInfo() }.thenReturn(mock<PointerInfo>())
     val focusManager = FakeKeyboardFocusManager(testRootDisposable)
     focusManager.focusOwner = view
     emulator.virtualSceneCameraActive = true
@@ -578,12 +578,13 @@ class EmulatorViewTest {
     val params = listOf(Pair(FakeMouse.Button.RIGHT, "buttons: 2"), Pair(FakeMouse.Button.MIDDLE, "buttons: 4"))
     for ((button, expected) in params) {
       ui.mouse.press(135, 190, button)
-      ui.mouse.release()
 
       emulator.getNextGrpcCall(2, TimeUnit.SECONDS).let {
         assertWithMessage(button.name).that(it.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")
         assertWithMessage(button.name).that(shortDebugString(it.request)).contains(expected)
       }
+
+      ui.mouse.release()
 
       emulator.getNextGrpcCall(2, TimeUnit.SECONDS).let {
         assertWithMessage(button.name).that(it.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")
@@ -605,17 +606,19 @@ class EmulatorViewTest {
     ui.render()
 
     ui.mouse.press(135, 190, FakeMouse.Button.RIGHT)
-    ui.mouse.dragDelta(5, 0)
-    ui.mouse.release()
 
     emulator.getNextGrpcCall(2, TimeUnit.SECONDS).let {
       assertThat(it.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")
     }
+
+    ui.mouse.dragDelta(5, 0)
 
     emulator.getNextGrpcCall(2, TimeUnit.SECONDS).let {
       assertThat(it.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")
       assertThat(shortDebugString(it.request)).contains("buttons: 2")
     }
+
+    ui.mouse.release()
 
     emulator.getNextGrpcCall(2, TimeUnit.SECONDS).let {
       assertThat(it.methodName).isEqualTo("android.emulation.control.EmulatorController/sendMouse")

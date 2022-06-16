@@ -32,6 +32,7 @@ public class XvfbServer implements Display {
   private static final String DEFAULT_RESOLUTION = "1280x1024x24";
   private static final int MAX_RETRIES_TO_FIND_DISPLAY = 20;
   private static final String XVFB_LAUNCHER = "tools/vendor/google/testing/display/launch_xvfb.sh";
+  private static final String FFMPEG = "tools/vendor/google/testing/display/ffmpeg";
 
   private Process process;
 
@@ -41,13 +42,15 @@ public class XvfbServer implements Display {
   private String display;
 
   private Boolean cachedCanCallImport = null;
+  private Process recorder;
 
-  public XvfbServer() {
+  public XvfbServer() throws IOException {
     String display = System.getenv("DISPLAY");
     if (display == null || display.isEmpty()) {
       // If a display is provided use that, otherwise create one.
       this.display = launchUnusedDisplay();
-      System.out.println("Display: " + display);
+      this.recorder = launchRecorder(this.display);
+      System.out.println("Display: " + this.display);
     } else {
       this.display = display;
       System.out.println("Display inherited from parent: " + display);
@@ -125,14 +128,39 @@ public class XvfbServer implements Display {
     return display;
   }
 
+  private Process launchRecorder(String display) throws IOException {
+    Path dir = TestUtils.getTestOutputDir();
+    Path mp4 = dir.resolve("recording.mp4");
+    Path ffmpeg = TestUtils.resolveWorkspacePathUnchecked(FFMPEG);
+
+    // Note that -pix_fmt is required by some players:
+    // https://trac.ffmpeg.org/wiki/Encode/H.264#Encodingfordumbplayers
+    ProcessBuilder pb = new ProcessBuilder(ffmpeg.toString(), "-framerate", "25", "-f", "x11grab", "-i", display, "-pix_fmt", "yuv420p", mp4.toString());
+    pb.redirectOutput(dir.resolve("ffmpeg_stdout.txt").toFile());
+    pb.redirectError(dir.resolve("ffmpeg_stderr.txt").toFile());
+    return pb.start();
+  }
+
   public String launchUnusedDisplay() {
     int retry = MAX_RETRIES_TO_FIND_DISPLAY;
     Random random = new Random();
     while (retry-- > 0) {
-      display = String.format(":%d", random.nextInt(65535));
+      int candidate = random.nextInt(65535);
+      // The only mechanism with our version of Xvfb to know when it's ready
+      // to accept connections is to check for the following file. Additionally,
+      // this serves as a check to know if another server is using the same
+      // display.
+      Path socket = Paths.get("/tmp/.X11-unix", "X" + candidate);
+      if (Files.exists(socket)) {
+        continue;
+      }
+      String display = String.format(":%d", candidate);
       Process process = launchDisplay(display);
       try {
-        boolean exited = process.waitFor(1, TimeUnit.SECONDS);
+        boolean exited = false;
+        while (!exited && !Files.exists(socket)) {
+          exited = process.waitFor(1, TimeUnit.SECONDS);
+        }
         if (!exited) {
           this.process = process;
           System.out.println("Launched xvfb on \"" + display + "\"");
@@ -172,6 +200,9 @@ public class XvfbServer implements Display {
   public void close() {
     if (process != null) {
       process.destroyForcibly();
+    }
+    if (recorder != null) {
+      recorder.destroy();
     }
   }
 }

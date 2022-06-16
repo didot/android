@@ -16,6 +16,7 @@
 package com.android.tools.idea.compose.preview
 
 import com.android.tools.idea.compose.preview.pickers.properties.DimUnit
+import com.android.tools.idea.compose.preview.pickers.properties.Orientation
 import com.android.tools.idea.compose.preview.pickers.properties.Shape
 
 // region Preview
@@ -42,6 +43,8 @@ internal const val PARAMETER_HARDWARE_HEIGHT = "Height"
 internal const val PARAMETER_HARDWARE_DIM_UNIT = "DimensionUnit"
 internal const val PARAMETER_HARDWARE_DENSITY = "Density"
 internal const val PARAMETER_HARDWARE_ORIENTATION = "Orientation"
+internal const val PARAMETER_HARDWARE_CHIN_SIZE = "ChinSize"
+internal const val PARAMETER_HARDWARE_IS_ROUND = "IsRound"
 // endregion
 // region SpringSpec
 internal const val DECLARATION_SPRING_SPEC = "SpringSpec"
@@ -68,6 +71,15 @@ object Preview {
     internal const val PARAMETER_UNIT = "unit"
     internal const val PARAMETER_DPI = "dpi"
 
+    /**
+     * Unused, may be used to define an `id` for user defined custom devices.
+     *
+     * E.g: "spec:id=my_device,width=900px,height=1900px"
+     *
+     * See b/234620152 for more context.
+     */
+    internal const val PARAMETER_ID = "id"
+
     // region DeviceSpec Language only
     internal const val PARAMETER_IS_ROUND = "isRound"
     internal const val PARAMETER_CHIN_SIZE = "chinSize"
@@ -80,7 +92,8 @@ object Preview {
     internal val DEFAULT_UNIT = DimUnit.px
     internal const val DEFAULT_DPI = 480
     internal const val DEFAULT_IS_ROUND = false
-    internal const val DEFAULT_CHIN_SIZE_PX = 0
+    internal const val DEFAULT_CHIN_SIZE_ZERO = 0
+    internal val DEFAULT_ORIENTATION = Orientation.portrait
 
     /**
      * Returns whether the given [parameterName] matches to a known DeviceSpec parameter that takes an Android dimension value

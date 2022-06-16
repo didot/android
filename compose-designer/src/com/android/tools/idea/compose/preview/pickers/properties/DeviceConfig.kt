@@ -18,10 +18,11 @@
 package com.android.tools.idea.compose.preview.pickers.properties
 
 import com.android.resources.Density
-import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_CHIN_SIZE_PX
+import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_CHIN_SIZE_ZERO
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_DPI
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_HEIGHT_PX
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_IS_ROUND
+import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_ORIENTATION
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_SHAPE
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_UNIT
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_WIDTH_PX
@@ -30,11 +31,13 @@ import com.android.tools.idea.compose.preview.Preview.DeviceSpec.PARAMETER_CHIN_
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.PARAMETER_DPI
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.PARAMETER_HEIGHT
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.PARAMETER_IS_ROUND
+import com.android.tools.idea.compose.preview.Preview.DeviceSpec.PARAMETER_ORIENTATION
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.PARAMETER_SHAPE
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.PARAMETER_UNIT
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.PARAMETER_WIDTH
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.SEPARATOR
 import com.android.tools.idea.compose.preview.pickers.properties.utils.DEVICE_BY_SPEC_PREFIX
+import com.android.tools.idea.compose.preview.util.device.convertToDeviceSpecDimension
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.kotlin.enumValueOfOrNull
 import com.android.utils.HashCodes
@@ -42,28 +45,45 @@ import com.google.wireless.android.sdk.stats.EditorPickerEvent.EditorPickerActio
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 import kotlin.math.roundToInt
 
-private const val PARAM_LEGACY_SEPARATOR = ';'
-
-private const val DENSITY_SUFFIX = "dpi"
-private const val WIDTH_SUFFIX = "w"
-private const val HEIGHT_SUFFIX = "h"
-
 /**
  * Defines some hardware parameters of a Device. Can be encoded using [deviceSpec] and decoded using [DeviceConfig.toDeviceConfigOrNull].
  *
  * @param dimUnit Determines the unit of the given [width] and [height]. Ie: For [DimUnit.px] they will be considered as pixels.
- * @param shape Shape of the device screen, may affect how the screen behaves, or it may add a cutout (like with wearables)
+ * @param shape Shape of the device screen, may affect how the screen behaves, or it may add a cutout (like with wearables).
+ * @param chinSize For round devices only, defines the height of the flat surface on a screen, measured from the bottom.
  */
 internal open class DeviceConfig(
-  open val width: Int = DEFAULT_WIDTH_PX,
-  open val height: Int = DEFAULT_HEIGHT_PX,
+  open val width: Float = DEFAULT_WIDTH_PX.toFloat(),
+  open val height: Float = DEFAULT_HEIGHT_PX.toFloat(),
   open val dimUnit: DimUnit = DEFAULT_UNIT,
   open val dpi: Int = DEFAULT_DPI,
   open val shape: Shape = DEFAULT_SHAPE,
-  open val chinSize: Int = DEFAULT_CHIN_SIZE_PX
+  open val chinSize: Float = DEFAULT_CHIN_SIZE_ZERO.toFloat(),
+  open val orientation: Orientation = DEFAULT_ORIENTATION
 ) {
-  open val orientation: Orientation
-    get() = if (height >= width) Orientation.portrait else Orientation.landscape
+  /**
+   * String representation of the width as it is used in DeviceSpec Language.
+   *
+   * @see convertToDeviceSpecDimension
+   */
+  val widthString: String
+    get() = convertToDeviceSpecDimension(width).toString()
+
+  /**
+   * String representation of the height as it is used in DeviceSpec Language.
+   *
+   * @see convertToDeviceSpecDimension
+   */
+  val heightString: String
+    get() = convertToDeviceSpecDimension(height).toString()
+
+  /**
+   * String representation of the chinSize as it is used in DeviceSpec Language.
+   *
+   * @see convertToDeviceSpecDimension
+   */
+  val chinSizeString: String
+    get() = convertToDeviceSpecDimension(chinSize).toString()
 
   open val isRound: Boolean
     get() = shape == Shape.Round || shape == Shape.Chin
@@ -72,11 +92,19 @@ internal open class DeviceConfig(
   fun deviceSpec(): String {
     val builder = StringBuilder(DEVICE_BY_SPEC_PREFIX)
     if (!StudioFlags.COMPOSE_PREVIEW_DEVICESPEC_INJECTOR.get()) {
+      var resolvedWidth = width
+      var resolvedHeight = height
+      // The original syntax does not support explicit orientation, so we have to swap the width/height for the same effect
+      if (orientation == Orientation.portrait && width > height ||
+          orientation == Orientation.landscape && height > width) {
+        resolvedWidth = height
+        resolvedHeight = width
+      }
       builder.appendParamValue(PARAMETER_SHAPE, shape.name)
       builder.appendSeparator()
-      builder.appendParamValue(PARAMETER_WIDTH, width.toString())
+      builder.appendParamValue(PARAMETER_WIDTH, resolvedWidth.roundToInt().toString())
       builder.appendSeparator()
-      builder.appendParamValue(PARAMETER_HEIGHT, height.toString())
+      builder.appendParamValue(PARAMETER_HEIGHT, resolvedHeight.roundToInt().toString())
       builder.appendSeparator()
       builder.appendParamValue(PARAMETER_UNIT, dimUnit.name)
       builder.appendSeparator()
@@ -85,10 +113,9 @@ internal open class DeviceConfig(
     }
     else {
       // TODO(b/227255434): Support parent=<device_id>
-      // TODO(b/227255434): Figure out what to do with Orientation parameter
-      builder.appendParamValue(PARAMETER_WIDTH, width.toString() + dimUnit.name)
+      builder.appendParamValue(PARAMETER_WIDTH, widthString + dimUnit.name)
       builder.appendSeparator()
-      builder.appendParamValue(PARAMETER_HEIGHT, height.toString() + dimUnit.name)
+      builder.appendParamValue(PARAMETER_HEIGHT, heightString + dimUnit.name)
       if (dpi != DEFAULT_DPI) {
         builder.appendSeparator()
         builder.appendParamValue(PARAMETER_DPI, dpi.toString())
@@ -96,11 +123,16 @@ internal open class DeviceConfig(
       if (isRound) {
         builder.appendSeparator()
         builder.appendParamValue(PARAMETER_IS_ROUND, isRound.toString())
-        if (chinSize != DEFAULT_CHIN_SIZE_PX) {
+        if (chinSize.roundToInt() != DEFAULT_CHIN_SIZE_ZERO) {
           // ChinSize is only applicable to round devices, see com.android.sdklib.devices.Screen#getChin
           builder.appendSeparator()
-          builder.appendParamValue(PARAMETER_CHIN_SIZE, chinSize.toString() + dimUnit.name)
+          builder.appendParamValue(PARAMETER_CHIN_SIZE, chinSizeString + dimUnit.name)
         }
+      }
+      if (height > width && orientation == Orientation.landscape || width > height && orientation == Orientation.portrait) {
+        // Only add orientation if it's relevant
+        builder.appendSeparator()
+        builder.appendParamValue(PARAMETER_ORIENTATION, orientation.name)
       }
       return builder.toString()
     }
@@ -114,7 +146,16 @@ internal open class DeviceConfig(
   }
 
   override fun hashCode(): Int {
-    return HashCodes.mix(width, height, dpi, shape.hashCode(), dimUnit.hashCode(), chinSize, isRound.hashCode())
+    return HashCodes.mix(
+      width.hashCode(),
+      height.hashCode(),
+      dpi,
+      shape.hashCode(),
+      dimUnit.hashCode(),
+      chinSize.hashCode(),
+      isRound.hashCode(),
+      orientation.hashCode()
+    )
   }
 
   companion object {
@@ -135,19 +176,33 @@ internal open class DeviceConfig(
         return parseDeviceSpecLanguage(paramsMap)
       }
 
-      if (paramsMap.size != 5) {
-        // Try to parse with old method, otherwise, continue
-        legacyParseToDeviceConfig(serialized)?.let { return it }
-      }
-
+      // This format supports (and requires) 5 parameters: shape, width, height, unit, dpi
+      // This should only be called because the Preview Inspection didn't find anything wrong, so we can just worry about parsing the
+      // parameters we use and ignore everything else
       val shape = enumValueOfOrNull<Shape>(paramsMap.getOrDefault(PARAMETER_SHAPE, "")) ?: return null
       val width = paramsMap.getOrDefault(PARAMETER_WIDTH, "").toIntOrNull() ?: return null
       val height = paramsMap.getOrDefault(PARAMETER_HEIGHT, "").toIntOrNull() ?: return null
       val dimUnit = enumValueOfOrNull<DimUnit>(paramsMap.getOrDefault(PARAMETER_UNIT, "").toLowerCaseAsciiOnly()) ?: return null
       val dpi = paramsMap.getOrDefault(PARAMETER_DPI, "").toIntOrNull() ?: return null
-      return DeviceConfig(width = width, height = height, dimUnit = dimUnit, dpi = dpi, shape = shape)
+      return DeviceConfig(
+        width = width.toFloat(),
+        height = height.toFloat(),
+        dimUnit = dimUnit,
+        dpi = dpi,
+        shape = shape,
+        orientation = if (width > height) Orientation.landscape else Orientation.portrait
+      )
     }
 
+    /**
+     * Parse the DeviceSpec as defined by the DeviceSpec Language.
+     *
+     * For this format, we only check for width and height as required parameters.
+     *
+     * All other parameters processed here are optional.
+     *
+     * May return null if the required parameters aren't found or if there's an issue parsing any found parameter.
+     */
     private fun parseDeviceSpecLanguage(params: Map<String, String>): DeviceConfig? {
       // Width & height are required
       val width = parseAndroidNumberOrNull(params[PARAMETER_WIDTH]) ?: return null
@@ -181,34 +236,33 @@ internal open class DeviceConfig(
       }
       val chinSizeValue = if (params[PARAMETER_CHIN_SIZE] != null) {
         // Only return null if the parsing itself failed
-        chinSize?.value?.roundToInt() ?: return null
+        chinSize?.value ?: return null
       }
       else {
         // Default value for optional parameter
-        AndroidDimension(DEFAULT_CHIN_SIZE_PX.toFloat(), DimUnit.dp).transformTo(dimUnit, dpi).value.roundToInt()
+        DEFAULT_CHIN_SIZE_ZERO.toFloat()
+      }
+
+      val orientation = if (params[PARAMETER_ORIENTATION] != null) {
+        enumValueOfOrNull<Orientation>(params.getOrDefault(PARAMETER_ORIENTATION, "")) ?: return null
+      }
+      else {
+        if (width.value > height.value) {
+          Orientation.landscape
+        }
+        else {
+          Orientation.portrait
+        }
       }
       return DeviceConfig(
-        width = width.value.roundToInt(),
-        height = height.value.roundToInt(),
+        width = width.value,
+        height = height.value,
         dimUnit = dimUnit,
         dpi = dpi,
-        shape = if (isRound) Shape.Round else Shape.Normal,
-        chinSize = chinSizeValue
+        shape = if (isRound || chinSizeValue > 0) Shape.Round else Shape.Normal,
+        chinSize = chinSizeValue,
+        orientation = orientation
       )
-    }
-
-    private fun legacyParseToDeviceConfig(serialized: String?): DeviceConfig? {
-      if (serialized == null || !serialized.startsWith(DEVICE_BY_SPEC_PREFIX)) return null
-      val configString = serialized.substringAfter(DEVICE_BY_SPEC_PREFIX)
-      val params = configString.split(PARAM_LEGACY_SEPARATOR)
-      if (params.size != 5) return null
-
-      val shape = enumValueOfOrNull<Shape>(params[0]) ?: return null
-      val width = params[1].substringBefore(WIDTH_SUFFIX).toIntOrNull() ?: return null
-      val height = params[2].substringBefore(HEIGHT_SUFFIX).toIntOrNull() ?: return null
-      val dimUnit = enumValueOfOrNull<DimUnit>(params[3].toLowerCaseAsciiOnly()) ?: return null
-      val dpi = params[4].substringBefore(DENSITY_SUFFIX).toIntOrNull() ?: return null
-      return DeviceConfig(width = width, height = height, dimUnit = dimUnit, dpi = dpi, shape = shape)
     }
   }
 }
@@ -219,16 +273,23 @@ internal open class DeviceConfig(
  * Note that modifying [MutableDeviceConfig.dimUnit] or [MutableDeviceConfig.orientation] will also change the width and height values.
  */
 internal class MutableDeviceConfig(
-  initialWidth: Int = DEFAULT_WIDTH_PX,
-  initialHeight: Int = DEFAULT_HEIGHT_PX,
+  initialWidth: Float = DEFAULT_WIDTH_PX.toFloat(),
+  initialHeight: Float = DEFAULT_HEIGHT_PX.toFloat(),
   initialDimUnit: DimUnit = DEFAULT_UNIT,
   initialDpi: Int = DEFAULT_DPI,
   initialShape: Shape = DEFAULT_SHAPE,
-  initialChinSize: Int = DEFAULT_CHIN_SIZE_PX
+  initialChinSize: Float = DEFAULT_CHIN_SIZE_ZERO.toFloat(),
+  initialOrientation: Orientation = DEFAULT_ORIENTATION
 ) : DeviceConfig(initialWidth, initialHeight, initialDimUnit, initialDpi, initialShape) {
-  override var width: Int = initialWidth
-  override var height: Int = initialHeight
-  override var chinSize: Int = initialChinSize
+  override var width: Float = initialWidth
+
+  override var height: Float = initialHeight
+
+  override var chinSize: Float = initialChinSize
+
+  override var dpi: Int = initialDpi
+
+  override var shape: Shape = initialShape
 
   /**
    * Defines the unit in which [width] and [height] should be considered. Modifying this property also changes [width] and [height].
@@ -242,38 +303,13 @@ internal class MutableDeviceConfig(
           DimUnit.px -> 1.0f * dpi / baseDpi
           DimUnit.dp -> 1.0f * baseDpi / dpi
         }
-        // TODO(b/197021783): Do a more precise operation, or support floating point for width/height
-        width = (width * dpiFactor).roundToInt()
-        height = (height * dpiFactor).roundToInt()
-        chinSize = (chinSize * dpiFactor).roundToInt()
+        width *= dpiFactor
+        height *= dpiFactor
+        chinSize *= dpiFactor
       }
     }
-  override var dpi: Int = initialDpi
-  override var shape: Shape = initialShape
 
-  /**
-   * When changed, swaps the [width] and [height] values appropriately.
-   */
-  override var orientation: Orientation
-    get() = super.orientation
-    set(newValue) {
-      when (newValue) {
-        Orientation.portrait -> {
-          if (height < width) {
-            val temp = height
-            height = width
-            width = temp
-          }
-        }
-        Orientation.landscape -> {
-          if (width < height) {
-            val temp = width
-            width = height
-            height = temp
-          }
-        }
-      }
-    }
+  override var orientation: Orientation = initialOrientation
 }
 
 /**
@@ -285,7 +321,8 @@ internal fun MutableDeviceConfig.toImmutableConfig(): DeviceConfig =
     width = this.width,
     height = this.height,
     dimUnit = this.dimUnit,
-    dpi = this.dpi
+    dpi = this.dpi,
+    orientation = this.orientation
   )
 
 /**
@@ -298,28 +335,14 @@ internal fun DeviceConfig.toMutableConfig(): MutableDeviceConfig =
     initialHeight = this.height,
     initialDimUnit = this.dimUnit,
     initialDpi = this.dpi,
-    initialChinSize = this.chinSize
+    initialChinSize = this.chinSize,
+    initialOrientation = this.orientation
   )
 
-private data class AndroidDimension(
-  val value: Float,
-  val unit: DimUnit
-) {
-  // TODO(b/227255434): Refactor DeviceConfig to internally use this class
-
-  /**
-   * Returns an [AndroidDimension] with the value calculated for [newUnit] with the given [dpi].
-   */
-  fun transformTo(newUnit: DimUnit, dpi: Int): AndroidDimension {
-    if (newUnit == this.unit) return this
-    val baseDpi = Density.MEDIUM.dpiValue
-    val dpiFactor = when (newUnit) {
-      DimUnit.px -> 1.0f * dpi / baseDpi
-      DimUnit.dp -> 1.0f * baseDpi / dpi
-    }
-    return AndroidDimension(value = value * dpiFactor, unit = newUnit)
-  }
-}
+/**
+ * Convenience class to define an Android dimension by its number [value] and [unit].
+ */
+private class AndroidDimension(val value: Float, val unit: DimUnit)
 
 private fun parseAndroidNumberOrNull(text: String?): AndroidDimension? {
   if (text == null) return null

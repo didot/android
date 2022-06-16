@@ -188,6 +188,9 @@ class ManageSnapshotsDialogTest {
     // Wait for the snapshot to be created and the snapshot list to be updated.
     waitForCondition(2, TimeUnit.SECONDS) { table.items.size == 4 }
     val secondSnapshot = checkNotNull(table.selectedObject)
+    // Edit the second snapshot without making any changes.
+    editSnapshot(actionsPanel, secondSnapshot.displayName, secondSnapshot.description, false)
+    assertThat(isUseToBoot(table, 1)).isTrue() // The first snapshot is still used to boot.
     // Create third snapshot.
     ui.clickOn(takeSnapshotButton)
     // Wait for the snapshot to be created and the snapshot list to be updated.
@@ -210,7 +213,7 @@ class ManageSnapshotsDialogTest {
     // Remove the two selected snapshots.
     performAction(actionsPanel.getAnActionButton(CommonActionsPanel.Buttons.REMOVE))
 
-    assertThat(table.items.size == 3)
+    assertThat(table.items.size).isEqualTo(3)
     assertThat(table.selectedRowCount).isEqualTo(1)
     selectedSnapshot = checkNotNull(table.selectedObject)
     assertThat(selectedSnapshot.snapshotId).isEqualTo(incompatibleSnapshotId)
@@ -221,7 +224,7 @@ class ManageSnapshotsDialogTest {
     // Remove the incompatible snapshot.
     performAction(actionsPanel.getAnActionButton(CommonActionsPanel.Buttons.REMOVE))
 
-    assertThat(table.items.size == 2)
+    assertThat(table.items.size).isEqualTo(2)
     assertThat(table.selectedRowCount).isEqualTo(1)
     selectedSnapshot = checkNotNull(table.selectedObject)
     assertThat(selectedSnapshot.displayName).isEqualTo(firstSnapshotName)

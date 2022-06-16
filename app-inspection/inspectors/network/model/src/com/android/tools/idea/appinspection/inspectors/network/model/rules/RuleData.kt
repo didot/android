@@ -22,6 +22,7 @@ import com.intellij.ui.scale.JBUIScale
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
+import org.jetbrains.annotations.TestOnly
 import studio.network.inspection.NetworkInspectorProtocol.InterceptCriteria
 import studio.network.inspection.NetworkInspectorProtocol.InterceptRule
 import studio.network.inspection.NetworkInspectorProtocol.MatchingText.Type
@@ -42,6 +43,9 @@ class RuleData(
       count += 1
       return count
     }
+
+    @TestOnly
+    fun getLatestId() = count
   }
 
   /**
@@ -54,36 +58,38 @@ class RuleData(
     }
 
     operator fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
-      this.value = value
-      onSet(this@RuleData)
+      if (this.value != value) {
+        this.value = value
+        onSet(this@RuleData)
+      }
     }
   }
 
   inner class CriteriaData(
-    protocol: String = "https",
+    protocol: Protocol = Protocol.HTTPS,
     host: String = "",
     port: String = "",
     path: String = "",
     query: String = "",
-    method: String = ""
+    method: Method = Method.GET
   ) {
-    var protocol: String by Delegate(protocol, ruleDataListener::onRuleDataChanged)
+    var protocol: Protocol by Delegate(protocol, ruleDataListener::onRuleDataChanged)
     var host: String by Delegate(host, ruleDataListener::onRuleDataChanged)
     var port: String by Delegate(port, ruleDataListener::onRuleDataChanged)
     var path: String by Delegate(path, ruleDataListener::onRuleDataChanged)
     var query: String by Delegate(query, ruleDataListener::onRuleDataChanged)
-    var method: String by Delegate(method, ruleDataListener::onRuleDataChanged)
+    var method: Method by Delegate(method, ruleDataListener::onRuleDataChanged)
 
     val url: String
       get() = "$protocol://${host.ifBlank { "*" }}${port.withPrefixIfNotEmpty(':')}$path${query.withPrefixIfNotEmpty('?')}"
 
     fun toProto(): InterceptCriteria = InterceptCriteria.newBuilder().apply {
-      protocol = this@CriteriaData.protocol
+      protocol = this@CriteriaData.protocol.toProto()
       host = this@CriteriaData.host
       port = this@CriteriaData.port
       path = this@CriteriaData.path
       query = this@CriteriaData.query
-      method = this@CriteriaData.method
+      method = this@CriteriaData.method.toProto()
     }.build()
 
     private fun String.withPrefixIfNotEmpty(prefix: Char) = if (isBlank()) "" else prefix + this
@@ -258,6 +264,7 @@ class RuleData(
   val bodyRuleTableModel = BodyRulesTableModel()
 
   fun toProto(): InterceptRule = InterceptRule.newBuilder().apply {
+    enabled = isActive
     criteria = this@RuleData.criteria.toProto()
     if (statusCodeRuleData.isActive) {
       addTransformation(statusCodeRuleData.toProto())

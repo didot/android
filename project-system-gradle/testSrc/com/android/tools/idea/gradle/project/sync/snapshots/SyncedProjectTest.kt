@@ -34,6 +34,7 @@ import com.android.tools.idea.testing.openPreparedProject
 import com.android.tools.idea.testing.prepareGradleProject
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.IconLoader
 import com.intellij.testFramework.RunsInEdt
 import com.intellij.ui.CoreIconManager
 import com.intellij.ui.IconManager
@@ -144,6 +145,9 @@ abstract class SyncedProjectTest(
 
   @Test
   fun testMultiFlavor() = testProject(TestProject.MULTI_FLAVOR)
+
+  @Test
+  fun testMultiFlavorWithFiltering() = testProject(TestProject.MULTI_FLAVOR_WITH_FILTERING)
 
   @Test
   fun testNamespaces() = testProject(TestProject.NAMESPACES)
@@ -264,6 +268,7 @@ abstract class SyncedProjectTest(
     // Avoid depending on the execution order and initializing icons with dummies.
     try {
       IconManager.activate(CoreIconManager())
+      IconLoader.activate()
     } catch (e: Throwable) {
       e.printStackTrace()
     }

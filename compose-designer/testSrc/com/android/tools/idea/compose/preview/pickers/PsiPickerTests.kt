@@ -19,6 +19,7 @@ import com.android.sdklib.devices.Device
 import com.android.tools.idea.compose.ComposeProjectRule
 import com.android.tools.idea.compose.preview.AnnotationFilePreviewElementFinder
 import com.android.tools.idea.compose.preview.namespaceVariations
+import com.android.tools.idea.compose.preview.pickers.properties.DimUnit
 import com.android.tools.idea.compose.preview.pickers.properties.PreviewPickerPropertyModel
 import com.android.tools.idea.compose.preview.pickers.properties.PsiPropertyItem
 import com.android.tools.idea.compose.preview.pickers.properties.PsiPropertyModel
@@ -41,6 +42,7 @@ import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
 import kotlinx.coroutines.runBlocking
 import org.intellij.lang.annotations.Language
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -76,6 +78,12 @@ class PsiPickerTests(previewAnnotationPackage: String, composableAnnotationPacka
   private val fixture get() = projectRule.fixture
   private val project get() = projectRule.project
   private val module get() = projectRule.fixture.module
+
+  @After
+  fun teardown() {
+    // Flag might not get cleared if a test that overrides it fails
+    StudioFlags.COMPOSE_PREVIEW_DEVICESPEC_INJECTOR.clearOverride()
+  }
 
   @RunsInEdt
   @Test
@@ -217,6 +225,8 @@ class PsiPickerTests(previewAnnotationPackage: String, composableAnnotationPacka
     assertEquals("px", model.properties["", "DimensionUnit"].defaultValue)
     assertEquals("portrait", model.properties["", "Orientation"].defaultValue)
     assertEquals("440", model.properties["", "Density"].defaultValue)
+    assertEquals("false", model.properties["", "IsRound"].defaultValue)
+    assertEquals("0", model.properties["", "ChinSize"].defaultValue)
 
     // We hide the default value of some values when the value's behavior is undefined
     assertEquals(null, model.properties["", "widthDp"].defaultValue)
@@ -475,7 +485,7 @@ class PsiPickerTests(previewAnnotationPackage: String, composableAnnotationPacka
     val model = ReadAction.compute<PsiPropertyModel, Throwable> {
       PreviewPickerPropertyModel.fromPreviewElement(project, module, noParametersPreview.previewElementDefinitionPsi, NoOpTracker)
     }
-    var expectedModificationsCountdown = 14
+    var expectedModificationsCountdown = 17
     model.addListener(object : PropertiesModelListener<PsiPropertyItem> {
       override fun propertyValuesChanged(model: PropertiesModel<PsiPropertyItem>) {
         expectedModificationsCountdown--
@@ -526,6 +536,34 @@ class PsiPickerTests(previewAnnotationPackage: String, composableAnnotationPacka
     model.properties["", "Width"].value = "961"
     assertEquals(
       """@Preview(name = "Hello", group = "Group2", widthDp = 32, device = "spec:width=961px,height=360px,dpi=240")""",
+      noParametersPreview.annotationText()
+    )
+
+    assertEquals("false", model.properties["", "IsRound"].value)
+    // Changing ChinSize to non-zero value implies setting IsRound to true
+    model.properties["", "ChinSize"].value = "30"
+    assertEquals("true", model.properties["", "IsRound"].value)
+    assertEquals(
+      """@Preview(name = "Hello", group = "Group2", widthDp = 32, device = "spec:width=961px,height=360px,dpi=240,isRound=true,chinSize=30px")""",
+      noParametersPreview.annotationText()
+    )
+
+    // When using DeviceSpec Language, conversions should support floating point
+    model.properties["", "DimensionUnit"].value = DimUnit.dp.name
+    assertEquals("640.7", model.properties["", "Width"].value)
+    assertEquals("240", model.properties["", "Height"].value)
+    assertEquals("20", model.properties["", "ChinSize"].value)
+    assertEquals(
+      """@Preview(name = "Hello", group = "Group2", widthDp = 32, device = "spec:width=640.7dp,height=240dp,dpi=240,isRound=true,chinSize=20dp")""",
+      noParametersPreview.annotationText()
+    )
+
+    // Since there's no orientation parameter, it's implied from the width/height values
+    assertEquals("landscape", model.properties["", "Orientation"].value)
+    // When changed, it has to be reflected explicitly in the spec, without affecting the width/height
+    model.properties["", "Orientation"].value = "portrait"
+    assertEquals(
+      """@Preview(name = "Hello", group = "Group2", widthDp = 32, device = "spec:width=640.7dp,height=240dp,dpi=240,isRound=true,chinSize=20dp,orientation=portrait")""",
       noParametersPreview.annotationText()
     )
     StudioFlags.COMPOSE_PREVIEW_DEVICESPEC_INJECTOR.clearOverride()

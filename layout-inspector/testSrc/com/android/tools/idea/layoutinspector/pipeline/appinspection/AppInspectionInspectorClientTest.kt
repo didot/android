@@ -34,6 +34,7 @@ import com.android.sdklib.repository.targets.SystemImage.GOOGLE_APIS_TAG
 import com.android.sdklib.repository.targets.SystemImage.PLAY_STORE_TAG
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
+import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.file.createInMemoryFileSystemAndFolder
 import com.android.testutils.file.someRoot
 import com.android.tools.adtui.workbench.PropertiesComponentMock
@@ -147,7 +148,15 @@ class AppInspectionInspectorClientTest {
     // Validate all the progress events happen in order. Note that those generated on the device side are synthetic, since we're not
     // using the real agent in this test.
     // TODO(b/203712328): Because of a problem with the test framework, this test will pass even without the fix included in the same commit
+
+    val modelUpdatedLatch = ReportingCountDownLatch(1)
+    inspectorRule.inspectorModel.modificationListeners.add { _, _, _ ->
+      modelUpdatedLatch.countDown()
+    }
+
     inspectorRule.processNotifier.fireConnected(MODERN_PROCESS)
+    modelUpdatedLatch.await(TIMEOUT, TIMEOUT_UNIT)
+
     assertThat(inspectorRule.inspectorClient.isConnected).isTrue()
     val inOrder = inOrder(monitor)
     inOrder.verify(monitor).updateProgress(AttachErrorState.ADB_PING)
@@ -984,7 +993,7 @@ class AppInspectionInspectorClientWithFailingClientTest {
         throw exceptionToThrow
       }
       null
-    }.`when`(it).updateProgress(any(AttachErrorState::class.java))
+    }.whenever(it).updateProgress(any(AttachErrorState::class.java))
   }
 
   private val inspectorRule = LayoutInspectorRule(listOf(inspectionRule.createInspectorClientProvider(monitor))) {

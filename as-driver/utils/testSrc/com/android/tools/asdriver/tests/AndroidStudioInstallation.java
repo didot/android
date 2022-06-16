@@ -41,6 +41,9 @@ public class AndroidStudioInstallation {
   private final LogFile ideaLog;
   private final Path studioDir;
   private final Path vmOptionsPath;
+  private final Path configDir;
+  private final Path homeDir;
+  private final Path logsDir;
 
   public static AndroidStudioInstallation fromZip(Path tempDir) throws IOException {
     Path workDir = Files.createTempDirectory(tempDir, "android-studio");
@@ -59,16 +62,18 @@ public class AndroidStudioInstallation {
     this.workDir = workDir;
     this.studioDir = studioDir;
 
-    stdout = new LogFile(workDir.resolve("stdout.txt"));
-    stderr = new LogFile(workDir.resolve("stderr.txt"));
-    Path logDir = workDir.resolve("system/log");
-    Files.createDirectories(logDir);
-    ideaLog = new LogFile(logDir.resolve("idea.log"));
+    logsDir = Files.createTempDirectory(TestUtils.getTestOutputDir(), "logs");
+    ideaLog = new LogFile(logsDir.resolve("idea.log"));
     Files.createFile(ideaLog.getPath());
+    stdout = new LogFile(logsDir.resolve("stdout.txt"));
+    stderr = new LogFile(logsDir.resolve("stderr.txt"));
 
     vmOptionsPath = workDir.resolve("studio.vmoptions");
-    Path configDir = workDir.resolve("config");
+    configDir = workDir.resolve("config");
     Files.createDirectories(configDir);
+
+    homeDir = workDir.resolve("home");
+    Files.createDirectories(homeDir);
 
     setConsentGranted(true);
     createVmOptionsFile();
@@ -84,8 +89,8 @@ public class AndroidStudioInstallation {
                        String.format("-Didea.config.path=%s/config\n", workDir) +
                        String.format("-Didea.plugins.path=%s/config/plugins\n", workDir) +
                        String.format("-Didea.system.path=%s/system\n", workDir) +
-                       String.format("-Didea.log.path=%s/system/log\n", workDir) +
-                       String.format("-Duser.home=%s/home\n", workDir);
+                       String.format("-Didea.log.path=%s\n", logsDir) +
+                       String.format("-Duser.home=%s\n", homeDir);
     Files.write(vmOptionsPath, vmOptions.getBytes(StandardCharsets.UTF_8));
   }
 
@@ -211,6 +216,10 @@ public class AndroidStudioInstallation {
     return studioDir;
   }
 
+  public Path getHomeDir() {
+    return homeDir;
+  }
+
   public LogFile getStdout() {
     return stdout;
   }
@@ -256,12 +265,39 @@ public class AndroidStudioInstallation {
   }
 
   public AndroidStudio run(Display display) throws IOException, InterruptedException {
-    return run(display, new HashMap<>());
+    return run(display, new HashMap<>(), new String[] {});
   }
 
   public AndroidStudio run(Display display, Map<String, String> env) throws IOException, InterruptedException {
+    return run(display, env, new String[] {});
+  }
+
+  public AndroidStudio run(Display display, Map<String, String> env, String[] args) throws IOException, InterruptedException {
     Map<String, String> newEnv = new HashMap<>(env);
     newEnv.put("STUDIO_VM_OPTIONS", vmOptionsPath.toString());
-    return AndroidStudio.run(this, display, newEnv);
+    newEnv.put("ANDROID_USER_HOME", homeDir.resolve(".android").toString());
+
+    return AndroidStudio.run(this, display, newEnv, args);
+  }
+
+  public void trustPath(Path path) throws IOException {
+    Path trustedPaths = configDir.resolve("options").resolve("trusted-paths.xml");
+    Files.createDirectories(trustedPaths.getParent());
+    Files.writeString(trustedPaths, "<application>\n" +
+                                    "  <component name=\"Trusted.Paths\">\n" +
+                                    "    <option name=\"TRUSTED_PROJECT_PATHS\">\n" +
+                                    "      <map>\n" +
+                                    "        <entry key=\"" + path + "\" value=\"true\" />\n" +
+                                    "      </map>\n" +
+                                    "    </option>\n" +
+                                    "  </component>\n" +
+                                    "  <component name=\"Trusted.Paths.Settings\">\n" +
+                                    "    <option name=\"TRUSTED_PATHS\">\n" +
+                                    "      <list>\n" +
+                                    "        <option value=\"" + path.getParent() + "\" />\n" +
+                                    "      </list>\n" +
+                                    "    </option>\n" +
+                                    "  </component>\n" +
+                                    "</application>");
   }
 }

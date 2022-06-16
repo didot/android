@@ -17,15 +17,12 @@ package com.android.tools.idea.logcat
 
 import com.android.adblib.AdbLibSession
 import com.android.annotations.concurrency.UiThread
-import com.android.ddmlib.IDevice
 import com.android.tools.adtui.toolwindow.splittingtabs.state.SplittingTabsStateProvider
 import com.android.tools.idea.adb.processnamemonitor.ProcessNameMonitor
 import com.android.tools.idea.adblib.AdbLibService
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers.uiThread
 import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
-import com.android.tools.idea.ddms.DeviceContext
-import com.android.tools.idea.ddms.actions.ScreenRecorderAction
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.logcat.LogcatMainPanel.LogcatServiceEvent.StartLogcat
 import com.android.tools.idea.logcat.LogcatMainPanel.LogcatServiceEvent.StopLogcat
@@ -33,6 +30,7 @@ import com.android.tools.idea.logcat.LogcatPanelConfig.FormattingConfig
 import com.android.tools.idea.logcat.LogcatPanelConfig.FormattingConfig.Custom
 import com.android.tools.idea.logcat.LogcatPanelConfig.FormattingConfig.Preset
 import com.android.tools.idea.logcat.actions.ClearLogcatAction
+import com.android.tools.idea.logcat.actions.CreateScratchFileAction
 import com.android.tools.idea.logcat.actions.LogcatFoldLinesLikeThisAction
 import com.android.tools.idea.logcat.actions.LogcatFormatAction
 import com.android.tools.idea.logcat.actions.LogcatSplitterActions
@@ -42,6 +40,7 @@ import com.android.tools.idea.logcat.actions.PauseLogcatAction
 import com.android.tools.idea.logcat.actions.PreviousOccurrenceToolbarAction
 import com.android.tools.idea.logcat.actions.RestartLogcatAction
 import com.android.tools.idea.logcat.actions.ToggleFilterAction
+import com.android.tools.idea.logcat.actions.screenrecord.ScreenRecorderAction
 import com.android.tools.idea.logcat.devices.Device
 import com.android.tools.idea.logcat.filters.AndroidLogcatFilterHistory
 import com.android.tools.idea.logcat.filters.LogcatFilter
@@ -67,8 +66,6 @@ import com.android.tools.idea.logcat.messages.TimestampFormat
 import com.android.tools.idea.logcat.service.LogcatService
 import com.android.tools.idea.logcat.service.LogcatServiceImpl
 import com.android.tools.idea.logcat.settings.AndroidLogcatSettings
-import com.android.tools.idea.logcat.util.AdbAdapter
-import com.android.tools.idea.logcat.util.AdbAdapterImpl
 import com.android.tools.idea.logcat.util.AndroidProjectDetector
 import com.android.tools.idea.logcat.util.AndroidProjectDetectorImpl
 import com.android.tools.idea.logcat.util.LogcatUsageTracker
@@ -115,7 +112,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -160,7 +156,6 @@ internal class LogcatMainPanel(
   hyperlinkDetector: HyperlinkDetector? = null,
   foldingDetector: FoldingDetector? = null,
   packageNamesProvider: PackageNamesProvider = ProjectPackageNamesProvider(project),
-  private val adbAdapter: AdbAdapter = AdbAdapterImpl(project),
   adbSession: AdbLibSession = AdbLibService.getInstance(project).session,
   private val logcatService: LogcatService =
     LogcatServiceImpl(project, { AdbLibService.getInstance(project).session.deviceServices }, ProcessNameMonitor.getInstance(project)),
@@ -175,10 +170,6 @@ internal class LogcatMainPanel(
   private val document = editor.document
   private val documentAppender = DocumentAppender(project, document, logcatSettings.bufferSize)
   private val coroutineScope = AndroidCoroutineScope(this)
-
-  // TODO(aalbert): We still need a DeviceContext for screenshot & screen record actions.
-  @VisibleForTesting
-  val deviceContext = DeviceContext()
 
   override var formattingOptions: FormattingOptions = state.getFormattingOptions()
     set(value) {
@@ -260,7 +251,7 @@ internal class LogcatMainPanel(
             .setFormatConfiguration(state?.formattingConfig.toUsageTracking())))
 
     project.messageBus.connect(this).subscribe(ClearLogcatListener.TOPIC, ClearLogcatListener {
-      if (connectedDevice.get()?.serialNumber == it.serialNumber) {
+      if (connectedDevice.get()?.serialNumber == it) {
         clearMessageView()
       }
     })
@@ -280,7 +271,7 @@ internal class LogcatMainPanel(
         job?.cancel()
         job = when (it) {
           is StartLogcat -> startLogcat(it.device)
-          StopLogcat -> unselectDevice().let { null }
+          StopLogcat -> connectedDevice.set(null).let { null }
         }
       }
     }
@@ -292,6 +283,7 @@ internal class LogcatMainPanel(
       add(SearchWebAction().withText(ActionsBundle.message("action.\$SearchWeb.text")))
       add(LogcatFoldLinesLikeThisAction(editor))
       add(ToggleFilterAction(this@LogcatMainPanel, logcatFilterParser))
+      add(CreateScratchFileAction())
       add(Separator.create())
       actions.forEach { add(it) }
       add(Separator.create())
@@ -436,7 +428,7 @@ internal class LogcatMainPanel(
       add(LogcatSplitterActions(splitterPopupActionGroup))
       add(Separator.create())
       add(ScreenshotAction())
-      add(ScreenRecorderAction(project, deviceContext))
+      add(ScreenRecorderAction(this@LogcatMainPanel, project))
     }
   }
 
@@ -496,10 +488,14 @@ internal class LogcatMainPanel(
   override fun isLogcatEmpty() = messageBacklog.get().messages.isEmpty()
 
   override fun getData(dataId: String): Any? {
+    val device = connectedDevice.get()
     return when (dataId) {
-      ScreenshotAction.SERIAL_NUMBER_KEY.name -> connectedDevice.get()?.serialNumber
-      ScreenshotAction.SDK_KEY.name -> connectedDevice.get()?.sdk
-      ScreenshotAction.MODEL_KEY.name -> connectedDevice.get()?.model
+      ScreenshotAction.SERIAL_NUMBER_KEY.name -> device?.serialNumber
+      ScreenshotAction.SDK_KEY.name -> device?.sdk
+      ScreenshotAction.MODEL_KEY.name -> device?.model
+      ScreenRecorderAction.SERIAL_NUMBER_KEY.name -> device?.serialNumber
+      ScreenRecorderAction.AVD_NAME_KEY.name -> if (device?.isEmulator == true) device.deviceId else null
+      ScreenRecorderAction.SDK_KEY.name -> device?.sdk
       EDITOR.name -> editor
       else -> null
     }
@@ -522,18 +518,10 @@ internal class LogcatMainPanel(
     messageBacklog.get().clear()
     connectedDevice.set(device)
     return coroutineScope.launch(Dispatchers.IO) {
-      // TODO(aalbert) : Get rid of this when we have our own Screenshot/Screen record actions
-      deviceContext.fireDeviceSelected(findIDevice(device))
       logcatService.readLogcat(device).collect {
         processMessages(it)
       }
     }
-  }
-
-  private fun unselectDevice() {
-    // TODO(aalbert) : Get rid of this when we have our own Screenshot/Screen record actions
-    deviceContext.fireDeviceSelected(null)
-    connectedDevice.set(null)
   }
 
   private fun scrollToEnd() {
@@ -545,25 +533,15 @@ internal class LogcatMainPanel(
     messageFormatter.formatMessages(formattingOptions, textAccumulator, messages)
   }
 
-  private suspend fun findIDevice(device: Device): IDevice? {
-    val devices = adbAdapter.getDevices()
-    return if (device.isEmulator) {
-      devices.find { device.deviceId == it.avdData?.await()?.name } ?: devices.find { device.deviceId == it.serialNumber }
-    }
-    else {
-      devices.find { device.deviceId == it.serialNumber }
-    }
-  }
-
-  private fun MouseEvent.getHintFilter(): String? {
+  private fun MouseEvent.getFilterHint(): FilterHint? {
     val position = editor.xyToLogicalPosition(Point(x, y))
     val offset = editor.logicalPositionToOffset(position)
     var filterHint: FilterHint? = null
     document.processRangeMarkersOverlappingWith(offset, offset) {
       filterHint = it.getUserData(LOGCAT_FILTER_HINT_KEY)
-      false
+      filterHint == null
     }
-    return filterHint?.getFilter()
+    return filterHint
   }
 
   override fun getFilter(): String = headerPanel.filter
@@ -582,9 +560,9 @@ internal class LogcatMainPanel(
     contentComponent.addMouseListener(object : MouseAdapter() {
       override fun mouseClicked(e: MouseEvent) {
         if (e.isControlDown && e.button == BUTTON1) {
-          val hintFilter = e.getHintFilter()
-          if (hintFilter != null) {
-            val newFilter = toggleFilterTerm(logcatFilterParser, headerPanel.filter, hintFilter)
+          val filterHint = e.getFilterHint()
+          if (filterHint != null) {
+            val newFilter = toggleFilterTerm(logcatFilterParser, headerPanel.filter, filterHint.getFilter())
             if (newFilter != null) {
               headerPanel.filter = newFilter
             }
@@ -594,13 +572,15 @@ internal class LogcatMainPanel(
     })
     contentComponent.addMouseMotionListener(object : MouseAdapter() {
       override fun mouseMoved(e: MouseEvent) {
+        val filterHint = e.getFilterHint()
         if (e.isControlDown) {
-          val hintFilter = e.getHintFilter()
-          if (hintFilter != null && toggleFilterTerm(logcatFilterParser, headerPanel.filter, hintFilter) != null) {
+          if (filterHint != null && toggleFilterTerm(logcatFilterParser, headerPanel.filter, filterHint.getFilter()) != null) {
             contentComponent.cursor = HAND_CURSOR
             return
           }
         }
+        contentComponent.toolTipText = if (filterHint?.isElided() == true) filterHint.text else null
+
         contentComponent.cursor = TEXT_CURSOR
       }
     })

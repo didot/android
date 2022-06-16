@@ -202,10 +202,14 @@ class InspectorModel(val project: Project, val scheduler: ScheduledExecutorServi
   }
 
   fun resetRecompositionCounts() {
+    resetRecompositionCounters()
+    updatePropertiesPanel()
+  }
+
+  private fun resetRecompositionCounters() {
     maxRecomposition.reset()
     maxHighlight = 0f
     updateAll { node -> (node as? ComposeViewNode)?.resetRecomposeCounts() }
-    updatePropertiesPanel()
   }
 
   fun updatePropertiesPanel() {
@@ -221,7 +225,11 @@ class InspectorModel(val project: Project, val scheduler: ScheduledExecutorServi
    * This removes drawChildren from all existing [ViewNode]s. [AndroidWindow.refreshImages] must be called on newWindow after to regenerate
    * them.
    */
-  fun update(newWindow: AndroidWindow?, allIds: List<*>, generation: Int) {
+  fun update(newWindow: AndroidWindow?, allIds: List<*>, generation: Int, notifyUpdateCompleted: () -> Unit = {}) {
+    if (windows.isEmpty()) {
+      // Reset the recomposition counters if this is a new connection:
+      resetRecompositionCounters()
+    }
     var structuralChange: Boolean = windows.keys.retainAll(allIds)
     val oldWindow = windows[newWindow?.id]
     updating = true
@@ -272,6 +280,8 @@ class InspectorModel(val project: Project, val scheduler: ScheduledExecutorServi
         }
       }
       root.calculateTransitiveBounds()
+
+      notifyUpdateCompleted()
       modificationListeners.forEach { it(oldWindow, windows[newWindow?.id], structuralChange) }
     }
     finally {
@@ -280,16 +290,16 @@ class InspectorModel(val project: Project, val scheduler: ScheduledExecutorServi
   }
 
   private fun decreaseHighlights() {
-    val max = ViewNode.writeAccess {
-      root.flatten().filterIsInstance<ComposeViewNode>().maxOfOrNull { it.recompositions.decreaseHighlights() }
+    ViewNode.writeAccess {
+      val max = root.flatten().filterIsInstance<ComposeViewNode>().maxOfOrNull { it.recompositions.decreaseHighlights() } ?: 0f
+      if (max != 0f) {
+        scheduler?.schedule(::decreaseHighlights, DECREASE_DELAY, DECREASE_TIMEUNIT)
+      } else {
+        maxHighlight = 0f
+      }
     }
     windows.values.forEach { window ->
       modificationListeners.forEach { it(window, window, false) }
-    }
-    if (max != 0f) {
-      scheduler?.schedule(::decreaseHighlights, DECREASE_DELAY, DECREASE_TIMEUNIT)
-    } else {
-      maxHighlight = 0f
     }
   }
 

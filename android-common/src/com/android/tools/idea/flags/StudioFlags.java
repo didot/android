@@ -349,9 +349,9 @@ public final class StudioFlags {
     false);
 
   public static final Flag<Boolean> NELE_VISUAL_LINT_ALWAYS_RUN = Flag.create(
-    NELE, "visual.lint.always.run", "Run visual lint always",
-    "Enable so that visual lint always runs for select configurations.",
-    false);
+    NELE, "visual.lint.always.run", "Run visual lint in the layout editor",
+    "Enable so that visual lint always runs in the background of the layout editor for select configurations.",
+    true);
 
   public static final Flag<Boolean> NELE_INCLUDE_QUALIFIERS_FOR_TRAFFIC_LIGHTS = Flag.create(
     NELE, "include.qualifiers.for.traffic.lights", "Include errors from qualifier variants in traffic lights",
@@ -504,13 +504,21 @@ public final class StudioFlags {
    * configured here will cause the deployment to install via the package manager.
    */
   public enum OptimisticInstallSupportLevel {
-    /** Always fall back to a package manager installation. */
+    /**
+     * Always fall back to a package manager installation.
+     */
     DISABLED,
-    /** Support deploying changes to dex files only. */
+    /**
+     * Support deploying changes to dex files only.
+     */
     DEX,
-    /** Support deploying changes to dex files and native libraries only. */
+    /**
+     * Support deploying changes to dex files and native libraries only.
+     */
     DEX_AND_NATIVE,
-    /** Support deploying changes to dex files, native libraries, and resources. */
+    /**
+     * Support deploying changes to dex files, native libraries, and resources.
+     */
     DEX_AND_NATIVE_AND_RESOURCES,
   }
 
@@ -519,9 +527,9 @@ public final class StudioFlags {
     "optimisticinstall.supportlevel",
     "The amount of support for using the 'Apply Changes 2.0' pipeline on Run.",
     "This can be \"DISABLED\" to always use a package manager installation; \"DEX\" to use the pipeline for dex-only changes;" +
-        " \"DEX_AND_NATIVE\" to use the pipeline for dex and native library-only changes;" +
-        " or \"DEX_AND_NATIVE_AND_RESOURCES\" to use the pipeline for changes to dex, native libraries, and/or resource/asset files." +
-        " Deploying changes that exceed the level of support configured here will cause the deployment to install via the package manager.",
+    " \"DEX_AND_NATIVE\" to use the pipeline for dex and native library-only changes;" +
+    " or \"DEX_AND_NATIVE_AND_RESOURCES\" to use the pipeline for changes to dex, native libraries, and/or resource/asset files." +
+    " Deploying changes that exceed the level of support configured here will cause the deployment to install via the package manager.",
     OptimisticInstallSupportLevel.DEX);
 
   public static final Flag<Boolean> APPLY_CHANGES_STRUCTURAL_DEFINITION = Flag.create(
@@ -678,7 +686,7 @@ public final class StudioFlags {
     "logcat.is.filter",
     "Enable Logcat 'is:...' filter",
     "Enables a Logcat filter using the 'is' keyword for example 'is:stacktrace'is:crash' etc",
-    false
+    true
   );
   //endregion
 
@@ -696,13 +704,16 @@ public final class StudioFlags {
   public static final Flag<Boolean> BUILD_ANALYZER_JETIFIER_ENABLED = Flag.create(
     GRADLE_IDE, "build.analyzer.jetifier.warning", "Enable Jetifier usage analyzis",
     "Enable Jetifier usage analyzis is Build Analyzer.", true);
+  public static final Flag<Boolean> BUILD_ANALYZER_DOWNLOADS_ANALYSIS = Flag.create(
+    GRADLE_IDE, "build.analyzer.downloads.analysis", "Enable Downloads analysis",
+    "Enable Downloads analysis in Build Analyzer.", true);
   public static final Flag<Boolean> DISABLE_FORCED_UPGRADES = Flag.create(
     GRADLE_IDE, "forced.agp.update", "Disable forced Android Gradle plugin upgrades",
     "This option is only respected when running Android Studio internally.", false);
 
   public static final Flag<Boolean> GRADLE_SYNC_PARALLEL_SYNC_ENABLED = Flag.create(
     GRADLE_IDE, "gradle.sync.parallel.sync.enabled", "Enables parallel sync",
-    "This allows the IDE to fetch models in parallel (if supported by Gradle and enabled via org.gradle.parallel=true).", false);
+    "This allows the IDE to fetch models in parallel (if supported by Gradle and enabled via org.gradle.parallel=true).", true);
 
   public static final Flag<Boolean> GRADLE_SYNC_PARALLEL_SYNC_PREFETCH_VARIANTS = Flag.create(
     GRADLE_IDE, "gradle.sync.parallel.sync.prefetch.variants", "Enables speculative syncing of current variants",
@@ -757,7 +768,8 @@ public final class StudioFlags {
 
   public static final Flag<Boolean> DYNAMIC_LAYOUT_INSPECTOR_AUTO_CONNECT_TO_FOREGROUND_PROCESS_ENABLED = Flag.create(
     LAYOUT_INSPECTOR, "dynamic.layout.inspector.enable.auto.connect.foreground", "Enable automatically connecting to foreground process",
-    "When this flag is enabled, LayoutInspector will automatically connect to whatever debuggable process is in the foreground on the phone.", false);
+    "When this flag is enabled, LayoutInspector will automatically connect to whatever debuggable process is in the foreground on the phone.",
+    false);
   //endregion
 
   //region Embedded Emulator
@@ -897,13 +909,6 @@ public final class StudioFlags {
     "If enabled, additional inspection, completion, and refactoring supports are provided related to JNI. If disabled, some " +
     "inspections related to JNI may stop working.",
     true
-  );
-
-  public static final Flag<Boolean> CUSTOM_JAVA_NEW_CLASS_DIALOG = Flag.create(
-    EDITOR, "custom.new.class.dialog",
-    "Enable custom New Class dialog",
-    "If enabled, our custom UI for creating a new Java class is used. Otherwise the platform default is used.",
-    false
   );
 
   public static final Flag<Boolean> TWEAK_COLOR_SCHEME = Flag.create(
@@ -1428,13 +1433,7 @@ public final class StudioFlags {
     "Whether or not show issues when libraries are not policy complaint",
     false
   );
-  // endregion GOOGLE_PLAY_SDK_INDEX
 
-  // region App DIAGNOSTICS_SUMMARY
-  private static final FlagGroup DIAGNOSTICS_SUMMARY = new FlagGroup(FLAGS, "diagnosticssummary", "Diagnostics Summary");
-  public static final Flag<Boolean> ENABLE_DIAGNOSTICS_SUMMARY_MENU =
-    Flag.create(DIAGNOSTICS_SUMMARY, "enable.diagnostics.summary.menu", "Enable Diagnostics Summary Menu",
-                "Enable the diagnostic summary menu item.", false);
-  // endregion DIAGNOSTICS_SUMMARY
+  // endregion GOOGLE_PLAY_SDK_INDEX
   private StudioFlags() { }
 }

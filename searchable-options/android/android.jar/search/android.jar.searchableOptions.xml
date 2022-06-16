@@ -155,10 +155,6 @@
     <option name="create" path="ActionManager" hit="Create 9-Patch file…" />
     <option name="file" path="ActionManager" hit="Create 9-Patch file…" />
     <option name="patch" path="ActionManager" hit="Create 9-Patch file…" />
-    <option name="create" path="ActionManager" hit="Create Diagnostics Summary File" />
-    <option name="diagnostics" path="ActionManager" hit="Create Diagnostics Summary File" />
-    <option name="file" path="ActionManager" hit="Create Diagnostics Summary File" />
-    <option name="summary" path="ActionManager" hit="Create Diagnostics Summary File" />
     <option name="a" path="ActionManager" hit="Create a new Android object from the Other category" />
     <option name="android" path="ActionManager" hit="Create a new Android object from the Other category" />
     <option name="category" path="ActionManager" hit="Create a new Android object from the Other category" />
@@ -1290,6 +1286,10 @@
     <option name="new" hit="Enable new Logcat tool window" />
     <option name="tool" hit="Enable new Logcat tool window" />
     <option name="window" hit="Enable new Logcat tool window" />
+    <option name="enable" hit="Enable parallel Gradle Sync" />
+    <option name="gradle" hit="Enable parallel Gradle Sync" />
+    <option name="parallel" hit="Enable parallel Gradle Sync" />
+    <option name="sync" hit="Enable parallel Gradle Sync" />
     <option name="experimental" hit="Experimental" />
     <option name="gradle" hit="Gradle" />
     <option name="compose" hit="Jetpack Compose" />

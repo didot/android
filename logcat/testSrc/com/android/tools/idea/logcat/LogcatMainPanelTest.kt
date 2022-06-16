@@ -18,12 +18,9 @@ package com.android.tools.idea.logcat
 import com.android.adblib.AdbLibSession
 import com.android.adblib.DeviceState
 import com.android.adblib.testing.FakeAdbLibSession
-import com.android.ddmlib.AvdData
-import com.android.ddmlib.IDevice
-import com.android.ddmlib.IDevice.DeviceState.ONLINE
-import com.android.sdklib.AndroidVersion
 import com.android.testutils.MockitoKt.eq
 import com.android.testutils.MockitoKt.mock
+import com.android.testutils.MockitoKt.whenever
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.swing.FakeMouse.Button.CTRL_LEFT
 import com.android.tools.adtui.swing.FakeUi
@@ -58,16 +55,13 @@ import com.android.tools.idea.logcat.settings.AndroidLogcatSettings
 import com.android.tools.idea.logcat.testing.TestDevice
 import com.android.tools.idea.logcat.testing.setDevices
 import com.android.tools.idea.logcat.testing.setupCommandsForDevice
-import com.android.tools.idea.logcat.util.AdbAdapter
 import com.android.tools.idea.logcat.util.AndroidProjectDetector
-import com.android.tools.idea.logcat.util.FakeAdbAdapter
 import com.android.tools.idea.logcat.util.LogcatFilterLanguageRule
 import com.android.tools.idea.logcat.util.isCaretAtBottom
 import com.android.tools.idea.logcat.util.logcatEvents
 import com.android.tools.idea.run.ClearLogcatListener
 import com.android.tools.idea.testing.AndroidExecutorsRule
 import com.google.common.truth.Truth.assertThat
-import com.google.common.util.concurrent.Futures.immediateFuture
 import com.google.wireless.android.sdk.stats.LogcatUsageEvent
 import com.google.wireless.android.sdk.stats.LogcatUsageEvent.LogcatFilterEvent
 import com.google.wireless.android.sdk.stats.LogcatUsageEvent.LogcatFormatConfiguration
@@ -103,7 +97,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when`
 import java.awt.BorderLayout
 import java.awt.BorderLayout.CENTER
 import java.awt.BorderLayout.NORTH
@@ -132,7 +125,6 @@ class LogcatMainPanelTest {
 
   private val mockHyperlinkDetector = mock<HyperlinkDetector>()
   private val mockFoldingDetector = mock<FoldingDetector>()
-  private val fakeAdbAdapter = FakeAdbAdapter()
   private val fakeAdbLibSession = FakeAdbLibSession()
   private val androidLogcatFormattingOptions = AndroidLogcatFormattingOptions()
 
@@ -196,12 +188,12 @@ class LogcatMainPanelTest {
   fun setsDocumentCyclicBuffer() = runBlocking {
     val logcatMainPanel = runInEdtAndGet { logcatMainPanel(logcatSettings = AndroidLogcatSettings(bufferSize = 1024)) }
     val document = logcatMainPanel.editor.document as DocumentImpl
-    val logCatMessage = logCatMessage()
+    val logcatMessage = logcatMessage()
 
     // Insert 20 log lines
-    logcatMainPanel.messageProcessor.appendMessages(List(20) { logCatMessage })
+    logcatMainPanel.messageProcessor.appendMessages(List(20) { logcatMessage })
     logcatMainPanel.messageProcessor.onIdle {
-      assertThat(document.text.length).isAtMost(1024 + logCatMessage.length())
+      assertThat(document.text.length).isAtMost(1024 + logcatMessage.length())
     }
   }
 
@@ -258,7 +250,7 @@ class LogcatMainPanelTest {
       }
     }
 
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage()))
   }
 
   @Test
@@ -266,8 +258,8 @@ class LogcatMainPanelTest {
     val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
 
     logcatMainPanel.messageProcessor.appendMessages(listOf(
-      logCatMessage(),
-      logCatMessage(),
+      logcatMessage(),
+      logcatMessage(),
     ))
 
     logcatMainPanel.messageProcessor.onIdle {
@@ -280,11 +272,11 @@ class LogcatMainPanelTest {
   fun appendMessages_notAtBottom_doesNotScrollToEnd() = runBlocking {
     val logcatMainPanel = runInEdtAndGet(this@LogcatMainPanelTest::logcatMainPanel)
 
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage()))
     logcatMainPanel.messageProcessor.onIdle {
       logcatMainPanel.editor.caretModel.moveToOffset(0)
     }
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage()))
 
     logcatMainPanel.messageProcessor.onIdle {
       @Suppress("ConvertLambdaToReference")
@@ -342,7 +334,7 @@ class LogcatMainPanelTest {
       logcatMainPanel(hyperlinkDetector = mockHyperlinkDetector)
     }
 
-    logcatMainPanel.processMessages(listOf(logCatMessage()))
+    logcatMainPanel.processMessages(listOf(logcatMessage()))
 
     assertThat(logcatMainPanel.isLogcatEmpty()).isFalse()
   }
@@ -366,19 +358,17 @@ class LogcatMainPanelTest {
 
   @Test
   fun clearMessageView_bySubscriptionToClearLogcatListener() {
-    val device = mockDevice("device1")
-    val testDevice = TestDevice(device.serialNumber, DeviceState.ONLINE, 11, 30, "Google", "Pixel", "")
-    fakeAdbAdapter.mutableDevices.add(device)
+    val testDevice = TestDevice("device1", DeviceState.ONLINE, 11, 30, "Google", "Pixel", "")
     fakeAdbLibSession.deviceServices.setupCommandsForDevice(testDevice)
     fakeAdbLibSession.hostServices.setDevices(testDevice)
     val logcatMainPanel = runInEdtAndGet {
-      logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
+      logcatMainPanel(adbSession = fakeAdbLibSession).also {
         waitForCondition(TIMEOUT_SEC, SECONDS) { it.getConnectedDevice() != null }
         it.editor.document.setText("not-empty")
       }
     }
 
-    projectRule.project.messageBus.syncPublisher(ClearLogcatListener.TOPIC).clearLogcat(device)
+    projectRule.project.messageBus.syncPublisher(ClearLogcatListener.TOPIC).clearLogcat("device1")
 
     ConcurrencyUtil.awaitQuiescence(AndroidExecutors.getInstance().workerThreadExecutor as ThreadPoolExecutor, TIMEOUT_SEC, SECONDS)
     runInEdtAndWait { }
@@ -387,87 +377,24 @@ class LogcatMainPanelTest {
 
   @Test
   fun clearMessageView_bySubscriptionToClearLogcatListener_otherDevice() {
-    val device1 = mockDevice("device1")
-    val device2 = mockDevice("device2")
-    val testDevice1 = TestDevice(device1.serialNumber, DeviceState.ONLINE, 11, 30, "Google", "Pixel", "")
-    val testDevice2 = TestDevice(device2.serialNumber, DeviceState.ONLINE, 11, 30, "Google", "Pixel", "")
-    fakeAdbAdapter.mutableDevices.addAll(listOf(device1, device2))
+    val testDevice1 = TestDevice("device1", DeviceState.ONLINE, 11, 30, "Google", "Pixel", "")
+    val testDevice2 = TestDevice("device2", DeviceState.ONLINE, 11, 30, "Google", "Pixel", "")
     fakeAdbLibSession.deviceServices.setupCommandsForDevice(testDevice1)
     fakeAdbLibSession.deviceServices.setupCommandsForDevice(testDevice2)
     fakeAdbLibSession.hostServices.setDevices(testDevice1, testDevice2)
 
     val logcatMainPanel = runInEdtAndGet {
-      logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
+      logcatMainPanel(adbSession = fakeAdbLibSession).also {
         waitForCondition(TIMEOUT_SEC, SECONDS) { it.getConnectedDevice() != null }
         it.editor.document.setText("not-empty")
       }
     }
 
-    projectRule.project.messageBus.syncPublisher(ClearLogcatListener.TOPIC).clearLogcat(device2)
+    projectRule.project.messageBus.syncPublisher(ClearLogcatListener.TOPIC).clearLogcat("device2")
 
     ConcurrencyUtil.awaitQuiescence(AndroidExecutors.getInstance().workerThreadExecutor as ThreadPoolExecutor, TIMEOUT_SEC, SECONDS)
     runInEdtAndWait { }
     assertThat(logcatMainPanel.editor.document.text).isEqualTo("not-empty")
-  }
-
-  @Test
-  fun identifiesIDeviceFromDevice() {
-    val device = mockDevice("device1")
-    val testDevice = TestDevice(device.serialNumber, DeviceState.ONLINE, 11, 30, "Google", "Pixel", "")
-    fakeAdbAdapter.mutableDevices.add(device)
-    fakeAdbLibSession.deviceServices.setupCommandsForDevice(testDevice)
-    fakeAdbLibSession.hostServices.setDevices(testDevice)
-    val logcatMainPanel = runInEdtAndGet {
-      logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceContext.selectedDevice != null }
-      }
-    }
-    assertThat(logcatMainPanel.deviceContext.selectedDevice).isEqualTo(device)
-  }
-
-  @Test
-  fun identifiesIDeviceFromDevice_emulator() {
-    val device = mockDevice("emulator-1", "avd1")
-    val testDevice = TestDevice(device.serialNumber, DeviceState.ONLINE, 11, 30, "", "", avdName = "avd1")
-    fakeAdbAdapter.mutableDevices.add(device)
-    fakeAdbLibSession.deviceServices.setupCommandsForDevice(testDevice)
-    fakeAdbLibSession.hostServices.setDevices(testDevice)
-    val logcatMainPanel = runInEdtAndGet {
-      logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceContext.selectedDevice != null }
-      }
-    }
-    assertThat(logcatMainPanel.deviceContext.selectedDevice).isEqualTo(device)
-  }
-
-  @Test
-  fun identifiesIDeviceFromDevice_emulatorWithLegacyAvdName() {
-    val device = mockDevice("emulator-1", "avd1")
-    val testDevice = TestDevice(device.serialNumber, DeviceState.ONLINE, 11, 30, "", "", avdName = "", avdNamePre31 = "avd1")
-    fakeAdbAdapter.mutableDevices.add(device)
-    fakeAdbLibSession.deviceServices.setupCommandsForDevice(testDevice)
-    fakeAdbLibSession.hostServices.setDevices(testDevice)
-    val logcatMainPanel = runInEdtAndGet {
-      logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceContext.selectedDevice != null }
-      }
-    }
-    assertThat(logcatMainPanel.deviceContext.selectedDevice).isEqualTo(device)
-  }
-
-  @Test
-  fun identifiesIDeviceFromDevice_emulatorWithoutAvdName() {
-    val device = mockDevice("emulator-1", "avd1")
-    val testDevice = TestDevice(device.serialNumber, DeviceState.ONLINE, 11, 30, "", "", avdName = "", avdNamePre31 = "")
-    fakeAdbAdapter.mutableDevices.add(device)
-    fakeAdbLibSession.deviceServices.setupCommandsForDevice(testDevice)
-    fakeAdbLibSession.hostServices.setDevices(testDevice)
-    val logcatMainPanel = runInEdtAndGet {
-      logcatMainPanel(adbAdapter = fakeAdbAdapter, adbSession = fakeAdbLibSession).also {
-        waitForCondition(TIMEOUT_SEC, SECONDS) { it.deviceContext.selectedDevice != null }
-      }
-    }
-    assertThat(logcatMainPanel.deviceContext.selectedDevice).isEqualTo(device)
   }
 
   /**
@@ -480,9 +407,9 @@ class LogcatMainPanelTest {
       logcatMainPanel(hyperlinkDetector = mockHyperlinkDetector)
     }
 
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage()))
     logcatMainPanel.messageProcessor.onIdle {}
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage()))
 
     logcatMainPanel.messageProcessor.onIdle {
       verify(mockHyperlinkDetector).detectHyperlinks(eq(0), eq(1))
@@ -501,9 +428,9 @@ class LogcatMainPanelTest {
     }
     val longMessage = "message".padStart(1000, '-')
 
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage(message = longMessage)))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage(message = longMessage)))
     logcatMainPanel.messageProcessor.onIdle {} // force flush
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage(message = longMessage)))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage(message = longMessage)))
 
     logcatMainPanel.messageProcessor.onIdle {
       verify(mockHyperlinkDetector, times(2)).detectHyperlinks(eq(0), eq(1))
@@ -520,9 +447,9 @@ class LogcatMainPanelTest {
       logcatMainPanel(foldingDetector = mockFoldingDetector)
     }
 
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage()))
     logcatMainPanel.messageProcessor.onIdle {}
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage()))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage()))
 
     logcatMainPanel.messageProcessor.onIdle {
       verify(mockFoldingDetector).detectFoldings(eq(0), eq(1))
@@ -541,9 +468,9 @@ class LogcatMainPanelTest {
     }
     val longMessage = "message".padStart(1000, '-')
 
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage(message = longMessage)))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage(message = longMessage)))
     logcatMainPanel.messageProcessor.onIdle {} // force flush
-    logcatMainPanel.messageProcessor.appendMessages(listOf(logCatMessage(message = longMessage)))
+    logcatMainPanel.messageProcessor.appendMessages(listOf(logcatMessage(message = longMessage)))
 
     logcatMainPanel.messageProcessor.onIdle {
       verify(mockFoldingDetector, times(2)).detectFoldings(eq(0), eq(1))
@@ -627,7 +554,7 @@ class LogcatMainPanelTest {
         it.editor.document.setText("Some previous text")
       }
     }
-    logcatMainPanel.messageBacklog.get().addAll(listOf(logCatMessage(message = "message", timestamp = Instant.ofEpochSecond(10))))
+    logcatMainPanel.messageBacklog.get().addAll(listOf(logcatMessage(message = "message", timestamp = Instant.ofEpochSecond(10))))
 
     runInEdtAndWait(logcatMainPanel::reloadMessages)
 
@@ -731,15 +658,15 @@ class LogcatMainPanelTest {
   fun applyLogcatSettings_bufferSize() = runBlocking {
     val logcatMainPanel = runInEdtAndGet { logcatMainPanel(logcatSettings = AndroidLogcatSettings(bufferSize = 1024000)) }
     val document = logcatMainPanel.editor.document as DocumentImpl
-    val logCatMessage = logCatMessage(message = "foo".padStart(97, ' ')) // Make the message part exactly 100 chars long
+    val logcatMessage = logcatMessage(message = "foo".padStart(97, ' ')) // Make the message part exactly 100 chars long
     // Insert 20 log lines
-    logcatMainPanel.processMessages(List(20) { logCatMessage })
+    logcatMainPanel.processMessages(List(20) { logcatMessage })
     val logcatSettings = AndroidLogcatSettings(bufferSize = 1024)
 
     logcatMainPanel.applyLogcatSettings(logcatSettings)
 
     logcatMainPanel.messageProcessor.onIdle {
-      assertThat(document.text.length).isAtMost(1024 + logCatMessage.length())
+      assertThat(document.text.length).isAtMost(1024 + logcatMessage.length())
       // backlog trims by message length
       assertThat(logcatMainPanel.messageBacklog.get().messages.sumOf { it.message.length }).isLessThan(1024)
     }
@@ -1031,7 +958,6 @@ class LogcatMainPanelTest {
     hyperlinkDetector: HyperlinkDetector? = null,
     foldingDetector: FoldingDetector? = null,
     packageNamesProvider: PackageNamesProvider = FakePackageNamesProvider(),
-    adbAdapter: AdbAdapter = FakeAdbAdapter(),
     adbSession: AdbLibSession = FakeAdbLibSession(),
     zoneId: ZoneId = ZoneId.of("Asia/Yerevan"),
   ) =
@@ -1045,7 +971,6 @@ class LogcatMainPanelTest {
       hyperlinkDetector,
       foldingDetector,
       packageNamesProvider,
-      adbAdapter,
       adbSession,
       FakeLogcatService(),
       zoneId,
@@ -1055,19 +980,6 @@ class LogcatMainPanelTest {
 }
 
 private fun LogcatMessage.length() = FormattingOptions().getHeaderWidth() + message.length
-
-private fun mockDevice(serialNumber: String, avdName: String = ""): IDevice {
-  return mock<IDevice>().also {
-    // Set up a mock device with just enough information to get the test to work. We still get a bunch of errors in the log.
-    // TODO(aalbert): Extract an interface from LogcatDeviceManager so we can pass a factory into LogcatMainPanel to make it easier to
-    //  test.
-    `when`(it.state).thenReturn(ONLINE)
-    `when`(it.clients).thenReturn(emptyArray())
-    `when`(it.serialNumber).thenReturn(serialNumber)
-    `when`(it.version).thenReturn(AndroidVersion(30))
-    `when`(it.avdData).thenReturn(immediateFuture(AvdData(avdName, avdName)))
-  }
-}
 
 private class FakeLogcatService : LogcatService {
   override suspend fun readLogcat(device: Device): Flow<List<LogcatMessage>> = flowOf(emptyList())

@@ -18,16 +18,15 @@ package com.android.tools.idea.editors.fast
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
-import com.android.tools.idea.run.deployment.liveedit.runWithCompileLock
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.intellij.mock.MockPsiFile
-import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.psi.PsiFile
+import com.intellij.testFramework.replaceService
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
@@ -36,8 +35,10 @@ import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.psi.KtFile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -73,6 +74,13 @@ internal class FastPreviewManagerTest {
   val chainRule: RuleChain = RuleChain
     .outerRule(projectRule)
     .around(FastPreviewRule())
+
+  private val testTracker = TestFastPreviewTrackerManager()
+
+  @Before
+  fun setUp() {
+    projectRule.project.replaceService(FastPreviewTrackerManager::class.java, testTracker, projectRule.testRootDisposable)
+  }
 
   @Test
   fun `pre-start daemon`() {
@@ -137,6 +145,12 @@ internal class FastPreviewManagerTest {
 
     latch.await() // Wait for the 10 requests to complete
     assertEquals("Only one compilation was expected for the 10 identical requests", 1, blockingDaemon.requestReceived)
+    assertEquals(
+      """
+        compilationSucceeded: files=1
+     """.trimIndent(),
+      testTracker.logOutput()
+    )
   }
 
   @Test
@@ -382,6 +396,14 @@ internal class FastPreviewManagerTest {
       assertTrue(LiveEditApplicationConfiguration.getInstance().liveEditPreviewEnabled)
       assertNull(manager.disableReason)
     }
+    assertEquals(
+      """
+        autoDisabled
+        compilationFailed: files=1
+        userEnabled
+     """.trimIndent(),
+      testTracker.logOutput()
+    )
   }
 
   @Test
@@ -390,9 +412,9 @@ internal class FastPreviewManagerTest {
       fun empty) { // Syntax error
     """.trimIndent())
     // Utility method that allows to optionally wrap the exception before throwing it
-    var wrapAndThrow: (Throwable) -> Unit = {
-      throw it
+    var optionallyThrow: () -> Unit = {
     }
+    val compilationError: CompilationResult = CompilationResult.CompilationError(java.lang.IllegalStateException())
     val manager = FastPreviewManager.getTestInstance(
       project,
       daemonFactory = { _, _, _, _ ->
@@ -403,18 +425,8 @@ internal class FastPreviewManagerTest {
                                               indicator: ProgressIndicator): CompilationResult {
             val inputs = files.filterIsInstance<KtFile>()
             assertTrue(inputs.isNotEmpty())
-            runReadAction {
-              runWithCompileLock {
-                // Simulate a syntax error compilation syntax error
-                val resolution = fetchResolution(project, inputs)
-                try {
-                  analyze(inputs, resolution)
-                } catch (t: Throwable) {
-                  wrapAndThrow(t)
-                }
-              }
-            }
-            throw IllegalStateException("Not reachable")
+            optionallyThrow()
+            return compilationError
           }
         }
       },
@@ -424,20 +436,28 @@ internal class FastPreviewManagerTest {
     assertNull(manager.disableReason)
     assertTrue(manager.isEnabled)
     manager.compileRequest(file, projectRule.module).first.also { result ->
-      assertTrue(result.toString(), result is CompilationResult.RequestException)
+      assertTrue(result.toString(), result is CompilationResult.CompilationError)
       assertTrue("FastPreviewManager should remain enabled after a syntax error", manager.isEnabled)
       assertNull(manager.disableReason)
     }
 
-    wrapAndThrow = {
-      throw ExecutionException(it)
+    optionallyThrow = {
+      throw ExecutionException(null)
     }
     manager.invalidateRequestsCache()
     manager.compileRequest(file, projectRule.module).first.also { result ->
       assertTrue(result.toString(), result is CompilationResult.RequestException)
-      assertTrue("FastPreviewManager should remain enabled after a syntax error", manager.isEnabled)
-      assertNull(manager.disableReason)
+      assertFalse("FastPreviewManager should disabled after a request exception", manager.isEnabled)
+      assertNotNull(manager.disableReason)
     }
+    assertEquals(
+      """
+        compilationFailed: files=1
+        autoDisabled
+        compilationFailed: files=1
+     """.trimIndent(),
+      testTracker.logOutput()
+    )
   }
 
   // Regression test for http://b/222838793

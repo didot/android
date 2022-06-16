@@ -51,6 +51,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import studio.network.inspection.NetworkInspectorProtocol.InterceptCommand
+import studio.network.inspection.NetworkInspectorProtocol.InterceptCriteria
 import studio.network.inspection.NetworkInspectorProtocol.MatchingText.Type
 import java.awt.Component
 import java.awt.event.FocusEvent
@@ -164,26 +165,29 @@ class RuleDetailsViewTest {
 
     table.selectedObject!!.isActive = false
     client.verifyLatestCommand { command ->
-      assertThat(command.hasInterceptRuleRemoved()).isTrue()
-      assertThat(command.interceptRuleRemoved.ruleId).isEqualTo(rule.id)
+      assertThat(command.hasInterceptRuleUpdated()).isTrue()
+      assertThat(command.interceptRuleUpdated.ruleId).isEqualTo(rule.id)
+      assertThat(command.interceptRuleUpdated.rule.enabled).isFalse()
     }
 
     table.selectedObject!!.isActive = true
     client.verifyLatestCommand { command ->
-      assertThat(command.hasInterceptRuleAdded()).isTrue()
-      assertThat(command.interceptRuleAdded.ruleId).isEqualTo(rule.id)
+      assertThat(command.hasInterceptRuleUpdated()).isTrue()
+      assertThat(command.interceptRuleUpdated.ruleId).isEqualTo(rule.id)
+      assertThat(command.interceptRuleUpdated.rule.enabled).isTrue()
     }
 
-    // Removing inactive rule does not send command
     table.selectedObject!!.isActive = false
     client.verifyLatestCommand { command ->
-      assertThat(command.hasInterceptRuleRemoved()).isTrue()
-      assertThat(command.interceptRuleRemoved.ruleId).isEqualTo(rule.id)
+      assertThat(command.hasInterceptRuleUpdated()).isTrue()
+      assertThat(command.interceptRuleUpdated.ruleId).isEqualTo(rule.id)
+      assertThat(command.interceptRuleUpdated.rule.enabled).isFalse()
     }
     val remove = findAction(inspectorView.rulesView.component, "Remove")
     remove.actionPerformed(TestActionEvent())
     client.verifyLatestCommand { command ->
-      assertThat(command).isEqualTo(InterceptCommand.getDefaultInstance())
+      assertThat(command.hasInterceptRuleRemoved()).isTrue()
+      assertThat(command.interceptRuleRemoved.ruleId).isEqualTo(rule.id)
     }
   }
 
@@ -216,14 +220,16 @@ class RuleDetailsViewTest {
     tableModel.setValueAt(false, 0, 0)
     assertThat(rule.isActive).isFalse()
     client.verifyLatestCommand { command ->
-      assertThat(command.hasInterceptRuleRemoved()).isTrue()
-      assertThat(command.interceptRuleRemoved.ruleId).isEqualTo(rule.id)
+      assertThat(command.hasInterceptRuleUpdated()).isTrue()
+      assertThat(command.interceptRuleUpdated.ruleId).isEqualTo(rule.id)
+      assertThat(command.interceptRuleUpdated.rule.enabled).isFalse()
     }
     tableModel.setValueAt(true, 0, 0)
     assertThat(rule.isActive).isTrue()
     client.verifyLatestCommand { command ->
-      assertThat(command.hasInterceptRuleAdded()).isTrue()
-      assertThat(command.interceptRuleAdded.ruleId).isEqualTo(rule.id)
+      assertThat(command.hasInterceptRuleUpdated()).isTrue()
+      assertThat(command.interceptRuleUpdated.ruleId).isEqualTo(rule.id)
+      assertThat(command.interceptRuleUpdated.rule.enabled).isTrue()
     }
   }
 
@@ -278,13 +284,13 @@ class RuleDetailsViewTest {
     assertThat(rule.criteria.host).isEqualTo(url)
     assertThat(inspectorView.rulesView.table.getValueAt(0, 2)).isEqualTo("http://www.google.com:8080/path?title=Query_string&action=edit")
     client.verifyLatestCommand {
-      it.interceptRuleAdded.rule.criteria.also { criteria ->
-        assertThat(criteria.protocol).isEqualTo("http")
+      it.interceptRuleUpdated.rule.criteria.also { criteria ->
+        assertThat(criteria.protocol).isEqualTo(InterceptCriteria.Protocol.PROTOCOL_HTTP)
         assertThat(criteria.host).isEqualTo(url)
         assertThat(criteria.port).isEqualTo("8080")
         assertThat(criteria.path).isEqualTo("/path")
         assertThat(criteria.query).isEqualTo("title=Query_string&action=edit")
-        assertThat(criteria.method).isEqualTo("POST")
+        assertThat(criteria.method).isEqualTo(InterceptCriteria.Method.METHOD_POST)
       }
     }
   }
@@ -305,7 +311,7 @@ class RuleDetailsViewTest {
     newCodeTextField.onFocusLost()
 
     client.verifyLatestCommand {
-      val transformation = it.interceptRuleAdded.rule.getTransformation(0)
+      val transformation = it.interceptRuleUpdated.rule.getTransformation(0)
       assertThat(transformation.hasStatusCodeReplaced()).isTrue()
       transformation.statusCodeReplaced.also { statusCodeReplaced ->
         assertThat(statusCodeReplaced.newCode).isEqualTo("404")
@@ -358,7 +364,7 @@ class RuleDetailsViewTest {
     assertThat(headerTable.getValueAt(0, 1)).isEqualTo(newAddedNameText to null)
     assertThat(headerTable.getValueAt(0, 2)).isEqualTo(newAddedValueText to null)
     client.verifyLatestCommand {
-      val transformations = it.interceptRuleAdded.rule.transformationList
+      val transformations = it.interceptRuleUpdated.rule.transformationList
       assertThat(transformations.size).isEqualTo(1)
       transformations[0].headerAdded.also { headerAdded ->
         assertThat(headerAdded.name).isEqualTo(newAddedNameText)
@@ -410,7 +416,7 @@ class RuleDetailsViewTest {
     assertThat(headerTable.getValueAt(0, 1)).isEqualTo(findNameText to replaceNameText)
     assertThat(headerTable.getValueAt(0, 2)).isEqualTo(findValueText to replaceValueText)
     client.verifyLatestCommand {
-      val transformations = it.interceptRuleAdded.rule.transformationList
+      val transformations = it.interceptRuleUpdated.rule.transformationList
       assertThat(transformations.size).isEqualTo(1)
       transformations[0].headerReplaced.also { headerReplaced ->
         assertThat(headerReplaced.targetName.text).isEqualTo(findNameText)
@@ -426,7 +432,7 @@ class RuleDetailsViewTest {
     val removeAction = findAction(headerTable.parent.parent.parent, "Remove")
     removeAction.actionPerformed(TestActionEvent())
     client.verifyLatestCommand {
-      val transformations = it.interceptRuleAdded.rule.transformationList
+      val transformations = it.interceptRuleUpdated.rule.transformationList
       assertThat(transformations.size).isEqualTo(0)
     }
   }
@@ -515,7 +521,7 @@ class RuleDetailsViewTest {
     val moveDownAction = findAction(headerTable.parent.parent.parent, "Down")
     moveDownAction.actionPerformed(TestActionEvent())
     client.verifyLatestCommand {
-      val transformations = it.interceptRuleAdded.rule.transformationList
+      val transformations = it.interceptRuleUpdated.rule.transformationList
       assertThat(transformations.size).isEqualTo(2)
       assertThat(transformations[0].hasHeaderReplaced()).isTrue()
       assertThat(transformations[1].hasHeaderAdded()).isTrue()
@@ -576,7 +582,7 @@ class RuleDetailsViewTest {
     assertThat(bodyTable.getValueAt(0, 1)).isEqualTo("")
     assertThat(bodyTable.getValueAt(0, 2)).isEqualTo("Test")
     client.verifyLatestCommand {
-      val transformations = it.interceptRuleAdded.rule.transformationList
+      val transformations = it.interceptRuleUpdated.rule.transformationList
       assertThat(transformations.size).isEqualTo(1)
       assertThat(transformations[0].bodyReplaced.body.toStringUtf8()).isEqualTo("Test")
     }
@@ -614,7 +620,7 @@ class RuleDetailsViewTest {
     assertThat(bodyTable.getValueAt(0, 1)).isEqualTo("Find")
     assertThat(bodyTable.getValueAt(0, 2)).isEqualTo("Test")
     client.verifyLatestCommand {
-      val transformations = it.interceptRuleAdded.rule.transformationList
+      val transformations = it.interceptRuleUpdated.rule.transformationList
       assertThat(transformations.size).isEqualTo(1)
       transformations[0].bodyModified.apply {
         assertThat(targetText.type).isEqualTo(Type.REGEX)
@@ -687,7 +693,7 @@ class RuleDetailsViewTest {
     val moveDownAction = findAction(bodyTable.parent.parent.parent, "Down")
     moveDownAction.actionPerformed(TestActionEvent())
     client.verifyLatestCommand {
-      val transformations = it.interceptRuleAdded.rule.transformationList
+      val transformations = it.interceptRuleUpdated.rule.transformationList
       assertThat(transformations.size).isEqualTo(2)
       assertThat(transformations[0].hasBodyModified()).isTrue()
       assertThat(transformations[1].hasBodyReplaced()).isTrue()
@@ -698,6 +704,10 @@ class RuleDetailsViewTest {
     val rulesView = inspectorView.rulesView
     val addAction = findAction(rulesView.component, "Add")
     addAction.actionPerformed(TestActionEvent())
+    client.verifyLatestCommand {
+      assertThat(it.hasInterceptRuleAdded()).isTrue()
+      assertThat(it.interceptRuleAdded.ruleId).isEqualTo(RuleData.getLatestId())
+    }
     return model.selectedRule!!
   }
 

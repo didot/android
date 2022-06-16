@@ -16,7 +16,7 @@
 package com.android.build.attribution.analytics
 
 import com.android.build.attribution.analyzers.BuildEventsAnalysisResult
-import com.android.build.attribution.analyzers.ConfigurationCachingCompatibilityProjectResult
+import com.android.build.attribution.analyzers.DownloadsAnalyzer
 import com.android.build.attribution.analyzers.IncompatiblePluginWarning
 import com.android.build.attribution.analyzers.IncompatiblePluginsDetected
 import com.android.build.attribution.analyzers.JetifierRequiredForLibraries
@@ -38,6 +38,7 @@ import com.android.ide.common.attribution.CheckJetifierResult
 import com.android.ide.common.attribution.DependencyPath
 import com.android.ide.common.attribution.FullDependencyPath
 import com.android.ide.common.repository.GradleVersion
+import com.android.testutils.MockitoKt.whenever
 import com.android.testutils.VirtualTimeScheduler
 import com.android.tools.analytics.TestUsageTracker
 import com.android.tools.analytics.UsageTracker
@@ -47,6 +48,7 @@ import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.AnnotationProcessorsAnalyzerData
 import com.google.wireless.android.sdk.stats.BuildAttribuitionTaskIdentifier
 import com.google.wireless.android.sdk.stats.BuildAttributionPluginIdentifier
+import com.google.wireless.android.sdk.stats.BuildDownloadsAnalysisData
 import com.google.wireless.android.sdk.stats.ConfigurationCacheCompatibilityData
 import com.google.wireless.android.sdk.stats.CriticalPathAnalyzerData
 import com.google.wireless.android.sdk.stats.JetifierUsageData
@@ -60,7 +62,6 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.Mock
 import org.mockito.Mockito
-import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
 import java.time.Duration
 
@@ -90,10 +91,10 @@ class BuildAttributionAnalyticsManagerTest {
     MockitoAnnotations.initMocks(this)
     UsageTracker.setWriterForTest(tracker)
 
-    `when`(project.basePath).thenReturn("test")
+    whenever(project.basePath).thenReturn("test")
     val moduleManager = Mockito.mock(ModuleManager::class.java)
-    `when`(project.getComponent(ModuleManager::class.java)).thenReturn(moduleManager)
-    `when`(moduleManager.modules).thenReturn(emptyArray<Module>())
+    whenever(project.getComponent(ModuleManager::class.java)).thenReturn(moduleManager)
+    whenever(moduleManager.modules).thenReturn(emptyArray<Module>())
   }
 
   @After
@@ -159,6 +160,31 @@ class BuildAttributionAnalyticsManagerTest {
           ))
         )
       )
+
+      override fun getDownloadsAnalyzerResult() = DownloadsAnalyzer.ActiveResult(repositoryResults = listOf(
+        DownloadsAnalyzer.RepositoryResult(
+          repository = DownloadsAnalyzer.KnownRepository.GOOGLE,
+          successRequestsCount = 5,
+          successRequestsTimeMs = 400,
+          successRequestsBytesDownloaded = 200000,
+          missedRequestsCount = 0,
+          missedRequestsTimeMs = 0,
+          failedRequestsCount = 0,
+          failedRequestsTimeMs = 0,
+          failedRequestsBytesDownloaded = 0
+        ),
+        DownloadsAnalyzer.RepositoryResult(
+          repository = DownloadsAnalyzer.OtherRepository("other.repo.one"),
+          successRequestsCount = 2,
+          successRequestsTimeMs = 100,
+          successRequestsBytesDownloaded = 1000,
+          failedRequestsCount = 1,
+          failedRequestsTimeMs = 20,
+          failedRequestsBytesDownloaded = 0,
+          missedRequestsTimeMs = 10,
+          missedRequestsCount = 1,
+        )
+      ))
     }
   }
 
@@ -181,6 +207,7 @@ class BuildAttributionAnalyticsManagerTest {
     checkConfigurationIssuesAnalyzerData(buildAttributionAnalyzersData.tasksConfigurationIssuesAnalyzerData)
     checkConfigurationCacheCompatibilityData(buildAttributionAnalyzersData.configurationCacheCompatibilityData)
     checkJetifierUsageAnalyzerData(buildAttributionAnalyzersData.jetifierUsageData)
+    checkDownloadsAnalyzerData(buildAttributionAnalyzersData.downloadsAnalysisData)
 
     val buildAttributionReportSessionId = buildAttributionEvents.first().studioEvent.buildAttributionStats.buildAttributionReportSessionId
     assertThat(buildAttributionReportSessionId).isEqualTo("46f89941-2cea-83d7-e613-0c5823be215a")
@@ -250,6 +277,23 @@ class BuildAttributionAnalyticsManagerTest {
       checkJetifierTaskBuild = false
       jetifierUsageState = JetifierUsageData.JetifierUsageState.JETIFIER_REQUIRED_FOR_LIBRARIES
       numberOfLibrariesRequireJetifier = 2
+    }.build())
+  }
+
+  private fun checkDownloadsAnalyzerData(analyzerData: BuildDownloadsAnalysisData) {
+    assertThat(analyzerData.repositoriesList).hasSize(2)
+    assertThat(analyzerData.repositoriesList[0].repositoryType).isEqualTo(BuildDownloadsAnalysisData.RepositoryStats.RepositoryType.GOOGLE)
+    assertThat(analyzerData.repositoriesList[1].repositoryType).isEqualTo(BuildDownloadsAnalysisData.RepositoryStats.RepositoryType.OTHER_REPOSITORY)
+    assertThat(analyzerData.repositoriesList[1]).isEqualTo(BuildDownloadsAnalysisData.RepositoryStats.newBuilder().apply {
+      repositoryType = BuildDownloadsAnalysisData.RepositoryStats.RepositoryType.OTHER_REPOSITORY
+      successRequestsCount = 2
+      successRequestsTotalTimeMs = 100
+      successRequestsTotalBytesDownloaded = 1000
+      failedRequestsCount = 1
+      failedRequestsTotalTimeMs = 20
+      failedRequestsTotalBytesDownloaded = 0
+      missedRequestsCount = 1
+      missedRequestsTotalTimeMs = 10
     }.build())
   }
 

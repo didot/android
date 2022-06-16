@@ -19,6 +19,8 @@ import com.android.ide.common.resources.Locale;
 import com.android.tools.idea.actions.BrowserHelpAction;
 import com.android.tools.idea.editors.strings.action.AddKeyAction;
 import com.android.tools.idea.editors.strings.action.AddLocaleAction;
+import com.android.tools.idea.editors.strings.action.FilterKeysAction;
+import com.android.tools.idea.editors.strings.action.FilterLocalesAction;
 import com.android.tools.idea.editors.strings.action.ReloadStringResourcesAction;
 import com.android.tools.idea.editors.strings.action.RemoveKeysAction;
 import com.android.tools.idea.editors.strings.model.StringResourceKey;
@@ -151,8 +153,8 @@ public class StringResourceViewPanel implements Disposable {
     group.add(new AddKeyAction());
     group.add(new RemoveKeysAction());
     group.add(new AddLocaleAction());
-    group.add(new FilterKeysAction(myTable));
-    group.add(new FilterLocalesAction(myTable));
+    group.add(new FilterKeysAction());
+    group.add(new FilterLocalesAction());
     group.add(new ReloadStringResourcesAction());
     group.add(new BrowserHelpAction("Translations editor", "https://developer.android.com/r/studio-ui/translations-editor.html"));
 
@@ -242,9 +244,7 @@ public class StringResourceViewPanel implements Disposable {
     myLoadingPanel.setLoadingText("Updating string resource data");
     myLoadingPanel.startLoading();
 
-    if (!ApplicationManager.getApplication().isUnitTestMode()) {
-      new ResourceLoadingTask(this).queue();
-    }
+    new ResourceLoadingTask(this).queue();
   }
 
   @NotNull

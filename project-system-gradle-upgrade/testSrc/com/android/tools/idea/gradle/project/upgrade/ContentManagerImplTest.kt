@@ -31,11 +31,14 @@ import com.android.tools.idea.gradle.project.upgrade.Java8DefaultRefactoringProc
 import com.android.tools.idea.gradle.project.upgrade.R8FullModeDefaultRefactoringProcessor.NoPropertyPresentAction
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.Severity
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.StatusMessage
+import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.AllDone
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.Blocked
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.CaughtException
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.InvalidVersionError
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.Loading
+import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.NoStepsSelected
+import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.ProjectFilesNotCleanWarning
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.ReadyToRun
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.RunningSync
 import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.RunningUpgrade
@@ -45,6 +48,7 @@ import com.android.tools.idea.gradle.project.upgrade.ToolWindowModel.UIState.Upg
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.testing.IdeComponents
 import com.android.tools.idea.testing.onEdt
+import com.google.common.truth.Expect
 import com.google.common.truth.Truth.assertThat
 import com.google.wireless.android.sdk.stats.GradleSyncStats
 import com.intellij.openapi.project.Project
@@ -72,9 +76,12 @@ class ContentManagerImplTest {
   @get:Rule
   val ignoreTests = IgnoreTestRule()
 
+  @get:Rule
+  val expect = Expect.createAndEnableStackTrace()
+
   val project by lazy { projectRule.project }
 
-  private val uiStates: MutableList<ToolWindowModel.UIState> = ArrayList()
+  private val uiStates: MutableList<UIState> = ArrayList()
 
   private var syncRequest: GradleSyncInvoker.Request? = null
 
@@ -326,6 +333,18 @@ class ContentManagerImplTest {
   }
 
   @Test
+  fun testToolWindowViewAllDoneDetailsPanel() {
+    addMinimalBuildGradleToProject()
+    val contentManager = ContentManagerImpl(project)
+    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)!!
+    val model = ToolWindowModel(project, { currentAgpVersion }, currentAgpVersion)
+    val view = ContentManagerImpl.View(model, toolWindow.contentManager)
+    val detailsPanelContent = TreeWalker(view.detailsPanel).descendants().first { it.name == "content" } as HtmlLabel
+    assertThat(detailsPanelContent.text).contains("<b>Nothing to do</b>")
+    assertThat(detailsPanelContent.text).contains("up-to-date")
+  }
+
+  @Test
   fun testToolWindowViewMandatoryCodependentDetailsPanel() {
     addMinimalBuildGradleToProject()
     val contentManager = ContentManagerImpl(project)
@@ -348,6 +367,19 @@ class ContentManagerImplTest {
     view.tree.selectionPath = view.tree.getPathForRow(1)
     val detailsPanelContent = TreeWalker(view.detailsPanel).descendants().first { it.name == "content" } as HtmlLabel
     assertThat(detailsPanelContent.text).contains("<b>Upgrade AGP dependency from $currentAgpVersion to $latestAgpVersion</b>")
+    assertThat(detailsPanelContent.text).doesNotContain("This step is blocked")
+  }
+
+  @Test
+  fun testToolWindowViewClasspathProcessorBlockedDetailsPanel() {
+    val contentManager = ContentManagerImpl(project)
+    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)!!
+    val model = ToolWindowModel(project, { currentAgpVersion })
+    val view = ContentManagerImpl.View(model, toolWindow.contentManager)
+    view.tree.selectionPath = view.tree.getPathForRow(1)
+    val detailsPanelContent = TreeWalker(view.detailsPanel).descendants().first { it.name == "content" } as HtmlLabel
+    assertThat(detailsPanelContent.text).contains("<b>Upgrade AGP dependency from $currentAgpVersion to $latestAgpVersion</b>")
+    assertThat(detailsPanelContent.text).contains("This step is blocked")
   }
 
   @Test
@@ -539,6 +571,26 @@ class ContentManagerImplTest {
   }
 
   @Test
+  fun testToolWindowOKButtonsAreDisabledWithNothingSelected() {
+    addMinimalBuildGradleToProject()
+    val contentManager = ContentManagerImpl(project)
+    val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)!!
+    val model = ToolWindowModel(project, { currentAgpVersion })
+    val view = ContentManagerImpl.View(model, toolWindow.contentManager)
+    val mandatoryCodependentNode = view.tree.getPathForRow(0).lastPathComponent as CheckedTreeNode
+    assertThat(mandatoryCodependentNode.isChecked).isTrue()
+    assertThat(view.okButton.isEnabled).isTrue()
+    assertThat(view.previewButton.isEnabled).isTrue()
+    assertThat(view.refreshButton.isEnabled).isTrue()
+    assertThat(view.versionTextField.isEnabled).isTrue()
+    view.tree.setNodeState(mandatoryCodependentNode, false)
+    assertThat(view.okButton.isEnabled).isFalse()
+    assertThat(view.previewButton.isEnabled).isFalse()
+    assertThat(view.refreshButton.isEnabled).isTrue()
+    assertThat(view.versionTextField.isEnabled).isTrue()
+  }
+
+  @Test
   fun testToolWindowDropdownInitializedWithCurrentAndLatest() {
     val contentManager = ContentManagerImpl(project)
     val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)!!
@@ -667,7 +719,7 @@ class ContentManagerImplTest {
 
     syncRequest = null
     toolWindowModel.runRevert()
-    // Need to commit so that pending changes from vcs are propagated to psi.
+    // Need to commit so that pending changes from Vfs are propagated to Psi.
     PsiDocumentManager.getInstance(project).commitAllDocuments()
 
     assertThat(psiFile.text).contains("classpath 'com.android.tools.build:gradle:$currentAgpVersion")
@@ -700,6 +752,18 @@ class ContentManagerImplTest {
     assertThat(OPTIONAL_CODEPENDENT.descriptionString()).contains("only if")
     assertThat(OPTIONAL_INDEPENDENT.descriptionString()).contains("are not required")
     assertThat(OPTIONAL_INDEPENDENT.descriptionString()).contains("with or without")
+  }
+
+  @Test
+  fun testCheckboxTooltipText() {
+    assertThat(MANDATORY_INDEPENDENT.checkboxToolTipText(true, false)).isNull()
+    assertThat(MANDATORY_CODEPENDENT.checkboxToolTipText(true, false)).isNull()
+    assertThat(OPTIONAL_INDEPENDENT.checkboxToolTipText(true, false)).isNull()
+    assertThat(OPTIONAL_CODEPENDENT.checkboxToolTipText(true, false)).isNull()
+    assertThat(MANDATORY_INDEPENDENT.checkboxToolTipText(false, true)).isEqualTo("Cannot be deselected while Upgrade is selected")
+    assertThat(MANDATORY_CODEPENDENT.checkboxToolTipText(false, false)).isEqualTo("Cannot be selected while Upgrade prerequisites is unselected")
+    assertThat(MANDATORY_CODEPENDENT.checkboxToolTipText(false, true)).isEqualTo("Cannot be deselected while Recommended post-upgrade steps is selected")
+    assertThat(OPTIONAL_CODEPENDENT.checkboxToolTipText(false, false)).isEqualTo("Cannot be selected while Upgrade is unselected")
   }
 
   @Test
@@ -831,6 +895,52 @@ class ContentManagerImplTest {
     model.uiState.set(UpgradeSyncSucceeded)
     assertThat(view.revertButtonVisible()).isTrue()
     assertThat(view.localHistoryLinkVisible()).isTrue()
+    model.uiState.set(ReadyToRun)
+    assertThat(view.revertButtonVisible()).isFalse()
+    assertThat(view.localHistoryLinkVisible()).isFalse()
+    model.uiState.set(CaughtException("argh"))
+    assertThat(view.revertButtonVisible()).isFalse()
+    assertThat(view.localHistoryLinkVisible()).isTrue()
+  }
+
+  @Test
+  fun testUIStateEquality() {
+    fun UIState.hash(): Int = when (this) {
+      // This is written out so that it fails to compile if a new UIState is added without updating this test.
+      AllDone, Blocked,
+      is CaughtException,
+      is InvalidVersionError,
+      Loading, NoStepsSelected, ProjectFilesNotCleanWarning, ReadyToRun, RunningSync, RunningUpgrade, RunningUpgradeSync,
+      is UpgradeSyncFailed,
+      UpgradeSyncSucceeded ->
+        this.hashCode()
+    }
+
+    val stateList = listOf(
+      AllDone, Blocked,
+      CaughtException("one"), CaughtException("two"),
+      InvalidVersionError(StatusMessage(Severity.ERROR, "one")), InvalidVersionError(StatusMessage(Severity.ERROR, "two")),
+      Loading, ProjectFilesNotCleanWarning, ReadyToRun, RunningSync, RunningUpgrade, RunningUpgradeSync,
+      UpgradeSyncFailed("one"), UpgradeSyncFailed("two"),
+      UpgradeSyncSucceeded
+    )
+
+    val unexpectedlyEqualHashes = mutableListOf<Pair<UIState, UIState>>()
+    stateList.forEachIndexed { i, statei ->
+      stateList.forEachIndexed { j, statej ->
+        if (i == j) {
+          expect.that(statei == statej)
+          expect.that(statei.hash() == statej.hash())
+        }
+        else {
+          expect.that(statei != statej)
+          if (statei.hash() == statej.hash()) unexpectedlyEqualHashes.add(statei to statej)
+        }
+      }
+    }
+    // We have some functionally identical UIStates, which we can distinguish for .equals() on the basis of their class identity, but
+    // have the same behaviour (given the same input error messages) and hence the same hash code.
+    expect.that(unexpectedlyEqualHashes).hasSize(6)
   }
 
   fun treeString(tree: CheckboxTree): String {

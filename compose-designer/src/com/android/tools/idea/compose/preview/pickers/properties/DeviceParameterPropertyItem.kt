@@ -17,10 +17,12 @@ package com.android.tools.idea.compose.preview.pickers.properties
 
 import com.android.tools.adtui.model.stdui.EDITOR_NO_ERROR
 import com.android.tools.adtui.model.stdui.EditingValidation
+import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_CHIN_SIZE
 import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_DENSITY
 import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_DEVICE
 import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_DIM_UNIT
 import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_HEIGHT
+import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_IS_ROUND
 import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_ORIENTATION
 import com.android.tools.idea.compose.preview.PARAMETER_HARDWARE_WIDTH
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_DPI
@@ -28,7 +30,8 @@ import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_HEIGHT_
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_SHAPE
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_UNIT
 import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_WIDTH_PX
-import com.android.tools.idea.compose.preview.pickers.properties.editingsupport.IntegerNormalValidator
+import com.android.tools.idea.compose.preview.pickers.properties.editingsupport.BooleanValidator
+import com.android.tools.idea.compose.preview.pickers.properties.editingsupport.DeviceSpecDimValidator
 import com.android.tools.idea.compose.preview.pickers.properties.editingsupport.IntegerStrictValidator
 import com.android.tools.idea.compose.preview.pickers.properties.utils.findByIdOrName
 import com.android.tools.idea.compose.preview.pickers.properties.utils.getDefaultPreviewDevice
@@ -66,32 +69,31 @@ internal class DeviceParameterPropertyItem(
   private val defaultDeviceValues: DeviceConfig =
     ConfigurationManager.findExistingInstance(model.module)?.getDefaultPreviewDevice()?.toDeviceConfig() ?: DeviceConfig(
       shape = DEFAULT_SHAPE,
-      width = DEFAULT_WIDTH_PX,
-      height = DEFAULT_HEIGHT_PX,
+      width = DEFAULT_WIDTH_PX.toFloat(),
+      height = DEFAULT_HEIGHT_PX.toFloat(),
       dimUnit = DEFAULT_UNIT,
       dpi = DEFAULT_DPI
     )
 
   override var name: String = PARAMETER_HARDWARE_DEVICE
 
-  // TODO(b/220005155): Surface remaining DeviceSpec Language parameters: isRound, chinSize
   val innerProperties = listOf<MemoryParameterPropertyItem>(
     DevicePropertyItem(
       name = PARAMETER_HARDWARE_WIDTH,
-      defaultValue = defaultDeviceValues.width.toString(),
-      inputValidation = IntegerNormalValidator,
-      getter = { it.width.toString() }) { config, newValue ->
-      newValue.toIntOrNull()?.let {
+      defaultValue = defaultDeviceValues.widthString,
+      inputValidation = DeviceSpecDimValidator(strictPositive = true),
+      getter = { it.widthString }) { config, newValue ->
+      newValue.toFloatOrNull()?.let {
         config.width = it
       }
       PreviewPickerValue.UNSUPPORTED_OR_OPEN_ENDED
     },
     DevicePropertyItem(
       name = PARAMETER_HARDWARE_HEIGHT,
-      defaultValue = defaultDeviceValues.height.toString(),
-      inputValidation = IntegerNormalValidator,
-      getter = { it.height.toString() }) { config, newValue ->
-      newValue.toIntOrNull()?.let {
+      defaultValue = defaultDeviceValues.heightString,
+      inputValidation = DeviceSpecDimValidator(strictPositive = true),
+      getter = { it.heightString }) { config, newValue ->
+      newValue.toFloatOrNull()?.let {
         config.height = it
       }
       PreviewPickerValue.UNSUPPORTED_OR_OPEN_ENDED
@@ -127,6 +129,31 @@ internal class DeviceParameterPropertyItem(
         newOrientation.trackableValue
       } ?: PreviewPickerValue.UNKNOWN_PREVIEW_PICKER_VALUE
     },
+    DevicePropertyItem(
+      name = PARAMETER_HARDWARE_IS_ROUND,
+      defaultValue = defaultDeviceValues.isRound.toString(),
+      inputValidation = BooleanValidator,
+      getter = { it.isRound.toString() }) { config, newValue ->
+      val newIsRound = newValue.toBooleanStrictOrNull()
+      newIsRound?.let {
+        config.shape = Shape.Round
+        PreviewPickerValue.UNKNOWN_PREVIEW_PICKER_VALUE // TODO(b/205184728): Update tracking values
+      } ?: PreviewPickerValue.UNKNOWN_PREVIEW_PICKER_VALUE
+    },
+    DevicePropertyItem(
+      name = PARAMETER_HARDWARE_CHIN_SIZE,
+      defaultValue = defaultDeviceValues.chinSizeString,
+      inputValidation = DeviceSpecDimValidator(strictPositive = false),
+      getter = { it.chinSizeString }) { config, newValue ->
+      val newChinSize = newValue.toFloatOrNull()
+      newChinSize?.let {
+        if (it > 0) {
+          config.shape = Shape.Round
+        }
+        config.chinSize = newChinSize
+        PreviewPickerValue.UNSUPPORTED_OR_OPEN_ENDED
+      } ?: PreviewPickerValue.UNKNOWN_PREVIEW_PICKER_VALUE
+    }
   )
 
   private fun getCurrentDeviceConfig(): MutableDeviceConfig {

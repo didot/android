@@ -15,10 +15,11 @@
  */
 package com.android.tools.idea.compose.preview.pickers.properties.enumsupport.devices
 
+import com.android.resources.ScreenOrientation
 import com.android.tools.idea.avdmanager.AvdScreenData
-import com.android.tools.idea.compose.preview.Preview.DeviceSpec.DEFAULT_DPI
 import com.android.tools.idea.compose.preview.pickers.properties.DeviceConfig
 import com.android.tools.idea.compose.preview.pickers.properties.DimUnit
+import com.android.tools.idea.compose.preview.pickers.properties.Orientation
 import com.android.tools.idea.compose.preview.pickers.properties.Shape
 import com.android.tools.idea.compose.preview.pickers.properties.enumsupport.PsiEnumValue
 import com.android.tools.idea.compose.preview.pickers.properties.utils.DEVICE_BY_ID_PREFIX
@@ -37,7 +38,6 @@ import com.google.wireless.android.sdk.stats.EditorPickerEvent.EditorPickerActio
 import icons.StudioIcons
 import javax.swing.Icon
 import kotlin.math.round
-import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
@@ -112,14 +112,21 @@ internal class DeviceEnumValueBuilder {
     type: DeviceClass,
     widthPx: Int,
     heightPx: Int,
-    diagonalIn: Double
+    diagonalIn: Double,
+    orientation: Orientation
   ): DeviceEnumValueBuilder = apply {
     val dpi = kotlin.run {
       val dpiCalc = sqrt((1.0 * widthPx * widthPx) + (1.0 * heightPx * heightPx)) / diagonalIn
       round(dpiCalc * 100) / 100.0
     }
     val density = AvdScreenData.getScreenDensity(null, true, dpi, heightPx)
-    val deviceSpec = DeviceConfig(width = widthPx, height = heightPx, dimUnit = DimUnit.px, dpi = density.dpiValue).deviceSpec()
+    val deviceSpec = DeviceConfig(
+      width = widthPx.toFloat(),
+      height = heightPx.toFloat(),
+      dimUnit = DimUnit.px,
+      dpi = density.dpiValue,
+      orientation = orientation
+    ).deviceSpec()
     val display = overrideDisplayName ?: "${round(diagonalIn * 100) / 100}\" ${type.name} ${heightPx}p"
     val enumValue = PsiEnumValue.indented(deviceSpec, display, PreviewPickerValue.DEVICE_REF_NONE)
     deviceEnumValues[type]?.add(enumValue)
@@ -133,12 +140,12 @@ internal class DeviceEnumValueBuilder {
     val density = AvdScreenData.getScreenDensity(null, false, 224.0, 300)
     val shape = if (isRound) Shape.Round else Shape.Normal
     val deviceSpec = DeviceConfig(
-      width = 300,
-      height = 300,
+      width = 300f,
+      height = 300f,
       dimUnit = DimUnit.px,
       dpi = density.dpiValue,
       shape = shape,
-      chinSize = chinSizePx
+      chinSize = chinSizePx.toFloat()
     ).deviceSpec()
     val enumValue = PsiEnumValue.indented(deviceSpec, displayName, PreviewPickerValue.DEVICE_REF_NONE)
     deviceEnumValues[DeviceClass.Wear]?.add(enumValue)
@@ -149,14 +156,26 @@ internal class DeviceEnumValueBuilder {
     heightPx: Int,
     diagonalIn: Double
   ): DeviceEnumValueBuilder =
-    addDevicePx(type = DeviceClass.Tv, widthPx = widthPx, heightPx = heightPx, diagonalIn = diagonalIn)
+    addDevicePx(
+      type = DeviceClass.Tv,
+      widthPx = widthPx,
+      heightPx = heightPx,
+      diagonalIn = diagonalIn,
+      orientation = Orientation.landscape
+    )
 
   fun addAutoDevice(
     widthPx: Int,
     heightPx: Int,
     diagonalIn: Double
   ): DeviceEnumValueBuilder =
-    addDevicePx(type = DeviceClass.Auto, widthPx = widthPx, heightPx = heightPx, diagonalIn = diagonalIn)
+    addDevicePx(
+      type = DeviceClass.Auto,
+      widthPx = widthPx,
+      heightPx = heightPx,
+      diagonalIn = diagonalIn,
+      orientation = Orientation.landscape
+    )
 
   fun addPhoneById(
     displayName: String,
@@ -226,9 +245,13 @@ internal class DeviceEnumValueBuilder {
 
 private fun WindowSizeData.toDeviceConfigWithDpDimensions() =
   DeviceConfig(
-    width = widthDp.roundToInt(),
-    height = heightDp.roundToInt(),
+    width = widthDp.toFloat(),
+    height = heightDp.toFloat(),
     dimUnit = DimUnit.dp,
     dpi = density.dpiValue,
-    shape = Shape.Normal
+    shape = Shape.Normal,
+    orientation = when (defaultOrientation) {
+      ScreenOrientation.LANDSCAPE -> Orientation.landscape
+      else -> Orientation.portrait
+    }
   )

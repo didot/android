@@ -16,7 +16,9 @@
 package com.android.build.attribution.ui.model
 
 import com.android.build.attribution.BuildAttributionWarningsFilter
+import com.android.build.attribution.analyzers.DownloadsAnalyzer
 import com.android.build.attribution.ui.data.BuildAttributionReportUiData
+import com.android.build.attribution.ui.data.DownloadsSummaryUIData
 
 class BuildOverviewPageModel(
   val reportUiData: BuildAttributionReportUiData,
@@ -29,4 +31,7 @@ class BuildOverviewPageModel(
     get() = !warningSuppressions.suppressNoGCSettingWarning
             && reportUiData.buildSummary.isGarbageCollectorSettingSet == false
             && reportUiData.buildSummary.javaVersionUsed?.let { it >= 9 } ?: false
+
+  val downloadsSummaryUiData: DownloadsSummaryUIData?
+    get() = (reportUiData.downloadsData as? DownloadsAnalyzer.ActiveResult)?.let { DownloadsSummaryUIData(it) }
 }

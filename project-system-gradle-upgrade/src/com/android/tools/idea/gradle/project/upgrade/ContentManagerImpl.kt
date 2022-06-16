@@ -64,7 +64,6 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.ComponentValidator
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.util.ThrowableComputable
 import com.intellij.openapi.wm.RegisterToolWindowTask
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.CheckboxTree
@@ -186,6 +185,11 @@ class ToolWindowModel(
       override val layoutState = LayoutState.READY
       override val runTooltip = "Upgrade Blocked"
     }
+    object NoStepsSelected : UIState() {
+      override val controlsEnabledState = ControlsEnabledState.NO_RUN
+      override val layoutState = LayoutState.READY
+      override val runTooltip = "No Steps Selected"
+    }
     object Loading : UIState() {
       override val controlsEnabledState = ControlsEnabledState.NEITHER
       override val layoutState = LayoutState.LOADING
@@ -233,10 +237,11 @@ class ToolWindowModel(
         get() = statusMessage.text
     }
     class CaughtException(
-      override val statusMessage: StatusMessage
+      val errorMessage: String
     ): UIState() {
       override val controlsEnabledState = ControlsEnabledState.NEITHER
       override val layoutState = LayoutState.HIDE_TREE
+      override val statusMessage: StatusMessage = StatusMessage(Severity.ERROR, errorMessage.lines().first())
       override val runTooltip: String
         get() = statusMessage.text
     }
@@ -309,11 +314,12 @@ class ToolWindowModel(
         }
         AgpUpgradeComponentNecessity.OPTIONAL_CODEPENDENT -> findNecessityNode(AgpUpgradeComponentNecessity.MANDATORY_CODEPENDENT)?.let { it.isEnabled = !anyChildrenChecked(parentNode) }
       }
-      if (processorsForCheckedPresentations().any { it.isBlocked }) {
-        uiState.set(UIState.Blocked)
-      }
-      else {
-        uiState.set(UIState.ReadyToRun)
+      processorsForCheckedPresentations().let { processors ->
+        when {
+          processors.isEmpty() -> uiState.set(UIState.NoStepsSelected)
+          processors.any { it.isBlocked } -> uiState.set(UIState.Blocked)
+          else -> uiState.set(UIState.ReadyToRun)
+        }
       }
     }
   }
@@ -522,7 +528,7 @@ class ToolWindowModel(
       }
       catch (e: Exception) {
         processor.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.INTERNAL_ERROR)
-        uiState.set(UIState.CaughtException(StatusMessage(Severity.ERROR, e.message ?: "Unknown error")))
+        uiState.set(UIState.CaughtException(e.message ?: "Unknown error"))
       }
     }
 
@@ -550,7 +556,7 @@ class ToolWindowModel(
         .requestProjectSync(project, GradleSyncInvoker.Request(GradleSyncStats.Trigger.TRIGGER_AGP_VERSION_UPDATE_ROLLED_BACK))
     }
     catch (e: Exception) {
-      uiState.set(UIState.CaughtException(StatusMessage(Severity.ERROR, e.message ?: "Unknown error during revert.")))
+      uiState.set(UIState.CaughtException(e.message ?: "Unknown error during revert."))
       processor?.trackProcessorUsage(UpgradeAssistantEventInfo.UpgradeAssistantEventKind.INTERNAL_ERROR)
       LOG.error("Error during revert.", e)
     }
@@ -675,22 +681,40 @@ class ContentManagerImpl(val project: Project): ContentManager {
   class View(val model: ToolWindowModel, contentManager: com.intellij.ui.content.ContentManager) {
     private val myListeners = ListenerManager()
 
-    val tree: CheckboxTree = CheckboxTree(UpgradeAssistantTreeCellRenderer(), null).apply {
-      model = this@View.model.treeModel
-      isRootVisible = false
-      selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
-      addCheckboxTreeListener(this@View.model.checkboxTreeStateUpdater)
-      addTreeSelectionListener { e -> refreshDetailsPanel() }
-      background = primaryContentBackground
-      isOpaque = true
-      isEnabled = !this@View.model.uiState.get().showLoadingState
-      myListeners.listen(this@View.model.uiState) { uiState ->
-        isEnabled = !uiState.showLoadingState
-        treePanel.isVisible = uiState.showTree
-        if (!uiState.showTree) {
-          selectionModel.clearSelection()
-          refreshDetailsPanel()
+    val treePanel = JBPanel<JBPanel<*>>(BorderLayout())
+
+    val detailsPanel = JBPanel<JBPanel<*>>().apply {
+      layout = VerticalLayout(0, SwingConstants.LEFT)
+      border = JBUI.Borders.empty(20)
+      myListeners.listen(this@View.model.uiState) { refreshDetailsPanel() }
+    }
+
+    val tree: CheckboxTree = CheckboxTree(UpgradeAssistantTreeCellRenderer(), null)
+
+    init {
+      treePanel.apply {
+        add(ScrollPaneFactory.createScrollPane(tree, SideBorder.NONE), BorderLayout.WEST)
+        add(JSeparator(SwingConstants.VERTICAL), BorderLayout.CENTER)
+      }
+
+      tree.apply {
+        model = this@View.model.treeModel
+        isRootVisible = false
+        selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
+        addCheckboxTreeListener(this@View.model.checkboxTreeStateUpdater)
+        addTreeSelectionListener { e -> refreshDetailsPanel() }
+        background = primaryContentBackground
+        isOpaque = true
+        fun update(uiState: ToolWindowModel.UIState) {
+          isEnabled = !uiState.showLoadingState
+          treePanel.isVisible = uiState.showTree
+          if (!uiState.showTree) {
+            selectionModel.clearSelection()
+            refreshDetailsPanel()
+          }
         }
+        update(this@View.model.uiState.get())
+        myListeners.listen(this@View.model.uiState, ::update)
       }
     }
 
@@ -818,17 +842,6 @@ class ContentManagerImpl(val project: Project): ContentManager {
         myListeners.listen(this@View.model.uiState, ::update)
       }
 
-    val detailsPanel = JBPanel<JBPanel<*>>().apply {
-      layout = VerticalLayout(0, SwingConstants.LEFT)
-      border = JBUI.Borders.empty(20)
-      myListeners.listen(this@View.model.uiState) { refreshDetailsPanel() }
-    }
-
-    val treePanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
-      add(ScrollPaneFactory.createScrollPane(tree, SideBorder.NONE), BorderLayout.WEST)
-      add(JSeparator(SwingConstants.VERTICAL), BorderLayout.CENTER)
-    }
-
     val content = JBLoadingPanel(BorderLayout(), contentManager).apply {
       val controlsPanel = makeTopComponent()
       val topPanel = JBPanel<JBPanel<*>>().apply {
@@ -901,13 +914,14 @@ class ContentManagerImpl(val project: Project): ContentManager {
         uiState is ToolWindowModel.UIState.CaughtException -> {
           val sb = StringBuilder()
           sb.append("<div><b>Caught exception</b></div>")
-          sb.append("<p>Something went wrong (an internal exception occured).  ")
+          sb.append("<p>Something went wrong (an internal exception occurred).  ")
           sb.append("You should revert to a known-good state before doing anything else.</p>")
           sb.append("<p>The status message is:<br/>")
           sb.append(uiState.statusMessage.text)
           sb.append("</p>")
           label.text = sb.toString()
           detailsPanel.add(label)
+          detailsPanel.addRevertInfo(showRevertButton = false, markRevertAsDefault = false)
         }
         uiState is ToolWindowModel.UIState.UpgradeSyncFailed -> {
           val sb = StringBuilder()
@@ -935,7 +949,7 @@ class ContentManagerImpl(val project: Project): ContentManager {
             }
           }
           detailsPanel.add(label)
-          detailsPanel.addRevertInfo(markRevertAsDefault = true)
+          detailsPanel.addRevertInfo(showRevertButton = true, markRevertAsDefault = true)
         }
         uiState is ToolWindowModel.UIState.UpgradeSyncSucceeded -> {
           val sb = StringBuilder()
@@ -952,7 +966,7 @@ class ContentManagerImpl(val project: Project): ContentManager {
           }
           label.text = sb.toString()
           detailsPanel.add(label)
-          detailsPanel.addRevertInfo(markRevertAsDefault = false)
+          detailsPanel.addRevertInfo(showRevertButton = true, markRevertAsDefault = false)
         }
         uiState is ToolWindowModel.UIState.AllDone -> {
           val sb = StringBuilder()
@@ -1018,25 +1032,29 @@ class ContentManagerImpl(val project: Project): ContentManager {
       detailsPanel.repaint()
     }
 
-    private fun JBPanel<JBPanel<*>>.addRevertInfo(markRevertAsDefault: Boolean) {
-      val revertButton = JButton("Revert Project Files").apply {
-        name = "revert project button"
-        toolTipText = "Revert all project files to a state recorded just before running last upgrade."
-        putClientProperty(DarculaButtonUI.DEFAULT_STYLE_KEY, markRevertAsDefault)
-        addActionListener { this@View.model.runRevert() }
-      }
-      val localHistoryLine = HyperlinkLabel().apply {
-        name = "open local history link"
-        setTextWithHyperlink("You can review the applied changes in <hyperlink>'Local History' dialog</hyperlink>.")
-        addHyperlinkListener {
-          val ideaGateway = LocalHistoryImpl.getInstanceImpl().getGateway()
-          // TODO (mlazeba/xof): baseDir is deprecated, how can we avoid it here? might be better to show RecentChangeDialog instead
-          val dialog = DirectoryHistoryDialog(this@View.model.project, ideaGateway, this@View.model.project.baseDir)
-          dialog.show()
+    private fun JBPanel<JBPanel<*>>.addRevertInfo(showRevertButton: Boolean, markRevertAsDefault: Boolean) {
+      HyperlinkLabel()
+        .apply {
+          name = "open local history link"
+          setTextWithHyperlink("You can review the applied changes in <hyperlink>'Local History' dialog</hyperlink>.")
+          addHyperlinkListener {
+            val ideaGateway = LocalHistoryImpl.getInstanceImpl().getGateway()
+            // TODO (mlazeba/xof): baseDir is deprecated, how can we avoid it here? might be better to show RecentChangeDialog instead
+            val dialog = DirectoryHistoryDialog(this@View.model.project, ideaGateway, this@View.model.project.baseDir)
+            dialog.show()
+          }
         }
+        .also { hyperlinkLabel -> add(hyperlinkLabel) }
+      if (showRevertButton) {
+        JButton("Revert Project Files")
+          .apply {
+            name = "revert project button"
+            toolTipText = "Revert all project files to a state recorded just before running last upgrade."
+            putClientProperty(DarculaButtonUI.DEFAULT_STYLE_KEY, markRevertAsDefault)
+            addActionListener { this@View.model.runRevert() }
+          }
+          .also { revertButton -> add(revertButton) }
       }
-      add(localHistoryLine)
-      add(revertButton)
     }
   }
 
