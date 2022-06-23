@@ -129,11 +129,6 @@ public final class StudioFlags {
     "When enabled, profiler will track and display events defined through developer APIs",
     false);
 
-  public static final Flag<Boolean> PROFILER_MIGRATION_TO_APPINSPECTION = Flag.create(
-    PROFILER, "profiler.migration.to.appinspection", "Enable migration support for network and system events profiling.",
-    "Show migration messaging to guide users to the App Inspection tool window",
-    true);
-
   public static final Flag<Boolean> PROFILEABLE_BUILDS = Flag.create(
     PROFILER, "profileable.builds", "Support building profileable apps",
     "Allow users to build apps as profileable with a supported Gradle plugin version (>7.3.0)",
@@ -231,22 +226,6 @@ public final class StudioFlags {
     NELE, "log.android.framework", "Log messages coming from Layoutlib Native.",
     "Log in the IDEA log the messages coming from Java and native code of Layoutlib Native.",
     false);
-
-  public static final Flag<Boolean> NELE_SCENEVIEW_TOP_TOOLBAR = Flag.create(
-    NELE, "sceneview.top.toolbar", "Enable the per SceneView top toolbar.",
-    "Enable the per SceneView top toolbar that displays the SceneView contextual actions.",
-    true);
-
-  public static final Flag<Boolean> NELE_SCENEVIEW_BOTTOM_BAR = Flag.create(
-    NELE, "sceneview.bottom.bar", "Enable the per SceneView bottom bar.",
-    "Enable the per SceneView bottom bar that displays the SceneView contextual actions.",
-    false);
-
-  public static final Flag<Boolean> NELE_SCENEVIEW_LEFT_BAR = Flag.create(
-    NELE, "sceneview.left.bar", "Enable SceneView left bar for overlay actions.",
-    "Enable the SceneView left bar that displays the overlay actions.",
-    true);
-
 
   private static final FlagGroup ASSISTANT = new FlagGroup(FLAGS, "assistant", "Assistants");
 
@@ -349,8 +328,8 @@ public final class StudioFlags {
     false);
 
   public static final Flag<Boolean> NELE_VISUAL_LINT_ALWAYS_RUN = Flag.create(
-    NELE, "visual.lint.always.run", "Run visual lint in the layout editor",
-    "Enable so that visual lint always runs in the background of the layout editor for select configurations.",
+    NELE, "visual.lint.always.run", "Run visual lint in the background when the layout editor is opened",
+    "Enable so that visual lint always runs in the background of the layout editor for select configurations. This is also known as the background linting",
     true);
 
   public static final Flag<Boolean> NELE_INCLUDE_QUALIFIERS_FOR_TRAFFIC_LIGHTS = Flag.create(
@@ -402,7 +381,7 @@ public final class StudioFlags {
   public static final Flag<Boolean> NELE_ATF_IN_VISUAL_LINT = Flag.create(
     NELE, "visual.lint.atf", "Enable ATF integration in visual linting for layouts",
     "Enable ATF integration in visual linting of layouts.",
-    false);
+    true);
 
   public static final Flag<Boolean> NELE_WARN_NEW_THREADS = Flag.create(
     NELE, "preview.warn.new.threads", "Enable new threads warning",
@@ -609,6 +588,14 @@ public final class StudioFlags {
     "Use adblib in Pair Device over Wi-Fi",
     "Use adblib instead of ddmlib for Pair Device over Wi-Fi",
     true);
+
+  public static final Flag<Boolean> ADBLIB_MIGRATION_DDMLIB_CLIENT_MANAGER = Flag.create(
+    RUNDEBUG,
+    "adblib.migration.ddmlib.clientmanager",
+    "Use adblib to track device processes (Client)",
+    "Use adblib instead of ddmlib to track processes (Client) on devices and handle debug sessions. " +
+    "Note: Changing the value of this flag requires restarting Android Studio.",
+    false);
 
   public static final Flag<Boolean> SUPPORT_FEATURE_ON_FEATURE_DEPS = Flag.create(
     RUNDEBUG,
@@ -1147,7 +1134,7 @@ public final class StudioFlags {
     COMPOSE, "preview.element.injector.enable",
     "Enable injecting DeviceSpec Language",
     "If enabled, the DeviceSpec Language will be injected in @Preview.device string values",
-    false
+    true
   );
 
   public static final Flag<Boolean> COMPOSE_SPRING_PICKER = Flag.create(
@@ -1243,11 +1230,6 @@ public final class StudioFlags {
     COMPOSE, "preview.fast.reload.debug.daemon", "Starts the Live Edit daemon in debug mode",
     "If enabled, the compiler daemon will wait for a debugger to be attached.",
     false);
-
-  public static final Flag<Boolean> COMPOSE_FAST_PREVIEW_USE_IN_PROCESS_DAEMON = Flag.create(
-    COMPOSE, "preview.fast.reload.in.process.enabled", "Enable the Compose fast-reload in-process compiler",
-    "If enabled, the preview will use the in-process compiler for compiling.",
-    true);
 
   public static final Flag<Boolean> COMPOSE_MULTIPREVIEW = Flag.create(
     COMPOSE, "preview.multipreview.enabled", "Enable Compose Multipreview",

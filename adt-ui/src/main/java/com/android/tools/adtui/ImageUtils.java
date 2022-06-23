@@ -15,6 +15,7 @@
  */
 package com.android.tools.adtui;
 
+import static com.intellij.util.ui.ImageUtil.applyQualityRenderingHints;
 import static java.awt.RenderingHints.KEY_ANTIALIASING;
 import static java.awt.RenderingHints.KEY_INTERPOLATION;
 import static java.awt.RenderingHints.KEY_RENDERING;
@@ -37,6 +38,8 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
+import java.awt.geom.Ellipse2D;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -58,10 +61,6 @@ import org.jetbrains.annotations.Nullable;
 public class ImageUtils {
   public static final double EPSILON = 1e-5;
 
-  /**
-   * Default scale used by RetinaImage.
-   */
-  public static final int RETINA_SCALE = 2;
   /**
    * Filter that checks pixels for being completely transparent.
    */
@@ -753,19 +752,31 @@ public class ImageUtils {
   }
 
   /**
-   * Given the dimension of the viewport and the dimension of the image to be displayed in the viewport.
-   * Calculate the zoomFactor for the imageEditor that would allow the Image to be completely visible
-   * within the viewport.
-   *
-   * @param viewHeight  height of the containing view
-   * @param viewWidth   width of the containing view
-   * @param imageHeight height of the image
-   * @param imageWidth  width of the image
-   * @return the zoom factor that would allow the viewport to fully display the image.
+   * Clips the image by a circle. The circle has the diameter equal to the largest dimension of
+   * the image and is positioned so that it is touching the top and the left edges of the image.
+   * The area outside the circle is filled with backgroundColor, or left transparent if
+   * backgroundColor is null.
    */
-  public static double calcFullyDisplayZoomFactor(double viewHeight, double viewWidth, double imageHeight, double imageWidth) {
-    assert (imageHeight != 0 && imageWidth != 0);
-    return min((viewHeight / imageHeight / 1.1), (viewWidth / imageWidth / 1.1));
+  public static @NotNull BufferedImage circularClip(@NotNull BufferedImage image, @Nullable Color backgroundColor) {
+    BufferedImage mask = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
+    Graphics2D g2 = mask.createGraphics();
+    applyQualityRenderingHints(g2);
+    double diameter = max(image.getWidth(), image.getHeight());
+    g2.fill(new Area(new Ellipse2D.Double(0, 0, diameter, diameter)));
+    g2.dispose();
+    BufferedImage shapedImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
+    g2 = shapedImage.createGraphics();
+    applyQualityRenderingHints(g2);
+    g2.drawImage(image, 0, 0, null);
+    g2.setComposite(AlphaComposite.getInstance(AlphaComposite.DST_IN));
+    g2.drawImage(mask, 0, 0, null);
+    if (backgroundColor != null) {
+      g2.setColor(backgroundColor);
+      g2.setComposite(AlphaComposite.getInstance(AlphaComposite.DST_OVER));
+      g2.fillRect(0, 0, image.getWidth(), image.getHeight());
+    }
+    g2.dispose();
+    return shapedImage;
   }
 
   /**

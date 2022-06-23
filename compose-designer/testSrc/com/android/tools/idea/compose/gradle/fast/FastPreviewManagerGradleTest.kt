@@ -21,10 +21,11 @@ import com.android.tools.idea.compose.preview.SIMPLE_COMPOSE_PROJECT_PATH
 import com.android.tools.idea.compose.preview.SimpleComposeAppPaths
 import com.android.tools.idea.compose.preview.fast.OutOfProcessCompilerDaemonClientImpl
 import com.android.tools.idea.compose.preview.renderer.renderPreviewElement
-import com.android.tools.idea.compose.preview.util.SinglePreviewElementInstance
+import com.android.tools.idea.compose.preview.util.SingleComposePreviewElementInstance
 import com.android.tools.idea.concurrency.AndroidDispatchers.diskIoThread
 import com.android.tools.idea.editors.fast.CompilationResult
 import com.android.tools.idea.editors.fast.CompilerDaemonClient
+import com.android.tools.idea.editors.fast.FastPreviewConfiguration
 import com.android.tools.idea.editors.fast.FastPreviewManager
 import com.android.tools.idea.editors.fast.toFileNameSet
 import com.android.tools.idea.editors.liveedit.LiveEditAdvancedConfiguration
@@ -101,8 +102,7 @@ class FastPreviewManagerGradleTest(private val useEmbeddedCompiler: Boolean) {
 
   @Before
   fun setUp() {
-    LiveEditApplicationConfiguration.getInstance().mode = LiveEditApplicationConfiguration.LiveEditMode.LIVE_EDIT
-    LiveEditApplicationConfiguration.getInstance().liveEditPreviewEnabled = true
+    FastPreviewConfiguration.getInstance().isEnabled = true
     val mainFile = projectRule.project.guessProjectDir()!!
       .findFileByRelativePath(SimpleComposeAppPaths.APP_MAIN_ACTIVITY.path)!!
     psiMainFile = runReadAction { PsiManager.getInstance(projectRule.project).findFile(mainFile)!! }
@@ -165,7 +165,7 @@ class FastPreviewManagerGradleTest(private val useEmbeddedCompiler: Boolean) {
 
   @Test
   fun testFastPreviewEditChangeRender() {
-    val previewElement = SinglePreviewElementInstance.forTesting("google.simpleapplication.MainActivityKt.TwoElementsPreview")
+    val previewElement = SingleComposePreviewElementInstance.forTesting("google.simpleapplication.MainActivityKt.TwoElementsPreview")
     val initialState = renderPreviewElement(projectRule.androidFacet(":app"), previewElement).get()!!
 
     val module = ModuleUtilCore.findModuleForPsiElement(psiMainFile)!!

@@ -22,7 +22,6 @@ import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessit
 import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.MANDATORY_INDEPENDENT
 import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.OPTIONAL_CODEPENDENT
 import com.android.tools.idea.gradle.project.upgrade.AgpUpgradeComponentNecessity.OPTIONAL_INDEPENDENT
-import com.intellij.openapi.util.Disposer
 import com.intellij.refactoring.BaseRefactoringProcessor
 import com.intellij.testFramework.HeavyPlatformTestCase
 import org.junit.Test
@@ -41,6 +40,7 @@ class AgpUpgradeRefactoringProcessorWithCompileRuntimeSpecialCaseDialogTest : He
   override fun tearDown() {
     isPreviewUsagesField.isAccessible = isPreviewUsagesFieldAccessible
     super.tearDown()
+    checkNoUndisposedDialogs()
   }
 
   private fun AgpUpgradeRefactoringProcessor.getCompileRuntimeProcessor() =
@@ -71,9 +71,8 @@ class AgpUpgradeRefactoringProcessorWithCompileRuntimeSpecialCaseDialogTest : He
     }
     val processor = AgpUpgradeRefactoringProcessor(project, GradleVersion.parse("4.1.0"), GradleVersion.parse("4.2.0"))
     processor.componentRefactoringProcessors.forEach { checkInitialConsistency(it) }
-    val dialog = AgpUpgradeRefactoringProcessorWithCompileRuntimeSpecialCaseDialog(processor, processor.getCompileRuntimeProcessor())
+    registerDialogDisposable(AgpUpgradeRefactoringProcessorWithCompileRuntimeSpecialCaseDialog(processor, processor.getCompileRuntimeProcessor()))
     processor.componentRefactoringProcessors.forEach { checkFinalConsistency(it) }
-    Disposer.dispose(dialog.disposable)
   }
 
   @Test
@@ -108,5 +107,14 @@ class AgpUpgradeRefactoringProcessorWithCompileRuntimeSpecialCaseDialogTest : He
     previewAction.actionPerformed(null)
     assertTrue(dialog.isOK)
     assertTrue(isPreviewUsagesField.getBoolean(processor))
+  }
+
+  @Test
+  fun testOneArgumentConstructor() {
+    val processor = AgpUpgradeRefactoringProcessor(project, GradleVersion.parse("4.1.0"), GradleVersion.parse("4.2.0"))
+    val dialog = registerDialogDisposable(AgpUpgradeRefactoringProcessorWithCompileRuntimeSpecialCaseDialog(processor))
+    val field = AgpUpgradeRefactoringProcessorWithCompileRuntimeSpecialCaseDialog::class.java.getDeclaredField("myCompileRuntimeProcessor")
+    field.isAccessible = true
+    assertEquals(processor.getCompileRuntimeProcessor(), field.get(dialog))
   }
 }

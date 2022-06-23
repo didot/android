@@ -17,11 +17,11 @@ package com.android.tools.idea.editors.fast
 
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
-import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.intellij.mock.MockPsiFile
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.Module
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -46,6 +46,7 @@ import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 private val TEST_VERSION = GradleVersion.parse("0.0.1-test")
 
@@ -256,7 +257,7 @@ internal class FastPreviewManagerTest {
     // Check, disabling Live Literals disables the compiler flag.
     run {
       compilationRequests.clear()
-      LiveEditApplicationConfiguration.getInstance().mode = LiveEditApplicationConfiguration.LiveEditMode.DISABLED
+      FastPreviewConfiguration.getInstance().isEnabled = false
       try {
         val file2 = projectRule.fixture.addFileToProject("testB.kt", """
           fun emptyB() {}
@@ -271,7 +272,7 @@ internal class FastPreviewManagerTest {
       """.trimIndent(), requestParameters)
       }
       finally {
-        LiveEditApplicationConfiguration.getInstance().resetDefault()
+        FastPreviewConfiguration.getInstance().resetDefault()
       }
     }
 
@@ -380,7 +381,7 @@ internal class FastPreviewManagerTest {
     manager.compileRequest(file, projectRule.module).first.also { result ->
       assertTrue(result.toString(), result is CompilationResult.RequestException)
       assertFalse("FastPreviewManager should have been disable after a failure", manager.isEnabled)
-      assertTrue("Auto disable should not be persisted", LiveEditApplicationConfiguration.getInstance().liveEditPreviewEnabled)
+      assertTrue("Auto disable should not be persisted", FastPreviewConfiguration.getInstance().isEnabled)
       assertEquals(
         "DisableReason(title=Unable to compile using Preview Live Edit, description=Unable to process request, throwable=java.lang.IllegalStateException: Unable to process request)",
         manager.disableReason.toString())
@@ -393,7 +394,7 @@ internal class FastPreviewManagerTest {
     manager.compileRequest(file, projectRule.module).first.also { result ->
       assertTrue(result.toString(), result is CompilationResult.RequestException)
       assertTrue(manager.isEnabled)
-      assertTrue(LiveEditApplicationConfiguration.getInstance().liveEditPreviewEnabled)
+      assertTrue(FastPreviewConfiguration.getInstance().isEnabled)
       assertNull(manager.disableReason)
     }
     assertEquals(
@@ -504,5 +505,57 @@ internal class FastPreviewManagerTest {
       compilationComplete.await()
     }
     assertFalse(manager.isCompiling)
+  }
+
+  @Test
+  fun `timeouts must call compilation listener`() {
+    val file = projectRule.fixture.addFileToProject("test.kt", """
+      fun empty() {}
+    """.trimIndent())
+    val scope = AndroidCoroutineScope(projectRule.testRootDisposable)
+    val timeoutDaemon = object : CompilerDaemonClient {
+      override val isRunning: Boolean
+        get() = false
+
+      override suspend fun compileRequest(files: Collection<PsiFile>,
+                                          module: Module,
+                                          outputDirectory: Path,
+                                          indicator: ProgressIndicator): CompilationResult {
+        throw ProcessCanceledException()
+      }
+
+      override fun dispose() {
+      }
+    }
+    val manager = FastPreviewManager.getTestInstance(project,
+                                                     daemonFactory = { _, _, _, _ -> timeoutDaemon },
+                                                     moduleRuntimeVersionLocator = { TEST_VERSION },
+                                                     maxCachedRequests = 0).also {
+      Disposer.register(projectRule.testRootDisposable, it)
+    }
+
+    val compilationCounter = AtomicInteger(0)
+    manager.addCompileListener(projectRule.testRootDisposable, object : FastPreviewManager.Companion.CompileListener {
+      override fun onCompilationStarted(files: Collection<PsiFile>) {
+        compilationCounter.incrementAndGet()
+      }
+
+      override fun onCompilationComplete(result: CompilationResult, files: Collection<PsiFile>) {
+        compilationCounter.decrementAndGet()
+      }
+    })
+
+    repeat(3) {
+      val compilationComplete = CompletableDeferred<Unit>()
+      assertFalse(manager.isCompiling)
+      scope.launch {
+        manager.compileRequest(file, projectRule.module)
+        compilationComplete.complete(Unit)
+      }
+      runBlocking {
+        compilationComplete.await()
+      }
+    }
+    assertEquals(0, compilationCounter.get())
   }
 }

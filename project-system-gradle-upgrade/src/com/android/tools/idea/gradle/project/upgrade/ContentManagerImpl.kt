@@ -87,11 +87,13 @@ import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.tree.TreeModelAdapter
 import com.intellij.util.ui.tree.TreeUtil
 import java.awt.BorderLayout
+import java.awt.FlowLayout
 import java.awt.event.ActionEvent
 import javax.swing.AbstractAction
 import javax.swing.BoxLayout
 import javax.swing.Icon
 import javax.swing.JButton
+import javax.swing.JPanel
 import javax.swing.JSeparator
 import javax.swing.JTree
 import javax.swing.SwingConstants
@@ -507,7 +509,8 @@ class ToolWindowModel(
     populateNecessity(AgpUpgradeComponentNecessity.MANDATORY_INDEPENDENT) { o -> CheckedTreeNode(o).also { it.isEnabled = false } }.isEnabled = false
     populateNecessity(AgpUpgradeComponentNecessity.MANDATORY_CODEPENDENT) { o -> CheckedTreeNode(o).also { it.isEnabled = false } }
     populateNecessity(AgpUpgradeComponentNecessity.OPTIONAL_CODEPENDENT) { o -> CheckedTreeNode(o).also { it.isChecked = false } }
-    populateNecessity(AgpUpgradeComponentNecessity.OPTIONAL_INDEPENDENT) { o -> CheckedTreeNode(o).also { it.isChecked = false } }
+    val hasAnyNodes = root.childCount > 0
+    populateNecessity(AgpUpgradeComponentNecessity.OPTIONAL_INDEPENDENT) { o -> CheckedTreeNode(o).also { it.isChecked = !hasAnyNodes } }
     treeModel.nodeStructureChanged(root)
   }
 
@@ -932,23 +935,9 @@ class ContentManagerImpl(val project: Project): ContentManager {
           sb.append("<pre>\n")
           sb.append(uiState.errorMessage)
           sb.append("\n</pre>")
-          sb.append("<p>There may be more information about the sync failure in the <a href='build-window'>Build window</a>.</p>")
           label.text = sb.toString()
-          label.addHyperlinkListener {
-            if (it.eventType != HyperlinkEvent.EventType.ACTIVATED) return@addHyperlinkListener
-            val project = this@View.model.project
-            invokeLater {
-              if (!project.isDisposed) {
-                val buildContentManager = BuildContentManager.getInstance(project)
-                val buildToolWindow = buildContentManager.getOrCreateToolWindow()
-                if (!buildToolWindow.isAvailable) return@invokeLater
-                buildToolWindow.show()
-                val contentManager = buildToolWindow.contentManager
-                contentManager.findContent("Sync")?.let { content -> contentManager.setSelectedContent(content) }
-              }
-            }
-          }
           detailsPanel.add(label)
+          detailsPanel.addBuildWindowInfo()
           detailsPanel.addRevertInfo(showRevertButton = true, markRevertAsDefault = true)
         }
         uiState is ToolWindowModel.UIState.UpgradeSyncSucceeded -> {
@@ -1032,19 +1021,48 @@ class ContentManagerImpl(val project: Project): ContentManager {
       detailsPanel.repaint()
     }
 
-    private fun JBPanel<JBPanel<*>>.addRevertInfo(showRevertButton: Boolean, markRevertAsDefault: Boolean) {
-      HyperlinkLabel()
-        .apply {
-          name = "open local history link"
-          setTextWithHyperlink("You can review the applied changes in <hyperlink>'Local History' dialog</hyperlink>.")
-          addHyperlinkListener {
-            val ideaGateway = LocalHistoryImpl.getInstanceImpl().getGateway()
-            // TODO (mlazeba/xof): baseDir is deprecated, how can we avoid it here? might be better to show RecentChangeDialog instead
-            val dialog = DirectoryHistoryDialog(this@View.model.project, ideaGateway, this@View.model.project.baseDir)
-            dialog.show()
+    private fun JBPanel<JBPanel<*>>.addBuildWindowInfo() {
+      JPanel().apply {
+        name = "build window info panel"
+        layout = FlowLayout(FlowLayout.LEADING, 0, 0)
+        add(JBLabel("There may be more information about the sync failure in the "))
+        ActionLink("'Build' window") {
+          val project = this@View.model.project
+          invokeLater {
+            if (!project.isDisposed) {
+              val buildContentManager = BuildContentManager.getInstance(project)
+              val buildToolWindow = buildContentManager.getOrCreateToolWindow()
+              if (!buildToolWindow.isAvailable) return@invokeLater
+              buildToolWindow.show()
+              val contentManager = buildToolWindow.contentManager
+              contentManager.findContent("Sync")?.let { content -> contentManager.setSelectedContent(content) }
+            }
           }
         }
-        .also { hyperlinkLabel -> add(hyperlinkLabel) }
+          .apply { name = "open build window link" }
+          .also { actionLink -> add(actionLink) }
+        add(JBLabel("."))
+      }
+        .also { panel -> add(panel) }
+    }
+
+    private fun JBPanel<JBPanel<*>>.addRevertInfo(showRevertButton: Boolean, markRevertAsDefault: Boolean) {
+      JPanel().apply {
+        name = "revert information panel"
+        layout = FlowLayout(FlowLayout.LEADING, 0, 0)
+        add(JBLabel("You can review the applied changes in the "))
+        ActionLink("'Local History' dialog") {
+          val ideaGateway = LocalHistoryImpl.getInstanceImpl().getGateway()
+          // TODO (mlazeba/xof): baseDir is deprecated, how can we avoid it here? might be better to show RecentChangeDialog instead
+          val dialog = DirectoryHistoryDialog(this@View.model.project, ideaGateway, this@View.model.project.baseDir)
+          dialog.show()
+        }
+          .apply { name = "open local history link" }
+          .also { actionLink -> add(actionLink) }
+        add(JBLabel("."))
+      }
+        .also { panel -> add(panel) }
+
       if (showRevertButton) {
         JButton("Revert Project Files")
           .apply {

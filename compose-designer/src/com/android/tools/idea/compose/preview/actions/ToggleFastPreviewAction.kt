@@ -17,6 +17,7 @@ package com.android.tools.idea.compose.preview.actions
 
 import com.android.tools.idea.compose.preview.findComposePreviewManagersForContext
 import com.android.tools.idea.compose.preview.message
+import com.android.tools.idea.editors.fast.FastPreviewManager
 import com.android.tools.idea.editors.fast.FastPreviewSurface
 import com.android.tools.idea.editors.fast.ManualDisabledReason
 import com.android.tools.idea.editors.fast.fastPreviewManager
@@ -26,13 +27,16 @@ import com.android.tools.idea.flags.StudioFlags
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.ui.EditorNotifications
+import com.intellij.util.ui.EmptyIcon
 import icons.StudioIcons
 
 /**
  * Action that toggles the Fast Preview state.
  */
 class ToggleFastPreviewAction: ToggleAction(null, null, StudioIcons.Shell.StatusBar.LIVE_LITERALS) {
-  override fun isSelected(e: AnActionEvent): Boolean = LiveEditApplicationConfiguration.getInstance().isLiveEditPreview
+  override fun isSelected(e: AnActionEvent): Boolean = e.project?.let {
+    FastPreviewManager.getInstance(it).isEnabled
+  } ?: false
 
   override fun setSelected(e: AnActionEvent, state: Boolean) {
     val project = e.project ?: return
@@ -51,6 +55,9 @@ class ToggleFastPreviewAction: ToggleAction(null, null, StudioIcons.Shell.Status
 
   override fun update(e: AnActionEvent) {
     super.update(e)
+
+    // Ensure that the checkbox is not displayed
+    e.presentation.icon = StudioIcons.Shell.StatusBar.LIVE_LITERALS
 
     if (!StudioFlags.COMPOSE_FAST_PREVIEW.get()) {
       // No Fast Preview available

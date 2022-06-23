@@ -25,7 +25,7 @@ import com.android.tools.idea.compose.preview.ComposePreviewRepresentation
 import com.android.tools.idea.compose.preview.PreviewElementProvider
 import com.android.tools.idea.compose.preview.SIMPLE_COMPOSE_PROJECT_PATH
 import com.android.tools.idea.compose.preview.SimpleComposeAppPaths
-import com.android.tools.idea.compose.preview.util.PreviewElement
+import com.android.tools.idea.compose.preview.util.ComposePreviewElement
 import com.android.tools.idea.editors.fast.CompilationResult
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
@@ -206,7 +206,7 @@ class ComposePreviewRepresentationGradleTest {
       fixture.openFileInEditor(psiMainFile.virtualFile)
     }
 
-    runAndWaitForRefresh(Duration.ofSeconds(15)) {
+    runAndWaitForRefresh(Duration.ofSeconds(30)) {
       // Remove the @Preview from the NavigatablePreview
       runWriteActionAndWait {
         fixture.moveCaret("NavigatablePreview|")
@@ -298,7 +298,7 @@ class ComposePreviewRepresentationGradleTest {
       fixture.openFileInEditor(psiMainFile.virtualFile)
     }
 
-    runAndWaitForRefresh(Duration.ofSeconds(15)) {
+    runAndWaitForRefresh(Duration.ofSeconds(30)) {
       // Annotate DefaultPreview with the new MultiPreview annotation class
       runWriteActionAndWait {
         fixture.moveCaret("|@Preview")
@@ -341,7 +341,7 @@ class ComposePreviewRepresentationGradleTest {
       fixture.openFileInEditor(psiMainFile.virtualFile)
     }
 
-    runAndWaitForRefresh(Duration.ofSeconds(15)) {
+    runAndWaitForRefresh(Duration.ofSeconds(30)) {
       // Simulate what happens when changing to the MainActivity.kt tab in the editor
       // TODO(b/232092986) This is actually not a tab change, but currently we don't have a better way
       //  of simulating it, and this is the only relevant consequence of changing tabs for this test.
@@ -423,6 +423,8 @@ class ComposePreviewRepresentationGradleTest {
 
   @Test
   fun `file modification triggers refresh on other active preview representations`() {
+    StudioFlags.COMPOSE_FAST_PREVIEW.override(false)
+
     val otherPreviewsFile = getPsiFile(SimpleComposeAppPaths.APP_OTHER_PREVIEWS.path)
     val otherPreviewView = TestComposePreviewView(fixture.testRootDisposable, project)
     val otherPreviewRepresentation = createComposePreviewRepresentation(otherPreviewsFile, otherPreviewView)
@@ -434,7 +436,7 @@ class ComposePreviewRepresentationGradleTest {
     invokeAndWaitIfNeeded {
       fixture.openFileInEditor(otherPreviewsFile.virtualFile)
     }
-    runAndWaitForRefresh(Duration.ofSeconds(15)) {
+    runAndWaitForRefresh(Duration.ofSeconds(30)) {
       runWriteActionAndWait {
         // Add a MultiPreview annotation that won't be used
         fixture.moveCaret("|@Preview")
@@ -449,6 +451,8 @@ class ComposePreviewRepresentationGradleTest {
 
   @Test
   fun `file modification don't trigger refresh on inactive preview representations`() {
+    StudioFlags.COMPOSE_FAST_PREVIEW.override(false)
+
     val otherPreviewsFile = getPsiFile(SimpleComposeAppPaths.APP_OTHER_PREVIEWS.path)
     val otherPreviewView = TestComposePreviewView(fixture.testRootDisposable, project)
     val otherPreviewRepresentation = createComposePreviewRepresentation(otherPreviewsFile, otherPreviewView)
@@ -462,7 +466,7 @@ class ComposePreviewRepresentationGradleTest {
       fixture.openFileInEditor(otherPreviewsFile.virtualFile)
     }
     assertFailsWith<TimeoutCancellationException> {
-      runAndWaitForRefresh(Duration.ofSeconds(15)) {
+      runAndWaitForRefresh(Duration.ofSeconds(30)) {
         runWriteActionAndWait {
           // Add a MultiPreview annotation that won't be used
           fixture.moveCaret("|@Preview")
@@ -482,8 +486,8 @@ class ComposePreviewRepresentationGradleTest {
   }
 
   private fun createComposePreviewRepresentation(psiFile: PsiFile, view: TestComposePreviewView): ComposePreviewRepresentation {
-    val previewRepresentation = ComposePreviewRepresentation(psiFile, object : PreviewElementProvider<PreviewElement> {
-      override suspend fun previewElements(): Sequence<PreviewElement> =
+    val previewRepresentation = ComposePreviewRepresentation(psiFile, object : PreviewElementProvider<ComposePreviewElement> {
+      override suspend fun previewElements(): Sequence<ComposePreviewElement> =
         AnnotationFilePreviewElementFinder.findPreviewMethods(project, psiFile.virtualFile).asSequence()
     }, PreferredVisibility.SPLIT) { _, _, _, _, _, _, _, _, _ -> view }
     Disposer.register(fixture.testRootDisposable, previewRepresentation)

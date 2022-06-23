@@ -509,6 +509,7 @@ Android Studio Preview.app/Contents/lib/resources.jar
 Android Studio Preview.app/Contents/lib/stats.jar
 Android Studio Preview.app/Contents/lib/testFramework.jar
 Android Studio Preview.app/Contents/lib/util.jar
+Android Studio Preview.app/Contents/lib/util_rt.jar
 Android Studio Preview.app/Contents/lib/winp.jar
 Android Studio Preview.app/Contents/license/XStream_license.txt
 Android Studio Preview.app/Contents/license/ant_license.txt
@@ -1881,6 +1882,7 @@ Android Studio Preview.app/Contents/plugins/android-ndk/resources/lldb/lib64/pyt
 Android Studio Preview.app/Contents/plugins/android-ndk/resources/lldb/lib64/python/lldb/utils/symbolication.py
 Android Studio Preview.app/Contents/plugins/android-ndk/resources/lldb/lib64/python/six.py
 Android Studio Preview.app/Contents/plugins/android-ndk/resources/lldb/shared/jobject_printers/jstring_reader.py
+Android Studio Preview.app/Contents/plugins/android/lib/HdrHistogram-2.1.12.jar
 Android Studio Preview.app/Contents/plugins/android/lib/aapt2-proto-0.3.1.jar
 Android Studio Preview.app/Contents/plugins/android/lib/adt-ui.jar
 Android Studio Preview.app/Contents/plugins/android/lib/android-base-common.jar
@@ -2613,6 +2615,9 @@ Android Studio Preview.app/Contents/plugins/java/lib/sa-jdwp.jar
 Android Studio Preview.app/Contents/plugins/junit/lib/idea-junit.jar
 Android Studio Preview.app/Contents/plugins/junit/lib/junit-rt.jar
 Android Studio Preview.app/Contents/plugins/junit/lib/junit5-rt.jar
+Android Studio Preview.app/Contents/plugins/keymap-eclipse/lib/keymap-eclipse.jar
+Android Studio Preview.app/Contents/plugins/keymap-netbeans/lib/keymap-netbeans.jar
+Android Studio Preview.app/Contents/plugins/keymap-visualStudio/lib/keymap-visualStudio.jar
 Android Studio Preview.app/Contents/plugins/markdown/lib/markdown.jar
 Android Studio Preview.app/Contents/plugins/maven-model/lib/maven-model.jar
 Android Studio Preview.app/Contents/plugins/ml-models-local/lib/ml-models-local.jar

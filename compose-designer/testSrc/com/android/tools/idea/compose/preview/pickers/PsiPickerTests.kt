@@ -29,7 +29,7 @@ import com.android.tools.idea.compose.preview.pickers.properties.enumsupport.dev
 import com.android.tools.idea.compose.preview.pickers.properties.enumsupport.devices.ReferencePhoneConfig
 import com.android.tools.idea.compose.preview.pickers.tracking.ComposePickerTracker
 import com.android.tools.idea.compose.preview.pickers.tracking.NoOpTracker
-import com.android.tools.idea.compose.preview.util.PreviewElement
+import com.android.tools.idea.compose.preview.util.ComposePreviewElement
 import com.android.tools.idea.configurations.ConfigurationManager
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.Sdks
@@ -53,7 +53,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-private fun PreviewElement.annotationText(): String = ReadAction.compute<String, Throwable> {
+private fun ComposePreviewElement.annotationText(): String = ReadAction.compute<String, Throwable> {
   previewElementDefinitionPsi?.element?.text ?: ""
 }
 
@@ -140,6 +140,8 @@ class PsiPickerTests(previewAnnotationPackage: String, composableAnnotationPacka
   @RunsInEdt
   @Test
   fun `updating model updates the psi correctly`() = runBlocking {
+    Sdks.addLatestAndroidSdk(fixture.projectDisposable, module)
+
     @Language("kotlin")
     val annotationWithParameters = """
       import $composableAnnotationFqName
@@ -385,6 +387,7 @@ class PsiPickerTests(previewAnnotationPackage: String, composableAnnotationPacka
   @RunsInEdt
   @Test
   fun testTrackedValuesOfDeviceOptions() {
+    StudioFlags.COMPOSE_PREVIEW_DEVICESPEC_INJECTOR.override(false)
     val (testTracker, model) = simpleTrackingTestSetup()
 
     val deviceProperty = model.properties["", "Device"] // Which parameter doesn't matter in this context, but best to test with Device
@@ -480,12 +483,13 @@ class PsiPickerTests(previewAnnotationPackage: String, composableAnnotationPacka
   }
 
   private suspend fun assertUpdatingModelUpdatesPsiCorrectly(fileContent: String) {
+    StudioFlags.COMPOSE_PREVIEW_DEVICESPEC_INJECTOR.override(false)
     val file = fixture.configureByText("Test.kt", fileContent)
     val noParametersPreview = AnnotationFilePreviewElementFinder.findPreviewMethods(fixture.project, file.virtualFile).first()
     val model = ReadAction.compute<PsiPropertyModel, Throwable> {
       PreviewPickerPropertyModel.fromPreviewElement(project, module, noParametersPreview.previewElementDefinitionPsi, NoOpTracker)
     }
-    var expectedModificationsCountdown = 17
+    var expectedModificationsCountdown = 20
     model.addListener(object : PropertiesModelListener<PsiPropertyItem> {
       override fun propertyValuesChanged(model: PropertiesModel<PsiPropertyItem>) {
         expectedModificationsCountdown--
@@ -564,6 +568,24 @@ class PsiPickerTests(previewAnnotationPackage: String, composableAnnotationPacka
     model.properties["", "Orientation"].value = "portrait"
     assertEquals(
       """@Preview(name = "Hello", group = "Group2", widthDp = 32, device = "spec:width=640.7dp,height=240dp,dpi=240,isRound=true,chinSize=20dp,orientation=portrait")""",
+      noParametersPreview.annotationText()
+    )
+
+    model.properties["", "Device"].value = "id:pixel_3"
+    assertEquals(
+      """@Preview(name = "Hello", group = "Group2", widthDp = 32, device = "id:pixel_3")""",
+      noParametersPreview.annotationText()
+    )
+    model.properties["", "Orientation"].value = "landscape"
+    assertEquals(
+      """@Preview(name = "Hello", group = "Group2", widthDp = 32, device = "spec:parent=pixel_3,orientation=landscape")""",
+      noParametersPreview.annotationText()
+    )
+    assertEquals("1080", model.properties["", "Width"].value)
+    assertEquals("2160", model.properties["", "Height"].value)
+    model.properties["", "Width"].value = "2000"
+    assertEquals(
+      """@Preview(name = "Hello", group = "Group2", widthDp = 32, device = "spec:width=2000px,height=2160px,dpi=440,orientation=landscape")""",
       noParametersPreview.annotationText()
     )
     StudioFlags.COMPOSE_PREVIEW_DEVICESPEC_INJECTOR.clearOverride()

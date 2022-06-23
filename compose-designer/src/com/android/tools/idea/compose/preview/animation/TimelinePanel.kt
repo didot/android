@@ -21,15 +21,20 @@ import com.android.tools.idea.compose.preview.animation.timeline.TimelineElement
 import com.android.tools.idea.flags.StudioFlags.COMPOSE_ANIMATION_PREVIEW_COORDINATION_DRAG
 import com.google.wireless.android.sdk.stats.ComposeAnimationToolingEvent
 import com.intellij.ui.JBColor
+import com.intellij.util.ui.JBEmptyBorder
 import com.intellij.util.ui.UIUtil
 import java.awt.BasicStroke
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Point
+import java.awt.Rectangle
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.awt.event.MouseEvent
+import javax.swing.JPanel
 import javax.swing.JSlider
 import javax.swing.plaf.basic.BasicSliderUI
 import kotlin.math.max
@@ -41,11 +46,44 @@ internal const val DEFAULT_MAX_DURATION_MS = 10000L
 
 /**
  * Timeline slider with auto-resized ticks and labels distance.
+ * TODO(b/220739243) [tooltip] is nullable because it's not available in [AnimationInspectorPanel]. Remove nullability.
  */
-open class TimelinePanel(val previewState: AnimationPreviewState, val tracker: ComposeAnimationEventTracker)
+open class TimelinePanel(val tooltip: Tooltip?,
+                         val previewState: AnimationPreviewState,
+                         val tracker: ComposeAnimationEventTracker)
   : JSlider(0, DEFAULT_MAX_DURATION_MS.toInt(), 0) {
   private var cachedSliderWidth = 0
   private var cachedMax = 0
+
+  /** Slider thumb. It is in separate component, so it could be painted on top of other layers. */
+  inner class Thumb : JPanel() {
+    override fun paintComponent(g: Graphics?) {
+      super.paintComponent(g)
+      InspectorPainter.Thumb.paintThumbForHorizSlider(
+        g as Graphics2D,
+        x = sliderUI.thumbRect().x + sliderUI.thumbRect().width / 2,
+        y = InspectorLayout.timelineHeaderHeightScaled(),
+        height = sliderUI.thumbRect().height)
+    }
+
+    fun resizeThumb() {
+      // Resize to fit the parent.
+      size = Dimension(this@TimelinePanel.width, this@TimelinePanel.height)
+      location = Point(0, 0)
+    }
+
+    val resizeAdapter = object : ComponentAdapter() {
+      override fun componentResized(e: ComponentEvent?) {
+        resizeThumb()
+      }
+    }
+
+    init {
+      background = UIUtil.TRANSPARENT_COLOR
+      border = JBEmptyBorder(0)
+      isOpaque = false
+    }
+  }
 
   init {
     paintTicks = false
@@ -55,6 +93,13 @@ open class TimelinePanel(val previewState: AnimationPreviewState, val tracker: C
     addComponentListener(object : ComponentAdapter() {
       override fun componentResized(e: ComponentEvent?) = updateMajorTicks()
     })
+
+    Thumb().let {
+      add(it)
+      it.resizeThumb()
+      setComponentZOrder(it, 0)
+      addComponentListener(it.resizeAdapter)
+    }
   }
 
   val sliderUI: TimelineSliderUI
@@ -129,6 +174,8 @@ open class TimelineSliderUI(val timeline: TimelinePanel) : BasicSliderUI(timelin
     override fun minimumValue(): Int = slider.minimum
   }
 
+  val thumbRect: () -> Rectangle = { thumbRect }
+
   /** List of elements to display. */
   var elements: MutableList<TimelineElement> = mutableListOf()
 
@@ -190,11 +237,7 @@ open class TimelineSliderUI(val timeline: TimelinePanel) : BasicSliderUI(timelin
   }
 
   final override fun paintThumb(g: Graphics) {
-    InspectorPainter.Thumb.paintThumbForHorizSlider(
-      g as Graphics2D,
-      x = thumbRect.x + thumbRect.width / 2,
-      y = InspectorLayout.timelineHeaderHeightScaled(),
-      height = thumbRect.height)
+    // Don't paint thumb here as it will be on a wrong layer.
   }
 
   final override fun createTrackListener(slider: JSlider) = TimelineTrackListener()
@@ -262,6 +305,8 @@ open class TimelineSliderUI(val timeline: TimelinePanel) : BasicSliderUI(timelin
    */
   inner class TimelineTrackListener : TrackListener() {
 
+    private val tooltipAdapter = timeline.tooltip?.adapter
+
     private var isDragging = false
 
     private var dragStartXPoint = 0
@@ -278,6 +323,7 @@ open class TimelineSliderUI(val timeline: TimelinePanel) : BasicSliderUI(timelin
 
     override fun mouseDragged(e: MouseEvent) {
       super.mouseDragged(e)
+      tooltipAdapter?.mouseDragged(e)
       if (activeElement?.status == TimelineElementStatus.Dragged) {
         activeElement?.move(e.x - dragStartXPoint)
         dragStartXPoint = e.x
@@ -286,6 +332,7 @@ open class TimelineSliderUI(val timeline: TimelinePanel) : BasicSliderUI(timelin
         updateThumbLocationAndSliderValue()
       }
       isDragging = true
+      updateTooltip(e)
       slider.repaint()
     }
 
@@ -303,7 +350,7 @@ open class TimelineSliderUI(val timeline: TimelinePanel) : BasicSliderUI(timelin
         }
       )
       isDragging = false
-      if(activeElement?.status == TimelineElementStatus.Dragged) {
+      if (activeElement?.status == TimelineElementStatus.Dragged) {
         timeline.dragEndListeners.forEach { it() }
       }
       activeElement?.status = TimelineElementStatus.Inactive
@@ -313,11 +360,30 @@ open class TimelineSliderUI(val timeline: TimelinePanel) : BasicSliderUI(timelin
 
     override fun mouseMoved(e: MouseEvent) {
       super.mouseMoved(e)
+      tooltipAdapter?.mouseMoved(e)
       slider.repaint()
       if (isDragging) return
       activeElement?.status = TimelineElementStatus.Inactive
       activeElement = elements.firstOrNull { it.contains(e.point) }
       activeElement?.status = TimelineElementStatus.Hovered
+      updateTooltip(e)
+    }
+
+    override fun mouseExited(e: MouseEvent?) {
+      super.mouseExited(e)
+      tooltipAdapter?.mouseExited(e)
+    }
+
+    private fun updateTooltip(e: MouseEvent) {
+      val tooltipInfo = elements.firstNotNullOfOrNull { it.getTooltip(e.point) }
+      if (tooltipInfo != null) {
+        if (timeline.tooltip?.tooltipInfo == null) tooltipAdapter?.mouseEntered(e)
+        timeline.tooltip?.tooltipInfo = tooltipInfo
+      }
+      else {
+        if (timeline.tooltip?.tooltipInfo != null) tooltipAdapter?.mouseExited(e)
+        timeline.tooltip?.tooltipInfo = null
+      }
     }
 
     private fun updateThumbLocationAndSliderValue() {

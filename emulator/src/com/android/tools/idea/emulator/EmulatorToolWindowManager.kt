@@ -20,12 +20,12 @@ import com.android.adblib.DeviceInfo
 import com.android.adblib.DeviceList
 import com.android.adblib.DeviceSelector
 import com.android.adblib.DeviceState
+import com.android.adblib.deviceProperties
 import com.android.annotations.concurrency.AnyThread
 import com.android.annotations.concurrency.GuardedBy
 import com.android.annotations.concurrency.UiThread
 import com.android.ddmlib.IDevice
 import com.android.tools.idea.adblib.AdbLibService
-import com.android.adblib.tools.getprop
 import com.android.tools.idea.avdmanager.AvdLaunchListener
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.addCallback
@@ -54,6 +54,7 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.openapi.wm.ex.ToolWindowEx
 import com.intellij.openapi.wm.ex.ToolWindowManagerListener
+import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.content.ContentManager
 import com.intellij.ui.content.ContentManagerEvent
@@ -316,9 +317,15 @@ internal class EmulatorToolWindowManager private constructor(
   private fun addPanel(panel: RunningDevicePanel) {
     val toolWindow = getToolWindow()
     val contentManager = toolWindow.contentManager
+    var placeholderContent: Content? = null
     if (panels.isEmpty()) {
-      contentManager.removeAllContents(true) // Remove the placeholder panel.
       showLiveIndicator(toolWindow)
+      if (!contentManager.isEmpty) {
+        // Remember the placeholder panel content to remove it later. Deleting it now would leave
+        // the tool window empty and cause the contentRemoved method in ToolWindowContentUi to
+        // hide it.
+        placeholderContent = contentManager.getContent(0)
+      }
     }
 
     val contentFactory = ContentFactory.SERVICE.getInstance()
@@ -352,6 +359,8 @@ internal class EmulatorToolWindowManager private constructor(
           }
         }
       }
+
+      placeholderContent?.let { contentManager.removeContent(it, true) } // Remove the placeholder panel if it was present.
     }
   }
 
@@ -411,16 +420,16 @@ internal class EmulatorToolWindowManager private constructor(
   @AnyThread
   private suspend fun physicalDeviceConnected(deviceSerialNumber: String, adbSession: AdbLibSession) {
     try {
-      val properties = adbSession.deviceServices.getprop(DeviceSelector.fromSerialNumber(deviceSerialNumber))
-      var title = properties.find { it.name == "ro.kernel.qemu.avd_name" }?.value?.replace('_', ' ')
+      val properties = adbSession.deviceServices.deviceProperties(DeviceSelector.fromSerialNumber(deviceSerialNumber)).allReadonly()
+      var title = properties["ro.kernel.qemu.avd_name"]?.replace('_', ' ')
       if (title == null) {
-        title = properties.find { it.name == "ro.product.model" }?.value ?: deviceSerialNumber
-        val manufacturer = properties.find { it.name == "ro.product.manufacturer" }?.value
+        title = properties["ro.product.model"] ?: deviceSerialNumber
+        val manufacturer = properties["ro.product.manufacturer"]
         if (!manufacturer.isNullOrBlank()) {
           title = "$manufacturer $title"
         }
       }
-      val deviceAbi = properties.find { it.name == "ro.product.cpu.abi" }?.value
+      val deviceAbi = properties["ro.product.cpu.abi"]
       if (deviceAbi == null) {
         thisLogger().warn("Unable to determine ABI of $title")
         return

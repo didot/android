@@ -39,6 +39,7 @@ import java.awt.EventQueue
 internal class LogcatToolWindowFactory : SplittingTabsToolWindowFactory(), DumbAware {
 
   init {
+    // TODO(b/236246692): Register from XML when Logcat V2 is mainstream.
     if (isLogcatV2Enabled()) {
       ColorSettingsPages.getInstance().apply {
         registerPage(LogcatColorSettingsPage())
@@ -54,6 +55,12 @@ internal class LogcatToolWindowFactory : SplittingTabsToolWindowFactory(), DumbA
       .subscribe(ShowLogcatListener.TOPIC, ShowLogcatListener { serialNumber, _ -> showLogcat(toolWindow, serialNumber) })
 
     ProcessNameMonitor.getInstance(project).start()
+  }
+
+  override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
+    super.createToolWindowContent(project, toolWindow)
+    toolWindow.isAvailable = true
+    toolWindow.setToHideOnEmptyContent(true)
   }
 
   private fun showLogcat(toolWindow: ToolWindowEx, serialNumber: String) {

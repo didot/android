@@ -19,12 +19,21 @@ import com.android.testutils.TestUtils
 import com.android.tools.idea.AndroidPsiUtils
 import com.android.tools.idea.common.SyncNlModel
 import com.android.tools.idea.common.model.NlModel.TagSnapshotTreeNode
-import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.configurations.Configuration
 import com.android.tools.idea.rendering.RenderTask
 import com.android.tools.idea.rendering.RenderTestUtil
+import com.android.tools.idea.res.TestResourceIdManager
 import com.android.tools.idea.testing.AndroidGradleProjectRule
 import com.android.tools.idea.uibuilder.model.NlComponentRegistrar
+import com.android.tools.idea.uibuilder.visual.analytics.VisualLintUsageTracker
+import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.BottomAppBarAnalyzerInspection
+import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.BottomNavAnalyzerInspection
+import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.BoundsAnalyzerInspection
+import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.ButtonSizeAnalyzerInspection
+import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.LongTextAnalyzerInspection
+import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.OverlapAnalyzerInspection
+import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.TextFieldSizeAnalyzerInspection
+import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.WearMarginAnalyzerInspection
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.vfs.VirtualFile
@@ -34,24 +43,27 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.fail
 
 class VisualLintAnalysisTest {
-  private lateinit var myAnalyticsManager: VisualLintAnalyticsManager
 
   @get:Rule
   val projectRule = AndroidGradleProjectRule()
+
+  private lateinit var resourceIdManger: TestResourceIdManager
 
   @Before
   fun setup() {
     projectRule.fixture.testDataPath = TestUtils.resolveWorkspacePath("tools/adt/idea/designer/testData").toString()
     RenderTestUtil.beforeRenderTestCase()
-    val surface = Mockito.mock(DesignSurface::class.java)
-    myAnalyticsManager = VisualLintAnalyticsManager(surface)
+    val visualLintInspections = arrayOf(BoundsAnalyzerInspection, BottomNavAnalyzerInspection, BottomAppBarAnalyzerInspection,
+                                        TextFieldSizeAnalyzerInspection, OverlapAnalyzerInspection, LongTextAnalyzerInspection,
+                                        ButtonSizeAnalyzerInspection, WearMarginAnalyzerInspection)
+    projectRule.fixture.enableInspections(*visualLintInspections)
   }
 
   @After
@@ -59,6 +71,7 @@ class VisualLintAnalysisTest {
     ApplicationManager.getApplication().invokeAndWait {
       RenderTestUtil.afterRenderTestCase()
     }
+    resourceIdManger.resetFinalIdsUsed()
   }
 
   @Test
@@ -67,12 +80,16 @@ class VisualLintAnalysisTest {
     projectRule.requestSyncAndWait()
 
     val module = projectRule.getModule("app")
+    // Disable final IDs for this test, so it can use light classes to resolve resources.
+    // Final IDs being enabled/disabled are covered by other tests, namely ModuleClassLoaderTest and LibraryResourceClassLoaderTest.
+    resourceIdManger = TestResourceIdManager.getManager(module)
+    resourceIdManger.setFinalIdsUsed(false)
     val facet = AndroidFacet.getInstance(module)!!
     val activityLayout = projectRule.project.baseDir.findFileByRelativePath("app/src/main/res/layout/activity_main.xml")!!
     val dashboardLayout = projectRule.project.baseDir.findFileByRelativePath("app/src/main/res/layout/fragment_dashboard.xml")!!
     val notificationsLayout = projectRule.project.baseDir.findFileByRelativePath("app/src/main/res/layout/fragment_notifications.xml")!!
     val homeLayout = projectRule.project.baseDir.findFileByRelativePath("app/src/main/res/layout/fragment_home.xml")!!
-    val filesToAnalyze = listOf(activityLayout, dashboardLayout, notificationsLayout, homeLayout)
+    var filesToAnalyze = listOf(activityLayout, dashboardLayout, notificationsLayout, homeLayout)
 
     val phoneConfiguration = RenderTestUtil.getConfiguration(module, activityLayout, "_device_class_phone")
     phoneConfiguration.setTheme("Theme.MaterialComponents.DayNight.DarkActionBar")
@@ -99,7 +116,7 @@ class VisualLintAnalysisTest {
       when ((it as VisualLintRenderIssue).type) {
         VisualLintErrorType.OVERLAP -> {
           assertEquals(3, it.models.size)
-          assertEquals("TextView (id: text_dashboard) is covered by ImageView (id: imageView)", it.summary)
+          assertEquals("text_dashboard <TextView> is covered by imageView <ImageView>", it.summary)
           assertEquals(
             "The content of TextView is partially hidden.<BR/>This may pose a problem for the readability of the text it contains.",
             it.description)
@@ -118,7 +135,7 @@ class VisualLintAnalysisTest {
         }
         VisualLintErrorType.LONG_TEXT -> {
           assertEquals(2, it.models.size)
-          assertEquals("TextView (id: text_notifications) has lines containing more than 120 characters", it.summary)
+          assertEquals("text_notifications <TextView> has lines containing more than 120 characters", it.summary)
           assertEquals(
             "TextView has lines containing more than 120 characters in 2 preview configurations.<BR/>Material Design recommends " +
             "reducing the width of TextView or switching to a " +
@@ -129,7 +146,7 @@ class VisualLintAnalysisTest {
         }
         VisualLintErrorType.BOUNDS -> {
           assertEquals(2, it.models.size)
-          assertEquals("ImageView (id: imageView) is partially hidden in layout", it.summary)
+          assertEquals("imageView <ImageView> is partially hidden in layout", it.summary)
           assertEquals(
             "ImageView is partially hidden in layout because it is not contained within the bounds of its parent in 2 preview " +
             "configurations.<BR/>Fix this issue by adjusting the size or position of ImageView.",
@@ -138,7 +155,7 @@ class VisualLintAnalysisTest {
         }
         VisualLintErrorType.BUTTON_SIZE -> {
           assertEquals(4, it.models.size)
-          assertEquals("The button Button (id: button) is too wide", it.summary)
+          assertEquals("The button button <Button> is too wide", it.summary)
           assertEquals(
             "The button Button is wider than 320dp in 4 preview configurations." +
             "<BR/>Material Design recommends buttons to be no wider than 320dp",
@@ -147,7 +164,7 @@ class VisualLintAnalysisTest {
         }
         VisualLintErrorType.TEXT_FIELD_SIZE -> {
           assertEquals(3, it.models.size)
-          assertEquals("The text field EditText (id: text_field) is too wide", it.summary)
+          assertEquals("The text field text_field <EditText> is too wide", it.summary)
           assertEquals(
             "The text field EditText is wider than 488dp in 3 preview configurations." +
             "<BR/>Material Design recommends text fields to be no wider than 488dp",
@@ -158,6 +175,86 @@ class VisualLintAnalysisTest {
       }
     }
 
+    projectRule.fixture.disableInspections(BoundsAnalyzerInspection, TextFieldSizeAnalyzerInspection)
+    VisualLintService.getInstance(projectRule.project).issueProvider.clear()
+    analyzeFile(facet, filesToAnalyze, phoneConfiguration)
+    analyzeFile(facet, filesToAnalyze, tabletConfiguration)
+    analyzeFile(facet, filesToAnalyze, foldableConfiguration)
+    analyzeFile(facet, filesToAnalyze, desktopConfiguration)
+    assertEquals(4, issues.size)
+    issues.map {it as VisualLintRenderIssue }.forEach {
+      assertNotEquals(VisualLintErrorType.BOUNDS, it.type)
+      assertNotEquals(VisualLintErrorType.TEXT_FIELD_SIZE, it.type)
+    }
+
+    val wearLayout = projectRule.project.baseDir.findFileByRelativePath("app/src/main/res/layout/wear_layout.xml")!!
+    filesToAnalyze = listOf(wearLayout)
+    VisualLintService.getInstance(projectRule.project).issueProvider.clear()
+    analyzeFile(facet, filesToAnalyze, phoneConfiguration)
+    assertEquals(7, issues.size)
+    issues.map {it as VisualLintRenderIssue }.forEach {
+      assertNotEquals(VisualLintErrorType.WEAR_MARGIN, it.type)
+    }
+
+    VisualLintService.getInstance(projectRule.project).issueProvider.clear()
+    val wearSquareConfiguration = RenderTestUtil.getConfiguration(module, wearLayout, "wearos_square")
+    analyzeFile(facet, filesToAnalyze, wearSquareConfiguration)
+    val wearRectConfiguration = RenderTestUtil.getConfiguration(module, wearLayout, "wearos_rect")
+    analyzeFile(facet, filesToAnalyze, wearRectConfiguration)
+    val wearSmallRoundConfiguration = RenderTestUtil.getConfiguration(module, wearLayout, "wearos_small_round")
+    analyzeFile(facet, filesToAnalyze, wearSmallRoundConfiguration)
+    val wearLargeRoundConfiguration = RenderTestUtil.getConfiguration(module, wearLayout, "wearos_large_round")
+    analyzeFile(facet, filesToAnalyze, wearLargeRoundConfiguration)
+    assertEquals(12, issues.size)
+    val wearIssues = issues.filterIsInstance<VisualLintRenderIssue>().filter { it.type == VisualLintErrorType.WEAR_MARGIN }
+    assertEquals(5, wearIssues.size)
+    wearIssues.forEach {
+      assertEquals("Visual Lint Issue", it.category)
+      assertEquals(HighlightSeverity.WARNING, it.severity)
+      assertNull(it.hyperlinkListener)
+      when (it.components.first().id) {
+        "image_view" -> {
+          assertEquals(3, it.models.size)
+          assertEquals("The view image_view <ImageView> is too close to the side of the device", it.summary)
+          assertEquals(
+            "In 3 preview configurations, the view ImageView is closer to the side of the device than the recommended amount.<BR/>" +
+            "It is recommended that, for Wear OS layouts, margins should be at least 2.5% for square devices, and 5.2% for round devices.",
+            it.description)
+        }
+        "textview1" -> {
+          assertEquals(4, it.models.size)
+          assertEquals("The view textview1 <TextView> is too close to the side of the device", it.summary)
+          assertEquals(
+            "In 4 preview configurations, the view TextView is closer to the side of the device than the recommended amount.<BR/>" +
+            "It is recommended that, for Wear OS layouts, margins should be at least 2.5% for square devices, and 5.2% for round devices.",
+            it.description)
+        }
+        "textview2" -> {
+          assertEquals(1, it.models.size)
+          assertEquals("The view textview2 <TextView> is too close to the side of the device", it.summary)
+          assertEquals(
+            "In a preview configuration, the view TextView is closer to the side of the device than the recommended amount.<BR/>" +
+            "It is recommended that, for Wear OS layouts, margins should be at least 2.5% for square devices, and 5.2% for round devices.",
+            it.description)
+        }
+        "textview3" -> {
+          assertEquals(3, it.models.size)
+          assertEquals("The view textview3 <TextView> is too close to the side of the device", it.summary)
+          assertEquals(
+            "In 3 preview configurations, the view TextView is closer to the side of the device than the recommended amount.<BR/>" +
+            "It is recommended that, for Wear OS layouts, margins should be at least 2.5% for square devices, and 5.2% for round devices.",
+            it.description)
+        }
+        "textview4" -> {
+          assertEquals(1, it.models.size)
+          assertEquals("The view textview4 <TextView> is too close to the side of the device", it.summary)
+          assertEquals(
+            "In a preview configuration, the view TextView is closer to the side of the device than the recommended amount.<BR/>" +
+            "It is recommended that, for Wear OS layouts, margins should be at least 2.5% for square devices, and 5.2% for round devices.",
+            it.description)
+        }
+      }
+    }
   }
 
   private fun analyzeFile(
@@ -174,7 +271,7 @@ class VisualLintAnalysisTest {
         try {
           val result = task.render().get()
           VisualLintService.getInstance(projectRule.project)
-            .analyzeAfterModelUpdate(result, nlModel, VisualLintBaseConfigIssues(), myAnalyticsManager)
+            .analyzeAfterModelUpdate(result, nlModel, VisualLintBaseConfigIssues(), VisualLintUsageTracker.getInstance(null))
         }
         catch (ex: Exception) {
           throw RuntimeException(ex)

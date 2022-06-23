@@ -22,6 +22,7 @@ import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.rendering.RenderResult
 import com.android.tools.idea.rendering.parsers.TagSnapshot
+import com.android.tools.idea.uibuilder.visual.analytics.VisualLintUsageTracker
 import com.android.utils.HtmlBuilder
 import com.intellij.lang.annotation.HighlightSeverity
 import javax.swing.event.HyperlinkListener
@@ -31,13 +32,18 @@ import javax.swing.event.HyperlinkListener
  */
 abstract class VisualLintAnalyzer {
   abstract val type: VisualLintErrorType
+  abstract val backgroundEnabled: Boolean
 
   /**
    * Analyze the given [RenderResult] for visual lint issues and return found [VisualLintRenderIssue]s
    */
-  fun analyze(renderResult: RenderResult, model: NlModel, analyticsManager: VisualLintAnalyticsManager): List<VisualLintRenderIssue> {
+  fun analyze(renderResult: RenderResult, model: NlModel, tracker: VisualLintUsageTracker,
+              runningInBackground: Boolean): List<VisualLintRenderIssue> {
+    if (runningInBackground && !backgroundEnabled) {
+      return emptyList()
+    }
     val issueContents = findIssues(renderResult, model)
-    return issueContents.map { createIssue(it, model, analyticsManager) }.toList()
+    return issueContents.map { createIssue(it, model, tracker) }.toList()
   }
 
   abstract fun findIssues(renderResult: RenderResult, model: NlModel): List<VisualLintIssueContent>
@@ -47,9 +53,9 @@ abstract class VisualLintAnalyzer {
   /** Create [VisualLintRenderIssue] for the given [VisualLintIssueContent]. */
   private fun createIssue(content: VisualLintIssueContent,
                           model: NlModel,
-                          analyticsManager: VisualLintAnalyticsManager): VisualLintRenderIssue {
+                          tracker: VisualLintUsageTracker): VisualLintRenderIssue {
     val component = componentFromViewInfo(content.view, model)
-    analyticsManager.trackIssueCreation(type)
+    tracker.trackIssueCreation(type)
     return VisualLintRenderIssue.builder()
       .summary(content.message)
       .severity(HighlightSeverity.WARNING)
@@ -74,7 +80,7 @@ abstract class VisualLintAnalyzer {
     val tagSnapshot = (viewInfo.cookie as? TagSnapshot)
     val name = tagSnapshot?.tagName?.substringAfterLast('.') ?: viewInfo.className
     val id = tagSnapshot?.getAttribute(SdkConstants.ATTR_ID, SdkConstants.ANDROID_URI)?.let { ResourceUrl.parse(it)?.name }
-    return id?.let { "$name (id: $it)" } ?: name
+    return id?.let { "$id <$name>" } ?: "<$name>"
   }
 
   protected fun componentFromViewInfo(viewInfo: ViewInfo, model: NlModel): NlComponent? {

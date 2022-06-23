@@ -516,6 +516,7 @@ android-studio/lib/resources.jar
 android-studio/lib/stats.jar
 android-studio/lib/testFramework.jar
 android-studio/lib/util.jar
+android-studio/lib/util_rt.jar
 android-studio/lib/winp.jar
 android-studio/license/XStream_license.txt
 android-studio/license/ant_license.txt
@@ -1308,6 +1309,7 @@ android-studio/plugins/android-ndk/resources/lldb/lib/zoneinfo/_common.py
 android-studio/plugins/android-ndk/resources/lldb/lib/zoneinfo/_tzpath.py
 android-studio/plugins/android-ndk/resources/lldb/lib/zoneinfo/_zoneinfo.py
 android-studio/plugins/android-ndk/resources/lldb/shared/jobject_printers/jstring_reader.py
+android-studio/plugins/android/lib/HdrHistogram-2.1.12.jar
 android-studio/plugins/android/lib/aapt2-proto-0.3.1.jar
 android-studio/plugins/android/lib/adt-ui.jar
 android-studio/plugins/android/lib/android-base-common.jar
@@ -2042,6 +2044,9 @@ android-studio/plugins/java/lib/sa-jdwp.jar
 android-studio/plugins/junit/lib/idea-junit.jar
 android-studio/plugins/junit/lib/junit-rt.jar
 android-studio/plugins/junit/lib/junit5-rt.jar
+android-studio/plugins/keymap-eclipse/lib/keymap-eclipse.jar
+android-studio/plugins/keymap-netbeans/lib/keymap-netbeans.jar
+android-studio/plugins/keymap-visualStudio/lib/keymap-visualStudio.jar
 android-studio/plugins/markdown/lib/markdown.jar
 android-studio/plugins/maven-model/lib/maven-model.jar
 android-studio/plugins/ml-models-local/lib/ml-models-local.jar

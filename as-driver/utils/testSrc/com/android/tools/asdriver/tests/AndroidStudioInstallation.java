@@ -15,9 +15,6 @@
  */
 package com.android.tools.asdriver.tests;
 
-import static org.apache.commons.io.file.PathUtils.copyDirectory;
-
-import com.android.SdkConstants;
 import com.android.repository.testframework.FakeProgressIndicator;
 import com.android.repository.util.InstallerUtil;
 import com.android.testutils.TestUtils;
@@ -28,7 +25,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,7 +44,7 @@ public class AndroidStudioInstallation {
   public static AndroidStudioInstallation fromZip(Path tempDir) throws IOException {
     Path workDir = Files.createTempDirectory(tempDir, "android-studio");
     System.out.println("workDir: " + workDir);
-    Path studioZip = getBinPath("tools/adt/idea/studio/android-studio.linux.zip");
+    Path studioZip = TestUtils.getBinPath("tools/adt/idea/studio/android-studio.linux.zip");
     unzip(studioZip, workDir);
     return new AndroidStudioInstallation(workDir, workDir.resolve("android-studio"));
   }
@@ -80,17 +76,17 @@ public class AndroidStudioInstallation {
   }
 
   private void createVmOptionsFile() throws IOException {
-    Path agentZip = AndroidStudioInstallation.getBinPath("tools/adt/idea/as-driver/as_driver_deploy.jar");
+    Path agentZip = TestUtils.getBinPath("tools/adt/idea/as-driver/as_driver_deploy.jar");
     if (!Files.exists(agentZip)) {
       throw new IllegalStateException("agent not found at " + agentZip);
     }
 
-    String vmOptions = String.format("-javaagent:%s\n", agentZip) +
-                       String.format("-Didea.config.path=%s/config\n", workDir) +
-                       String.format("-Didea.plugins.path=%s/config/plugins\n", workDir) +
-                       String.format("-Didea.system.path=%s/system\n", workDir) +
-                       String.format("-Didea.log.path=%s\n", logsDir) +
-                       String.format("-Duser.home=%s\n", homeDir);
+    String vmOptions = String.format("-javaagent:%s%n", agentZip) +
+                       String.format("-Didea.config.path=%s%n", configDir) +
+                       String.format("-Didea.plugins.path=%s/plugins%n", configDir) +
+                       String.format("-Didea.system.path=%s/system%n", workDir) +
+                       String.format("-Didea.log.path=%s%n", logsDir) +
+                       String.format("-Duser.home=%s%n", homeDir);
     Files.write(vmOptionsPath, vmOptions.getBytes(StandardCharsets.UTF_8));
   }
 
@@ -103,13 +99,11 @@ public class AndroidStudioInstallation {
   }
 
   /**
-   * Emits the agent's stdout and stderr logs to the console. At the time of writing, this is
-   * useful because the logs aren't captured anywhere permanent, so this is potentially the only
-   * way to diagnose test failures until we come up with something more permanent.
-   *
-   * TODO(b/234144552): save off the log files rather than emitting them to stdout.
+   * Emits the agent's stdout and stderr logs to the console. When running a test locally, this can
+   * be helpful for viewing the logs without having to suspend any processes; without this, you
+   * would have to manually locate the randomly created temporary directories holding the logs.
    */
-  public void emitLogs() {
+  public void debugEmitLogs() {
     try {
       stdout.printContents();
       stderr.printContents();
@@ -146,20 +140,32 @@ public class AndroidStudioInstallation {
     Files.createDirectories(consentOptions.getParent());
     Files.writeString(consentOptions, combinedString);
   }
-
   /**
-   * Copies an already-built SDK to a path where Android Studio will find it.
+   * Prevents a notification about {@code .pro} files and "Shrinker Config" from popping up. This
+   * notification occurs as a result of two plugins trying to register the {@code .pro} file type.
    *
-   * TODO(b/234069426): change this function to <i>point</i> at the SDK rather than copying it
-   * @param androidPlatform A string like "android-32".
-   * @throws IOException If there's a problem copying the files.
+   * @see com.intellij.openapi.fileTypes.impl.ConflictingFileTypeMappingTracker#resolveConflict
    */
-  public void copySdk(String androidPlatform) throws IOException {
-    Path sdkSource = TestUtils.getSdk().resolve(SdkConstants.FD_PLATFORMS).resolve(androidPlatform);
-    Path dest = workDir.resolve("home/Android/Sdk").resolve(SdkConstants.FD_PLATFORMS).resolve(androidPlatform);
-    Files.createDirectories(dest.getParent());
-    System.out.println("Copying " + sdkSource + " to " + dest);
-    copyDirectory(sdkSource, dest, StandardCopyOption.REPLACE_EXISTING);
+  public void preventProguardNotification() throws IOException {
+    Path filetypePaths = configDir.resolve("options/filetypes.xml");
+
+    if (filetypePaths.toFile().exists()) {
+      throw new IllegalStateException(
+        String.format("%s already exists, which means this method should be changed to merge with it rather than overwriting it.",
+                      filetypePaths));
+    }
+
+    Files.createDirectories(filetypePaths.getParent());
+    String filetypeContents =
+      "<application>\n" +
+      "  <component name=\"FileTypeManager\" version=\"18\">\n" +
+      "    <extensionMap>\n" +
+      "      <removed_mapping ext=\"pro\" type=\"DeviceSpecFile\" />\n" +
+      "      <mapping ext=\"pro\" type=\"Shrinker Config File\" />\n" +
+      "    </extensionMap>\n" +
+      "  </component>\n" +
+      "</application>";
+    Files.writeString(filetypePaths, filetypeContents, StandardCharsets.UTF_8);
   }
 
   /**
@@ -253,15 +259,6 @@ public class AndroidStudioInstallation {
 
   public AndroidStudio attach() throws IOException, InterruptedException {
     return AndroidStudio.attach(this);
-  }
-
-  static public Path getBinPath(String bin) {
-    Path path = TestUtils.resolveWorkspacePathUnchecked(bin);
-    if (!Files.exists(path)) {
-      // running from IJ
-      path = TestUtils.resolveWorkspacePathUnchecked("bazel-bin/" + bin);
-    }
-    return path;
   }
 
   public AndroidStudio run(Display display) throws IOException, InterruptedException {

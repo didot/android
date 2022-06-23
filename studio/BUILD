@@ -1,4 +1,4 @@
-load("//tools/base/bazel:bazel.bzl", "iml_module")
+load("//tools/base/bazel:bazel.bzl", "iml_module", "iml_test")
 load("//tools/adt/idea/studio:studio.bzl", "android_studio", "studio_plugin")
 
 studio_plugin(
@@ -29,6 +29,7 @@ studio_plugin(
         "//tools/adt/idea/.idea/libraries:emulator-proto",
         "//tools/adt/idea/.idea/libraries:ffmpeg",
         "//tools/adt/idea/.idea/libraries:firebase_java_proto",
+        "//tools/adt/idea/.idea/libraries:HdrHistogram",
         "//tools/adt/idea/.idea/libraries:javax-inject",
         "//tools/adt/idea/.idea/libraries:kotlinx-coroutines-guava",
         "//tools/adt/idea/.idea/libraries:kxml2",
@@ -218,6 +219,7 @@ studio_plugin(
             "//tools/base/build-system/builder-model:studio.android.sdktools.builder-model",
             "//tools/base/build-system/builder-test-api:studio.android.sdktools.builder-test-api",
             "//tools/base/adblib:studio.android.sdktools.adblib",
+            "//tools/base/adblib-ddmlibcompatibility:studio.android.sdktools.adblib.ddmlibcompatibility",
             "//tools/base/adblib-tools:studio.android.sdktools.adblib.tools",
             "//tools/base/ddmlib:studio.android.sdktools.ddmlib",
             "//tools/base/deploy/deployer:studio.android.sdktools.deployer",
@@ -533,6 +535,7 @@ studio_plugin(
     deps = [
         ":org.jetbrains.android",
         "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Groovy",
+        "//prebuilts/studio/intellij-sdk:studio-sdk-plugin-Kotlin",
     ],
 )
 
@@ -561,9 +564,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 6,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 
@@ -595,23 +598,6 @@ py_test(
         ":updater.jar",
     ],
     tags = ["no_windows"],  # b/233968084
-)
-
-py_test(
-    name = "startup_test",
-    srcs = [
-        "tests/startup_test.py",
-    ],
-    data = [
-        ":android-studio.linux.zip",
-        "//tools/vendor/google/testing/display:xvfb",
-    ],
-    python_version = "PY3",
-    tags = [
-        "block_network",
-        "no_mac",
-        "no_windows",
-    ],
 )
 
 py_binary(
@@ -767,11 +753,9 @@ iml_module(
 # managed by go/iml_to_build
 iml_module(
     name = "intellij.android.studio.integration",
+    enable_tests = False,
     iml_files = ["integration/intellij.android.studio.integration/intellij.android.studio.integration.iml"],
     test_srcs = ["integration/intellij.android.studio.integration/testSrc"],
-    test_tags = [
-        "manual",  # These tests are run individually below
-    ],
     visibility = ["//visibility:public"],
     # do not sort: must match IML order
     deps = [
@@ -782,29 +766,28 @@ iml_module(
     ],
 )
 
-java_test(
+iml_test(
     name = "StartUpTest",
     data = [":android-studio.linux.zip"],
+    module = ":intellij.android.studio.integration",
     tags = [
         "no_mac",
         "no_windows",
     ],
     test_class = "com.android.tools.idea.StartUpTest",
-    runtime_deps = [":intellij.android.studio.integration_testlib"],
 )
 
-java_test(
+iml_test(
     name = "UpdateTest",
     data = [
         ":android-studio.linux.zip",
         ":updater",
         ":updater.jar",
     ],
+    module = ":intellij.android.studio.integration",
     tags = [
-        "manual",  # b/234170016
         "no_mac",
         "no_windows",
     ],
     test_class = "com.android.tools.idea.UpdateTest",
-    runtime_deps = [":intellij.android.studio.integration_testlib"],
 )

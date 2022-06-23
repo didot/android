@@ -16,6 +16,7 @@
 package com.android.tools.asdriver.inject;
 
 import com.android.tools.asdriver.proto.ASDriver;
+import com.intellij.BundleBase;
 import com.intellij.ide.DataManager;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationsManager;
@@ -73,8 +74,9 @@ public class StudioInteractionService {
   public StudioInteractionService() { }
 
   /**
-   * Invokes a component. The bulk of the complexity of this method's implementation comes from
-   * concurrency and modality. There are three general scenarios that this method covers:
+   * Finds and invokes a component. The bulk of the complexity of this method's implementation
+   * comes from concurrency and modality. There are three general scenarios that this method
+   * covers:
    * <p>
    * <ol>
    *   <li>Successfully finding and invoking a component which spawns a modal dialog</li>
@@ -98,7 +100,7 @@ public class StudioInteractionService {
    * In all cases, we must ensure that the component does not disappear or otherwise become invalid
    * between <b>finding</b> and <b>invoking</b> (see b/235277847).
    */
-  public void invokeComponent(List<ASDriver.ComponentMatcher> matchers) throws InterruptedException, TimeoutException, InvocationTargetException {
+  public void findAndInvokeComponent(List<ASDriver.ComponentMatcher> matchers) throws InterruptedException, TimeoutException, InvocationTargetException {
     log("Attempting to find and invoke a component with matchers: " + matchers);
     // TODO(b/234067246): consider this timeout when addressing b/234067246.
     int timeoutMillis = 10000;
@@ -113,7 +115,7 @@ public class StudioInteractionService {
           Optional<Component> component = findComponentFromMatchers(matchers);
           if (component.isPresent()) {
             foundComponent.set(true);
-            invokeComponentInternal(component.get());
+            invokeComponent(component.get());
           }
       });
 
@@ -144,7 +146,8 @@ public class StudioInteractionService {
     }
 
     if (elapsedTime >= timeoutMillis) {
-      throw new TimeoutException(String.format("Timed out after %dms", elapsedTime));
+      throw new TimeoutException(
+        String.format("Timed out after %dms to find and invoke a component with these matchers: %s", elapsedTime, matchers));
     }
   }
 
@@ -152,7 +155,7 @@ public class StudioInteractionService {
     System.out.printf("%s %s%n", LOG_PREFIX, text);
   }
 
-  private void invokeComponentInternal(Component component) {
+  private void invokeComponent(Component component) {
     if (component instanceof ActionLink) {
       ActionLink componentAsLink = (ActionLink)component;
       log("Invoking ActionLink: " + componentAsLink);
@@ -228,7 +231,7 @@ public class StudioInteractionService {
       String componentText = getTextFromComponent(c);
 
       // Remove any escape characters introduced by mnemonics from the component's text.
-      String textWithoutEscapeCharacter = componentText == null ? null : componentText.replaceAll("[\\x1B]", "");
+      String textWithoutEscapeCharacter = componentText == null ? null : componentText.replaceAll(String.valueOf(BundleBase.MNEMONIC), "");
       return Objects.equals(componentText, text) || Objects.equals(textWithoutEscapeCharacter, text);
     };
     Set<Component> componentsFound = componentsToLookUnder.stream().filter(filterByText).collect(Collectors.toSet());

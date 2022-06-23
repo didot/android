@@ -19,14 +19,16 @@ import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.swing.FakeUi
-import com.android.tools.adtui.swing.popup.JBPopupRule
 import com.android.tools.analytics.UsageTrackerRule
 import com.android.tools.idea.FakeAndroidProjectDetector
+import com.android.tools.idea.concurrency.waitForCondition
 import com.android.tools.idea.logcat.FakeLogcatPresenter
 import com.android.tools.idea.logcat.FakePackageNamesProvider
 import com.android.tools.idea.logcat.LogcatPresenter
 import com.android.tools.idea.logcat.PACKAGE_NAMES_PROVIDER_KEY
 import com.android.tools.idea.logcat.TAGS_PROVIDER_KEY
+import com.android.tools.idea.logcat.filters.FilterTextField.FilterHistoryItem.Item
+import com.android.tools.idea.logcat.filters.FilterTextField.HistoryList
 import com.android.tools.idea.logcat.util.AndroidProjectDetector
 import com.android.tools.idea.logcat.util.logcatEvents
 import com.google.common.truth.Truth.assertThat
@@ -37,6 +39,7 @@ import com.intellij.icons.AllIcons
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.asSequence
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.ProjectRule
@@ -45,18 +48,24 @@ import com.intellij.testFramework.RunsInEdt
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.ui.EditorTextField
+import com.intellij.ui.SimpleColoredComponent
+import com.intellij.util.ui.components.BorderLayoutPanel
 import icons.StudioIcons
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runBlockingTest
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.verify
+import java.awt.Component
 import java.awt.Dimension
 import java.awt.event.FocusEvent
 import java.awt.event.KeyEvent
 import java.awt.event.KeyEvent.VK_ENTER
+import java.util.concurrent.TimeUnit.SECONDS
 import javax.swing.Icon
 import javax.swing.JLabel
+import javax.swing.JPanel
 import javax.swing.JSeparator
 
 /**
@@ -64,15 +73,15 @@ import javax.swing.JSeparator
  */
 class FilterTextFieldTest {
   private val projectRule = ProjectRule()
-  private val popupRule = JBPopupRule()
   private val usageTrackerRule = UsageTrackerRule()
 
   @get:Rule
-  val rule = RuleChain(projectRule, EdtRule(), usageTrackerRule, popupRule)
+  val rule = RuleChain(projectRule, EdtRule(), usageTrackerRule)
 
+  private val project get() = projectRule.project
   private val filterHistory by lazy { AndroidLogcatFilterHistory.getInstance() }
-  private val fakeLogcatPresenter by lazy { FakeLogcatPresenter().apply { Disposer.register(projectRule.project, this) } }
-  private val logcatFilterParser by lazy { LogcatFilterParser(projectRule.project, FakePackageNamesProvider()) }
+  private val fakeLogcatPresenter by lazy { FakeLogcatPresenter().apply { Disposer.register(project, this) } }
+  private val logcatFilterParser by lazy { LogcatFilterParser(project, FakePackageNamesProvider()) }
 
   @After
   fun tearDown() {
@@ -115,7 +124,7 @@ class FilterTextFieldTest {
   fun createEditor_putsUserData() {
     val editorFactory = EditorFactory.getInstance()
     val androidProjectDetector = FakeAndroidProjectDetector(true)
-    val filterTextField = filterTextField(projectRule.project, fakeLogcatPresenter, androidProjectDetector = androidProjectDetector)
+    val filterTextField = filterTextField(project, fakeLogcatPresenter, androidProjectDetector = androidProjectDetector)
 
     val editor = filterTextField.getEditorEx()
 
@@ -218,6 +227,99 @@ class FilterTextFieldTest {
         .build())
   }
 
+  @Suppress("OPT_IN_USAGE") // runBlockingTest is experimental
+  @Test
+  @RunsInEdt
+  fun historyList_render() = runBlockingTest {
+    filterHistory.add("foo", isFavorite = true)
+    filterHistory.add("bar", isFavorite = false)
+    fakeLogcatPresenter.filterMatchesCount["foo"] = 1
+    fakeLogcatPresenter.filterMatchesCount["bar"] = 2
+    val historyList = HistoryList(project, fakeLogcatPresenter, filterHistory, logcatFilterParser, coroutineContext)
+    historyList.waitForCounts(fakeLogcatPresenter)
+
+    assertThat(historyList.renderToStrings()).containsExactly(
+      "*: foo ( 1 )",
+      "----------------------------------",
+      " : bar ( 2 )",
+      "----------------------------------",
+      "Press Delete to remove an item",
+    ).inOrder() // Order is reverse of the order added
+  }
+
+  @Suppress("OPT_IN_USAGE") // runBlockingTest is experimental
+  @Test
+  @RunsInEdt
+  fun historyList_renderOnlyFavorites() = runBlockingTest {
+    filterHistory.add("foo", isFavorite = true)
+    filterHistory.add("bar", isFavorite = true)
+    fakeLogcatPresenter.filterMatchesCount["foo"] = 1
+    fakeLogcatPresenter.filterMatchesCount["bar"] = 2
+    val historyList = HistoryList(project, fakeLogcatPresenter, filterHistory, logcatFilterParser, coroutineContext)
+    historyList.waitForCounts(fakeLogcatPresenter)
+
+    assertThat(historyList.renderToStrings()).containsExactly(
+      "*: bar ( 2 )",
+      "*: foo ( 1 )",
+      "----------------------------------",
+      "Press Delete to remove an item",
+    ).inOrder() // Order is reverse of the order added
+  }
+
+  @Suppress("OPT_IN_USAGE") // runBlockingTest is experimental
+  @Test
+  @RunsInEdt
+  fun historyList_renderNoFavorites() = runBlockingTest {
+    filterHistory.add("foo", isFavorite = false)
+    filterHistory.add("bar", isFavorite = false)
+    fakeLogcatPresenter.filterMatchesCount["foo"] = 1
+    fakeLogcatPresenter.filterMatchesCount["bar"] = 2
+    val historyList = HistoryList(project, fakeLogcatPresenter, filterHistory,logcatFilterParser,  coroutineContext)
+    historyList.waitForCounts(fakeLogcatPresenter)
+
+    assertThat(historyList.renderToStrings()).containsExactly(
+      " : bar ( 2 )",
+      " : foo ( 1 )",
+      "----------------------------------",
+      "Press Delete to remove an item",
+    ).inOrder() // Order is reverse of the order added
+  }
+
+  @Suppress("OPT_IN_USAGE") // runBlockingTest is experimental
+  @Test
+  @RunsInEdt
+  fun historyList_renderNamedFilter() = runBlockingTest {
+    filterHistory.add("name:Foo tag:Foo", isFavorite = false)
+    fakeLogcatPresenter.filterMatchesCount["name:Foo tag:Foo"] = 1
+    val historyList = HistoryList(project, fakeLogcatPresenter, filterHistory, logcatFilterParser, coroutineContext)
+    historyList.waitForCounts(fakeLogcatPresenter)
+
+    assertThat(historyList.renderToStrings()).containsExactly(
+      " : Foo ( 1 )",
+      "----------------------------------",
+      "Press Delete to remove an item",
+    ).inOrder()
+  }
+
+  @Suppress("OPT_IN_USAGE") // runBlockingTest is experimental
+  @Test
+  @RunsInEdt
+  fun historyList_renderNamedFilterWithSameName() = runBlockingTest {
+    filterHistory.add("name:Foo tag:Foo", isFavorite = false)
+    filterHistory.add("name:Foo tag:Foobar", isFavorite = false)
+    fakeLogcatPresenter.filterMatchesCount["name:Foo tag:Foo"] = 1
+    fakeLogcatPresenter.filterMatchesCount["name:Foo tag:Foobar"] = 2
+    val historyList = HistoryList(project, fakeLogcatPresenter, filterHistory, logcatFilterParser, coroutineContext)
+    historyList.waitForCounts(fakeLogcatPresenter)
+
+    assertThat(historyList.renderToStrings()).containsExactly(
+      " : Foo: tag:Foobar ( 2 )",
+      " : Foo: tag:Foo ( 1 )",
+      "----------------------------------",
+      "Press Delete to remove an item",
+    ).inOrder() // Order is reverse of the order added
+  }
+
   @Test
   @RunsInEdt
   fun clickClear() {
@@ -312,7 +414,7 @@ class FilterTextFieldTest {
   }
 
   private fun filterTextField(
-    project: Project = projectRule.project,
+    project: Project = this.project,
     logcatPresenter: LogcatPresenter = fakeLogcatPresenter,
     filterParser: LogcatFilterParser = logcatFilterParser,
     initialText: String = "",
@@ -329,3 +431,41 @@ class FilterTextFieldTest {
 
 private fun FilterTextField.getButtonWithIcon(icon: Icon) =
   TreeWalker(this).descendants().filterIsInstance<JLabel>().first { it.icon == icon }
+
+private fun HistoryList.renderToStrings(): List<String> {
+  return model.asSequence().toList().map {
+    val component = cellRenderer.getListCellRendererComponent(this, it, 0, false, false)
+
+    component.renderToString()
+  }
+}
+
+private fun Component.renderToString(): String {
+  return when (this) {
+    is BorderLayoutPanel -> this.renderToString()
+    is JPanel -> this.renderToString()
+    else -> throw IllegalStateException("Unexpected object: ${this::class}")
+  }
+}
+
+private fun BorderLayoutPanel.renderToString(): String {
+  val favorite = if ((components[0] as JLabel).icon == StudioIcons.Logcat.Input.FAVORITE_FILLED) "*" else " "
+  val text = (components[1] as SimpleColoredComponent).toString()
+  val count = (components[2] as JLabel).text
+  return "$favorite: $text ($count)"
+}
+
+private fun JPanel.renderToString(): String {
+  return when (val child = components[0]) {
+    is JSeparator -> "----------------------------------"
+    is JLabel -> child.text
+    else -> throw IllegalStateException("Unexpected object: ${child::class}")
+  }
+}
+
+private fun HistoryList.waitForCounts(fakeLogcatPresenter: FakeLogcatPresenter) {
+  waitForCondition(2, SECONDS) {
+    val counts = model.asSequence().filterIsInstance<Item>().associateBy({it.filter}, {it.count})
+    counts == fakeLogcatPresenter.filterMatchesCount
+  }
+}

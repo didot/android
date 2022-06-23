@@ -22,6 +22,7 @@ import com.android.tools.idea.devicemanager.DeviceType;
 import com.android.tools.idea.devicemanager.Key;
 import com.android.tools.idea.devicemanager.Resolution;
 import com.android.tools.idea.wearpairing.AndroidWearPairingBundle;
+import java.util.Collection;
 import java.util.Objects;
 import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
@@ -86,6 +87,11 @@ public final class VirtualDevice extends Device {
 
     @NotNull Builder setDensity(int density) {
       myDensity = density;
+      return this;
+    }
+
+    @NotNull Builder addAllAbis(@NotNull Collection<@NotNull String> abis) {
+      myAbis.addAll(abis);
       return this;
     }
 
@@ -190,6 +196,7 @@ public final class VirtualDevice extends Device {
     hashCode = 31 * hashCode + Objects.hashCode(myResolution);
     hashCode = 31 * hashCode + myDensity;
     hashCode = 31 * hashCode + myAbis.hashCode();
+    hashCode = 31 * hashCode + Objects.hashCode(myStorageDevice);
     hashCode = 31 * hashCode + myAvdInfo.hashCode();
 
     return hashCode;
@@ -214,6 +221,7 @@ public final class VirtualDevice extends Device {
            Objects.equals(myResolution, device.myResolution) &&
            myDensity == device.myDensity &&
            myAbis.equals(device.myAbis) &&
+           Objects.equals(myStorageDevice, device.myStorageDevice) &&
            myAvdInfo.equals(device.myAvdInfo);
   }
 }

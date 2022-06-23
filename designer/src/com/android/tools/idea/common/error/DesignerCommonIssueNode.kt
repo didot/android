@@ -15,7 +15,10 @@
  */
 package com.android.tools.idea.common.error
 
+import com.android.ide.common.rendering.HardwareConfigHelper
 import com.android.tools.idea.common.surface.navigateToComponent
+import com.android.tools.idea.uibuilder.visual.ConfigurationSet
+import com.android.tools.idea.uibuilder.visual.VisualizationToolWindowFactory
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintRenderIssue
 import com.android.tools.idea.uibuilder.visual.visuallint.isVisualLintErrorSuppressed
 import com.google.common.collect.Ordering
@@ -36,6 +39,7 @@ import com.intellij.psi.util.PsiUtilCore
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.tree.LeafState
 import icons.StudioIcons
+import org.assertj.core.util.VisibleForTesting
 import java.util.Objects
 
 /**
@@ -288,16 +292,44 @@ class VisualLintIssueNode(private val visualLintIssue: VisualLintRenderIssue, pa
     }
     val targetComponent = visualLintIssue.components
                             .filterNot { it.isVisualLintErrorSuppressed(visualLintIssue.type) }
-                            .firstOrNull() ?: return null
+                            .firstOrNull()
+    val openLayoutValidationNavigatable = if (HardwareConfigHelper.isWear(visualLintIssue.models.firstOrNull()?.configuration?.device)) {
+      SelectWearDevicesNavigatable(project)
+    } else {
+      SelectWindowSizeDevicesNavigatable(project)
+    }
+    if (targetComponent == null) {
+      return openLayoutValidationNavigatable
+    }
 
     return object : Navigatable {
       override fun navigate(requestFocus: Boolean) {
         navigateToComponent(targetComponent, true)
+        openLayoutValidationNavigatable.navigate(requestFocus)
       }
       override fun canNavigate(): Boolean = project != null
       override fun canNavigateToSource(): Boolean = project != null
     }
   }
+}
+
+@VisibleForTesting
+class SelectWindowSizeDevicesNavigatable(project: Project): OpenLayoutValidationNavigatable(project, ConfigurationSet.WindowSizeDevices)
+
+@VisibleForTesting
+class SelectWearDevicesNavigatable(project: Project): OpenLayoutValidationNavigatable(project, ConfigurationSet.WearDevices)
+
+@VisibleForTesting
+open class OpenLayoutValidationNavigatable(project: Project, configurationSetToSelect: ConfigurationSet) : Navigatable {
+  private val task = { VisualizationToolWindowFactory.openAndSetConfigurationSet(project, configurationSetToSelect) }
+
+  override fun navigate(requestFocus: Boolean) {
+    task()
+  }
+
+  override fun canNavigate(): Boolean = true
+
+  override fun canNavigateToSource(): Boolean = true
 }
 
 private fun createIssueCountText(issueCount: Int): String {
