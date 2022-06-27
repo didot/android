@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit
 private const val DELAY = 60L
 private const val INITIAL_DELAY = 10L
 
-class ProjectMetricsInitializer : ProjectManagerListener {
+internal class ProjectMetricsInitializer : ProjectManagerListener {
   private val persistStatisticsSessionsMap = Collections.synchronizedMap(HashMap<Project, Future<*>>())
 
   override fun projectOpened(project: Project) {
