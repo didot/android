@@ -36,17 +36,16 @@ import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.idea.compiler.configuration.IdeKotlinVersion
 import org.jetbrains.kotlin.idea.configuration.BuildSystemType
 import org.jetbrains.kotlin.idea.configuration.NotificationMessageCollector
-import org.jetbrains.kotlin.idea.configuration.createConfigureKotlinNotificationCollector
 import org.jetbrains.kotlin.idea.configuration.buildSystemType
 import org.jetbrains.kotlin.idea.framework.ui.ConfigureDialogWithModulesAndVersion
 import org.jetbrains.kotlin.idea.gradle.KotlinIdeaGradleBundle
-import org.jetbrains.kotlin.idea.gradleJava.configuration.KotlinWithGradleConfigurator
+import org.jetbrains.kotlin.idea.gradleCodeInsightCommon.KotlinWithGradleConfigurator
+import org.jetbrains.kotlin.idea.projectConfiguration.hasJreSpecificRuntime
 import org.jetbrains.kotlin.idea.util.application.executeCommand
 import org.jetbrains.kotlin.idea.util.projectStructure.version
-import org.jetbrains.kotlin.idea.versions.MAVEN_STDLIB_ID_JDK7
-import org.jetbrains.kotlin.idea.versions.hasJreSpecificRuntime
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
+import org.jetbrains.kotlin.utils.PathUtil
 
 class KotlinAndroidGradleModuleConfigurator : KotlinWithGradleConfigurator() {
 
@@ -227,7 +226,7 @@ class KotlinAndroidGradleModuleConfigurator : KotlinWithGradleConfigurator() {
             val sdkVersion = sdk.version
             if (sdkVersion != null && sdkVersion.isAtLeast(JavaSdkVersion.JDK_1_8)) {
                 // Android dex can't convert our kotlin-stdlib-jre8 artifact, so use jre7 instead (KT-16530)
-                return MAVEN_STDLIB_ID_JDK7
+                return PathUtil.KOTLIN_JAVA_RUNTIME_JDK7_NAME
             }
         }
 
@@ -249,7 +248,7 @@ class KotlinAndroidGradleModuleConfigurator : KotlinWithGradleConfigurator() {
 
     fun doConfigure(project: Project, modules: List<Module>, version: String): NotificationMessageCollector {
         return project.executeCommand(KotlinIdeaGradleBundle.message("command.name.configure.kotlin")) {
-            val collector = createConfigureKotlinNotificationCollector(project)
+            val collector = NotificationMessageCollector.create(project)
             val changedFiles = configureWithVersion(project, modules, IdeKotlinVersion.get(version), collector)
 
             for (file in changedFiles) {
