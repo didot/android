@@ -332,11 +332,10 @@ public final class StudioFlags {
     "Enable so that visual lint always runs in the background of the layout editor for select configurations. This is also known as the background linting",
     true);
 
-  public static final Flag<Boolean> NELE_INCLUDE_QUALIFIERS_FOR_TRAFFIC_LIGHTS = Flag.create(
-    NELE, "include.qualifiers.for.traffic.lights", "Include errors from qualifier variants in traffic lights",
-    "Use errors from the current file and its qualifier variants to be displayed in the traffic light renderer",
-    false
-  );
+  public static final Flag<Boolean> NELE_USE_CUSTOM_TRAFFIC_LIGHTS_FOR_RESOURCES = Flag.create(
+    NELE, "use.custom.traffic.lights.for.resources", "Base traffic lights on the errors from the shared issue panel",
+    "Use errors from the current file and qualifiers tab in the traffic light rendering for resource files.",
+    true);
 
   public static final Flag<Boolean> NELE_TRANSFORM_PANEL = Flag.create(
     NELE, "toggle.layout.editor.transform.panel", "Toggle transform panel in layout editor and motion editor.",
@@ -727,6 +726,9 @@ public final class StudioFlags {
   public static final Flag<Boolean> GRADLE_DSL_TOML_WRITE_SUPPORT = Flag.create(
     GRADLE_IDE, "gradle.dsl.toml.write", "Write TOML files", "Write changes to TOML Version Catalog files.", false);
 
+  public static final Flag<Boolean> GRADLE_SAVE_LOG_TO_FILE = Flag.create(
+    GRADLE_IDE, "save.log.to.file", "Save log to file", "Appends the build log to the given file", false);
+
   //endregion
 
   //region Database Inspector
@@ -989,11 +991,6 @@ public final class StudioFlags {
   //region Compose
   private static final FlagGroup COMPOSE = new FlagGroup(FLAGS, "compose", "Compose");
 
-  public static final Flag<Boolean> COMPOSE_PREVIEW_RUN_CONFIGURATION = Flag.create(
-    COMPOSE, "preview.run.configuration", "Enable running Compose Previews on device/emulator",
-    "If enabled, it will be possible to create run configurations that launch a Compose Preview directly to the device/emulator.",
-    true);
-
   public static final Flag<Boolean> COMPOSE_PREVIEW_DOUBLE_RENDER = Flag.create(
     COMPOSE, "preview.double.render", "Enable the Compose double render mode",
     "If enabled, preview components will be rendered twice so components depending on a recompose (like tableDecoration) " +
@@ -1078,27 +1075,6 @@ public final class StudioFlags {
     COMPOSE, "wizard.templates",
     "Show Compose Wizards",
     "If enabled, allows adding new Compose Projects/Modules/Activities through the wizards",
-    true
-  );
-
-  public static final Flag<Boolean> COMPOSE_ANIMATED_PREVIEW_SHOW_CLICK = Flag.create(
-    COMPOSE, "preview.animated.click.enable",
-    "Enable displaying clicks on the animated preview",
-    "If enabled, clicking on the animated preview will generate a ripple",
-    true
-  );
-
-  public static final Flag<Boolean> COMPOSE_ANIMATION_INSPECTOR = Flag.create(
-    COMPOSE, "preview.animation.inspector",
-    "Enable compose preview animation inspection",
-    "If enabled, users can inspect animations in compose previews, e.g. play/pause and jump to specific frame",
-    true
-  );
-
-  public static final Flag<Boolean> COMPOSE_ANIMATION_PREVIEW_LABEL_INSPECTION = Flag.create(
-    COMPOSE, "preview.animation.label.inspection",
-    "Enable 'label' parameter inspection of Compose animations PropKeys",
-    "If enabled, show a warning when the 'label' parameter of Compose animations PropKeys are not set.",
     true
   );
 
@@ -1383,14 +1359,33 @@ public final class StudioFlags {
       "enable.new.crashlytics.api",
       "Enable new Crashlytics API",
       "If enabled, new Crashlytics API is adopted.",
-      false);
+      true);
+
+  public static final Flag<String> CRASHLYTICS_GRPC_SERVER =
+    Flag.create(
+      APP_INSIGHTS,
+      "crashlytics.grpc.server",
+      "Set Crashlytics gRpc server address",
+      "Set Crashlytics gRpc server address, mainly used for testing purposes.",
+      "firebasecrashlytics.googleapis.com");
+
+  public static final Flag<Boolean> CRASHLYTICS_GRPC_USE_TRANSPORT_SECURITY =
+    Flag.create(
+      APP_INSIGHTS,
+      "crashlytics.grpc.use.transport.security",
+      "Use transport security",
+      "Set Crashlytics gRpc channel to use transport security",
+      true);
   // endregion App Insights
 
   // region App Links Assistant
-  private static final FlagGroup APP_LINKS_ASSISTANT = new FlagGroup(FLAGS, "applinksassistant", "App Links Assistant");
+  private static final FlagGroup APP_LINKS_ASSISTANT = new FlagGroup(FLAGS, "app.links.assistant", "App Links Assistant");
   public static final Flag<Boolean> KOTLIN_INTENT_HANDLING =
     Flag.create(APP_LINKS_ASSISTANT, "kotlin.intent.handling", "Kotlin Intent Handling",
                 "Support adding logic for intent handling in Kotlin.", true);
+  public static final Flag<Boolean> APP_LINKS_ASSISTANT_V2 =
+    Flag.create(APP_LINKS_ASSISTANT, "v2", "App Links Assistant V2",
+                "Revamped App Links Assistant (new surfaces and navigation between surfaces).", true);
   // endregion App Links Assistant
 
   // region GOOGLE_PLAY_SDK_INDEX

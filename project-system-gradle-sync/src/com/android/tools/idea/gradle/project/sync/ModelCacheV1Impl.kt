@@ -83,6 +83,7 @@ import com.android.tools.idea.gradle.model.impl.IdeAndroidGradlePluginProjectFla
 import com.android.tools.idea.gradle.model.impl.IdeAndroidLibraryImpl
 import com.android.tools.idea.gradle.model.impl.IdeAndroidProjectImpl
 import com.android.tools.idea.gradle.model.impl.IdeApiVersionImpl
+import com.android.tools.idea.gradle.model.impl.IdeBasicVariantImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTasksAndOutputInformationImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTypeContainerImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTypeImpl
@@ -131,9 +132,7 @@ import java.io.FileFilter
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-internal fun modelCacheV1Impl(internedModels: InternedModels, buildFolderPaths: BuildFolderPaths): ModelCache.V1 {
-
-  var artifactToLibraryReferenceMap: Map<File, LibraryReference>? = null
+internal fun modelCacheV1Impl(internedModels: InternedModels, buildFolderPaths: BuildFolderPaths, lock: ReentrantLock): ModelCache.V1 {
 
   fun deduplicateString(s: String): String = internedModels.intern(s)
   fun String.deduplicate() = internedModels.intern(this)
@@ -606,7 +605,7 @@ internal fun modelCacheV1Impl(internedModels: InternedModels, buildFolderPaths: 
           dependencies = artifactAddresses.map { address -> dependenciesById[address]!!.dependency }
         ),
         postProcessor = fun(): IdeDependenciesCoreImpl {
-          val refByArtifact = artifactToLibraryReferenceMap ?: error("ModelCache.prepare() hasn't been called.")
+          val refByArtifact = internedModels.artifactToLibraryReferenceMap ?: error("ModelCache.prepare() hasn't been called.")
 
           // (1) Any compile classpath dependencies are runtime classpath dependencies, if they are not `isProvided`.
           val regularRuntimeNotProvidedLibraryDependencies =
@@ -1191,11 +1190,14 @@ internal fun modelCacheV1Impl(internedModels: InternedModels, buildFolderPaths: 
     val defaultConfigCopy: IdeProductFlavorContainerImpl = copyModel(project.defaultConfig, ::productFlavorContainerFrom)
     val buildTypesCopy: Collection<IdeBuildTypeContainerImpl> = copy(project::getBuildTypes, ::buildTypeContainerFrom)
     val productFlavorCopy: Collection<IdeProductFlavorContainerImpl> = copy(project::getProductFlavors, ::productFlavorContainerFrom)
-    val variantNamesCopy: Collection<String> =
-      if (parsedModelVersion != null && parsedModelVersion < MODEL_VERSION_3_2_0)
-        copy(fun(): Collection<String> = project.variants.map { it.name }, ::deduplicateString)
-      else
-        copy(project::getVariantNames, ::deduplicateString)
+    val basicVariantsCopy: Collection<IdeBasicVariantImpl> =
+      (
+        if (parsedModelVersion != null && parsedModelVersion < MODEL_VERSION_3_2_0)
+          copy(fun(): Collection<String> = project.variants.map { it.name }, ::deduplicateString)
+        else
+          copy(project::getVariantNames, ::deduplicateString)
+        )
+        .map { IdeBasicVariantImpl(name = it) }
     val flavorDimensionCopy: Collection<String> = copy(project::getFlavorDimensions, ::deduplicateString)
     val bootClasspathCopy: Collection<String> = ImmutableList.copyOf(project.bootClasspath)
     val signingConfigsCopy: Collection<IdeSigningConfigImpl> = copy(project::getSigningConfigs, ::signingConfigFrom)
@@ -1226,7 +1228,7 @@ internal fun modelCacheV1Impl(internedModels: InternedModels, buildFolderPaths: 
       defaultConfig = defaultConfigCopy,
       buildTypes = buildTypesCopy,
       productFlavors = productFlavorCopy,
-      variantNames = variantNamesCopy,
+      basicVariants = basicVariantsCopy,
       flavorDimensions = flavorDimensionCopy,
       compileTarget = project.compileTarget,
       bootClasspath = bootClasspathCopy,
@@ -1254,28 +1256,8 @@ internal fun modelCacheV1Impl(internedModels: InternedModels, buildFolderPaths: 
   }
 
   return object : ModelCache.V1 {
-    private val lock = ReentrantLock()
     override val libraryResolver: (LibraryReference) -> IdeLibrary = internedModels::resolve
     override fun createLibraryTable(): IdeUnresolvedLibraryTableImpl = internedModels.createLibraryTable()
-
-    override fun prepare() {
-      artifactToLibraryReferenceMap = lock.withLock {
-        createLibraryTable()
-          .libraries
-          .mapIndexed { index, ideLibrary ->
-            val reference = LibraryReference(index)
-            reference to ideLibrary
-          }
-          .flatMap { (reference, ideLibrary) ->
-            when (ideLibrary) {
-              is IdeAndroidLibrary -> ideLibrary.runtimeJarFiles.map { it to reference }
-              is IdeJavaLibrary -> listOf(ideLibrary.artifact to reference)
-              else -> emptyList()
-            }
-          }
-          .toMap()
-      }
-    }
 
     override fun variantFrom(
       androidProject: IdeAndroidProjectImpl,

@@ -44,7 +44,6 @@ import com.android.tools.apk.analyzer.Archives;
 import com.android.tools.idea.apk.viewer.ApkParser;
 import com.android.tools.idea.gradle.model.IdeAndroidArtifact;
 import com.android.tools.idea.gradle.model.IdeAndroidArtifactOutput;
-import com.android.tools.idea.gradle.model.IdeAndroidProject;
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType;
 import com.android.tools.idea.gradle.model.IdeTestedTargetVariant;
 import com.android.tools.idea.gradle.model.IdeVariant;
@@ -54,7 +53,6 @@ import com.android.tools.idea.gradle.run.PostBuildModel;
 import com.android.tools.idea.gradle.run.PostBuildModelProvider;
 import com.android.tools.idea.gradle.util.BuildOutputUtil;
 import com.android.tools.idea.gradle.util.DynamicAppUtils;
-import com.android.tools.idea.gradle.util.GradleProjectSystemUtil;
 import com.android.tools.idea.gradle.util.OutputType;
 import com.android.tools.idea.log.LogWrapper;
 import com.android.tools.idea.projectsystem.AndroidProjectSettingsService;
@@ -62,7 +60,6 @@ import com.android.tools.idea.projectsystem.ProjectSystemSyncManager;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.projectsystem.gradle.GradleHolderProjectPath;
 import com.android.tools.idea.projectsystem.gradle.GradleProjectPath;
-import com.android.tools.idea.run.editor.ProfilerState;
 import com.android.tools.idea.sdk.AndroidSdks;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
@@ -392,7 +389,7 @@ public final class GradleApkProvider implements ApkProvider {
         String.format("Couldn't get post build model. Module: %s Variant: %s", facet.getModule().getName(), variantName));
     }
 
-    ModelCache.V1 modelCache = ModelCache.create();
+    ModelCache.V1 modelCache = ModelCache.createForPostBuildModels();
     if (facet.getConfiguration().getProjectType() == PROJECT_TYPE_INSTANTAPP) {
       InstantAppProjectBuildOutput outputModel =
         outputModels.findInstantAppProjectBuildOutput(getGradlePathAsStringForPostBuildModels(facet.getModule()));
@@ -506,7 +503,6 @@ public final class GradleApkProvider implements ApkProvider {
   @NotNull
   public static ImmutableList<ValidationError> doValidate(@NotNull AndroidFacet androidFacet,
                                                           boolean isTest,
-                                                          @NotNull ProfilerState.ProfilingMode profilingMode,
                                                           boolean alwaysDeployApkFromBundle) {
     ImmutableList.Builder<ValidationError> result = ImmutableList.builder();
 
@@ -544,8 +540,7 @@ public final class GradleApkProvider implements ApkProvider {
                                         isTest,
                                         targetDevicesMinVersion
         ) == OutputKind.AppBundleOutputModel ||
-        GradleApkProvider.isArtifactSigned(androidModuleModel, isTest) ||
-        profilingMode.shouldAutoSignApk()) {
+        GradleApkProvider.isArtifactSigned(androidModuleModel, isTest)) {
       return result.build();
     }
 

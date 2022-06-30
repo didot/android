@@ -21,7 +21,6 @@ import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.compose.preview.COMPOSE_PREVIEW_MANAGER
 import com.android.tools.idea.compose.preview.ComposePreviewManager
 import com.android.tools.idea.compose.preview.message
-import com.android.tools.idea.editors.fast.FastPreviewManager
 import com.android.tools.idea.editors.fast.fastPreviewManager
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.ProjectSystemBuildManager
@@ -31,6 +30,8 @@ import com.intellij.icons.AllIcons
 import com.intellij.ide.DataManager
 import com.intellij.notification.EventLog
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataContext
@@ -41,24 +42,30 @@ import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.actionSystem.RightAlignedToolbarAction
 import com.intellij.openapi.actionSystem.ex.CustomComponentAction
 import com.intellij.openapi.actionSystem.impl.ActionButtonWithText
+import com.intellij.openapi.actionSystem.impl.PresentationFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.EditorNotifications
 import com.intellij.ui.JBColor
 import com.intellij.ui.RoundedLineBorder
 import com.intellij.ui.components.AnActionLink
+import com.intellij.util.Alarm
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import org.jetbrains.annotations.VisibleForTesting
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Insets
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.lang.ref.WeakReference
 import javax.swing.Icon
 import javax.swing.JComponent
+import javax.swing.JToolTip
 import javax.swing.SwingConstants
 import javax.swing.border.Border
 
@@ -80,8 +87,8 @@ private const val ACTION_BORDER_ARC_SIZE = 5
 private const val ACTION_BORDER_THICKNESS = 1
 
 private fun chipBorder(color: Color): Border = RoundedLineBorder(UIUtil.toAlpha(color, ACTION_BORDER_ALPHA),
-                                                                ACTION_BORDER_ARC_SIZE,
-                                                                ACTION_BORDER_THICKNESS)
+                                                                 ACTION_BORDER_ARC_SIZE,
+                                                                 ACTION_BORDER_THICKNESS)
 
 /**
  * Represents the Compose Preview status to be notified to the user.
@@ -184,10 +191,12 @@ private sealed class ComposePreviewStatusNotification(
 
 private fun ComposePreviewManager.getStatusInfo(project: Project): ComposePreviewStatusNotification {
   val previewStatus = status()
-  val fastPreviewEnabled = FastPreviewManager.getInstance(project).isEnabled
+  val fastPreviewEnabled = project.fastPreviewManager.isEnabled
   return when {
-    // No Fast Preview and Preview is out of date
-    !fastPreviewEnabled && previewStatus.isOutOfDate -> ComposePreviewStatusNotification.OutOfDate
+    // No Fast Preview and Preview is out of date (only when is user disabled)
+    !fastPreviewEnabled &&
+    !project.fastPreviewManager.isAutoDisabled &&
+    previewStatus.isOutOfDate -> ComposePreviewStatusNotification.OutOfDate
 
     // Refresh status
     previewStatus.interactiveMode == ComposePreviewManager.InteractiveMode.STARTING ->
@@ -203,7 +212,7 @@ private fun ComposePreviewManager.getStatusInfo(project: Project): ComposePrevie
     previewStatus.hasSyntaxErrors -> ComposePreviewStatusNotification.SyntaxError
 
     // Fast preview refresh/failures
-    fastPreviewEnabled && project.fastPreviewManager.isAutoDisabled -> ComposePreviewStatusNotification.FastPreviewFailed
+    !fastPreviewEnabled && project.fastPreviewManager.isAutoDisabled -> ComposePreviewStatusNotification.FastPreviewFailed
     fastPreviewEnabled && project.fastPreviewManager.isCompiling -> ComposePreviewStatusNotification.FastPreviewCompiling
 
     // Up-to-date
@@ -258,6 +267,44 @@ fun actionLink(text: String, action: AnAction, delegateDataContext: DataContext)
   }
 
 /**
+ * Creates an [InformationPopup]. The given [dataContext] will be used by the popup to query for things like the current editor.
+ */
+@VisibleForTesting
+fun defaultCreateInformationPopup(
+  project: Project,
+  composePreviewManager: ComposePreviewManager,
+  dataContext: DataContext): InformationPopup {
+  return composePreviewManager.getStatusInfo(project).let {
+    val isAutoDisabled = it is ComposePreviewStatusNotification.FastPreviewFailed && project.fastPreviewManager.isAutoDisabled
+    return@let InformationPopup(
+      null,
+      it.description,
+      listOfNotNull(
+        StudioFlags.COMPOSE_FAST_PREVIEW.ifEnabled { ToggleFastPreviewAction() }
+      ),
+      listOfNotNull(
+        actionLink(
+          message("action.build.and.refresh.title")
+            .replace("&&", "&"), // Remove any ampersand escaping for tooltips (not needed in these links)
+          BuildAndRefresh(composePreviewManager), dataContext),
+        if (isAutoDisabled)
+          actionLink(message("fast.preview.disabled.notification.reenable.action.title"), ReEnableFastPreview(), dataContext)
+        else null,
+        if (isAutoDisabled)
+          actionLink(message("fast.preview.disabled.notification.stop.autodisable.action.title"), ReEnableFastPreview(false), dataContext)
+        else null,
+        if (it is ComposePreviewStatusNotification.FastPreviewFailed)
+          actionLink(message("fast.preview.disabled.notification.show.details.action.title"), ShowEventLogAction(), dataContext)
+        else null
+      )).also { newPopup ->
+      // Register the data provider of the popup to be the same as the one used in the toolbar. This allows for actions within the
+      // popup to query for things like the Editor even when the Editor is not directly related to the popup.
+      DataManager.registerDataProvider(newPopup.component()) { dataId -> dataContext.getData(dataId) }
+    }
+  }
+}
+
+/**
  * Action that reports the current state of the Compose Preview. Local issues for a given preview are reported as part of the preview itself
  * and not in this action.
  * This action reports:
@@ -267,7 +314,38 @@ fun actionLink(text: String, action: AnAction, delegateDataContext: DataContext)
  * Clicking on the action will open a pop-up with additional details and action buttons.
  */
 @VisibleForTesting
-class ComposeIssueNotificationAction : AnAction(), RightAlignedToolbarAction, CustomComponentAction, Disposable {
+class ComposeIssueNotificationAction(
+  private val createInformationPopup: (Project, ComposePreviewManager, DataContext) -> InformationPopup = ::defaultCreateInformationPopup)
+  : AnAction(), RightAlignedToolbarAction, CustomComponentAction, Disposable {  /**
+   * [Alarm] used to trigger the popup as a hint.
+   */
+  private val popupAlarm = Alarm()
+
+  /**
+   * [MouseAdapter] that schedules the popup.
+   */
+  private val mouseListener = object : MouseAdapter() {
+    override fun mouseEntered(me: MouseEvent) {
+      popupAlarm.cancelAllRequests()
+      popupAlarm.addRequest(
+        {
+          if (popup?.isVisible() == true) return@addRequest // Do not show if already showing
+          val anActionEvent = AnActionEvent.createFromInputEvent(
+            me,
+            ActionPlaces.EDITOR_POPUP,
+            PresentationFactory().getPresentation(this@ComposeIssueNotificationAction),
+            ActionToolbar.getDataContextFor(me.component),
+            false, true)
+          showPopup(anActionEvent)
+        },
+        Registry.intValue("ide.tooltip.initialReshowDelay"))
+    }
+
+    override fun mouseExited(me: MouseEvent) {
+      popupAlarm.cancelAllRequests()
+    }
+  }
+
   override fun createCustomComponent(presentation: Presentation, place: String): JComponent =
     object : ActionButtonWithText(this, presentation, place, Dimension(0, 0)) {
       private val insets = JBUI.insets(3)
@@ -290,6 +368,17 @@ class ComposeIssueNotificationAction : AnAction(), RightAlignedToolbarAction, Cu
 
       override fun getMargins(): Insets = insets
 
+      override fun addNotify() {
+        super.addNotify()
+        addMouseListener(mouseListener)
+      }
+
+      override fun removeNotify() {
+        removeMouseListener(mouseListener)
+        super.removeNotify()
+      }
+
+      override fun createToolTip(): JToolTip? = null
     }.apply {
       setHorizontalTextPosition(textAlignment)
       font = UIUtil.getLabelFont(UIUtil.FontSize.NORMAL)
@@ -317,49 +406,34 @@ class ComposeIssueNotificationAction : AnAction(), RightAlignedToolbarAction, Cu
    */
   private var popup: InformationPopup? = null
 
-  override fun actionPerformed(e: AnActionEvent) {
+  /**
+   * Shows the actions popup.
+   */
+  private fun showPopup(e: AnActionEvent) {
+    popupAlarm.cancelAllRequests()
     val composePreviewManager = e.getData(COMPOSE_PREVIEW_MANAGER) ?: return
     val project = e.project ?: return
-    composePreviewManager.getStatusInfo(project).let {
-      val isAutoDisabled = it is ComposePreviewStatusNotification.FastPreviewFailed && project.fastPreviewManager.isAutoDisabled
-      popup = InformationPopup(
-        null,
-        it.description,
-        listOfNotNull(
-          StudioFlags.COMPOSE_FAST_PREVIEW.ifEnabled { ToggleFastPreviewAction() }
-        ),
-        listOfNotNull(
-          actionLink(
-            message("action.build.and.refresh.title")
-              .replace("&&", "&"), // Remove any ampersand escaping for tooltips (not needed in these links)
-            BuildAndRefresh(composePreviewManager), e.dataContext),
-          if (isAutoDisabled)
-            actionLink(message("fast.preview.disabled.notification.reenable.action.title"), ReEnableFastPreview(), e.dataContext)
-          else null,
-          if (isAutoDisabled)
-            actionLink(message("fast.preview.disabled.notification.stop.autodisable.action.title"), ReEnableFastPreview(false), e.dataContext)
-          else null,
-          if (it is ComposePreviewStatusNotification.FastPreviewFailed)
-            actionLink(message("fast.preview.disabled.notification.show.details.action.title"), ShowEventLogAction(), e.dataContext)
-          else null
-        )).also { newPopup ->
-        // Register the data provider of the popup to be the same as the one used in the toolbar. This allows for actions within the
-        // popup to query for things like the Editor even when the Editor is not directly related to the popup.
-        DataManager.registerDataProvider(newPopup.component()) { dataId -> e.dataContext.getData(dataId) }
-
-        Disposer.register(this, newPopup)
-        newPopup.showPopup(e.inputEvent)
-      }
+    popup = createInformationPopup(project, composePreviewManager, e.dataContext).also { newPopup ->
+      Disposer.register(this, newPopup)
+      newPopup.showPopup(e.inputEvent)
     }
   }
 
-  override fun dispose() {}
+  override fun actionPerformed(e: AnActionEvent) {
+    showPopup(e)
+  }
+
+  override fun dispose() {
+    popup?.hidePopup()
+    popupAlarm.cancelAllRequests()
+  }
 }
 
 /**
  * [ForceCompileAndRefreshAction] where the visibility is controlled by the [ComposePreviewStatusNotification.hasRefreshIcon].
  */
-private class ForceCompileAndRefreshActionForNotification(surface: DesignSurface<*>): ForceCompileAndRefreshAction(surface), RightAlignedToolbarAction {
+private class ForceCompileAndRefreshActionForNotification(surface: DesignSurface<*>) : ForceCompileAndRefreshAction(
+  surface), RightAlignedToolbarAction {
   override fun update(e: AnActionEvent) {
     super.update(e)
 

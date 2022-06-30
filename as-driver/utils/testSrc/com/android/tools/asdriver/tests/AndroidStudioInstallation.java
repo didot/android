@@ -18,6 +18,7 @@ package com.android.tools.asdriver.tests;
 import com.android.repository.testframework.FakeProgressIndicator;
 import com.android.repository.util.InstallerUtil;
 import com.android.testutils.TestUtils;
+import com.intellij.openapi.util.SystemInfo;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.Map;
 
 public class AndroidStudioInstallation {
 
+  private final TestFileSystem fileSystem;
   private final Path workDir;
   private final LogFile stdout;
   private final LogFile stderr;
@@ -38,23 +40,34 @@ public class AndroidStudioInstallation {
   private final Path studioDir;
   private final Path vmOptionsPath;
   private final Path configDir;
-  private final Path homeDir;
   private final Path logsDir;
 
-  public static AndroidStudioInstallation fromZip(Path tempDir) throws IOException {
-    Path workDir = Files.createTempDirectory(tempDir, "android-studio");
+  public static AndroidStudioInstallation fromZip(TestFileSystem testFileSystem) throws IOException {
+    Path workDir = Files.createTempDirectory(testFileSystem.getRoot(), "android-studio");
     System.out.println("workDir: " + workDir);
-    Path studioZip = TestUtils.getBinPath("tools/adt/idea/studio/android-studio.linux.zip");
+    String platform = "linux";
+    String studioDir = "android-studio";
+    if (SystemInfo.isMac) {
+      platform = "mac";
+      studioDir = "Android Studio Preview.app/Contents";
+    } else if (SystemInfo.isWindows) {
+      platform = "win";
+      studioDir = "android-studio";
+    }
+
+    Path studioZip = TestUtils.getBinPath(String.format("tools/adt/idea/studio/android-studio.%s.zip", platform));
     unzip(studioZip, workDir);
-    return new AndroidStudioInstallation(workDir, workDir.resolve("android-studio"));
+
+    return new AndroidStudioInstallation(testFileSystem, workDir, workDir.resolve(studioDir));
   }
 
-  static public AndroidStudioInstallation fromDir(Path tempDir, Path studioDir) throws IOException {
-    Path workDir = Files.createTempDirectory(tempDir, "android-studio");
-    return new AndroidStudioInstallation(workDir, studioDir);
+  static public AndroidStudioInstallation fromDir(TestFileSystem testFileSystem, Path studioDir) throws IOException {
+    Path workDir = Files.createTempDirectory(testFileSystem.getRoot(), "android-studio");
+    return new AndroidStudioInstallation(testFileSystem, workDir, studioDir);
   }
 
-  private AndroidStudioInstallation(Path workDir, Path studioDir) throws IOException {
+  private AndroidStudioInstallation(TestFileSystem testFileSystem, Path workDir, Path studioDir) throws IOException {
+    this.fileSystem = testFileSystem;
     this.workDir = workDir;
     this.studioDir = studioDir;
 
@@ -68,9 +81,6 @@ public class AndroidStudioInstallation {
     configDir = workDir.resolve("config");
     Files.createDirectories(configDir);
 
-    homeDir = workDir.resolve("home");
-    Files.createDirectories(homeDir);
-
     setConsentGranted(true);
     createVmOptionsFile();
   }
@@ -81,12 +91,20 @@ public class AndroidStudioInstallation {
       throw new IllegalStateException("agent not found at " + agentZip);
     }
 
+    Path threadingCheckerAgentZip = TestUtils.getBinPath("tools/base/threading-agent/threading_agent.jar");
+    if (!Files.exists(threadingCheckerAgentZip)) {
+      // Threading agent can be built using 'bazel build //tools/base/threading-agent:threading_agent'
+      throw new IllegalStateException("Threading checker agent not found at " + threadingCheckerAgentZip);
+    }
+
     String vmOptions = String.format("-javaagent:%s%n", agentZip) +
+                       String.format("-javaagent:%s%n", threadingCheckerAgentZip) +
+                       String.format("-Dgradle.ide.save.log.to.file=true%n") +
                        String.format("-Didea.config.path=%s%n", configDir) +
                        String.format("-Didea.plugins.path=%s/plugins%n", configDir) +
                        String.format("-Didea.system.path=%s/system%n", workDir) +
                        String.format("-Didea.log.path=%s%n", logsDir) +
-                       String.format("-Duser.home=%s%n", homeDir);
+                       String.format("-Duser.home=%s%n", fileSystem.getHome());
     Files.write(vmOptionsPath, vmOptions.getBytes(StandardCharsets.UTF_8));
   }
 
@@ -137,6 +155,9 @@ public class AndroidStudioInstallation {
     String combinedString = String.format("%s;%s", nonEapString, eapString);
 
     Path consentOptions = workDir.resolve("data/Google/consentOptions/accepted");
+    if (SystemInfo.isMac) {
+      consentOptions = fileSystem.getHome().resolve("Library/Application Support/Google/consentOptions/accepted");
+    }
     Files.createDirectories(consentOptions.getParent());
     Files.writeString(consentOptions, combinedString);
   }
@@ -222,10 +243,6 @@ public class AndroidStudioInstallation {
     return studioDir;
   }
 
-  public Path getHomeDir() {
-    return homeDir;
-  }
-
   public LogFile getStdout() {
     return stdout;
   }
@@ -272,7 +289,7 @@ public class AndroidStudioInstallation {
   public AndroidStudio run(Display display, Map<String, String> env, String[] args) throws IOException, InterruptedException {
     Map<String, String> newEnv = new HashMap<>(env);
     newEnv.put("STUDIO_VM_OPTIONS", vmOptionsPath.toString());
-    newEnv.put("ANDROID_USER_HOME", homeDir.resolve(".android").toString());
+    newEnv.put("ANDROID_USER_HOME", this.fileSystem.getAndroidHome().toString());
 
     return AndroidStudio.run(this, display, newEnv, args);
   }
@@ -296,5 +313,17 @@ public class AndroidStudioInstallation {
                                     "    </option>\n" +
                                     "  </component>\n" +
                                     "</application>");
+  }
+
+  public void verify() throws IOException {
+    checkLogsForThreadingViolations();
+  }
+
+  private void checkLogsForThreadingViolations() throws IOException {
+    boolean hasThreadingViolations =
+      ideaLog.hasMatchingLine(".*Threading violation.+(@UiThread|@WorkerThread).*");
+    if (hasThreadingViolations) {
+      throw new RuntimeException("One or more methods called on a wrong thread. See the idea.log for more info");
+    }
   }
 }

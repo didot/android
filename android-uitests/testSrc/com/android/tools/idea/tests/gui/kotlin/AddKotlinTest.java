@@ -16,7 +16,6 @@
 package com.android.tools.idea.tests.gui.kotlin;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.jetbrains.kotlin.idea.versions.KotlinRuntimeLibraryUtilKt.kotlinCompilerVersionShort;
 
 import com.android.tools.idea.tests.gui.framework.GuiTestRule;
 import com.android.tools.idea.tests.gui.framework.GuiTests;
@@ -29,6 +28,7 @@ import com.android.tools.idea.tests.gui.framework.fixture.ProjectViewFixture;
 import com.android.tools.idea.tests.gui.framework.matcher.Matchers;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Ref;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.testGuiFramework.framework.GuiTestRemoteRunner;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -40,6 +40,7 @@ import javax.swing.JButton;
 import org.fest.swing.exception.WaitTimedOutError;
 import org.fest.swing.fixture.JButtonFixture;
 import org.fest.swing.timing.Wait;
+import org.jetbrains.kotlin.idea.compiler.configuration.KotlinPluginLayout;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -164,7 +165,7 @@ public class AddKotlinTest {
       .open("build.gradle")
       .getCurrentFileContents();
 
-    String kotlinVersion = kotlinCompilerVersionShort();
+    String kotlinVersion = StringUtil.substringBefore(KotlinPluginLayout.getInstance().getStandaloneCompilerVersion(), "-release");
     String newBuildGradleContents = buildGradleContents.replaceAll(
       "kotlin_version.*=.*",
       "kotlin_version = '" + kotlinVersion + '\'')

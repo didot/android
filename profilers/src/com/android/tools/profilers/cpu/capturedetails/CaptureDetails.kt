@@ -16,12 +16,14 @@
 package com.android.tools.profilers.cpu.capturedetails
 
 import com.android.tools.adtui.model.AspectModel
+import com.android.tools.adtui.model.AsyncUpdater
 import com.android.tools.adtui.model.Range
 import com.android.tools.perflib.vmtrace.ClockType
 import com.android.tools.profilers.cpu.CaptureNode
 import com.android.tools.profilers.cpu.CpuCapture
 import com.android.tools.profilers.cpu.VisualNodeCaptureNode
 import com.android.tools.profilers.cpu.nodemodel.SingleNameModel
+import com.intellij.openapi.application.ApplicationManager
 import com.android.tools.profilers.cpu.capturedetails.Aggregate as AggregateTree
 import com.android.tools.profilers.cpu.capturedetails.Aggregate.TopDown as TopDownTree
 import com.android.tools.profilers.cpu.capturedetails.Aggregate.TopDown as BottomUpTree
@@ -29,7 +31,6 @@ import kotlin.math.max
 
 sealed class CaptureDetails(val clockType: ClockType, val capture: CpuCapture) {
   abstract val type: Type
-  abstract fun onDestroyed()
 
   sealed class ChartDetails(clockType: ClockType, cpuCapture: CpuCapture): CaptureDetails(clockType, cpuCapture) {
     abstract val node: CaptureNode?
@@ -58,8 +59,12 @@ sealed class CaptureDetails(val clockType: ClockType, val capture: CpuCapture) {
       }
     }
 
-    override fun onDestroyed() {
-      model?.onDestroyed();
+    fun onRemoved() {
+      model?.onDestroyed()
+    }
+
+    fun onReattached() {
+      model?.onReattached()
     }
   }
 
@@ -77,7 +82,6 @@ sealed class CaptureDetails(val clockType: ClockType, val capture: CpuCapture) {
     : ChartDetails(clockType, cpuCapture) {
     override val node = nodes.firstOrNull()
     override val type get() = Type.CALL_CHART
-    override fun onDestroyed() { }
   }
 
   class FlameChart internal constructor(clockType: ClockType,
@@ -91,8 +95,17 @@ sealed class CaptureDetails(val clockType: ClockType, val capture: CpuCapture) {
     override var node: CaptureNode? = null
       private set
     val aspect: AspectModel<Aspect> = AspectModel()
+    private val captureNodes = captureNodes.sortedWith(Comparator.comparingLong(CaptureNode::startGlobal))
 
     init {
+      onReattached()
+    }
+
+    fun onRemoved() {
+      selectionRange.removeDependencies(aspect)
+    }
+
+    fun onReattached() {
       if (captureNodes.isNotEmpty()) {
         val captureNodes = captureNodes.sortedWith(Comparator.comparingLong(CaptureNode::startGlobal))
 
@@ -115,43 +128,52 @@ sealed class CaptureDetails(val clockType: ClockType, val capture: CpuCapture) {
         visual.endGlobal = visual.startGlobal + topDownNode.childrenTotal.toLong()
         visual.endThread = visual.startThread + topDownNode.childrenTotal.toLong()
 
-        fun selectionRangeChanged() {
-          // This range needs to account for the multiple children,
-          // does it need to account for the merged children?
-          topDownNode = topDownNode.withRange(clockType, selectionRange, treeRange, null)
-          treeRange.set(selectionRange)
-          node = when {
-            // If the new selection range intersects the root node, we should reconstruct the flame chart node.
-            topDownNode.total > 0 -> {
-              val start = max(topDownNode.base.nodes[0].start.toDouble(), selectionRange.min)
-              val newNode = convertToFlameChart(topDownNode, start, 0)
-              // The intersection check (root.getTotal() > 0) may be a false positive because the root's global total is the
-              // sum of all its children for the purpose of mapping a multi-node tree to flame chart space. Thus we need to look at
-              // its children to find out the actual intersection.
-              when (newNode.lastChild) {
-                // No child intersects the selection range, so effectively there's no intersection at all.
-                null -> null
-                else -> newNode.apply {
-                  // At least one child intersects the selection rage, use the last child as the real intersection end.
-                  endGlobal = lastChild!!.endGlobal
-                  // This is the range used by the HTreeChart to determine if a node is in the range or out of the range.
-                  // Because the node is already filtered to the selection we can use the length of the node.
-                  range.set(start, end.toDouble())
+        node = visual
+
+        val selectionRangeChanged =
+          AsyncUpdater.by(
+            ApplicationManager.getApplication()::invokeAndWait,
+            ApplicationManager.getApplication()::executeOnPooledThread,
+            { node to topDownNode },
+            { (_, oldTopDownNode) ->
+              // This range needs to account for the multiple children,
+              // does it need to account for the merged children?
+              val topDownNode = oldTopDownNode.withRange(clockType, selectionRange, treeRange, null)
+              val node = when {
+                // If the new selection range intersects the root node, we should reconstruct the flame chart node.
+                topDownNode.total > 0 -> {
+                  val start = max(topDownNode.base.nodes[0].start.toDouble(), selectionRange.min)
+                  val newNode = convertToFlameChart(topDownNode, start, 0)
+                  // The intersection check (root.getTotal() > 0) may be a false positive because the root's global total is the
+                  // sum of all its children for the purpose of mapping a multi-node tree to flame chart space. Thus we need to look at
+                  // its children to find out the actual intersection.
+                  when (newNode.lastChild) {
+                    // No child intersects the selection range, so effectively there's no intersection at all.
+                    null -> null
+                    else -> newNode.apply {
+                      // At least one child intersects the selection rage, use the last child as the real intersection end.
+                      endGlobal = lastChild!!.endGlobal
+                      // This is the range used by the HTreeChart to determine if a node is in the range or out of the range.
+                      // Because the node is already filtered to the selection we can use the length of the node.
+                      range.set(start, end.toDouble())
+                    }
+                  }
                 }
+                // Otherwise, clear the flame chart node and show an empty chart
+                else -> null
               }
-            }
-            // Otherwise, clear the flame chart node and show an empty chart
-            else -> null
-          }
-          aspect.changed(Aspect.NODE)
-        }
-        selectionRange.addDependency(aspect).onChange(Range.Aspect.RANGE, ::selectionRangeChanged)
+              node to topDownNode
+            },
+            { (newNode, newTopDownNode) ->
+              topDownNode = newTopDownNode
+              treeRange.set(selectionRange)
+              node = newNode
+              aspect.changed(Aspect.NODE)
+            })
+
+        selectionRange.addDependency(aspect).onChange(Range.Aspect.RANGE, selectionRangeChanged)
         selectionRangeChanged()
       }
-    }
-
-    override fun onDestroyed() {
-      selectionRange.removeDependencies(aspect)
     }
 
     /**

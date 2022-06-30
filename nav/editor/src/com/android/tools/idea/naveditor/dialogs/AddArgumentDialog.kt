@@ -317,7 +317,7 @@ open class AddArgumentDialog(private val existingComponent: NlComponent?, privat
 
   public override fun doValidate(): ValidationInfo? {
     val name = name
-    if (name == null || name.isEmpty()) {
+    if (name.isNullOrEmpty()) {
       return ValidationInfo("Name must be set", dialogUI.myNameTextField)
     }
     if (parent.children.any { c ->
@@ -328,7 +328,7 @@ open class AddArgumentDialog(private val existingComponent: NlComponent?, privat
       return ValidationInfo("Name must be unique", dialogUI.myNameTextField)
     }
     var newDefaultValue = defaultValue
-    if (newDefaultValue != null && !newDefaultValue.isEmpty() && !isArray) {
+    if (!newDefaultValue.isNullOrEmpty() && !isArray) {
       when (dialogUI.myTypeComboBox.selectedItem as Type) {
         Type.LONG -> {
           if (!newDefaultValue.endsWith("L")) {
@@ -389,7 +389,7 @@ open class AddArgumentDialog(private val existingComponent: NlComponent?, privat
       realComponent.setTypeAndLog(type, NavEditorEvent.Source.PROPERTY_INSPECTOR)
       realComponent.setNullableAndLog(isNullable, NavEditorEvent.Source.PROPERTY_INSPECTOR)
       var newDefaultValue = defaultValue
-      if (!isArray && newDefaultValue != null && !newDefaultValue.isEmpty()
+      if (!isArray && !newDefaultValue.isNullOrEmpty()
           && dialogUI.myTypeComboBox.selectedItem === Type.LONG && !newDefaultValue.endsWith("L")) {
         newDefaultValue += "L"
       }

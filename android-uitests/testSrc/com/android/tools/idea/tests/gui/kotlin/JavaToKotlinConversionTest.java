@@ -27,6 +27,7 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.testGuiFramework.framework.GuiTestRemoteRunner;
 import org.fest.swing.fixture.DialogFixture;
 import org.fest.swing.timing.Wait;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,6 +66,7 @@ public class JavaToKotlinConversionTest {
    *   </pre>
    * <p>
    */
+
   @RunIn(TestGroup.FAST_BAZEL)
   @Test
   public void testJavaToKotlinConversion() throws Exception {
@@ -79,6 +81,14 @@ public class JavaToKotlinConversionTest {
     ConfigureKotlinDialogFixture.find(ideFrameFixture.robot())
       .clickOkAndWaitDialogDisappear();
 
+    //Need to add gradle wait time
+    guiTest.waitForBackgroundTasks();
+
+    guiTest.robot().waitForIdle();
+
+    //Changing Kotlin version according to build file
+    ConversionTestUtil.changeKotlinVersionForSimpleApplication(guiTest);
+
     // Doing it twice because after the first time we have only added Kotlin support to the project
     openJavaAndPressConvertToKotlin(ideFrameFixture);
 
@@ -88,20 +98,30 @@ public class JavaToKotlinConversionTest {
      *  this conversion. Do you want to find such code and correct it too?'
      */
     DialogFixture convertCodeFromJavaDialog = findDialog(withTitle("Convert Java to Kotlin"))
-      .withTimeout(SECONDS.toMillis(60)).using(guiTest.robot());
+      .withTimeout(SECONDS.toMillis(300)).using(guiTest.robot());
+
     convertCodeFromJavaDialog.button(withText("Yes")).click();
+
+    guiTest.waitForBackgroundTasks();
+
+    guiTest.robot().waitForIdle();
 
     EditorFixture editor = ideFrameFixture.getEditor();
 
-    Wait.seconds(20).expecting("Wait for kt file is generated.")
+    Wait.seconds(60).expecting("Wait for kt file is generated.")
       .until(() -> "MyActivity.kt".equals(editor.getCurrentFileName()));
 
     assertThat(editor.getCurrentFileContents()).contains("class MyActivity : Activity() {");
 
-    ConversionTestUtil.changeKotlinVersion(guiTest);
+    guiTest.robot().waitForIdle();
+
     ideFrameFixture.requestProjectSyncAndWaitForSyncToFinish();
 
-    ideFrameFixture.invokeAndWaitForBuildAction(Wait.seconds(240), "Build", "Rebuild Project");
+    guiTest.waitForBackgroundTasks();
+
+    guiTest.robot().waitForIdle();
+
+    ideFrameFixture.invokeAndWaitForBuildAction(Wait.seconds(300), "Build", "Rebuild Project");
   }
 
   private static void openJavaAndPressConvertToKotlin(@NotNull IdeFrameFixture ideFrameFixture) {

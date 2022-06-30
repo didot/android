@@ -83,9 +83,12 @@ public class AndroidDepTest {
 
     ideFrame.getProjectView()
       .selectProjectPane()
-      .clickPath(RIGHT_BUTTON, APP_NAME, "app")
-      .openFromMenu(ProjectStructureDialogFixture.Companion::find, "Open Module Settings");
+      .clickPath(RIGHT_BUTTON, APP_NAME, "app");
 
+    guiTest.waitForBackgroundTasks();
+    guiTest.robot().waitForIdle();
+    guiTest.robot().findActivePopupMenu();
+    ideFrame.invokeMenuPath("Open Module Settings");
 
     ProjectStructureDialogFixture dialogFixture = ProjectStructureDialogFixture.Companion.find(ideFrame);
     DependenciesPerspectiveConfigurableFixture dependenciesFixture =
@@ -96,6 +99,8 @@ public class AndroidDepTest {
     addModuleDependencyFixture.clickOk();
     dialogFixture.clickOk();
 
+    guiTest.waitForBackgroundTasks();
+    guiTest.robot().waitForIdle();
     editor.open("/app/src/main/java/android/com/app/MainActivity.java")
       .moveBetween("setContentView(R.layout.activity_main);", "")
       .enterText("\nGson gson = new Gson();")
@@ -108,11 +113,19 @@ public class AndroidDepTest {
       .clickPath(APP_NAME, "library_module", "src", "main", "java", "android.com.library_module");
 
     invokeJavaClass(ideFrame).enterName("LibraryClass").clickOk();
+    guiTest.waitForBackgroundTasks();
+    guiTest.robot().waitForIdle();
+
     editor.open("/library_module/src/main/java/android/com/library_module/LibraryClass.java")
       .select("()public class LibraryClass")
-      .enterText("import com.google.gson.Gson;\n\n")
-      .select("public class LibraryClass \\{()")
+      .enterText("import com.google.gson.Gson;\n\n");
+
+    guiTest.waitForBackgroundTasks();
+    guiTest.robot().waitForIdle();
+    editor.open("/library_module/src/main/java/android/com/library_module/LibraryClass.java")
+      .moveBetween("public class LibraryClass {", "")
       .enterText("\nGson gson = new Gson();\n");
+
 
     BuildStatus result = guiTest.ideFrame().invokeProjectMake();
     assertTrue(result.isBuildSuccessful());

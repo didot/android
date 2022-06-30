@@ -18,6 +18,11 @@ package com.android.tools.idea.emulator
 import com.android.adblib.AdbLibSession
 import com.android.adblib.DeviceInfo
 import com.android.adblib.DeviceList
+import com.android.adblib.DevicePropertyNames.RO_BOOT_QEMU_AVD_NAME
+import com.android.adblib.DevicePropertyNames.RO_KERNEL_QEMU_AVD_NAME
+import com.android.adblib.DevicePropertyNames.RO_PRODUCT_CPU_ABI
+import com.android.adblib.DevicePropertyNames.RO_PRODUCT_MANUFACTURER
+import com.android.adblib.DevicePropertyNames.RO_PRODUCT_MODEL
 import com.android.adblib.DeviceSelector
 import com.android.adblib.DeviceState
 import com.android.adblib.deviceProperties
@@ -310,8 +315,8 @@ internal class EmulatorToolWindowManager private constructor(
     addPanel(EmulatorToolWindowPanel(project, emulator))
   }
 
-  private fun addPhysicalDevicePanel(serialNumber: String, abi: String, title: String) {
-    addPanel(DeviceToolWindowPanel(project, serialNumber, abi, title))
+  private fun addPhysicalDevicePanel(serialNumber: String, abi: String, title: String, deviceProperties: Map<String, String>) {
+    addPanel(DeviceToolWindowPanel(project, serialNumber, abi, title, deviceProperties))
   }
 
   private fun addPanel(panel: RunningDevicePanel) {
@@ -421,22 +426,22 @@ internal class EmulatorToolWindowManager private constructor(
   private suspend fun physicalDeviceConnected(deviceSerialNumber: String, adbSession: AdbLibSession) {
     try {
       val properties = adbSession.deviceServices.deviceProperties(DeviceSelector.fromSerialNumber(deviceSerialNumber)).allReadonly()
-      var title = properties["ro.kernel.qemu.avd_name"]?.replace('_', ' ')
+      var title = (properties[RO_BOOT_QEMU_AVD_NAME] ?: properties[RO_KERNEL_QEMU_AVD_NAME])?.replace('_', ' ')
       if (title == null) {
-        title = properties["ro.product.model"] ?: deviceSerialNumber
-        val manufacturer = properties["ro.product.manufacturer"]
-        if (!manufacturer.isNullOrBlank()) {
+        title = properties[RO_PRODUCT_MODEL] ?: deviceSerialNumber
+        val manufacturer = properties[RO_PRODUCT_MANUFACTURER]
+        if (!manufacturer.isNullOrBlank() && manufacturer != "unknown") {
           title = "$manufacturer $title"
         }
       }
-      val deviceAbi = properties["ro.product.cpu.abi"]
+      val deviceAbi = properties[RO_PRODUCT_CPU_ABI]
       if (deviceAbi == null) {
         thisLogger().warn("Unable to determine ABI of $title")
         return
       }
 
       UIUtil.invokeLaterIfNeeded { // This is safe because this code doesn't touch PSI or VFS.
-        addPhysicalDevicePanel(deviceSerialNumber, deviceAbi, title)
+        addPhysicalDevicePanel(deviceSerialNumber, deviceAbi, title, properties)
       }
     }
     catch (e: Exception) {

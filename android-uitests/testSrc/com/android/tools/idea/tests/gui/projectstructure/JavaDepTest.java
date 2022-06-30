@@ -79,8 +79,12 @@ public class JavaDepTest {
 
     ideFrame.getProjectView()
       .selectProjectPane()
-      .clickPath(RIGHT_BUTTON, "App", "app")
-      .openFromMenu(ProjectStructureDialogFixture.Companion::find, "Open Module Settings");
+      .clickPath(RIGHT_BUTTON, "App", "app");
+
+    guiTest.waitForBackgroundTasks();
+    guiTest.robot().waitForIdle();
+    guiTest.robot().findActivePopupMenu();
+    ideFrame.invokeMenuPath("Open Module Settings");
 
     ProjectStructureDialogFixture dialogFixture = ProjectStructureDialogFixture.Companion.find(ideFrame);
     DependenciesPerspectiveConfigurableFixture dependenciesFixture =
@@ -90,6 +94,9 @@ public class JavaDepTest {
     addModuleDependencyFixture.toggleModule("lib");
     addModuleDependencyFixture.clickOk();
     dialogFixture.clickOk();
+
+    guiTest.waitForBackgroundTasks();
+    guiTest.robot().waitForIdle();
 
     editor.open("/app/src/main/java/android/com/app/MainActivity.java")
       .moveBetween("setContentView(R.layout.activity_main);", "")

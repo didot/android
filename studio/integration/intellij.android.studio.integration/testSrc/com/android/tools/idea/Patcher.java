@@ -17,21 +17,27 @@ package com.android.tools.idea;
 
 import com.android.testutils.TestUtils;
 import com.android.tools.asdriver.tests.AndroidStudioInstallation;
+import com.android.tools.asdriver.tests.TestFileSystem;
+import com.intellij.openapi.util.SystemInfo;
+import com.intellij.util.system.CpuArch;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.file.PathUtils;
 
 public class Patcher {
-  Path tempDir;
+  TestFileSystem fileSystem;
   Path studioDir;
   Path modifiedStudioDir;
 
-  public Patcher(Path tempDir, Path studioDir) {
-    this.tempDir = tempDir;
+  public Patcher(TestFileSystem fileSystem, Path studioDir) {
+    this.fileSystem = fileSystem;
     this.studioDir = studioDir;
-    modifiedStudioDir = this.tempDir.resolve("patch_machinery");
+    modifiedStudioDir = this.fileSystem.getRoot().resolve("patch_machinery");
   }
 
   /**
@@ -46,7 +52,7 @@ public class Patcher {
     PathUtils.copyDirectory(studioDir, modifiedStudioDir);
     long elapsedTime = System.currentTimeMillis() - startTime;
     System.out.println("Copying took " + elapsedTime + "ms");
-    AndroidStudioInstallation installation = AndroidStudioInstallation.fromDir(tempDir, modifiedStudioDir);
+    AndroidStudioInstallation installation = AndroidStudioInstallation.fromDir(fileSystem, modifiedStudioDir);
     installation.setBuildNumber(updatedBuildNumber);
 
     return runPatcher(currentBuildNumber, updatedBuildNumber);
@@ -57,15 +63,19 @@ public class Patcher {
    */
   private Path runPatcher(String currentBuildNumber, String updatedBuildNumber) throws IOException, InterruptedException {
     Path updaterBin = TestUtils.getBinPath("tools/adt/idea/studio/updater");
-    Path patchDir = tempDir.resolve("patch");
+    Path patchDir = fileSystem.getRoot().resolve("patch");
     Files.createDirectories(patchDir);
     System.out.println("Creating the patch in " + patchDir);
 
-    // TODO: on macOS, the platform would either be "mac" or "mac_arm". On Windows, it's "win".
-    String patchName = String.format("AI-%s-%s-patch-%s.jar", currentBuildNumber, updatedBuildNumber, "unix");
+    String platform = "unix";
+    if (SystemInfo.isMac) {
+      platform = CpuArch.isArm64() ? "mac_arm" : "mac";
+    } else if (SystemInfo.isWindows) {
+      platform = "win";
+    }
+    String patchName = String.format("AI-%s-%s-patch-%s.jar", currentBuildNumber, updatedBuildNumber, platform);
     Path patchFile = patchDir.resolve(patchName);
-    // TODO: On macOS, "--root=Contents" should be passed in.
-    ProcessBuilder pb = new ProcessBuilder(
+    List<String> params = new ArrayList<>(Arrays.asList(
       updaterBin.toString(),
       "create",
       "old",
@@ -75,7 +85,12 @@ public class Patcher {
       patchFile.toString(),
       "--zip_as_binary",
       "--strict"
-    );
+    ));
+    if (SystemInfo.isMac) {
+      params.add("--root");
+      params.add("Contents");
+    }
+    ProcessBuilder pb = new ProcessBuilder(params);
     pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
     pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 

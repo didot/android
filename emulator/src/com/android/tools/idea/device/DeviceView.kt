@@ -104,13 +104,17 @@ class DeviceView(
 
   var displayRotationQuadrants: Int = 0
     private set
+  /** The difference between [displayRotationQuadrants] and the orientation according to the DisplayInfo Android data structure. */
+  var displayRotationCorrectionQuadrants: Int = 0
+    private set
 
   /** Count of received display frames. */
   @get:VisibleForTesting
   var frameNumber: Long = 0
     private set
 
-  private var connected = false
+  var connected = false
+    private set
   private var disposed = false
 
   private var multiTouchMode = false
@@ -270,6 +274,7 @@ class DeviceView(
 
       deviceDisplaySize.size = displayFrame.displaySize
       displayRotationQuadrants = displayFrame.orientation
+      displayRotationCorrectionQuadrants = displayFrame.orientationCorrection
       frameNumber = displayFrame.frameNumber
 
       deviceClient?.apply {

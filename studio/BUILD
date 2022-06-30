@@ -72,6 +72,7 @@ studio_plugin(
         "//tools/data-binding:compilerCommon.antlr.shaded",
     ],
     licenses = [
+        "//prebuilts/r8:license",
         "//tools/adt/idea/android/lib:licenses",
     ],
     modules = {
@@ -106,6 +107,7 @@ studio_plugin(
             "//tools/adt/idea/assistant:assistant",
             "//tools/adt/idea/connection-assistant:connection-assistant",
             "//tools/adt/idea/android-adb:intellij.android.adb",
+            "//tools/adt/idea/android-adb-ui:intellij.android.adb.ui",
             "//tools/adt/idea/android-lint:intellij.android.lint",
             "//tools/adt/idea/android-templates:intellij.android.templates",
             "//tools/adt/idea/apkanalyzer:intellij.android.apkanalyzer",
@@ -564,9 +566,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 7,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 
@@ -771,23 +773,28 @@ iml_test(
     data = [":android-studio.linux.zip"],
     module = ":intellij.android.studio.integration",
     tags = [
-        "no_mac",
-        "no_windows",
+        "no_mac",  # Different number of plugins expected from Linux
+        "no_windows",  # Different number of plugins expected from Linux
     ],
     test_class = "com.android.tools.idea.StartUpTest",
 )
 
 iml_test(
     name = "UpdateTest",
-    data = [
-        ":android-studio.linux.zip",
+    data = select({
+        "@platforms//os:linux": [
+            ":android-studio.linux.zip",
+        ],
+        "@platforms//os:macos": [
+            ":android-studio.mac.zip",
+        ],
+    }) + [
         ":updater",
         ":updater.jar",
     ],
     module = ":intellij.android.studio.integration",
     tags = [
-        "no_mac",
-        "no_windows",
+        "no_windows",  # In RBE, Bazel doesn't actually build the Updater's runfiles for some reason
     ],
     test_class = "com.android.tools.idea.UpdateTest",
 )
