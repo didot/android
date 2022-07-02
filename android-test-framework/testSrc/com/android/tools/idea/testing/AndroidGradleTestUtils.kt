@@ -1899,10 +1899,10 @@ private fun <T> openPreparedProject(
         ) {
           ProjectUtil.openOrImport(
             projectPath.toPath(),
-            OpenProjectTask(
-              projectToClose = null,
+            OpenProjectTask{
+              projectToClose = null
               forceOpenInNewFrame = true
-            )
+            }
           )!!
         }
         // Unfortunately we do not have start-up activities run in tests so we have to trigger a refresh here.
