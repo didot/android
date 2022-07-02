@@ -2079,15 +2079,15 @@ private fun <T> openPreparedProject(
         val project = GradleProjectImporter.withAfterCreate(afterCreate = { project -> afterCreate(project) }) {
           ProjectUtil.openOrImport(
             projectPath.toPath(),
-            OpenProjectTask(
+            OpenProjectTask{
               beforeOpen =
               {
                 afterCreate(it)
                 true
-              },
-              projectToClose = null,
+              }
+              projectToClose = null
               forceOpenInNewFrame = true
-            )
+            }
           )!!
         }
         // Unfortunately we do not have start-up activities run in tests so we have to trigger a refresh here.
