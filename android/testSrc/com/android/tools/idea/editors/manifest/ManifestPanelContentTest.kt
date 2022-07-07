@@ -31,6 +31,7 @@ import com.android.tools.idea.testing.openPreparedProject
 import com.android.tools.idea.testing.prepareGradleProject
 import com.android.tools.idea.util.androidFacet
 import com.android.utils.FileUtils.toSystemIndependentPath
+import com.intellij.testFramework.runInEdtAndWait
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestName
@@ -94,8 +95,12 @@ class ManifestPanelContentTest : GradleIntegrationTest, SnapshotComparisonTest {
 
       val mergedManifest = MergedManifestManager.getMergedManifestSupplier(appModule).get().get(2, TimeUnit.SECONDS)
 
-      val panel = ManifestPanel(appModuleFacet, projectRule.testRootDisposable)
-      panel.showManifest(mergedManifest, appModuleFacet.sourceProviders.mainManifestFile!!, false)
+      lateinit var panel : ManifestPanel
+
+      runInEdtAndWait {
+        panel = ManifestPanel(appModuleFacet, projectRule.testRootDisposable)
+        panel.showManifest(mergedManifest, appModuleFacet.sourceProviders.mainManifestFile!!, false)
+      }
       val detailsPaneContent = panel.detailsPane.text
       val model: TreeModel? = panel.tree.model
       val manifestPaneContent: String? = model?.transformToString()
