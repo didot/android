@@ -61,9 +61,8 @@ class MultipleColorIconProviderTest {
 
   @Before
   fun setup() {
-    runInEdtAndWait { runInAllowSaveMode { rule.project.save() } }
+    runInAllowSaveMode { rule.project.save() }
   }
-
 
   @Test
   fun getStateListColorIcon() {
