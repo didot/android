@@ -26,7 +26,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
-import org.jetbrains.kotlin.idea.inspections.AbstractKotlinInspection
+import org.jetbrains.kotlin.idea.codeinsight.api.classic.inspections.AbstractKotlinInspection
 import org.jetbrains.kotlin.idea.refactoring.fqName.fqName
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
@@ -46,6 +46,8 @@ private const val ANIMATE_PREFIX = "animate" // e.g. animateColor, animateFloat,
  * Inspection to verify that the `label` parameter is set for `updateTransition` calls that create Compose transition animations. This
  * parameter is used by the animation tooling to identify the transition when inspecting animations in the Animation Preview.
  */
+import org.jetbrains.kotlin.idea.codeinsight.api.classic.inspections.AbstractKotlinInspection
+
 class UpdateTransitionLabelInspection : AbstractKotlinInspection() {
   override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor =
     if (session.file.androidFacet != null) {
@@ -79,6 +81,8 @@ class UpdateTransitionLabelInspection : AbstractKotlinInspection() {
  * transition properties. This parameter is used by the animation tooling to identify the transition property when inspecting animations in
  * the Animation Preview. Otherwise, a default name will be used (e.g. FloatProperty, ColorProperty).
  */
+import org.jetbrains.kotlin.idea.codeinsight.api.classic.inspections.AbstractKotlinInspection
+
 class TransitionPropertiesLabelInspection : AbstractKotlinInspection() {
   override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean, session: LocalInspectionToolSession): PsiElementVisitor =
     if (session.file.androidFacet != null) {
