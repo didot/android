@@ -36,7 +36,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.idea.caches.resolve.analyze
-import org.jetbrains.kotlin.idea.inspections.AbstractKotlinInspection
+import org.jetbrains.kotlin.idea.codeinsight.api.classic.inspections.AbstractKotlinInspection
 import org.jetbrains.kotlin.idea.util.module
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClass
@@ -53,7 +53,9 @@ import org.jetbrains.uast.toUElement
 /**
  * Base class for inspection that depend on methods and annotation classes annotated with `@Preview`, or with a MultiPreview.
  */
-abstract class BasePreviewAnnotationInspection : AbstractKotlinInspection() {
+abstract import org.jetbrains.kotlin.idea.codeinsight.api.classic.inspections.AbstractKotlinInspection
+
+class BasePreviewAnnotationInspection : AbstractKotlinInspection() {
   /** Will be true if the inspected file imports the `@Preview` annotation. This is used as a shortcut to avoid analyzing all kotlin files */
   var isPreviewFile: Boolean = false
   /** Will be true if the inspected file imports the `@Composable` annotation. This is used as a shortcut to avoid analyzing all kotlin files */
