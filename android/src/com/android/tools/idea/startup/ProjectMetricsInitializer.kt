@@ -37,10 +37,6 @@ internal class ProjectMetricsInitializer : ProjectManagerListener {
   private val persistStatisticsSessionsMap = Collections.synchronizedMap(HashMap<Project, Future<*>>())
 
   override fun projectOpened(project: Project) {
-    // Need to set up ToolWindowTrackerService here after project is initialized so service can be retrieved.
-    val service = ToolWindowTrackerService.getInstance(project)
-    project.messageBus.connect().subscribe(ToolWindowManagerListener.TOPIC, service)
-
     // don't include current project to be consistent with projectClosed
     val projectsOpen = ProjectManager.getInstance().openProjects.size - 1
     UsageTracker.log(AndroidStudioEvent.newBuilder()
