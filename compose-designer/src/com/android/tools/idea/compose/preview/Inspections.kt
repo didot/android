@@ -53,9 +53,7 @@ import org.jetbrains.uast.toUElement
 /**
  * Base class for inspection that depend on methods and annotation classes annotated with `@Preview`, or with a MultiPreview.
  */
-abstract import org.jetbrains.kotlin.idea.codeinsight.api.classic.inspections.AbstractKotlinInspection
-
-class BasePreviewAnnotationInspection : AbstractKotlinInspection() {
+abstract class BasePreviewAnnotationInspection : AbstractKotlinInspection() {
   /** Will be true if the inspected file imports the `@Preview` annotation. This is used as a shortcut to avoid analyzing all kotlin files */
   var isPreviewFile: Boolean = false
   /** Will be true if the inspected file imports the `@Composable` annotation. This is used as a shortcut to avoid analyzing all kotlin files */
