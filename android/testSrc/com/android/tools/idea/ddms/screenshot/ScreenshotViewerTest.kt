@@ -28,7 +28,7 @@ import com.intellij.openapi.ui.DialogWrapper.CLOSE_EXIT_CODE
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.RunsInEdt
-import com.intellij.util.ui.EdtInvocationManager.dispatchAllInvocationEvents
+import com.intellij.util.ui.EDT.dispatchAllInvocationEvents
 import org.intellij.images.ui.ImageComponent
 import org.intellij.images.ui.ImageComponentDecorator
 import org.junit.After
