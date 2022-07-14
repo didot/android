@@ -568,7 +568,7 @@ android_studio(
     version_eap = True,
     version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
     version_micro = 1,
-    version_patch = 8,
+    version_patch = 9,
     visibility = ["//visibility:public"],
 )
 
