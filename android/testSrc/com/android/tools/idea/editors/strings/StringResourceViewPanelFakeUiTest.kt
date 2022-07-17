@@ -24,20 +24,17 @@ import com.android.tools.idea.editors.strings.action.FilterKeysAction
 import com.android.tools.idea.editors.strings.action.FilterLocalesAction
 import com.android.tools.idea.editors.strings.action.ReloadStringResourcesAction
 import com.android.tools.idea.editors.strings.action.RemoveKeysAction
-import com.google.common.truth.Truth.assertThat
-
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.util.androidFacet
+import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.Separator
-import com.intellij.openapi.actionSystem.impl.ActionButton
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
-import java.awt.Component
 
 @RunWith(JUnit4::class)
 class StringResourceViewPanelFakeUiTest {

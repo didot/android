@@ -18,12 +18,9 @@ package org.jetbrains.android.facet;
 import com.android.AndroidProjectTypes;
 import com.android.SdkConstants;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.XCollection;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import org.jetbrains.annotations.NonNls;
 
 /**

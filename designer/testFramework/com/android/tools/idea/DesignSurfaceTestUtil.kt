@@ -17,7 +17,6 @@ package com.android.tools.idea
 
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.common.SyncNlModel
-import com.android.tools.idea.common.analytics.DesignerAnalyticsManager
 import com.android.tools.idea.common.fixtures.ModelBuilder.TestActionManager
 import com.android.tools.idea.common.model.DefaultSelectionModel
 import com.android.tools.idea.common.model.SelectionModel

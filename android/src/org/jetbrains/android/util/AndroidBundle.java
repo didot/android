@@ -16,14 +16,13 @@
 package org.jetbrains.android.util;
 
 import com.intellij.CommonBundle;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
+import java.util.ResourceBundle;
 import java.util.function.Supplier;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.PropertyKey;
-
-import java.lang.ref.Reference;
-import java.lang.ref.SoftReference;
-import java.util.ResourceBundle;
 
 /**
  * Messages bundle.

@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.gradle.util;
 
+import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
+
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.roots.ContentEntry;
@@ -22,15 +24,12 @@ import com.intellij.openapi.roots.ModifiableRootModel;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.PlatformTestCase;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Tests for {@link ContentEntries}.

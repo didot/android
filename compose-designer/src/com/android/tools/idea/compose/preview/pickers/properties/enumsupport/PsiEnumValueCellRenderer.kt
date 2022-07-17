@@ -20,7 +20,6 @@ import com.android.tools.property.panel.api.HeaderEnumValue
 import com.android.tools.property.panel.impl.ui.EnumValueListCellRenderer
 import com.intellij.openapi.util.text.HtmlChunk
 import com.intellij.ui.JBColor
-import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.SimpleTextAttributes.GRAYED_ATTRIBUTES
 import com.intellij.ui.SimpleTextAttributes.REGULAR_ATTRIBUTES
 import com.intellij.ui.TitledSeparator

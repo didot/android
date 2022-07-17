@@ -16,16 +16,16 @@
 package com.android.tools.idea.device.monitor.ui
 
 import com.intellij.icons.AllIcons
-import javax.swing.JPanel
-import javax.swing.JProgressBar
-import com.intellij.ui.InplaceButton
-import java.awt.event.ActionEvent
-import java.awt.BorderLayout
 import com.intellij.openapi.progress.util.ColorProgressBar
 import com.intellij.openapi.ui.popup.IconButton
+import com.intellij.ui.InplaceButton
 import com.intellij.ui.SimpleColoredComponent
+import java.awt.BorderLayout
 import java.awt.Dimension
+import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
+import javax.swing.JPanel
+import javax.swing.JProgressBar
 
 /**
  * Panel displayed at the bottom of the Device Explorer tool window

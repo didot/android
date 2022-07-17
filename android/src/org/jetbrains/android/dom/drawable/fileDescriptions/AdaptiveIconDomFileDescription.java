@@ -16,10 +16,9 @@
 package org.jetbrains.android.dom.drawable.fileDescriptions;
 
 import com.android.resources.ResourceFolderType;
+import java.util.EnumSet;
 import org.jetbrains.android.dom.SingleRootResourceDomFileDescription;
 import org.jetbrains.android.dom.drawable.AdaptiveIcon;
-
-import java.util.EnumSet;
 
 public class AdaptiveIconDomFileDescription extends SingleRootResourceDomFileDescription<AdaptiveIcon> {
   public static final String TAG_NAME = "adaptive-icon";

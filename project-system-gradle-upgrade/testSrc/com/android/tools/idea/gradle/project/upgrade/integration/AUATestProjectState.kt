@@ -32,7 +32,12 @@ package com.android.tools.idea.gradle.project.upgrade.integration
 
 import com.android.testutils.junit4.OldAgpSuite
 import com.android.tools.idea.gradle.project.upgrade.CompatibleGradleVersion
-import com.android.tools.idea.gradle.project.upgrade.integration.TestAGPVersion.*
+import com.android.tools.idea.gradle.project.upgrade.integration.TestAGPVersion.LATEST
+import com.android.tools.idea.gradle.project.upgrade.integration.TestAGPVersion.V_4_0
+import com.android.tools.idea.gradle.project.upgrade.integration.TestAGPVersion.V_4_1
+import com.android.tools.idea.gradle.project.upgrade.integration.TestAGPVersion.V_4_2
+import com.android.tools.idea.gradle.project.upgrade.integration.TestAGPVersion.V_7_0
+import com.android.tools.idea.gradle.project.upgrade.integration.TestAGPVersion.V_7_1
 import com.android.tools.idea.gradle.project.upgrade.integration.TestProject.ALL_DEPRECATIONS
 import com.android.tools.idea.gradle.project.upgrade.integration.TestProject.BASIC
 import com.android.utils.FileUtils

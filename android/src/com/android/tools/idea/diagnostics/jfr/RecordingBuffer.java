@@ -20,20 +20,15 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import com.android.annotations.concurrency.Slow;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.util.io.ZipUtil;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 import jdk.jfr.Recording;
 
 public class RecordingBuffer {

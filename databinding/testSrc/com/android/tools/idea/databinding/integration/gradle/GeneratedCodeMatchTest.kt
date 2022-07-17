@@ -18,10 +18,10 @@ package com.android.tools.idea.databinding.integration.gradle
 import com.android.SdkConstants.ANDROIDX_DATA_BINDING_LIB_ARTIFACT
 import com.android.SdkConstants.DATA_BINDING_LIB_ARTIFACT
 import com.android.tools.idea.databinding.DataBindingMode
-import com.android.tools.idea.databinding.module.LayoutBindingModuleCache
 import com.android.tools.idea.databinding.TestDataPaths
 import com.android.tools.idea.databinding.TestDataPaths.PROJECT_WITH_DATA_BINDING_ANDROID_X
 import com.android.tools.idea.databinding.TestDataPaths.PROJECT_WITH_DATA_BINDING_SUPPORT
+import com.android.tools.idea.databinding.module.LayoutBindingModuleCache
 import com.android.tools.idea.gradle.project.model.GradleAndroidModel
 import com.android.tools.idea.gradle.project.sync.GradleSyncState
 import com.android.tools.idea.res.ResourceRepositoryManager

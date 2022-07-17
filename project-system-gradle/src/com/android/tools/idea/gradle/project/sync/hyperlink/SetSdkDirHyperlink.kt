@@ -15,11 +15,11 @@
  */
 package com.android.tools.idea.gradle.project.sync.hyperlink
 
-import com.google.common.annotations.VisibleForTesting
 import com.android.tools.idea.gradle.project.sync.GradleSyncInvoker
 import com.android.tools.idea.gradle.project.sync.issues.SyncIssueNotificationHyperlink
 import com.android.tools.idea.gradle.util.LocalProperties
 import com.android.tools.idea.sdk.AndroidSdks
+import com.google.common.annotations.VisibleForTesting
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.GradleSyncStats.Trigger.TRIGGER_QF_SDK_PATH_CHANGED
 import com.intellij.openapi.application.ModalityState

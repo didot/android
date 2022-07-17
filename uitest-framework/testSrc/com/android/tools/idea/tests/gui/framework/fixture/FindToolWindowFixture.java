@@ -15,19 +15,19 @@
  */
 package com.android.tools.idea.tests.gui.framework.fixture;
 
+import static com.google.common.base.Verify.verifyNotNull;
+import static org.fest.reflect.core.Reflection.field;
+
 import com.google.common.collect.ImmutableList;
 import com.intellij.ide.OccurenceNavigatorSupport;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.treeStructure.Tree;
 import com.intellij.usageView.UsageViewContentManager;
 import com.intellij.usages.impl.GroupNode;
+import javax.swing.JComponent;
+import javax.swing.JTree;
 import org.fest.swing.edt.GuiQuery;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-
-import static com.google.common.base.Verify.verifyNotNull;
-import static org.fest.reflect.core.Reflection.field;
 
 public class FindToolWindowFixture {
 

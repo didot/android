@@ -23,7 +23,6 @@ import com.intellij.openapi.wm.RegisterToolWindowTask
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.testFramework.RunsInEdt
-import com.intellij.testFramework.runInEdtAndWait
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule

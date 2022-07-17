@@ -26,7 +26,6 @@ import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.IdeInfo
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.diagnostics.report.DefaultMetricsLogFileProvider
-import com.android.tools.idea.diagnostics.report.MetricsLogFileProvider
 import com.android.tools.idea.imports.MavenClassRegistryManager
 import com.android.tools.idea.serverflags.FOLLOWUP_SURVEY
 import com.android.tools.idea.serverflags.SATISFACTION_SURVEY

@@ -15,18 +15,15 @@
  */
 package com.android.tools.idea.gradle.stubs.android;
 
-import com.android.builder.model.v2.CustomSourceDirectory;
 import com.android.builder.model.SourceProvider;
+import com.android.builder.model.v2.CustomSourceDirectory;
 import com.android.tools.idea.gradle.stubs.FileStructure;
 import com.google.common.collect.Sets;
-import java.util.Map;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
+import org.jetbrains.annotations.NotNull;
 
 public class SourceProviderStub implements SourceProvider {
   @NotNull private final Set<File> myAidlDirectories = Sets.newHashSet();

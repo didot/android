@@ -19,6 +19,7 @@ import com.android.io.CancellableFileIo
 import com.android.tools.adtui.validation.Validator
 import com.android.tools.adtui.validation.Validator.Result
 import com.android.tools.adtui.validation.Validator.Severity
+import com.android.tools.idea.ui.validation.validators.PathValidator.Companion.createDefault
 import com.google.common.base.CharMatcher
 import com.intellij.openapi.application.Application
 import com.intellij.openapi.application.ApplicationNamesInfo

@@ -75,10 +75,10 @@ import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyCollection
 import org.mockito.ArgumentMatchers.isNull
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import java.awt.Point
 import java.awt.datatransfer.Transferable
 import java.awt.dnd.DnDConstants

@@ -15,26 +15,23 @@
  */
 package com.android.tools.idea.welcome.wizard
 
+import com.android.repository.api.RemotePackage
 import com.android.tools.idea.gradle.ui.SdkUiStrings.JDK_LOCATION_WARNING_URL
 import com.android.tools.idea.sdk.IdeSdks.isSameAsJavaHomeJdk
-
-import com.android.repository.api.RemotePackage
-import com.android.repository.io.FileOpUtils
-import com.android.tools.idea.welcome.*
+import com.android.tools.idea.welcome.isWritable
 import com.android.tools.idea.wizard.model.ModelWizardStep
 import com.android.utils.HtmlBuilder
 import com.intellij.ide.BrowserUtil
+import com.intellij.ui.layout.panel
 import com.intellij.uiDesigner.core.Spacer
+import com.intellij.util.ui.HTMLEditorKitBuilder
 import com.intellij.util.ui.StartupUiUtil
 import com.intellij.util.ui.UIUtil
 import java.io.File
-import java.util.Comparator
 import java.util.function.Supplier
 import javax.swing.JComponent
 import javax.swing.JTextPane
 import javax.swing.event.HyperlinkEvent
-import com.intellij.ui.layout.panel
-import com.intellij.util.ui.HTMLEditorKitBuilder
 
 /**
  * Provides an explanation of changes the wizard will perform.

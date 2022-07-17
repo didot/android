@@ -17,8 +17,6 @@ package com.android.tools.idea.lang.agsl
 
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.lang.AndroidParsingTestCase
-import com.android.tools.idea.lang.agsl.AgslLexer
-import com.android.tools.idea.lang.agsl.AgslParserDefinition
 import com.intellij.psi.TokenType
 import org.intellij.lang.annotations.Language
 

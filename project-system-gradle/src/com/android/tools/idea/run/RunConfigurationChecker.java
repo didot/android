@@ -23,9 +23,8 @@ import com.android.tools.idea.projectsystem.gradle.actions.FixAndroidRunConfigur
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.project.Project;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Check that all {@link com.android.tools.idea.run.AndroidRunConfiguration AndroidRunConfigurations} of an Android project

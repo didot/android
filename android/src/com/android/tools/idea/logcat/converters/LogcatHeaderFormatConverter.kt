@@ -18,7 +18,6 @@ package com.android.tools.idea.logcat.converters
 import com.android.tools.idea.logcat.LogcatHeaderFormat
 import com.android.tools.idea.logcat.LogcatHeaderFormat.TimestampFormat
 import com.intellij.util.xmlb.Converter
-import java.lang.StringBuilder
 
 private const val SHOW = "show-"
 private const val NO_SHOW = "no-"

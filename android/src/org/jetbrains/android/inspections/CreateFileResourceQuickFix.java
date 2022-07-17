@@ -2,6 +2,7 @@
 package org.jetbrains.android.inspections;
 
 import com.android.resources.ResourceFolderType;
+import com.android.tools.idea.res.IdeResourcesUtil;
 import com.intellij.codeInsight.intention.HighPriorityAction;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.codeInspection.LocalQuickFix;
@@ -24,7 +25,6 @@ import org.jetbrains.android.actions.CreateTypedResourceFileAction;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.ResourceFolderManager;
 import org.jetbrains.android.util.AndroidBundle;
-import com.android.tools.idea.res.IdeResourcesUtil;
 import org.jetbrains.annotations.NotNull;
 
 public class CreateFileResourceQuickFix implements LocalQuickFix, IntentionAction, HighPriorityAction {

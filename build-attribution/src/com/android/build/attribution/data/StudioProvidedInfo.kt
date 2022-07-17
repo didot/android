@@ -17,7 +17,6 @@ package com.android.build.attribution.data
 
 import com.android.ide.common.repository.GradleVersion
 import com.android.tools.idea.gradle.plugin.AndroidPluginInfo
-import com.android.tools.idea.gradle.util.GradleWrapper
 import com.android.tools.idea.gradle.util.GradleUtil
 import com.android.tools.idea.gradle.util.GradleVersions
 import com.android.tools.idea.gradle.util.PropertiesFiles

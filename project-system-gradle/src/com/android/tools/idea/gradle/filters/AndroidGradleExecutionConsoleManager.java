@@ -30,8 +30,6 @@ import com.intellij.openapi.externalSystem.service.internal.ExternalSystemResolv
 import com.intellij.openapi.project.Project;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
-
-
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.gradle.execution.GradleExecutionConsoleManager;
 import org.jetbrains.plugins.gradle.execution.filters.GradleReRunBuildFilter;

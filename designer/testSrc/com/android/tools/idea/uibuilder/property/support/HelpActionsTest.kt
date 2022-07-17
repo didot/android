@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.uibuilder.property.support
 
+import com.android.AndroidXConstants.CONSTRAINT_LAYOUT
 import com.android.SdkConstants.ANDROID_URI
 import com.android.SdkConstants.ATTR_FONT_FAMILY
 import com.android.SdkConstants.ATTR_LAYOUT_HEIGHT
@@ -24,7 +25,6 @@ import com.android.SdkConstants.ATTR_SRC
 import com.android.SdkConstants.ATTR_TEXT
 import com.android.SdkConstants.AUTO_URI
 import com.android.SdkConstants.CLASS_VIEWGROUP
-import com.android.AndroidXConstants.CONSTRAINT_LAYOUT
 import com.android.SdkConstants.FQCN_IMAGE_VIEW
 import com.android.SdkConstants.FQCN_TEXT_VIEW
 import com.android.SdkConstants.FRAME_LAYOUT

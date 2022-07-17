@@ -23,12 +23,11 @@ import com.intellij.openapi.options.colors.AttributesDescriptor;
 import com.intellij.openapi.options.colors.ColorDescriptor;
 import com.intellij.openapi.options.colors.ColorSettingsPage;
 import icons.StudioIcons;
-import org.jetbrains.android.util.AndroidBundle;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
 import java.util.HashMap;
 import java.util.Map;
+import javax.swing.Icon;
+import org.jetbrains.android.util.AndroidBundle;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * An entry in the "Colors and Fonts" settings section for Android Logcat settings.

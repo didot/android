@@ -15,6 +15,9 @@
  */
 package com.android.tools.idea.fonts;
 
+import static com.android.ide.common.fonts.FontFamilyKt.FILE_PROTOCOL_START;
+import static com.android.ide.common.fonts.FontFamilyKt.HTTPS_PROTOCOL_START;
+
 import com.android.ide.common.fonts.FontDetail;
 import com.android.ide.common.fonts.FontFamily;
 import com.android.ide.common.fonts.FontProvider;
@@ -38,7 +41,13 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.SystemInfo;
-import com.intellij.ui.*;
+import com.intellij.ui.ColoredListCellRenderer;
+import com.intellij.ui.DocumentAdapter;
+import com.intellij.ui.Gray;
+import com.intellij.ui.HyperlinkLabel;
+import com.intellij.ui.JBColor;
+import com.intellij.ui.SearchTextField;
+import com.intellij.ui.SpeedSearchComparator;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
@@ -47,23 +56,42 @@ import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.LafIconLookup;
 import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
-import org.jetbrains.android.facet.AndroidFacet;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.awt.LayoutManager;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.font.FontRenderContext;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Supplier;
-
-import static com.android.ide.common.fonts.FontFamilyKt.FILE_PROTOCOL_START;
-import static com.android.ide.common.fonts.FontFamilyKt.HTTPS_PROTOCOL_START;
+import javax.swing.Action;
+import javax.swing.DefaultListModel;
+import javax.swing.GroupLayout;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JScrollBar;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.UIManager;
+import javax.swing.event.DocumentEvent;
+import org.jetbrains.android.facet.AndroidFacet;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Font selection dialog, which displays and causes the font cache to be populated.

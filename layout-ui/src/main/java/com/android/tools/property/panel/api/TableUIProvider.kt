@@ -15,10 +15,10 @@
  */
 package com.android.tools.property.panel.api
 
-import com.android.tools.property.ptable.PTableCellEditorProvider
-import com.android.tools.property.ptable.PTableCellRendererProvider
 import com.android.tools.property.panel.impl.support.SimpleControlTypeProvider
 import com.android.tools.property.panel.impl.table.TableUIProviderImpl
+import com.android.tools.property.ptable.PTableCellEditorProvider
+import com.android.tools.property.ptable.PTableCellRendererProvider
 
 interface TableUIProvider {
   val tableCellRendererProvider: PTableCellRendererProvider

@@ -47,10 +47,10 @@ import com.android.tools.idea.naveditor.model.isSelfAction
 import com.android.tools.idea.naveditor.model.popUpTo
 import com.android.tools.idea.naveditor.model.supportsActions
 import com.android.tools.idea.naveditor.scene.decorator.NavSceneDecoratorFactory
-import com.android.tools.idea.naveditor.scene.hitproviders.NavRegularActionHitProvider
 import com.android.tools.idea.naveditor.scene.hitproviders.NavActionSourceHitProvider
 import com.android.tools.idea.naveditor.scene.hitproviders.NavDestinationHitProvider
 import com.android.tools.idea.naveditor.scene.hitproviders.NavHorizontalActionHitProvider
+import com.android.tools.idea.naveditor.scene.hitproviders.NavRegularActionHitProvider
 import com.android.tools.idea.naveditor.scene.hitproviders.NavSelfActionHitProvider
 import com.android.tools.idea.naveditor.scene.layout.ElkLayeredLayoutAlgorithm
 import com.android.tools.idea.naveditor.scene.layout.ManualLayoutAlgorithm

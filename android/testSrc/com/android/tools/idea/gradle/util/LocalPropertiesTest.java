@@ -15,6 +15,15 @@
  */
 package com.android.tools.idea.gradle.util;
 
+import static com.android.SdkConstants.NDK_DIR_PROPERTY;
+import static com.android.SdkConstants.SDK_DIR_PROPERTY;
+import static com.intellij.openapi.util.io.FileUtil.toCanonicalPath;
+import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
 import com.android.SdkConstants;
 import com.android.tools.idea.io.FilePaths;
 import com.google.common.base.Charsets;
@@ -24,15 +33,12 @@ import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.testFramework.PlatformTestCase;
-
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.Properties;
-
-import static com.android.SdkConstants.NDK_DIR_PROPERTY;
-import static com.android.SdkConstants.SDK_DIR_PROPERTY;
-import static com.intellij.openapi.util.io.FileUtil.toCanonicalPath;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
-import static org.easymock.EasyMock.*;
 
 /**
  * Tests for {@link LocalProperties}.

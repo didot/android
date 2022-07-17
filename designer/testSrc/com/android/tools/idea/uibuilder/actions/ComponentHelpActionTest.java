@@ -15,6 +15,12 @@
  */
 package com.android.tools.idea.uibuilder.actions;
 
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
+
 import com.android.AndroidXConstants;
 import com.android.SdkConstants;
 import com.intellij.ide.browsers.BrowserLauncher;
@@ -23,10 +29,6 @@ import com.intellij.openapi.actionSystem.DataContext;
 import org.jetbrains.android.AndroidTestCase;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
 
 public class ComponentHelpActionTest extends AndroidTestCase {
   @Mock

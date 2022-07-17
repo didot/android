@@ -19,7 +19,6 @@ import com.android.ide.common.resources.Locale
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
-import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.getDescendant
@@ -69,7 +68,6 @@ import javax.swing.JButton
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.JTextField
-import kotlin.test.fail
 
 /** Tests the [FilterKeysAction] class. */
 @RunWith(JUnit4::class)

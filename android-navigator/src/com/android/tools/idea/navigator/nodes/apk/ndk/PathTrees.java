@@ -15,6 +15,9 @@
  */
 package com.android.tools.idea.navigator.nodes.apk.ndk;
 
+import static com.intellij.openapi.util.io.FileUtil.isAncestor;
+import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
+
 import com.android.tools.idea.apk.paths.PathNode;
 import com.android.tools.idea.apk.paths.PathTree;
 import com.intellij.ide.projectView.ViewSettings;
@@ -25,15 +28,11 @@ import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiManager;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import static com.intellij.openapi.util.io.FileUtil.isAncestor;
-import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 final class PathTrees {
   private PathTrees() {

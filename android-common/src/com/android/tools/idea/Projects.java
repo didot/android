@@ -15,12 +15,11 @@
  */
 package com.android.tools.idea;
 
-import com.intellij.openapi.project.Project;
-import org.jetbrains.annotations.NotNull;
-
-import java.io.File;
-
 import static com.intellij.openapi.util.io.FileUtil.toCanonicalPath;
+
+import com.intellij.openapi.project.Project;
+import java.io.File;
+import org.jetbrains.annotations.NotNull;
 
 public class Projects {
   @NotNull

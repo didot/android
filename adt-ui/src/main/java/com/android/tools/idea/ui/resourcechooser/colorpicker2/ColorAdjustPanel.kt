@@ -16,7 +16,6 @@
 package com.android.tools.idea.ui.resourcechooser.colorpicker2
 
 import com.google.common.annotations.VisibleForTesting
-import com.intellij.openapi.wm.WindowManager
 import com.intellij.util.ui.JBUI
 import java.awt.AWTPermission
 import java.awt.Color

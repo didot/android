@@ -26,8 +26,8 @@ import static com.android.sdklib.repository.targets.SystemImage.GOOGLE_APIS_X86_
 import static com.android.sdklib.repository.targets.SystemImage.GOOGLE_TV_TAG;
 import static com.android.sdklib.repository.targets.SystemImage.WEAR_TAG;
 import static com.android.tools.idea.avdmanager.ChooseSystemImagePanel.SystemImageClassification.OTHER;
-import static com.android.tools.idea.avdmanager.ChooseSystemImagePanel.SystemImageClassification.RECOMMENDED;
 import static com.android.tools.idea.avdmanager.ChooseSystemImagePanel.SystemImageClassification.PERFORMANT;
+import static com.android.tools.idea.avdmanager.ChooseSystemImagePanel.SystemImageClassification.RECOMMENDED;
 import static com.android.tools.idea.avdmanager.ChooseSystemImagePanel.getClassificationForDevice;
 import static com.android.tools.idea.avdmanager.ChooseSystemImagePanel.getClassificationFromParts;
 import static com.android.tools.idea.avdmanager.ChooseSystemImagePanel.systemImageMatchesDevice;

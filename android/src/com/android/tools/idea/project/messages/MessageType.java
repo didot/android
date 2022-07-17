@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.project.messages;
 
+import static com.android.builder.model.SyncIssue.SEVERITY_ERROR;
+
 import com.android.ide.common.blame.Message;
 import com.intellij.openapi.externalSystem.service.notification.NotificationCategory;
 import com.intellij.util.ui.MessageCategory;

@@ -15,15 +15,15 @@
  */
 package com.android.tools.idea.gradle.project.upgrade;
 
+import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.MockitoAnnotations.initMocks;
+
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.idea.gradle.plugin.AndroidPluginInfo;
 import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.testFramework.PlatformTestCase;
 import org.mockito.Mock;
-
-import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 /**
  * Tests for {@link ForcedPluginPreviewVersionUpgradeDialog}

@@ -16,7 +16,6 @@
 
 package com.android.tools.idea.npw.module.recipes.macrobenchmarkModule
 
-import com.android.tools.idea.gradle.util.GradleUtil
 import com.android.tools.idea.npw.module.recipes.androidModule.gradleToKtsIfKts
 import com.android.tools.idea.npw.module.recipes.emptyPluginsBlock
 import com.android.tools.idea.npw.module.recipes.toAndroidFieldVersion

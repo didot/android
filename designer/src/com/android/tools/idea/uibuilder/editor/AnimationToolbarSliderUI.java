@@ -17,7 +17,6 @@ package com.android.tools.idea.uibuilder.editor;
 
 import com.intellij.ui.ColorUtil;
 import com.intellij.ui.JBColor;
-
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.JBDimension;
 import com.intellij.util.ui.JBUI;

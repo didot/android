@@ -18,8 +18,8 @@ package com.android.tools.idea.editors.liveedit.ui
 import com.android.tools.adtui.actions.DropDownAction
 import com.android.tools.adtui.common.ColoredIconGenerator
 import com.android.tools.idea.editors.literals.EditState
-import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.editors.literals.LiveEditService
+import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.editors.sourcecode.isKotlinFileType
 import com.intellij.icons.AllIcons.General.InspectionsError
 import com.intellij.icons.AllIcons.General.InspectionsOK
@@ -50,10 +50,10 @@ import com.intellij.util.ui.UIUtil
 import org.jetbrains.android.util.AndroidBundle
 import java.awt.Color
 import java.awt.Insets
+import java.net.URL
 import javax.swing.Icon
 import javax.swing.JComponent
 import javax.swing.plaf.FontUIResource
-import java.net.URL
 
 class LiveEditActionProvider : InspectionWidgetActionProvider {
   override fun createAction(editor: Editor): AnAction? {

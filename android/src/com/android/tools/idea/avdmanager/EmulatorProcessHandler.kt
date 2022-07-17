@@ -16,11 +16,11 @@
 package com.android.tools.idea.avdmanager
 
 import com.android.sdklib.internal.avd.AvdInfo
-import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.process.BaseOSProcessHandler
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessOutputType
+import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.Key
 import com.intellij.util.io.BaseOutputReader

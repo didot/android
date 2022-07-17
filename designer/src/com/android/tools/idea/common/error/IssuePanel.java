@@ -17,8 +17,6 @@ package com.android.tools.idea.common.error;
 
 import com.android.tools.adtui.common.AdtSecondaryPanel;
 import com.android.tools.adtui.util.ActionToolbarUtil;
-import com.android.tools.idea.common.model.NlComponent;
-import com.android.tools.idea.flags.StudioFlags;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
@@ -72,7 +70,6 @@ import javax.swing.JViewport;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
-import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

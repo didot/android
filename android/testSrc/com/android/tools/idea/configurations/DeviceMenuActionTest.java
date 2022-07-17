@@ -15,6 +15,9 @@
  */
 package com.android.tools.idea.configurations;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.android.tools.adtui.actions.ActionTestUtils;
 import com.android.tools.idea.flags.StudioFlags;
 import com.google.common.truth.Truth;
@@ -24,9 +27,6 @@ import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.impl.PresentationFactory;
 import com.intellij.openapi.actionSystem.impl.Utils;
 import org.jetbrains.android.AndroidTestCase;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class DeviceMenuActionTest extends AndroidTestCase {
 

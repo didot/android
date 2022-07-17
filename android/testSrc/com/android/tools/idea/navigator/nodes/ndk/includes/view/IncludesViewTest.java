@@ -15,6 +15,11 @@
  */
 package com.android.tools.idea.navigator.nodes.ndk.includes.view;
 
+import static com.android.tools.idea.navigator.nodes.ndk.includes.view.IncludeViewTestUtils.checkPresentationDataContainsOsSpecificSlashes;
+import static com.android.tools.idea.navigator.nodes.ndk.includes.view.IncludeViewTestUtils.checkPresentationDataHasOsSpecificSlashes;
+import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.Mockito.when;
+
 import com.android.tools.idea.navigator.nodes.ndk.includes.model.PackageFamilyValue;
 import com.android.tools.idea.navigator.nodes.ndk.includes.model.SimpleIncludeValue;
 import com.android.tools.idea.sdk.IdeSdks;
@@ -24,17 +29,11 @@ import com.google.common.collect.Lists;
 import com.intellij.ide.projectView.impl.nodes.PsiFileNode;
 import com.intellij.ide.util.treeView.AbstractTreeNode;
 import com.intellij.testFramework.PlatformTestCase;
-import org.junit.ClassRule;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-
-import static com.android.tools.idea.navigator.nodes.ndk.includes.view.IncludeViewTestUtils.checkPresentationDataContainsOsSpecificSlashes;
-import static com.android.tools.idea.navigator.nodes.ndk.includes.view.IncludeViewTestUtils.checkPresentationDataHasOsSpecificSlashes;
-import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.Mockito.when;
+import org.junit.ClassRule;
 
 public class IncludesViewTest extends PlatformTestCase {
   @ClassRule

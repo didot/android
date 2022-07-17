@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.gradle.quickfix;
 
+import static com.intellij.openapi.module.ModuleUtilCore.findModuleForPsiElement;
+
 import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet;
 import com.intellij.codeInsight.daemon.QuickFixActionRegistrar;
 import com.intellij.codeInsight.intention.IntentionAction;
@@ -24,8 +26,6 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.util.Condition;
 import com.intellij.psi.PsiJavaCodeReferenceElement;
 import org.jetbrains.annotations.NotNull;
-
-import static com.intellij.openapi.module.ModuleUtilCore.findModuleForPsiElement;
 
 /**
  * Class to unload unwanted quick fixes

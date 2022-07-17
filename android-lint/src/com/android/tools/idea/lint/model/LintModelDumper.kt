@@ -25,12 +25,12 @@ import com.android.tools.lint.model.LintModelAndroidLibrary
 import com.android.tools.lint.model.LintModelArtifact
 import com.android.tools.lint.model.LintModelDependencies
 import com.android.tools.lint.model.LintModelDependency
+import com.android.tools.lint.model.LintModelExternalLibrary
 import com.android.tools.lint.model.LintModelJavaArtifact
 import com.android.tools.lint.model.LintModelLibrary
 import com.android.tools.lint.model.LintModelLintOptions
-import com.android.tools.lint.model.LintModelModuleLibrary
 import com.android.tools.lint.model.LintModelModule
-import com.android.tools.lint.model.LintModelExternalLibrary
+import com.android.tools.lint.model.LintModelModuleLibrary
 import com.android.tools.lint.model.LintModelSourceProvider
 import com.android.tools.lint.model.LintModelVariant
 import com.intellij.openapi.module.ModuleManager

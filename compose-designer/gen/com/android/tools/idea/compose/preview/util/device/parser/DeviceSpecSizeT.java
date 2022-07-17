@@ -1,9 +1,9 @@
 // This is a generated file. Not intended for manual editing.
 package com.android.tools.idea.compose.preview.util.device.parser;
 
-import java.util.List;
-import org.jetbrains.annotations.*;
 import com.intellij.psi.PsiElement;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public interface DeviceSpecSizeT extends PsiElement {
 

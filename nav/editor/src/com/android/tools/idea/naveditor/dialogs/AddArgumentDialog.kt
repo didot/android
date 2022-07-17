@@ -52,7 +52,6 @@ import org.jetbrains.android.dom.navigation.NavigationSchema.TAG_ARGUMENT
 import org.jetbrains.kotlin.utils.doNothing
 import java.awt.CardLayout
 import java.awt.Dimension
-import java.lang.IllegalStateException
 import javax.swing.Action
 import javax.swing.JComponent
 import javax.swing.JList

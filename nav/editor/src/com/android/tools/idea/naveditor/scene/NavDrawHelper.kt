@@ -38,7 +38,6 @@ import com.google.common.annotations.VisibleForTesting
 import com.intellij.util.IconUtil
 import com.intellij.util.ui.ImageUtil
 import java.awt.Color
-import java.awt.Image
 import javax.swing.Icon
 import kotlin.math.min
 

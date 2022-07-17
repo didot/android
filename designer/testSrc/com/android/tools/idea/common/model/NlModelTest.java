@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.common.model;
 
+import static com.android.AndroidXConstants.RECYCLER_VIEW;
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ATTR_LAYOUT_WIDTH;
 import static com.android.SdkConstants.ATTR_ORIENTATION;
@@ -22,7 +23,6 @@ import static com.android.SdkConstants.BUTTON;
 import static com.android.SdkConstants.EDIT_TEXT;
 import static com.android.SdkConstants.FRAME_LAYOUT;
 import static com.android.SdkConstants.LINEAR_LAYOUT;
-import static com.android.AndroidXConstants.RECYCLER_VIEW;
 import static com.android.SdkConstants.TEXT_VIEW;
 import static com.android.SdkConstants.VALUE_VERTICAL;
 import static com.android.tools.idea.concurrency.AsyncTestUtils.waitForCondition;

@@ -15,6 +15,10 @@
  */
 package com.android.tools.idea.uibuilder.property.inspector
 
+import com.android.AndroidXConstants.BOTTOM_NAVIGATION_VIEW
+import com.android.AndroidXConstants.FLOATING_ACTION_BUTTON
+import com.android.AndroidXConstants.TAB_LAYOUT
+import com.android.AndroidXConstants.TEXT_INPUT_LAYOUT
 import com.android.SdkConstants.ANDROID_URI
 import com.android.SdkConstants.ATTR_ADDITIONAL_PADDING_END_FOR_ICON
 import com.android.SdkConstants.ATTR_ADDITIONAL_PADDING_START_FOR_ICON
@@ -131,16 +135,12 @@ import com.android.SdkConstants.ATTR_TINT
 import com.android.SdkConstants.ATTR_VISIBILITY
 import com.android.SdkConstants.AUTO_URI
 import com.android.SdkConstants.BOTTOM_APP_BAR
-import com.android.AndroidXConstants.BOTTOM_NAVIGATION_VIEW
 import com.android.SdkConstants.BUTTON
 import com.android.SdkConstants.CHIP
 import com.android.SdkConstants.CHIP_GROUP
-import com.android.AndroidXConstants.FLOATING_ACTION_BUTTON
 import com.android.SdkConstants.IMAGE_VIEW
 import com.android.SdkConstants.LINEAR_LAYOUT
 import com.android.SdkConstants.MATERIAL_BUTTON
-import com.android.AndroidXConstants.TAB_LAYOUT
-import com.android.AndroidXConstants.TEXT_INPUT_LAYOUT
 import com.android.SdkConstants.TOOLS_URI
 import com.android.testutils.TestUtils.resolveWorkspacePath
 import com.android.tools.idea.testing.AndroidProjectRule
