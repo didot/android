@@ -30,14 +30,13 @@ import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.io.File;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import org.jetbrains.android.sdk.AndroidSdkData;
-import org.mockito.Mockito;
-
-import java.io.File;
 import java.util.Map;
 import java.util.function.Predicate;
+import org.jetbrains.android.sdk.AndroidSdkData;
+import org.mockito.Mockito;
 
 /**
  * Tests for the local repository utility class

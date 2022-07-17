@@ -17,6 +17,7 @@ package com.android.tools.idea.updater.configure;
 
 import static com.android.repository.util.RepoPackageUtilKt.getRepoPackagePrefix;
 import static com.android.tools.idea.avdmanager.HardwareAccelerationCheck.isChromeOSAndIsNotHWAccelerated;
+
 import com.android.SdkConstants;
 import com.android.repository.Revision;
 import com.android.repository.api.RepoPackage;

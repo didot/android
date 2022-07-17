@@ -16,7 +16,6 @@
 package com.android.tools.adtui.model.formatter;
 
 import com.intellij.util.text.DateFormatUtil;
-
 import java.text.DecimalFormat;
 import java.util.concurrent.TimeUnit;
 

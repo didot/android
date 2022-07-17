@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.rendering;
 
-import static com.android.tools.idea.rendering.RenderAsyncActionExecutor.*;
+import static com.android.tools.idea.rendering.RenderAsyncActionExecutor.RenderingPriority;
 import static com.intellij.lang.annotation.HighlightSeverity.ERROR;
 
 import com.android.ide.common.rendering.api.MergeCookie;

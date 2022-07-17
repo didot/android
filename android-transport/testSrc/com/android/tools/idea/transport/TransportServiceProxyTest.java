@@ -33,8 +33,6 @@ import com.android.ddmlib.IShellOutputReceiver;
 import com.android.ddmlib.ProfileableClient;
 import com.android.ddmlib.ProfileableClientData;
 import com.android.sdklib.AndroidVersion;
-import com.android.tools.idea.flags.StudioFlagSettings;
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.protobuf.ByteString;
 import com.android.tools.profiler.proto.Commands;
 import com.android.tools.profiler.proto.Common;

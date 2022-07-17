@@ -28,7 +28,6 @@ import com.android.tools.idea.common.scene.target.Target
 import com.android.tools.idea.uibuilder.model.viewHandler
 import com.intellij.openapi.util.text.StringUtil
 import java.awt.Color
-import java.util.*
 
 private const val DEBUG: Boolean = false
 

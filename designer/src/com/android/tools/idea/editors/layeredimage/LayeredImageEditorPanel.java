@@ -22,12 +22,13 @@ import com.intellij.designer.LightFillLayout;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.ui.ThreeComponentsSplitter;
 import com.intellij.openapi.util.registry.Registry;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import org.intellij.images.editor.ImageEditor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.awt.*;
 
 class LayeredImageEditorPanel extends JPanel implements DesignerEditorPanelFacade, Disposable {
   private final ThreeComponentsSplitter myContentSplitter;

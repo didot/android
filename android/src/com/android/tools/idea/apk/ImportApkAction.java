@@ -15,6 +15,9 @@
  */
 package com.android.tools.idea.apk;
 
+import static com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil.getManager;
+import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
+
 import com.android.tools.idea.apk.debugging.ApkDebugging;
 import com.android.tools.idea.project.CustomProjectTypeImporter;
 import com.google.common.annotations.VisibleForTesting;
@@ -32,9 +35,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import static com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil.getManager;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 
 public class ImportApkAction extends DumbAwareAction {
   @VisibleForTesting

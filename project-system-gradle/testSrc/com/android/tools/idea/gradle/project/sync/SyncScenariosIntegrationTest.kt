@@ -28,7 +28,6 @@ import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.testing.GradleIntegrationTest
 import com.android.tools.idea.testing.OpenPreparedProjectOptions
 import com.android.tools.idea.testing.TestProjectToSnapshotPaths
-import com.android.tools.idea.testing.assertAreEqualToSnapshots
 import com.android.tools.idea.testing.findAppModule
 import com.android.tools.idea.testing.gradleModule
 import com.android.tools.idea.testing.onEdt

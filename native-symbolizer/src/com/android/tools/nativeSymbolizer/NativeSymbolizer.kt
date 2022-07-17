@@ -18,7 +18,6 @@ package com.android.tools.nativeSymbolizer
 import com.android.tools.idea.util.StudioPathManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import java.io.File
 import java.io.IOException

@@ -19,7 +19,6 @@ package com.android.tools.idea.gradle.project.build.attribution
 
 import com.android.SdkConstants.DOT_GRADLE
 import com.android.ide.common.repository.GradleVersion
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.ProjectStructure
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
 import com.android.utils.FileUtils

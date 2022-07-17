@@ -15,6 +15,12 @@
  */
 package com.android.tools.idea.gradle.roots;
 
+import static com.android.tools.idea.gradle.roots.AndroidGeneratedSourcesFilter.isGeneratedSource;
+import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
+
 import com.android.tools.idea.gradle.model.IdeAndroidProject;
 import com.android.tools.idea.gradle.project.GradleProjectInfo;
 import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
@@ -26,18 +32,11 @@ import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.PlatformTestCase;
 import com.intellij.testFramework.PlatformTestUtil;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.jetbrains.annotations.NotNull;
 import org.mockito.Mock;
-
-import java.io.IOException;
-
-import static com.android.tools.idea.gradle.roots.AndroidGeneratedSourcesFilter.isGeneratedSource;
-import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 /**
  * Tests for {@link AndroidGeneratedSourcesFilter}.

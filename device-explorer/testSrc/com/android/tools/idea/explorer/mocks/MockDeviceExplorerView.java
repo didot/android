@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.explorer.mocks;
 
+import com.android.tools.idea.FutureValuesTracker;
 import com.android.tools.idea.explorer.DeviceExplorerModel;
 import com.android.tools.idea.explorer.DeviceExplorerModelListener;
 import com.android.tools.idea.explorer.DeviceExplorerView;
@@ -22,7 +23,6 @@ import com.android.tools.idea.explorer.DeviceExplorerViewListener;
 import com.android.tools.idea.explorer.DeviceExplorerViewProgressListener;
 import com.android.tools.idea.explorer.DeviceFileEntryNode;
 import com.android.tools.idea.explorer.DeviceFileSystemRendererFactory;
-import com.android.tools.idea.FutureValuesTracker;
 import com.android.tools.idea.explorer.fs.DeviceFileSystem;
 import com.android.tools.idea.explorer.fs.DeviceFileSystemService;
 import com.android.tools.idea.explorer.ui.DeviceExplorerViewImpl;

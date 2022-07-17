@@ -20,7 +20,6 @@ import com.intellij.psi.PsiExpression;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiReferenceExpression;
 import java.util.Objects;
-import org.jetbrains.android.dom.manifest.AndroidManifestUtils;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.inspections.AndroidDeprecationInspection;
 import org.jetbrains.annotations.NotNull;

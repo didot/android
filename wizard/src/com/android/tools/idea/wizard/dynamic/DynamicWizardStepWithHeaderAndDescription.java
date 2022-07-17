@@ -15,21 +15,25 @@
  */
 package com.android.tools.idea.wizard.dynamic;
 
+import static com.android.tools.idea.wizard.WizardConstants.STUDIO_WIZARD_INSET_SIZE;
+import static com.android.tools.idea.wizard.dynamic.ScopedStateStore.createKey;
+
 import com.android.tools.idea.wizard.WizardConstants;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.StartupUiUtil;
+import java.awt.BorderLayout;
+import java.awt.Font;
+import java.awt.Insets;
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import java.awt.*;
-
-import static com.android.tools.idea.wizard.WizardConstants.STUDIO_WIZARD_INSET_SIZE;
-import static com.android.tools.idea.wizard.dynamic.ScopedStateStore.createKey;
 
 /**
  * Base class for wizard pages with title and description labels underneath

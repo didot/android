@@ -24,7 +24,6 @@ import com.android.tools.profiler.perfetto.proto.TraceProcessor.QueryParameters
 import com.android.tools.profiler.perfetto.proto.TraceProcessor.QueryResult
 import com.android.tools.profilers.IdeProfilerServices
 import com.android.tools.profilers.analytics.FeatureTracker
-import com.android.tools.profilers.cpu.systemtrace.AndroidFrameTimelineEvent
 import com.android.tools.profilers.cpu.systemtrace.ProcessModel
 import com.android.tools.profilers.cpu.systemtrace.SystemTraceModelAdapter
 import com.android.tools.profilers.cpu.systemtrace.SystemTraceSurfaceflingerManager

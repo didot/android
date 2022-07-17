@@ -16,11 +16,11 @@
 package org.jetbrains.android.refactoring;
 
 import static com.android.AndroidProjectTypes.PROJECT_TYPE_APP;
+import static com.android.AndroidXConstants.CLASS_APP_COMPAT_ACTIVITY;
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ATTR_SHOW_AS_ACTION;
 import static com.android.SdkConstants.AUTO_URI;
 import static com.android.SdkConstants.CLASS_ACTIVITY;
-import static com.android.AndroidXConstants.CLASS_APP_COMPAT_ACTIVITY;
 import static com.android.SdkConstants.TAG_ITEM;
 import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.AttributeMigrationEntry;
 import static org.jetbrains.android.refactoring.AppCompatMigrationEntry.AttributeValueMigrationEntry;

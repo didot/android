@@ -24,8 +24,8 @@ import static com.intellij.openapi.fileChooser.impl.FileChooserUtil.setLastOpene
 import static com.intellij.openapi.fileTypes.ex.FileTypeChooser.getKnownFileTypeOrAssociate;
 import static com.intellij.openapi.vfs.VfsUtil.getUserHomeDir;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.android.tools.adtui.validation.Validator;
+import com.google.common.annotations.VisibleForTesting;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.GeneralSettings;
 import com.intellij.ide.IdeBundle;

@@ -16,8 +16,9 @@
 package com.android.tools.idea.diagnostics
 
 
-import com.google.common.annotations.VisibleForTesting
+import com.android.tools.idea.diagnostics.ExceptionRegistry.StackFrame
 import com.android.utils.DateProvider
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.hash.HashCode
 import com.google.common.hash.Hashing
 import com.google.common.io.BaseEncoding

@@ -15,6 +15,11 @@
  */
 package com.android.tools.idea.gradle.variant.ui;
 
+import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
+import static com.intellij.ui.SimpleTextAttributes.GRAY_ATTRIBUTES;
+import static com.intellij.ui.SimpleTextAttributes.REGULAR_ATTRIBUTES;
+import static com.intellij.ui.SimpleTextAttributes.REGULAR_ITALIC_ATTRIBUTES;
+
 import com.android.tools.idea.fileTypes.AndroidIconProvider;
 import com.intellij.openapi.module.Module;
 import com.intellij.ui.CheckboxTree;
@@ -22,9 +27,6 @@ import com.intellij.ui.ColoredTreeCellRenderer;
 import icons.StudioIcons;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
-import static com.intellij.ui.SimpleTextAttributes.*;
 
 public abstract class VariantCheckboxTreeCellRenderer extends CheckboxTree.CheckboxTreeCellRenderer {
   protected void appendVariant(@NotNull String variant) {

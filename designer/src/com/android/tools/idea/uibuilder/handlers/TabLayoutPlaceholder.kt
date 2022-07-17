@@ -15,12 +15,12 @@
  */
 package com.android.tools.idea.uibuilder.handlers
 
-import com.android.tools.idea.common.scene.SceneComponent
-import com.android.tools.idea.common.model.NlAttributesHolder
-import com.android.tools.idea.common.scene.SnappingInfo
 import com.android.tools.adtui.common.SwingCoordinate
+import com.android.tools.idea.common.model.NlAttributesHolder
 import com.android.tools.idea.common.scene.Placeholder
 import com.android.tools.idea.common.scene.Region
+import com.android.tools.idea.common.scene.SceneComponent
+import com.android.tools.idea.common.scene.SnappingInfo
 import java.awt.Point
 
 @SwingCoordinate private const val SIZE = 8

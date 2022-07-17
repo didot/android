@@ -15,10 +15,9 @@
  */
 package com.android.tools.idea.tests.gui.framework.matcher;
 
+import java.awt.Component;
 import org.fest.swing.core.GenericTypeMatcher;
 import org.jetbrains.annotations.NotNull;
-
-import java.awt.*;
 
 /**
  * Convenience wrapper around {@link GenericTypeMatcher} for chaining and modifying matchers.

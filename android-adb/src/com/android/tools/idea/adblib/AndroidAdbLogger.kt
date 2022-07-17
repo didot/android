@@ -16,7 +16,6 @@
 package com.android.tools.idea.adblib
 
 import com.android.adblib.AdbLogger
-import com.android.adblib.AdbLoggerFactory
 import com.intellij.openapi.diagnostic.Logger
 
 /**

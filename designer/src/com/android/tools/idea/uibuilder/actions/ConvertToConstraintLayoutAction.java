@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.uibuilder.actions;
 
+import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT;
+import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ANDROID_WEBKIT_PKG;
 import static com.android.SdkConstants.ATTR_BACKGROUND;
@@ -25,9 +27,7 @@ import static com.android.SdkConstants.ATTR_LAYOUT_EDITOR_ABSOLUTE_Y;
 import static com.android.SdkConstants.ATTR_LAYOUT_HEIGHT;
 import static com.android.SdkConstants.ATTR_LAYOUT_RESOURCE_PREFIX;
 import static com.android.SdkConstants.ATTR_LAYOUT_WIDTH;
-import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.CLASS_VIEWGROUP;
-import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.FQCN_ADAPTER_VIEW;
 import static com.android.SdkConstants.REQUEST_FOCUS;
 import static com.android.SdkConstants.TAG_DATA;

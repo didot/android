@@ -1,6 +1,7 @@
 package org.jetbrains.android.sdk;
 
 import com.android.tools.idea.model.AndroidModel;
+import com.android.tools.idea.res.IdeResourcesUtil;
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileTypes.FileTypeRegistry;
@@ -15,7 +16,6 @@ import com.intellij.ui.EditorNotificationPanel;
 import com.intellij.ui.EditorNotifications;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.AndroidRootUtil;
-import com.android.tools.idea.res.IdeResourcesUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

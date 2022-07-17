@@ -20,12 +20,11 @@ import com.android.builder.model.AndroidLibrary;
 import com.android.builder.model.Dependencies;
 import com.android.builder.model.JavaLibrary;
 import com.google.common.collect.Lists;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import org.jetbrains.annotations.NotNull;
 
 public class DependenciesStub implements Dependencies {
   @NotNull private final List<AndroidLibrary> myLibraries = Lists.newArrayList();

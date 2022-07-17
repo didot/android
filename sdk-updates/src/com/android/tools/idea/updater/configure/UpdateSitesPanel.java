@@ -31,9 +31,9 @@ import com.intellij.ui.AnActionButtonUpdater;
 import com.intellij.ui.ToolbarDecorator;
 import com.intellij.ui.table.TableView;
 import com.intellij.util.ui.AsyncProcessIcon;
+import javax.swing.JCheckBox;
+import javax.swing.JPanel;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
 import org.jetbrains.annotations.Nullable;
 
 /**

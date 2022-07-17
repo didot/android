@@ -23,8 +23,8 @@ import com.android.tools.idea.npw.dynamicapp.DownloadInstallKind
 import com.android.tools.idea.npw.model.NewProjectModel
 import com.android.tools.idea.npw.module.recipes.addInstrumentedTests
 import com.android.tools.idea.npw.module.recipes.addKotlinIfNeeded
-import com.android.tools.idea.npw.module.recipes.addTestDependencies
 import com.android.tools.idea.npw.module.recipes.addLocalTests
+import com.android.tools.idea.npw.module.recipes.addTestDependencies
 import com.android.tools.idea.npw.module.recipes.androidModule.buildGradle
 import com.android.tools.idea.npw.module.recipes.createDefaultDirectories
 import com.android.tools.idea.npw.module.recipes.dynamicFeatureModule.res.values.stringsXml

@@ -16,8 +16,6 @@
 package com.android.tools.idea.lang.agsl
 
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.lang.agsl.AgslFileType
-import com.android.tools.idea.lang.agsl.AgslPairMatcher
 import com.intellij.codeInsight.highlighting.BraceMatchingUtil
 import com.intellij.lang.LanguageBraceMatching
 import com.intellij.psi.util.elementType

@@ -15,9 +15,9 @@
  */
 package com.android.tools.idea.lint.inspections
 
+import com.android.tools.idea.lint.AndroidLintBundle.Companion.message
 import com.android.tools.idea.lint.common.AndroidLintInspectionBase
 import com.android.tools.lint.checks.InternalInsetResourceDetector
-import com.android.tools.idea.lint.AndroidLintBundle.Companion.message
 
 class AndroidLintInternalInsetResourceInspection : AndroidLintInspectionBase(
    message("android.lint.inspections.internal.inset.resource"), InternalInsetResourceDetector.ISSUE

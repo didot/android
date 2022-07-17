@@ -19,9 +19,12 @@ import com.intellij.ide.IdeTooltipManager;
 import com.intellij.ui.HintHint;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ui.StartupUiUtil;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.AWTEvent;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import javax.swing.JEditorPane;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 
 /**
  * Copied from com/intellij/ui/GotItPanel but customized for Studio

@@ -27,9 +27,9 @@ import com.android.tools.idea.res.getDrawableResources
 import com.android.tools.idea.res.getSampleDataOfType
 import com.android.tools.idea.ui.resourcechooser.DrawableGrid
 import com.android.tools.idea.ui.resourcechooser.util.createResourcePickerDialog
-import com.android.tools.idea.uibuilder.handlers.ImageViewHandler
 import com.android.tools.idea.uibuilder.assistant.AssistantPopupPanel
 import com.android.tools.idea.uibuilder.assistant.ComponentAssistantFactory
+import com.android.tools.idea.uibuilder.handlers.ImageViewHandler
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.util.concurrency.AppExecutorUtil

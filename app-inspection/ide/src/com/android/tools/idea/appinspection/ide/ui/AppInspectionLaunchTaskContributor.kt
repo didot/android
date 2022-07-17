@@ -20,7 +20,6 @@ import com.android.tools.idea.appinspection.ide.model.AppInspectionBundle
 import com.android.tools.idea.run.AndroidLaunchTaskContributor
 import com.android.tools.idea.run.AndroidProcessHandler
 import com.android.tools.idea.run.AndroidRunConfigurationBase
-import com.android.tools.idea.run.LaunchOptions
 import com.android.tools.idea.run.tasks.LaunchContext
 import com.android.tools.idea.run.tasks.LaunchResult
 import com.android.tools.idea.run.tasks.LaunchTask
@@ -29,7 +28,6 @@ import com.intellij.execution.Executor
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.module.Module
 import com.intellij.openapi.wm.ex.ToolWindowManagerEx
 import org.jetbrains.annotations.VisibleForTesting
 

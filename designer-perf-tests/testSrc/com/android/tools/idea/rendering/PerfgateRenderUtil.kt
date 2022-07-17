@@ -26,7 +26,6 @@ import com.google.common.util.concurrent.Futures
 import com.intellij.openapi.util.ThrowableComputable
 import junit.framework.TestCase
 import java.time.Instant
-import java.util.ArrayList
 import kotlin.math.pow
 import kotlin.math.sqrt
 

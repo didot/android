@@ -28,7 +28,6 @@ import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.SdkVersionInfo
 import com.android.sdklib.SdkVersionInfo.HIGHEST_KNOWN_API
 import com.android.sdklib.SdkVersionInfo.HIGHEST_KNOWN_STABLE_API
-import com.android.sdklib.SdkVersionInfo.LOWEST_COMPILE_SDK_VERSION
 import com.android.sdklib.repository.AndroidSdkHandler
 import com.android.sdklib.repository.IdDisplay
 import com.android.sdklib.repository.meta.DetailsTypes
@@ -39,15 +38,14 @@ import com.android.sdklib.repository.targets.SystemImage
 import com.android.tools.adtui.device.FormFactor
 import com.android.tools.idea.gradle.npw.project.GradleBuildSettings.getRecommendedBuildToolsRevision
 import com.android.tools.idea.npw.invokeLater
+import com.android.tools.idea.progress.StudioLoggerProgressIndicator
+import com.android.tools.idea.progress.StudioProgressRunner
 import com.android.tools.idea.sdk.AndroidSdks
 import com.android.tools.idea.sdk.IdeSdks
 import com.android.tools.idea.sdk.StudioDownloader
 import com.android.tools.idea.sdk.StudioSettingsController
-import com.android.tools.idea.progress.StudioLoggerProgressIndicator
-import com.android.tools.idea.progress.StudioProgressRunner
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils.PackageResolutionException
-import java.io.File
 import java.nio.file.Path
 import java.util.function.Consumer
 import kotlin.math.max

@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.gradle.project.sync;
 
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.gradle.model.impl.IdeAndroidProjectImpl;
 import com.android.tools.idea.testing.TestProjectPaths;
 

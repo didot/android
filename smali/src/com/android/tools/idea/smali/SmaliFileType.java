@@ -16,11 +16,10 @@
 package com.android.tools.idea.smali;
 
 import com.intellij.openapi.fileTypes.LanguageFileType;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 
 public class SmaliFileType extends LanguageFileType {
   public static final SmaliFileType INSTANCE = new SmaliFileType();

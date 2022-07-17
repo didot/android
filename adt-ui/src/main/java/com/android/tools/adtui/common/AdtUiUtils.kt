@@ -42,7 +42,6 @@ import java.awt.GridBagConstraints
 import java.awt.Insets
 import java.awt.Point
 import java.awt.event.InputEvent
-import java.util.function.BiFunction
 import java.util.function.Predicate
 import javax.swing.BorderFactory
 import javax.swing.JComponent

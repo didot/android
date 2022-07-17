@@ -16,7 +16,6 @@
 package com.android.tools.idea.naveditor.scene.targets
 
 import com.android.testutils.MockitoKt.whenever
-import com.android.tools.idea.common.surface.SceneView
 import com.android.tools.idea.naveditor.NavModelBuilderUtil.navigation
 import com.android.tools.idea.naveditor.NavTestCase
 import com.android.tools.idea.naveditor.editor.AddDestinationMenu

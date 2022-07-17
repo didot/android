@@ -34,9 +34,8 @@ import com.intellij.util.system.CpuArch;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Collections;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.Map;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Loads a {@link LayoutLibrary}

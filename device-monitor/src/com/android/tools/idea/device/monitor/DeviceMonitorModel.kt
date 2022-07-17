@@ -17,7 +17,6 @@ package com.android.tools.idea.device.monitor
 
 import com.android.tools.idea.device.monitor.processes.Device
 import com.android.tools.idea.device.monitor.processes.DeviceState
-import java.util.ArrayList
 import java.util.function.Consumer
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.DefaultTreeSelectionModel

@@ -32,7 +32,6 @@ import com.android.tools.idea.testing.TestProjectPaths
 import com.intellij.openapi.util.SystemInfoRt
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.CoreMatchers.notNullValue
-import org.hamcrest.CoreMatchers.nullValue
 import org.junit.Assert.assertThat
 import org.junit.Assume.assumeThat
 

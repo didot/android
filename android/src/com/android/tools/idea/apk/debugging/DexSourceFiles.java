@@ -15,6 +15,13 @@
  */
 package com.android.tools.idea.apk.debugging;
 
+import static com.android.SdkConstants.EXT_JAVA;
+import static com.android.tools.idea.Projects.getBaseDirPath;
+import static com.android.tools.idea.smali.SmaliFileType.SMALI_EXTENSION;
+import static com.intellij.codeInsight.navigation.NavigationUtil.openFileWithPsiElement;
+import static com.intellij.openapi.util.io.FileUtil.join;
+import static com.intellij.psi.util.PsiTreeUtil.findChildOfType;
+
 import com.android.tools.idea.smali.psi.SmaliClassName;
 import com.android.tools.idea.smali.psi.SmaliClassSpec;
 import com.android.tools.idea.smali.psi.SmaliFile;
@@ -22,23 +29,19 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.*;
+import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiJavaFile;
+import com.intellij.psi.PsiManager;
 import com.intellij.psi.search.GlobalSearchScope;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static com.android.SdkConstants.EXT_JAVA;
-import static com.android.tools.idea.Projects.getBaseDirPath;
-import static com.android.tools.idea.smali.SmaliFileType.SMALI_EXTENSION;
-import static com.intellij.codeInsight.navigation.NavigationUtil.openFileWithPsiElement;
-import static com.intellij.openapi.util.io.FileUtil.join;
-import static com.intellij.psi.util.PsiTreeUtil.findChildOfType;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class DexSourceFiles {
   public static final String SMALI_ROOT_FOLDER_NAME = "smali";

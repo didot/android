@@ -55,7 +55,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
-import kotlin.Suppress;
 import org.jetbrains.annotations.NotNull;
 import org.mockito.Mock;
 

@@ -15,6 +15,9 @@
  */
 package com.android.tools.idea.uibuilder.api;
 
+import static com.android.tools.idea.res.FloatResources.parseFloatAttribute;
+import static com.android.tools.idea.res.IdeResourcesUtil.resolveStringValue;
+
 import com.android.ide.common.rendering.api.RenderResources;
 import com.android.ide.common.rendering.api.ResourceValue;
 import com.android.ide.common.rendering.api.ViewInfo;
@@ -22,7 +25,11 @@ import com.android.ide.common.resources.ResourceResolver;
 import com.android.resources.ResourceType;
 import com.android.sdklib.AndroidVersion;
 import com.android.tools.idea.common.api.InsertType;
-import com.android.tools.idea.common.model.*;
+import com.android.tools.idea.common.model.AndroidCoordinate;
+import com.android.tools.idea.common.model.AndroidDpCoordinate;
+import com.android.tools.idea.common.model.Coordinates;
+import com.android.tools.idea.common.model.NlComponent;
+import com.android.tools.idea.common.model.NlModel;
 import com.android.tools.idea.common.scene.Scene;
 import com.android.tools.idea.configurations.Configuration;
 import com.android.tools.idea.rendering.RenderTask;
@@ -36,18 +43,17 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
 import com.intellij.util.ArrayUtil;
+import java.awt.Dimension;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.jetbrains.android.uipreview.ChooseClassDialog;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.awt.*;
-import java.util.*;
-import java.util.List;
-import java.util.function.Predicate;
-
-import static com.android.tools.idea.res.FloatResources.parseFloatAttribute;
-import static com.android.tools.idea.res.IdeResourcesUtil.resolveStringValue;
 
 /**
  * The UI builder / layout editor as exposed to {@link ViewHandler} instances.

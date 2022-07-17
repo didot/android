@@ -15,6 +15,10 @@
  */
 package com.android.tools.idea.uibuilder.handlers.motion.editor.targets;
 
+import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT;
+import static com.android.SdkConstants.BUTTON;
+import static com.android.SdkConstants.TEXT_VIEW;
+
 import com.android.AndroidXConstants;
 import com.android.SdkConstants;
 import com.android.tools.adtui.common.AdtUiUtils;
@@ -36,10 +40,6 @@ import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
-
-import static com.android.SdkConstants.BUTTON;
-import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT;
-import static com.android.SdkConstants.TEXT_VIEW;
 
 public class MotionLayoutAnchorTargetTest extends SceneTest {
 

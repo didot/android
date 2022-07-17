@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.device.monitor.ui.menu.item
 
-import com.android.tools.idea.device.monitor.ui.DeviceMonitorActionsListener
 import com.android.tools.idea.device.monitor.ProcessTreeNode
+import com.android.tools.idea.device.monitor.ui.DeviceMonitorActionsListener
 
 /**
  * A [TreeMenuItem] that is active only for single element selections

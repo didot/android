@@ -16,7 +16,6 @@
 package com.android.tools.idea.lang.agsl
 
 import com.android.tools.idea.flags.StudioFlags
-import com.android.tools.idea.lang.agsl.AgslParserDefinition
 import com.intellij.lexer.Lexer
 import com.intellij.testFramework.LexerTestCase
 

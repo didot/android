@@ -15,6 +15,10 @@
  */
 package com.android.tools.idea.navigator.nodes.apk.java;
 
+import static com.android.tools.idea.smali.SmaliIcons.SmaliFile;
+import static com.intellij.openapi.util.io.FileUtil.filesEqual;
+import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
+
 import com.android.tools.idea.apk.debugging.ApkClass;
 import com.android.tools.idea.apk.debugging.DexSourceFiles;
 import com.intellij.ide.projectView.PresentationData;
@@ -30,18 +34,13 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiMethod;
 import com.intellij.util.PlatformIcons;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import static com.android.tools.idea.smali.SmaliIcons.SmaliFile;
-import static com.intellij.openapi.util.io.FileUtil.filesEqual;
-import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
+import javax.swing.Icon;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 class ClassNode extends ProjectViewNode<ApkClass> {
   @NotNull private final ApkClass myClass;

@@ -25,7 +25,6 @@ import com.intellij.openapi.diagnostic.Logger
 import com.android.tools.idea.io.grpc.inprocess.InProcessChannelBuilder
 import java.io.File
 import java.nio.file.Paths
-import java.util.HashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**

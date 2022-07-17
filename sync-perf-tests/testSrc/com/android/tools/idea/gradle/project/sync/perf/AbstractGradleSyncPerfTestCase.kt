@@ -44,7 +44,6 @@ import org.junit.runners.MethodSorters
 import java.io.File
 import java.time.Duration
 import java.time.Instant
-import java.util.ArrayList
 import java.util.Scanner
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.logging.Logger

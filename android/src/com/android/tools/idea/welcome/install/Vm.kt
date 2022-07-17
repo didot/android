@@ -16,7 +16,6 @@
 package com.android.tools.idea.welcome.install
 
 import com.android.SdkConstants
-import com.android.repository.io.FileOpUtils
 import com.android.sdklib.repository.AndroidSdkHandler
 import com.android.tools.idea.avdmanager.AccelerationErrorCode
 import com.android.tools.idea.avdmanager.AccelerationErrorSolution

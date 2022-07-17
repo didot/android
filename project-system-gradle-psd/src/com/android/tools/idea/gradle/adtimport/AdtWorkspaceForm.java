@@ -24,16 +24,20 @@ import com.intellij.projectImport.ProjectImportWizardStep;
 import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.table.JBTable;
 import com.intellij.util.ui.EditableModel;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.table.AbstractTableModel;
-import javax.swing.table.DefaultTableCellRenderer;
-import java.awt.*;
+import java.awt.Component;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Map;
+import javax.swing.DefaultCellEditor;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import org.jetbrains.annotations.NotNull;
 
 class AdtWorkspaceForm extends ProjectImportWizardStep {
   private JBTable myPathMapTable;

@@ -15,7 +15,9 @@
  */
 package com.android.tools.idea.uibuilder.handlers
 
-import com.android.SdkConstants.*
+import com.android.SdkConstants.ATTR_DEFAULT_NAV_HOST
+import com.android.SdkConstants.ATTR_NAV_GRAPH
+import com.android.SdkConstants.AUTO_URI
 import com.android.resources.ResourceType
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.common.api.InsertType
@@ -30,7 +32,7 @@ import org.jetbrains.android.AndroidTestCase
 import org.junit.Ignore
 import org.junit.Test
 import org.mockito.ArgumentMatchers.eq
-import java.util.*
+import java.util.EnumSet
 
 class FragmentHandlerTest : LayoutTestCase() {
   // http://b/242129835

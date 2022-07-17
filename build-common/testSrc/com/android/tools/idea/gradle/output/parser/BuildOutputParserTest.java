@@ -15,6 +15,17 @@
  */
 package com.android.tools.idea.gradle.output.parser;
 
+import static com.android.SdkConstants.ANDROID_MANIFEST_XML;
+import static com.android.SdkConstants.DOT_GRADLE;
+import static com.android.SdkConstants.DOT_JAVA;
+import static com.android.SdkConstants.DOT_XML;
+import static com.android.SdkConstants.PLATFORM_WINDOWS;
+import static com.android.SdkConstants.currentPlatform;
+import static com.android.utils.SdkUtils.createPathComment;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assume.assumeFalse;
+
 import com.android.annotations.Nullable;
 import com.android.ide.common.blame.Message;
 import com.android.ide.common.blame.SourceFilePosition;
@@ -28,11 +39,6 @@ import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.containers.ContainerUtil;
-import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -41,12 +47,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.ServiceLoader;
-
-import static com.android.SdkConstants.*;
-import static com.android.utils.SdkUtils.createPathComment;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assume.assumeFalse;
+import org.jetbrains.annotations.NotNull;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Tests for {@link BuildOutputParser}.

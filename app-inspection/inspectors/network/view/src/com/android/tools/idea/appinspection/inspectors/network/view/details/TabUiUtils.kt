@@ -44,7 +44,6 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.ScrollPaneConstants
-import javax.swing.SwingConstants
 
 val SCROLL_UNIT = scale(10)
 

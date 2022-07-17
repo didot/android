@@ -16,17 +16,16 @@
 package com.android.tools.idea.run.editor;
 
 import com.android.tools.idea.run.activity.launch.ActivityLaunchOption;
+import com.android.tools.idea.run.activity.launch.ActivityLaunchOptionState;
 import com.android.tools.idea.run.activity.launch.LaunchOptionConfigurable;
 import com.android.tools.idea.run.activity.launch.LaunchOptionConfigurableContext;
-import com.android.tools.idea.run.activity.launch.ActivityLaunchOptionState;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
+import javax.swing.JComponent;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 
 public class LaunchConfigurableWrapper implements Configurable, Configurable.NoScroll, Configurable.NoMargin {
   private final Project myProject;

@@ -17,7 +17,6 @@ package com.android.tools.idea.fonts;
 
 import static com.android.tools.idea.instantapp.InstantApps.findBaseFeature;
 import static com.android.tools.idea.testing.TestProjectPaths.INSTANT_APP;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.android.ide.common.fonts.FontDetail;

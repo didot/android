@@ -15,8 +15,6 @@
  */
 package com.android.tools.idea.gradle.project;
 
-import static com.android.tools.idea.io.FilePaths.pathToIdeaUrl;
-
 import com.android.tools.idea.gradle.model.IdeAndroidArtifact;
 import com.android.tools.idea.gradle.model.IdeBaseArtifact;
 import com.android.tools.idea.gradle.model.IdeJavaArtifact;

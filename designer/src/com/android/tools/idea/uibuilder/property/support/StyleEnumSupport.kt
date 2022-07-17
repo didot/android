@@ -18,11 +18,11 @@ package com.android.tools.idea.uibuilder.property.support
 import com.android.ide.common.rendering.api.ResourceNamespace
 import com.android.ide.common.rendering.api.StyleResourceValue
 import com.android.resources.ResourceUrl
-import com.android.tools.property.panel.api.EnumSupport
-import com.android.tools.property.panel.api.EnumValue
 import com.android.tools.idea.res.ResourceRepositoryManager
 import com.android.tools.idea.uibuilder.handlers.ViewHandlerManager
 import com.android.tools.idea.uibuilder.property.NlPropertyItem
+import com.android.tools.property.panel.api.EnumSupport
+import com.android.tools.property.panel.api.EnumValue
 import com.intellij.openapi.util.text.StringUtil
 
 const val PROJECT_HEADER = "Project"

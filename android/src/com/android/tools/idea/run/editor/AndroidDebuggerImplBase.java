@@ -16,7 +16,6 @@
 package com.android.tools.idea.run.editor;
 
 import com.android.ddmlib.Client;
-import com.android.sdklib.AndroidVersion;
 import com.intellij.debugger.DebuggerManagerEx;
 import com.intellij.debugger.impl.DebuggerSession;
 import com.intellij.execution.Executor;

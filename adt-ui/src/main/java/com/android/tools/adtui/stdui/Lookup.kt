@@ -29,7 +29,6 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.speedSearch.FilteringListModel
 import com.intellij.ui.speedSearch.SpeedSearchUtil
 import com.intellij.util.ui.accessibility.AccessibleContextUtil
-import java.awt.Component
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.Rectangle

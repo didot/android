@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.navigator.nodes.ndk.includes.model
 
-import java.util.*
+import java.util.Collections
 
 /**
  * Methods for rearranging IncludeExpressions into logical groupings for presentation to the user.

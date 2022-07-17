@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.gradle.adtimport.actions;
 
-import static com.android.tools.idea.gradle.adtimport.GradleImport.isEclipseProjectDir;
 import static com.android.tools.idea.gradle.adtimport.AdtModuleImporter.isAdtProjectLocation;
+import static com.android.tools.idea.gradle.adtimport.GradleImport.isEclipseProjectDir;
 import static com.android.tools.idea.gradle.util.GradleProjects.canImportAsGradleProject;
 import static com.android.utils.BuildScriptUtil.findGradleBuildFile;
 import static com.intellij.ide.impl.NewProjectUtil.createFromWizard;

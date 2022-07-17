@@ -23,7 +23,9 @@ import com.android.tools.idea.gradle.structure.model.targetModuleResolvedDepende
 import com.android.tools.idea.gradle.structure.model.testResolve
 import com.android.tools.idea.testing.TestProjectPaths
 import com.intellij.openapi.project.Project
-import org.hamcrest.CoreMatchers.*
+import org.hamcrest.CoreMatchers.equalTo
+import org.hamcrest.CoreMatchers.notNullValue
+import org.hamcrest.CoreMatchers.nullValue
 import org.junit.Assert.assertThat
 
 class PsModuleAndroidDependencyTest : DependencyTestCase() {

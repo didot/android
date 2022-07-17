@@ -15,19 +15,19 @@
  */
 package com.android.tools.idea.editors.manifest;
 
+import static com.android.tools.idea.testing.TestProjectPaths.MANIFEST_CONFLICT_ATTRIBUTE;
+import static com.android.tools.idea.testing.TestProjectPaths.MANIFEST_CONFLICT_MIN_SDK;
+
 import com.android.manifmerger.MergingReport;
-import com.android.tools.idea.model.MergedManifestSnapshot;
 import com.android.tools.idea.model.MergedManifestManager;
+import com.android.tools.idea.model.MergedManifestSnapshot;
 import com.android.tools.idea.rendering.HtmlLinkManager;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
 import com.google.common.collect.ImmutableList;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static com.android.tools.idea.testing.TestProjectPaths.*;
 
 public class ManifestConflictTest extends AndroidGradleTestCase {
 

@@ -19,12 +19,12 @@ import com.android.sdklib.devices.Device
 import com.android.tools.idea.actions.DESIGN_SURFACE
 import com.android.tools.idea.actions.DesignerActions
 import com.android.tools.idea.common.surface.DesignSurface
-import com.android.tools.idea.uibuilder.surface.NlSupportedActions
 import com.android.tools.idea.configurations.Configuration
 import com.android.tools.idea.configurations.DeviceMenuAction
 import com.android.tools.idea.configurations.DeviceMenuAction2
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.uibuilder.editor.NlActionManager
+import com.android.tools.idea.uibuilder.surface.NlSupportedActions
 import com.android.tools.idea.uibuilder.surface.isActionSupported
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction

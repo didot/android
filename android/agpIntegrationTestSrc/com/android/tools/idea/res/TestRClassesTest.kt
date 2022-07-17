@@ -23,16 +23,16 @@ import com.android.tools.idea.testing.findAppModule
 import com.android.tools.idea.testing.findClass
 import com.android.tools.idea.testing.highlightedAs
 import com.android.tools.idea.testing.loadNewFile
-import com.intellij.testFramework.VfsTestUtil.createFile
-import java.io.File
 import com.google.common.truth.Truth.assertThat
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementPresentation
-import com.intellij.openapi.project.guessProjectDir
-import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.lang.annotation.HighlightSeverity.ERROR
+import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.testFramework.PlatformTestUtil
+import com.intellij.testFramework.VfsTestUtil.createFile
+import java.io.File
 
 /**
  * Legacy projects (without the model) have no concept of test resources, so for now this needs to be tested using Gradle.

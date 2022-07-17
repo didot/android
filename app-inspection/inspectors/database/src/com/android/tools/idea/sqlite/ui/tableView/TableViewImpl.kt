@@ -17,7 +17,6 @@ package com.android.tools.idea.sqlite.ui.tableView
 
 import com.android.tools.adtui.common.primaryContentBackground
 import com.android.tools.adtui.stdui.CommonButton
-import com.android.tools.idea.sqlite.DatabaseInspectorFlagController
 import com.android.tools.idea.sqlite.localization.DatabaseInspectorBundle
 import com.android.tools.idea.sqlite.model.SqliteRow
 import com.android.tools.idea.sqlite.model.SqliteValue
@@ -32,7 +31,6 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.KeyboardShortcut
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.util.IconLoader
-import com.intellij.ui.ColorUtil
 import com.intellij.ui.ColoredTableCellRenderer
 import com.intellij.ui.IdeBorderFactory
 import com.intellij.ui.JBColor
@@ -51,7 +49,6 @@ import java.awt.Color
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
-import java.awt.FlowLayout
 import java.awt.LayoutManager
 import java.awt.Point
 import java.awt.Toolkit

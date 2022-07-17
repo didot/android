@@ -15,6 +15,9 @@
  */
 package com.android.tools.idea.navigator.nodes.android;
 
+import static com.intellij.ui.SimpleTextAttributes.GRAY_ATTRIBUTES;
+import static com.intellij.ui.SimpleTextAttributes.REGULAR_ATTRIBUTES;
+
 import com.android.SdkConstants;
 import com.android.ide.common.resources.configuration.FolderConfiguration;
 import com.android.resources.ResourceConstants;
@@ -32,9 +35,6 @@ import com.intellij.psi.PsiFile;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import static com.intellij.ui.SimpleTextAttributes.GRAY_ATTRIBUTES;
-import static com.intellij.ui.SimpleTextAttributes.REGULAR_ATTRIBUTES;
 
 @SuppressWarnings("ComparableType")  // b/180537631
 public class AndroidResFileNode extends PsiFileNode implements Comparable {

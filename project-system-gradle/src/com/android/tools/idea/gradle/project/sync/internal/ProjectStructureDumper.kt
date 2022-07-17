@@ -48,7 +48,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AnnotationOrderRootType
 import com.intellij.openapi.roots.CompilerModuleExtension
 import com.intellij.openapi.roots.ContentEntry
-import com.intellij.openapi.roots.DependencyScope
 import com.intellij.openapi.roots.DependencyScope.COMPILE
 import com.intellij.openapi.roots.ExcludeFolder
 import com.intellij.openapi.roots.ExportableOrderEntry

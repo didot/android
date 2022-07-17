@@ -18,18 +18,17 @@ package com.android.tools.profilers.analytics
 import com.android.tools.analytics.CommonMetricsData
 import com.android.tools.analytics.HostData
 import com.android.tools.profiler.proto.Common
-import com.google.wireless.android.sdk.stats.AndroidProfilerEvent
 import com.android.tools.profiler.proto.Common.SessionMetaData
-import com.android.tools.profilers.sessions.SessionsManager.SessionCreationSource
-import com.android.tools.profilers.sessions.SessionArtifact
 import com.android.tools.profiler.proto.Cpu.CpuTraceType
 import com.android.tools.profilers.analytics.energy.EnergyEventMetadata
 import com.android.tools.profilers.analytics.energy.EnergyRangeMetadata
 import com.android.tools.profilers.cpu.CpuCaptureMetadata
 import com.android.tools.profilers.cpu.config.ProfilingConfiguration
 import com.android.tools.profilers.memory.adapters.instancefilters.CaptureObjectInstanceFilter
+import com.android.tools.profilers.sessions.SessionArtifact
+import com.android.tools.profilers.sessions.SessionsManager.SessionCreationSource
+import com.google.wireless.android.sdk.stats.AndroidProfilerEvent
 import com.google.wireless.android.sdk.stats.TraceProcessorDaemonQueryStats.QueryReturnStatus
-import java.lang.Exception
 
 /**
  * A service for tracking events that occur in our profilers, in order to understand and evaluate

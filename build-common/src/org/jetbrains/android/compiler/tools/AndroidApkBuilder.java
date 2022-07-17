@@ -15,6 +15,10 @@
  */
 package org.jetbrains.android.compiler.tools;
 
+import static org.jetbrains.android.util.AndroidCompilerMessageKind.ERROR;
+import static org.jetbrains.android.util.AndroidCompilerMessageKind.INFORMATION;
+import static org.jetbrains.android.util.AndroidCompilerMessageKind.WARNING;
+
 import com.android.SdkConstants;
 import com.android.jarutils.DebugKeyProvider;
 import com.android.jarutils.JavaResourceFilter;
@@ -29,23 +33,37 @@ import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.ArrayUtil;
 import com.intellij.util.text.DateFormatUtil;
-import org.jetbrains.android.util.*;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.security.*;
+import java.security.GeneralSecurityException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
-import static org.jetbrains.android.util.AndroidCompilerMessageKind.*;
+import org.jetbrains.android.util.AndroidBuildCommonUtils;
+import org.jetbrains.android.util.AndroidBuildTestingManager;
+import org.jetbrains.android.util.AndroidCompilerMessageKind;
+import org.jetbrains.android.util.AndroidExecutionUtil;
+import org.jetbrains.android.util.AndroidNativeLibData;
+import org.jetbrains.android.util.SafeSignedJarBuilder;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class AndroidApkBuilder {
   private static final Logger LOG = Logger.getInstance("#org.jetbrains.android.compiler.tools.AndroidApkBuilder");

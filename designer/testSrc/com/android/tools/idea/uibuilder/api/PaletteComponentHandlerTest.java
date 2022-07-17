@@ -15,11 +15,22 @@
  */
 package com.android.tools.idea.uibuilder.api;
 
+import static com.android.SdkConstants.ANDROIDX_APPCOMPAT_LIB_ARTIFACT;
+import static com.android.SdkConstants.ANDROIDX_CARD_VIEW_ARTIFACT;
+import static com.android.SdkConstants.ANDROIDX_CONSTRAINT_LAYOUT_LIB_ARTIFACT;
+import static com.android.SdkConstants.ANDROIDX_LEANBACK_ARTIFACT;
+import static com.android.SdkConstants.ANDROIDX_MATERIAL_ARTIFACT;
+import static com.android.SdkConstants.ANDROIDX_RECYCLER_VIEW_ARTIFACT;
+import static com.android.SdkConstants.ANDROIDX_SUPPORT_LIB_ARTIFACT;
+import static com.android.SdkConstants.APPCOMPAT_LIB_ARTIFACT;
+import static com.android.SdkConstants.CONSTRAINT_LAYOUT_LIB_ARTIFACT;
+import static com.android.SdkConstants.DESIGN_LIB_ARTIFACT;
+import static com.android.SdkConstants.LEANBACK_V17_ARTIFACT;
+import static com.android.SdkConstants.SUPPORT_LIB_ARTIFACT;
+import static com.google.common.truth.Truth.assertThat;
+
 import com.android.AndroidXConstants;
 import org.junit.Test;
-
-import static com.android.SdkConstants.*;
-import static com.google.common.truth.Truth.assertThat;
 
 public class PaletteComponentHandlerTest {
 

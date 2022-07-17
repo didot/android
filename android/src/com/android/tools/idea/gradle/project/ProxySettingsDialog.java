@@ -16,12 +16,12 @@
 package com.android.tools.idea.gradle.project;
 
 import static com.android.tools.adtui.HtmlLabel.setUpAsHtmlLabel;
+import static com.android.tools.idea.gradle.util.ParametersListUtil.COMMA_LINE_JOINER;
+import static com.android.tools.idea.gradle.util.ParametersListUtil.COMMA_LINE_PARSER;
 import static com.android.tools.idea.gradle.util.ProxySettings.HTTPS_PROXY_TYPE;
 import static com.android.tools.idea.gradle.util.ProxySettings.HTTP_PROXY_TYPE;
 import static com.android.tools.idea.gradle.util.ProxySettings.replaceCommasWithPipesAndClean;
 import static com.android.tools.idea.gradle.util.ProxySettings.replacePipesWithCommasAndClean;
-import static com.android.tools.idea.gradle.util.ParametersListUtil.COMMA_LINE_JOINER;
-import static com.android.tools.idea.gradle.util.ParametersListUtil.COMMA_LINE_PARSER;
 import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
 
 import com.android.tools.idea.gradle.util.ProxySettings;

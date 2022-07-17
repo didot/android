@@ -37,9 +37,7 @@ import com.android.SdkConstants.PreferenceAttributes.ATTR_ENTRIES
 import com.android.SdkConstants.PreferenceAttributes.ATTR_ENTRY_VALUES
 import com.android.SdkConstants.PreferenceAttributes.ATTR_ICON
 import com.android.SdkConstants.PreferenceTags.LIST_PREFERENCE
-import com.android.SdkConstants.PreferenceTags.PREFERENCE_CATEGORY
 import com.android.SdkConstants.PreferenceTags.PREFERENCE_SCREEN
-import com.android.SdkConstants.PreferenceTags.SWITCH_PREFERENCE
 import com.android.SdkConstants.TEXT_VIEW
 import com.android.SdkConstants.VIEW
 import com.android.ide.common.rendering.api.ResourceNamespace

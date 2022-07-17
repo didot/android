@@ -21,7 +21,6 @@ import com.android.ide.common.repository.GradleVersion
 import com.intellij.util.text.DateFormatUtil
 import org.jetbrains.kotlin.utils.addToStdlib.sumByLong
 import java.text.SimpleDateFormat
-import java.util.Comparator
 import java.util.Date
 import java.util.Locale
 

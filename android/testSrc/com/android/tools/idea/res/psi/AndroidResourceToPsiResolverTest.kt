@@ -18,6 +18,7 @@ package com.android.tools.idea.res.psi
 import com.android.AndroidProjectTypes
 import com.android.ide.common.rendering.api.ResourceNamespace
 import com.android.ide.common.rendering.api.ResourceReference
+import com.android.ide.common.resources.Locale
 import com.android.ide.common.resources.configuration.DensityQualifier
 import com.android.ide.common.resources.configuration.FolderConfiguration
 import com.android.resources.Density
@@ -27,7 +28,6 @@ import com.android.tools.idea.project.DefaultProjectSystem
 import com.android.tools.idea.projectsystem.AndroidModuleSystem
 import com.android.tools.idea.projectsystem.AndroidProjectSystem
 import com.android.tools.idea.projectsystem.ProjectSystemService
-import com.android.ide.common.resources.Locale
 import com.android.tools.idea.testing.caret
 import com.android.tools.idea.testing.moveCaret
 import com.android.tools.idea.util.androidFacet

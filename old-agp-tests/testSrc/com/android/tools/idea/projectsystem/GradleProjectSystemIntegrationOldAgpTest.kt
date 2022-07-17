@@ -16,7 +16,6 @@
 package com.android.tools.idea.projectsystem
 
 import com.android.testutils.junit4.OldAgpTest
-import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor
 import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor.AGP_35
 import com.android.tools.idea.testing.applySelectedAgpVersions
 import org.jetbrains.annotations.Contract

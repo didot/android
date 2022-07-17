@@ -16,8 +16,8 @@
 package com.android.tools.idea.gradle.model.stubs;
 
 import com.android.annotations.NonNull;
-import com.android.builder.model.v2.CustomSourceDirectory;
 import com.android.builder.model.SourceProvider;
+import com.android.builder.model.v2.CustomSourceDirectory;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.util.Collection;

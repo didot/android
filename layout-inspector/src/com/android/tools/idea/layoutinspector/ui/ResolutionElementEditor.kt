@@ -26,7 +26,6 @@ import com.android.tools.property.panel.api.PropertyEditorModel
 import com.android.tools.property.ptable.PTableGroupItem
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.ide.ui.laf.darcula.DarculaUIUtil
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil

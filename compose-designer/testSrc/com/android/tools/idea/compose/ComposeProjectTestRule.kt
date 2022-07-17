@@ -16,7 +16,6 @@
 package com.android.tools.idea.compose
 
 import com.android.tools.idea.compose.preview.PreviewEntryPoint
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.project.DefaultModuleSystem
 import com.android.tools.idea.projectsystem.getModuleSystem
 import com.android.tools.idea.testing.AndroidProjectRule

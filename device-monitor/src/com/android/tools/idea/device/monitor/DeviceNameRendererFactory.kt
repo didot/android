@@ -16,7 +16,6 @@
 package com.android.tools.idea.device.monitor
 
 import com.android.tools.idea.ddms.DeviceNamePropertiesProvider
-import com.android.tools.idea.device.monitor.processes.Device
 import com.android.tools.idea.device.monitor.processes.DeviceRenderer
 
 /**

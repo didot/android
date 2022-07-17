@@ -16,6 +16,8 @@
 package com.android.tools.idea.gradle.stubs.gradle;
 
 import com.google.common.collect.Lists;
+import java.io.File;
+import java.util.List;
 import org.gradle.tooling.model.DomainObjectSet;
 import org.gradle.tooling.model.GradleProject;
 import org.gradle.tooling.model.GradleTask;
@@ -23,9 +25,6 @@ import org.gradle.tooling.model.ProjectIdentifier;
 import org.gradle.tooling.model.internal.ImmutableDomainObjectSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.io.File;
-import java.util.List;
 
 public class GradleProjectStub implements GradleProject {
   @NotNull private final String myName;

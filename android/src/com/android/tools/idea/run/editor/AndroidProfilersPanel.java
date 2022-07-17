@@ -17,7 +17,6 @@ package com.android.tools.idea.run.editor;
 
 
 import com.android.tools.adtui.ui.ClickableLabel;
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.run.profiler.CpuProfilerConfig;
 import com.android.tools.idea.run.profiler.CpuProfilerConfigsState;
 import com.intellij.openapi.project.Project;

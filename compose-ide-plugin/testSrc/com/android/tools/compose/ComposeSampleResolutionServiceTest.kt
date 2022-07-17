@@ -15,7 +15,6 @@
  */
 package com.android.tools.compose
 
-import com.android.builder.model.SyncIssue
 import com.android.ide.gradle.model.artifacts.AdditionalClassifierArtifactsModel
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.LibraryFilePaths

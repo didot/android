@@ -17,10 +17,8 @@ package com.android.tools.idea.tests.gui.framework.fixture
 
 import com.android.tools.idea.tests.gui.framework.GuiTests
 import org.fest.swing.core.Robot
-import org.fest.swing.fixture.JComboBoxFixture
 import org.fest.swing.fixture.JTextComponentFixture
 import org.jetbrains.android.actions.CreateXmlResourceDialog
-import javax.swing.JComboBox
 import javax.swing.JTextField
 
 /**

@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.uibuilder.structure;
 
+import static com.android.tools.idea.common.scene.SceneManager.SUPPORTS_LOCKING;
+
 import com.android.SdkConstants;
 import com.android.tools.idea.common.command.NlWriteCommandActionUtil;
 import com.android.tools.idea.common.error.Issue;
@@ -27,16 +29,15 @@ import com.android.tools.idea.common.surface.DesignSurface;
 import com.android.utils.SparseIntArray;
 import com.intellij.ui.LightweightHint;
 import icons.StudioIcons;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.tree.TreePath;
-import java.awt.*;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-
-import static com.android.tools.idea.common.scene.SceneManager.SUPPORTS_LOCKING;
+import javax.swing.Icon;
+import javax.swing.JTree;
+import javax.swing.tree.TreePath;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Handler class responsible for drawing badges for each

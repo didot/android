@@ -15,6 +15,14 @@
  */
 package com.android.tools.idea.gradle.project;
 
+import static com.android.tools.idea.io.FilePaths.pathToIdeaUrl;
+import static com.android.tools.idea.testing.TestProjectPaths.KOTLIN_KAPT;
+import static com.android.tools.idea.testing.TestProjectPaths.PSD_SAMPLE_GROOVY;
+import static com.android.tools.idea.testing.TestProjectPaths.TEST_FIXTURES;
+import static com.intellij.openapi.util.io.FileUtil.join;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
@@ -25,23 +33,14 @@ import com.intellij.openapi.roots.ModuleRootModel;
 import com.intellij.openapi.roots.OrderEnumerationHandler;
 import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.vfs.VirtualFile;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.jetbrains.annotations.NotNull;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
 import org.junit.Assert;
-
-import static com.android.tools.idea.io.FilePaths.pathToIdeaUrl;
-import static com.android.tools.idea.testing.TestProjectPaths.KOTLIN_KAPT;
-import static com.android.tools.idea.testing.TestProjectPaths.PSD_SAMPLE_GROOVY;
-import static com.android.tools.idea.testing.TestProjectPaths.TEST_FIXTURES;
-import static com.intellij.openapi.util.io.FileUtil.join;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class AndroidGradleOrderEnumeratorHandlerTest extends AndroidGradleTestCase {
 

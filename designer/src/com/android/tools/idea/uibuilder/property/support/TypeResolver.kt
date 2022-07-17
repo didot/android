@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.uibuilder.property.support
 
-import com.android.SdkConstants
 import com.android.AndroidXConstants.PreferenceAndroidX
+import com.android.SdkConstants
 import com.android.SdkConstants.PreferenceAttributes
 import com.android.SdkConstants.PreferenceClasses
 import com.android.ide.common.rendering.api.AttributeFormat

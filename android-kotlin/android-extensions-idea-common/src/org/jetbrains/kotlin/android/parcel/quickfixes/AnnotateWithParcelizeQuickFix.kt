@@ -17,7 +17,6 @@
 package org.jetbrains.kotlin.android.parcel.quickfixes
 
 import org.jetbrains.kotlin.android.synthetic.diagnostic.ErrorsAndroid
-import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.idea.util.addAnnotation
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtClassOrObject

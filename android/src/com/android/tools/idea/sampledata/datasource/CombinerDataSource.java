@@ -17,12 +17,15 @@ package com.android.tools.idea.sampledata.datasource;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharStreams;
-import org.jetbrains.annotations.NotNull;
-
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Data source that combines the lines of two different input streams.

@@ -15,7 +15,15 @@
  */
 package com.android.tools.property.ptable.item
 
-import com.android.tools.property.ptable.*
+import com.android.tools.property.ptable.DefaultPTableCellEditor
+import com.android.tools.property.ptable.PTable
+import com.android.tools.property.ptable.PTableCellEditor
+import com.android.tools.property.ptable.PTableCellEditorProvider
+import com.android.tools.property.ptable.PTableColumn
+import com.android.tools.property.ptable.PTableGroupItem
+import com.android.tools.property.ptable.PTableItem
+import com.android.tools.property.ptable.PTableModel
+import com.android.tools.property.ptable.PTableModelUpdateListener
 import com.android.tools.property.ptable.impl.PTableModelImpl
 import org.mockito.Mockito
 import javax.swing.JPanel

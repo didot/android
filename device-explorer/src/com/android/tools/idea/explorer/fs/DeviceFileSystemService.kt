@@ -15,9 +15,6 @@
  */
 package com.android.tools.idea.explorer.fs
 
-import java.io.File
-import java.util.function.Supplier
-
 /**
  * Abstraction over ADB devices and their corresponding file system.
  *

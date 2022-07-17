@@ -41,7 +41,6 @@ import com.intellij.util.ui.UIUtil
 import org.jetbrains.android.util.AndroidBundle
 import org.jetbrains.ide.PooledThreadExecutor
 import java.awt.BorderLayout
-import java.io.File
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.OpenOption

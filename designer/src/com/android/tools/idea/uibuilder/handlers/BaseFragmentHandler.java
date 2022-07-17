@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.uibuilder.handlers;
 
+import static com.android.AndroidXConstants.CLASS_V4_FRAGMENT;
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ATTR_CLASS;
 import static com.android.SdkConstants.ATTR_DEFAULT_NAV_HOST;
@@ -23,7 +24,6 @@ import static com.android.SdkConstants.ATTR_NAME;
 import static com.android.SdkConstants.ATTR_NAV_GRAPH;
 import static com.android.SdkConstants.AUTO_URI;
 import static com.android.SdkConstants.CLASS_FRAGMENT;
-import static com.android.AndroidXConstants.CLASS_V4_FRAGMENT;
 import static com.android.SdkConstants.FQCN_NAV_HOST_FRAGMENT;
 import static com.android.SdkConstants.VALUE_TRUE;
 

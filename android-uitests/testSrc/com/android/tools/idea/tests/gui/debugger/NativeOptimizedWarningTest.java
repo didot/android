@@ -24,7 +24,9 @@ import com.android.tools.idea.tests.gui.framework.fixture.DebugToolWindowFixture
 import com.android.tools.idea.tests.gui.framework.fixture.IdeFrameFixture;
 import com.intellij.openapi.fileEditor.impl.EditorsSplitters;
 import com.intellij.testGuiFramework.framework.GuiTestRemoteRunner;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import javax.swing.JLabel;
 import org.fest.swing.core.GenericTypeMatcher;
 import org.fest.swing.fixture.JListFixture;
 import org.fest.swing.timing.Wait;
@@ -33,9 +35,6 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import javax.swing.*;
-import java.io.IOException;
 
 @RunWith(GuiTestRemoteRunner.class)
 public class NativeOptimizedWarningTest extends DebuggerTestBase {

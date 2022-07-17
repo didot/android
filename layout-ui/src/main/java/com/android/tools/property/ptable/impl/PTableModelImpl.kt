@@ -15,13 +15,13 @@
  */
 package com.android.tools.property.ptable.impl
 
-import com.google.common.annotations.VisibleForTesting
 import com.android.tools.property.ptable.PTableColumn
 import com.android.tools.property.ptable.PTableGroupItem
 import com.android.tools.property.ptable.PTableGroupModification
 import com.android.tools.property.ptable.PTableItem
 import com.android.tools.property.ptable.PTableModel
 import com.android.tools.property.ptable.PTableModelUpdateListener
+import com.google.common.annotations.VisibleForTesting
 import com.intellij.util.ThreeState
 import java.util.Collections
 import java.util.IdentityHashMap

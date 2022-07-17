@@ -17,11 +17,10 @@ package org.jetbrains.android.util;
 
 import com.android.resources.ResourceType;
 import com.intellij.util.containers.Stack;
+import java.io.Reader;
 import net.n3.nanoxml.IXMLBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.io.Reader;
 
 public abstract class ValueResourcesFileParser implements IXMLBuilder {
   private boolean mySeenResources;

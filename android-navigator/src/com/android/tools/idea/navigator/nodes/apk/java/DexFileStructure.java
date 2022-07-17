@@ -15,6 +15,10 @@
  */
 package com.android.tools.idea.navigator.nodes.apk.java;
 
+import static com.android.tools.idea.apk.dex.DexFiles.getDexFile;
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
+import static com.intellij.debugger.impl.DebuggerUtilsEx.signatureToName;
+
 import com.android.tools.idea.apk.debugging.ApkPackage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
@@ -22,6 +26,15 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.ide.PooledThreadExecutor;
@@ -29,15 +42,6 @@ import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedDexFile;
 import org.jf.dexlib2.dexbacked.reference.DexBackedMethodReference;
 import org.jf.dexlib2.iface.reference.MethodReference;
-
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-
-import static com.android.tools.idea.apk.dex.DexFiles.getDexFile;
-import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
-import static com.intellij.debugger.impl.DebuggerUtilsEx.signatureToName;
 
 class DexFileStructure {
   // All dex files represented by this node.

@@ -22,7 +22,10 @@ import com.intellij.psi.impl.migration.PsiMigrationManager
 import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture
 import com.intellij.usageView.UsageInfo
 import org.jetbrains.android.AndroidTestCase
-import org.jetbrains.android.refactoring.AppCompatMigrationEntry.*
+import org.jetbrains.android.refactoring.AppCompatMigrationEntry.ClassMigrationEntry
+import org.jetbrains.android.refactoring.AppCompatMigrationEntry.GradleDependencyMigrationEntry
+import org.jetbrains.android.refactoring.AppCompatMigrationEntry.PackageMigrationEntry
+import org.jetbrains.android.refactoring.AppCompatMigrationEntry.UpdateGradleDependencyVersionMigrationEntry
 
 private const val BASE_PATH = "refactoring/migrateToAndroidx/"
 

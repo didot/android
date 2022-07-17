@@ -19,16 +19,15 @@ import com.android.sdklib.BuildToolInfo;
 import com.android.sdklib.IAndroidTarget;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.util.ArrayUtil;
-import org.jetbrains.android.util.AndroidBuildCommonUtils;
-import org.jetbrains.android.util.AndroidCompilerMessageKind;
-import org.jetbrains.android.util.AndroidExecutionUtil;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.jetbrains.android.util.AndroidBuildCommonUtils;
+import org.jetbrains.android.util.AndroidCompilerMessageKind;
+import org.jetbrains.android.util.AndroidExecutionUtil;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * IDL compiler.

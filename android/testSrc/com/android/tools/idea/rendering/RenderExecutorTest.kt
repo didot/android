@@ -18,7 +18,7 @@ package com.android.tools.idea.rendering
 import com.android.testutils.VirtualTimeScheduler
 import com.android.testutils.concurrency.OnDemandExecutorService
 import com.android.tools.idea.concurrency.androidCoroutineExceptionHandler
-import com.android.tools.idea.rendering.RenderAsyncActionExecutor.*
+import com.android.tools.idea.rendering.RenderAsyncActionExecutor.RenderingPriority
 import com.google.common.truth.Truth
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope

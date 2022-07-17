@@ -16,7 +16,6 @@
 package com.android.tools.idea.sampledata.datasource;
 
 import com.google.common.base.Charsets;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.function.Function;

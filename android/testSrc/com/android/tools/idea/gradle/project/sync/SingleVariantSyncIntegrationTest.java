@@ -20,7 +20,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.openapi.util.io.FileUtil.appendToFile;
 import static java.util.stream.Collectors.toList;
 
-import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.gradle.project.sync.messages.GradleSyncMessagesStub;
 import com.android.tools.idea.testing.AndroidGradleTests.SyncIssuesPresentError;
 import com.intellij.openapi.externalSystem.service.notification.NotificationData;

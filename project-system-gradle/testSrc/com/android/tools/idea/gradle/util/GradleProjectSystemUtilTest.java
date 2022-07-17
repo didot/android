@@ -15,7 +15,8 @@
  */
 package com.android.tools.idea.gradle.util;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.android.ide.common.repository.GradleVersion;
 import org.junit.Test;

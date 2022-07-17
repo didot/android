@@ -16,6 +16,8 @@
 package com.android.tools.idea.annotations
 
 import com.android.tools.idea.AndroidPsiUtils
+import com.android.tools.idea.annotations.CacheKeysManager.equals
+import com.android.tools.idea.annotations.CacheKeysManager.hashCode
 import com.android.tools.idea.concurrency.AndroidDispatchers
 import com.android.tools.idea.concurrency.getPsiFileSafely
 import com.intellij.lang.java.JavaLanguage

@@ -18,7 +18,13 @@
 package com.android.tools.idea.configurations
 
 import com.android.annotations.concurrency.Slow
-import com.android.ide.common.rendering.HardwareConfigHelper.*
+import com.android.ide.common.rendering.HardwareConfigHelper.isAutomotive
+import com.android.ide.common.rendering.HardwareConfigHelper.isDesktop
+import com.android.ide.common.rendering.HardwareConfigHelper.isMobile
+import com.android.ide.common.rendering.HardwareConfigHelper.isNexus
+import com.android.ide.common.rendering.HardwareConfigHelper.isTv
+import com.android.ide.common.rendering.HardwareConfigHelper.isWear
+import com.android.ide.common.rendering.HardwareConfigHelper.sortDevicesByScreenSize
 import com.android.ide.common.rendering.api.HardwareConfig
 import com.android.resources.Density
 import com.android.sdklib.devices.Device

@@ -17,9 +17,8 @@ package com.android.tools.idea.run.activity.launch;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.ColoredListCellRenderer;
+import javax.swing.JList;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
 
 public abstract class ActivityLaunchOption<S extends ActivityLaunchOptionState> {
   @NotNull

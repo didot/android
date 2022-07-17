@@ -15,7 +15,6 @@
  */
 package org.jetbrains.android.refactoring
 
-import com.android.testutils.MockitoKt
 import com.android.testutils.MockitoKt.whenever
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.intellij.openapi.actionSystem.AnActionEvent
