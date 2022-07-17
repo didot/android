@@ -22,7 +22,6 @@ import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.Messages
 import java.nio.file.Files
-import java.nio.file.Paths
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 

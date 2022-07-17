@@ -32,12 +32,11 @@ import com.android.tools.idea.uibuilder.scene.target.TargetSnapper;
 import com.google.common.collect.ImmutableList;
 import java.awt.Color;
 import java.awt.Point;
+import java.util.List;
+import java.util.Optional;
 import org.intellij.lang.annotations.JdkConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Implements a target anchor for the ConstraintLayout.

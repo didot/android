@@ -23,6 +23,9 @@ import com.android.tools.idea.concurrency.transform
 import com.android.tools.idea.gradle.plugin.LatestKnownPluginVersionProvider
 import com.android.tools.idea.gradle.project.upgrade.GradlePluginUpgradeState.Importance.FORCE
 import com.android.tools.idea.gradle.project.upgrade.computeGradlePluginUpgradeState
+import com.android.tools.idea.gradle.repositories.search.SearchQuery
+import com.android.tools.idea.gradle.repositories.search.SearchRequest
+import com.android.tools.idea.gradle.repositories.search.SearchResult
 import com.android.tools.idea.gradle.structure.model.PsChildModel
 import com.android.tools.idea.gradle.structure.model.PsDeclaredLibraryDependency
 import com.android.tools.idea.gradle.structure.model.PsProject
@@ -37,9 +40,6 @@ import com.android.tools.idea.gradle.structure.model.meta.ValueDescriptor
 import com.android.tools.idea.gradle.structure.model.meta.getText
 import com.android.tools.idea.gradle.structure.model.meta.maybeValue
 import com.android.tools.idea.gradle.structure.model.meta.withFileSelectionRoot
-import com.android.tools.idea.gradle.repositories.search.SearchQuery
-import com.android.tools.idea.gradle.repositories.search.SearchRequest
-import com.android.tools.idea.gradle.repositories.search.SearchResult
 import com.android.tools.idea.gradle.util.GradleVersionsRepository
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.util.concurrent.Futures

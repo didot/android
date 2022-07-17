@@ -18,37 +18,21 @@ package com.android.tools.idea.configurations;
 import com.android.ide.common.rendering.HardwareConfigHelper;
 import com.android.ide.common.resources.configuration.DeviceConfigHelper;
 import com.android.ide.common.resources.configuration.FolderConfiguration;
-import com.android.ide.common.resources.configuration.ScreenOrientationQualifier;
-import com.android.ide.common.resources.configuration.SmallestScreenWidthQualifier;
-import com.android.resources.ResourceFolderType;
 import com.android.resources.ScreenOrientation;
 import com.android.resources.UiMode;
-import com.android.tools.idea.flags.StudioFlags;
-import com.google.common.annotations.VisibleForTesting;
 import com.android.sdklib.devices.Device;
 import com.android.sdklib.devices.State;
 import com.android.tools.adtui.actions.DropDownAction;
-import com.intellij.openapi.actionSystem.DataContext;
-import com.intellij.openapi.actionSystem.Toggleable;
-import org.jetbrains.android.intentions.OverrideResourceAction;
-import com.android.tools.idea.res.IdeResourcesUtil;
+import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.ui.designer.EditorDesignSurface;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.google.common.annotations.VisibleForTesting;
+import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.Presentation;
-import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.OpenFileDescriptor;
-import com.intellij.openapi.module.Module;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import icons.StudioIcons;
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
-
-import static com.android.SdkConstants.FD_RES_LAYOUT;
 
 public class OrientationMenuAction extends DropDownAction {
   private final ConfigurationHolder myRenderContext;

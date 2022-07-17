@@ -16,7 +16,6 @@
 package com.android.tools.idea.adb
 
 import com.android.utils.reflection.qualifiedName
-import com.intellij.openapi.application.Application
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key

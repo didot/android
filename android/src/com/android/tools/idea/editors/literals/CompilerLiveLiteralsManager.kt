@@ -20,7 +20,6 @@ import com.android.tools.idea.concurrency.runReadAction
 import com.android.tools.idea.editors.fast.FastPreviewManager
 import com.android.tools.idea.editors.literals.internal.LiveLiteralsFinder
 import com.android.tools.idea.editors.literals.internal.MethodData
-import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.projectsystem.getModuleSystem
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.debug

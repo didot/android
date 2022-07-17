@@ -32,9 +32,9 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.RunsInEdt
+import com.intellij.testFramework.fixtures.CodeInsightTestUtil
 import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture
 import com.intellij.testFramework.runInEdtAndWait
-import com.intellij.testFramework.fixtures.CodeInsightTestUtil
 import org.jetbrains.android.AndroidAnnotatorUtil
 import org.jetbrains.android.compose.stubComposableAnnotation
 import org.jetbrains.kotlin.idea.util.application.runReadAction

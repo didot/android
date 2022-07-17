@@ -31,7 +31,11 @@ import com.android.tools.profilers.analytics.FeatureTracker
 import com.android.tools.profilers.analytics.trackLoading
 import com.android.tools.profilers.memory.MainMemoryProfilerStage
 import com.android.tools.profilers.memory.MemoryProfiler.Companion.saveHeapDumpToFile
-import com.android.tools.profilers.memory.adapters.CaptureObject.ClassifierAttribute.*
+import com.android.tools.profilers.memory.adapters.CaptureObject.ClassifierAttribute.ALLOCATIONS
+import com.android.tools.profilers.memory.adapters.CaptureObject.ClassifierAttribute.LABEL
+import com.android.tools.profilers.memory.adapters.CaptureObject.ClassifierAttribute.NATIVE_SIZE
+import com.android.tools.profilers.memory.adapters.CaptureObject.ClassifierAttribute.RETAINED_SIZE
+import com.android.tools.profilers.memory.adapters.CaptureObject.ClassifierAttribute.SHALLOW_SIZE
 import com.android.tools.profilers.memory.adapters.CaptureObject.InstanceAttribute
 import com.android.tools.profilers.memory.adapters.classifiers.AllHeapSet
 import com.android.tools.profilers.memory.adapters.classifiers.HeapSet
@@ -46,8 +50,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.google.wireless.android.sdk.stats.AndroidProfilerEvent.Loading
 import gnu.trove.TLongObjectHashMap
 import java.io.OutputStream
-import java.util.HashMap
-import java.util.HashSet
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.stream.Collectors

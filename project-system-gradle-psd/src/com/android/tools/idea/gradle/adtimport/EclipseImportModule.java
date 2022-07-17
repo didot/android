@@ -27,7 +27,6 @@ import com.android.ide.common.repository.GradleCoordinate;
 import com.android.sdklib.AndroidVersion;
 import com.android.tools.lint.client.api.LintXmlConfiguration;
 import com.google.common.collect.Lists;
-
 import java.io.File;
 import java.nio.charset.Charset;
 import java.util.Collections;

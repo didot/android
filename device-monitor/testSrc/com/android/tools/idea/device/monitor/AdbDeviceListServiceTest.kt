@@ -21,8 +21,8 @@ import com.android.testutils.MockitoKt
 import com.android.tools.idea.adb.AdbFileProvider
 import com.android.tools.idea.adb.AdbService
 import com.android.tools.idea.concurrency.AndroidDispatchers
-import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.device.monitor.adbimpl.AdbDeviceListService.Companion.getInstance
+import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.util.concurrent.Futures
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer

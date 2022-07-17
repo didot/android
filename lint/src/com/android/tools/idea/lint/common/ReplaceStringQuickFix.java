@@ -57,7 +57,6 @@ import com.intellij.psi.codeStyle.JavaCodeStyleSettings;
 import com.intellij.psi.impl.source.codeStyle.ImportHelper;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.structuralsearch.plugin.util.SmartPsiPointer;
 import com.intellij.util.DocumentUtil;
 import java.io.File;
 import java.util.List;

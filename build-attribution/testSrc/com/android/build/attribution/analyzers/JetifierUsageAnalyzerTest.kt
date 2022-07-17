@@ -17,8 +17,8 @@ package com.android.build.attribution.analyzers
 
 import com.android.SdkConstants
 import com.android.build.attribution.BuildAttributionManagerImpl
-import com.android.build.attribution.data.BuildRequestHolder
 import com.android.build.attribution.data.BuildInvocationType
+import com.android.build.attribution.data.BuildRequestHolder
 import com.android.build.attribution.data.StudioProvidedInfo
 import com.android.build.attribution.ui.controllers.createCheckJetifierTaskRequest
 import com.android.builder.model.PROPERTY_CHECK_JETIFIER_RESULT_FILE

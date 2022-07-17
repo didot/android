@@ -29,7 +29,6 @@ import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import org.jetbrains.android.facet.AndroidFacet
-import java.util.ArrayList
 
 /**
  * Creates Android project view nodes for a given [project].

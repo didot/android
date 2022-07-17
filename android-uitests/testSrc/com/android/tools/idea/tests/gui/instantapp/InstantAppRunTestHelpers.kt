@@ -19,7 +19,6 @@ import com.android.ddmlib.CollectingOutputReceiver
 import com.android.ddmlib.IDevice
 import com.android.tools.idea.explorer.adbimpl.AdbDeviceCapabilities
 import com.android.tools.idea.explorer.adbimpl.AdbFileOperations
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking

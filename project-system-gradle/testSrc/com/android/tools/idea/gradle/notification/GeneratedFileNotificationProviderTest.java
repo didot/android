@@ -19,7 +19,6 @@ import static com.android.tools.idea.FileEditorUtil.DISABLE_GENERATED_FILE_NOTIF
 import static com.android.tools.idea.testing.ProjectFiles.createFile;
 import static com.android.tools.idea.testing.ProjectFiles.createFolderInProjectRoot;
 import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -27,7 +26,6 @@ import com.android.tools.idea.gradle.model.IdeAndroidProject;
 import com.android.tools.idea.gradle.notification.GeneratedFileNotificationProvider.MyEditorNotificationPanel;
 import com.android.tools.idea.gradle.project.GradleProjectInfo;
 import com.android.tools.idea.gradle.project.model.GradleAndroidModel;
-import com.android.tools.idea.gradle.util.GradleProjectSystemUtil;
 import com.android.tools.idea.testing.IdeComponents;
 import com.intellij.ide.GeneratedSourceFileChangeTracker;
 import com.intellij.ide.GeneratedSourceFileChangeTrackerImpl;

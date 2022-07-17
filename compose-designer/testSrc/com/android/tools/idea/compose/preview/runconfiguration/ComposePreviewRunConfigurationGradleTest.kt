@@ -15,18 +15,16 @@
  */
 package com.android.tools.idea.compose.preview.runconfiguration
 
-import com.android.flags.junit.SetFlagRule
 import com.android.tools.idea.compose.gradle.DEFAULT_KOTLIN_VERSION
 import com.android.tools.idea.compose.preview.SIMPLE_COMPOSE_PROJECT_PATH
 import com.android.tools.idea.compose.preview.SimpleComposeAppPaths
 import com.android.tools.idea.compose.preview.TEST_DATA_PATH
 import com.android.tools.idea.compose.preview.message
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.run.ValidationError
 import com.android.tools.idea.testing.AndroidGradleProjectRule
 import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.openapi.application.runReadAction
-import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.util.Ref
 import com.intellij.openapi.vfs.VfsUtil

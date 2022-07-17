@@ -16,12 +16,9 @@
 package com.android.tools.idea.databinding.validation
 
 import com.android.tools.idea.databinding.DataBindingMode
-import com.android.tools.idea.databinding.module.LayoutBindingModuleCache
 import com.android.tools.idea.databinding.TestDataPaths
-import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet
-import com.android.tools.idea.gradle.project.model.GradleModuleModel
+import com.android.tools.idea.databinding.module.LayoutBindingModuleCache
 import com.android.tools.idea.testing.AndroidProjectRule
-import com.google.common.truth.Truth.assertThat
 import com.intellij.facet.FacetManager
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
 import org.jetbrains.android.facet.AndroidFacet
@@ -30,7 +27,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import java.io.File
 
 /**
  * Tests for inspections in data binding expressions.

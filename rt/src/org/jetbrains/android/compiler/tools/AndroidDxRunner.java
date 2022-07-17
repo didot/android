@@ -16,9 +16,6 @@
 package org.jetbrains.android.compiler.tools;
 
 import com.intellij.openapi.util.io.FileUtilRt;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.Nullable;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -32,6 +29,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings({"UseOfSystemOutOrSystemErr", "CallToPrintStackTrace", "SSBasedInspection"})
 public class AndroidDxRunner {

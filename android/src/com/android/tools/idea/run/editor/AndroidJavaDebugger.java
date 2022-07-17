@@ -49,7 +49,6 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
-import com.intellij.openapi.util.Ref;
 import com.intellij.util.NotNullFunction;
 import com.intellij.xdebugger.XDebugSession;
 import java.util.Collection;

@@ -15,12 +15,12 @@
  */
 package com.android.tools.idea.compose.gradle.preview
 
-import com.android.tools.idea.editors.build.ProjectBuildStatusManagerTest
 import com.android.flags.junit.SetFlagRule
 import com.android.tools.idea.compose.gradle.ComposeGradleProjectRule
 import com.android.tools.idea.compose.preview.SIMPLE_COMPOSE_PROJECT_PATH
 import com.android.tools.idea.compose.preview.SimpleComposeAppPaths
 import com.android.tools.idea.editors.build.ProjectBuildStatusManager
+import com.android.tools.idea.editors.build.ProjectBuildStatusManagerTest
 import com.android.tools.idea.editors.build.ProjectStatus
 import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.flags.StudioFlags

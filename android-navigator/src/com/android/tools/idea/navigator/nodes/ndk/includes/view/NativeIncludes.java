@@ -18,11 +18,10 @@ package com.android.tools.idea.navigator.nodes.ndk.includes.view;
 import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeArtifact;
 import com.android.tools.idea.gradle.model.ndk.v1.IdeNativeSettings;
 import com.google.common.collect.ImmutableList;
-import java.util.Objects;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.Collection;
+import java.util.Objects;
 import java.util.function.Function;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Data carriage class for IncludesView.

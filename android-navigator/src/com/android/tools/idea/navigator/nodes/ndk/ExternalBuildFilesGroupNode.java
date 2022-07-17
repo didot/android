@@ -15,6 +15,9 @@
  */
 package com.android.tools.idea.navigator.nodes.ndk;
 
+import static com.intellij.icons.AllIcons.General.ExternalTools;
+import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
+
 import com.android.tools.idea.gradle.project.model.NdkModuleModel;
 import com.android.tools.idea.gradle.project.model.V2NdkModel;
 import com.intellij.ide.projectView.PresentationData;
@@ -29,14 +32,14 @@ import com.intellij.openapi.ui.Queryable;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.io.File;
-import java.util.*;
-
-import static com.intellij.icons.AllIcons.General.ExternalTools;
-import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 
 public class ExternalBuildFilesGroupNode extends ProjectViewNode<Project> {
   public ExternalBuildFilesGroupNode(@NotNull Project project, @NotNull ViewSettings settings) {

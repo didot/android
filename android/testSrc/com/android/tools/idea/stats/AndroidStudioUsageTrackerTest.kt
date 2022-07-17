@@ -28,9 +28,9 @@ import com.android.tools.idea.stats.AndroidStudioUsageTracker.buildActiveExperim
 import com.android.tools.idea.stats.AndroidStudioUsageTracker.deviceToDeviceInfo
 import com.android.tools.idea.stats.AndroidStudioUsageTracker.deviceToDeviceInfoApiLevelOnly
 import com.android.tools.idea.stats.AndroidStudioUsageTracker.getMachineDetails
+import com.android.tools.idea.stats.AndroidStudioUsageTracker.shouldRequestUserSentiment
 import com.android.tools.idea.stats.FeatureSurveys.featureSurveyInvoked
 import com.android.tools.idea.stats.FeatureSurveys.shouldInvokeFeatureSurvey
-import com.android.tools.idea.stats.AndroidStudioUsageTracker.shouldRequestUserSentiment
 import com.android.utils.DateProvider
 import com.google.common.truth.Truth
 import com.google.wireless.android.sdk.stats.DeviceInfo

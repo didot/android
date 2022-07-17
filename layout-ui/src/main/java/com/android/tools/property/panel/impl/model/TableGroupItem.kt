@@ -15,9 +15,9 @@
  */
 package com.android.tools.property.panel.impl.model
 
-import com.android.tools.property.ptable.PTableGroupItem
 import com.android.tools.property.panel.api.GroupSpec
 import com.android.tools.property.panel.api.PropertyItem
+import com.android.tools.property.ptable.PTableGroupItem
 
 class TableGroupItem<P: PropertyItem>(val group: GroupSpec<P>): PTableGroupItem {
 

@@ -19,7 +19,6 @@ import com.android.tools.idea.util.StudioPathManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.application.PathManager;
 import java.io.File;
-import java.nio.file.Paths;
 import java.util.function.Supplier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

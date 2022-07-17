@@ -25,9 +25,9 @@ import com.android.ide.gradle.model.LegacyV1AgpVersionModel
 import com.android.ide.gradle.model.artifacts.AdditionalClassifierArtifactsModel
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType
 import com.android.tools.idea.gradle.model.IdeArtifactLibrary
-import com.android.tools.idea.gradle.model.IdeSyncIssue
 import com.android.tools.idea.gradle.model.IdeBaseArtifactCore
 import com.android.tools.idea.gradle.model.IdeLibrary
+import com.android.tools.idea.gradle.model.IdeSyncIssue
 import com.android.tools.idea.gradle.model.IdeUnresolvedDependency
 import com.android.tools.idea.gradle.model.LibraryReference
 import com.android.tools.idea.gradle.model.impl.IdeAndroidProjectImpl

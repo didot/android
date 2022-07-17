@@ -19,12 +19,11 @@ import com.android.tools.idea.navigator.nodes.ndk.includes.RealWorldExamples;
 import com.android.tools.idea.navigator.nodes.ndk.includes.model.SimpleIncludeValue;
 import com.android.tools.idea.navigator.nodes.ndk.includes.utils.IncludeSet;
 import com.google.common.collect.Lists;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.File;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.jetbrains.annotations.NotNull;
 
 public class ResolverTests {
   static final String PATH_TO_NDK = "/path/to/ndk-bundle";

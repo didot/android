@@ -15,6 +15,17 @@
  */
 package com.android.tools.idea.rendering;
 
+import static com.android.SdkConstants.ANDROID_LAYOUT_RESOURCE_PREFIX;
+import static com.android.SdkConstants.ANDROID_URI;
+import static com.android.SdkConstants.ATTR_ID;
+import static com.android.SdkConstants.ATTR_NUM_COLUMNS;
+import static com.android.SdkConstants.EXPANDABLE_LIST_VIEW;
+import static com.android.SdkConstants.GRID_VIEW;
+import static com.android.SdkConstants.LAYOUT_RESOURCE_PREFIX;
+import static com.android.SdkConstants.TOOLS_URI;
+import static com.android.SdkConstants.VALUE_AUTO_FIT;
+import static com.android.tools.lint.detector.api.Lint.stripIdPrefix;
+
 import com.android.annotations.Nullable;
 import com.android.ide.common.rendering.api.AdapterBinding;
 import com.android.ide.common.rendering.api.DataBindingItem;
@@ -36,16 +47,12 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlFile;
 import com.intellij.psi.xml.XmlTag;
+import java.util.List;
+import java.util.Map;
 import org.jetbrains.annotations.NotNull;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.xmlpull.v1.XmlPullParser;
-
-import java.util.List;
-import java.util.Map;
-
-import static com.android.SdkConstants.*;
-import static com.android.tools.lint.detector.api.Lint.stripIdPrefix;
 
 /**
  * Design-time metadata lookup for layouts, such as fragment and AdapterView bindings.

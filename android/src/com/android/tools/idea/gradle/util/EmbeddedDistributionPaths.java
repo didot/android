@@ -15,9 +15,8 @@
  */
 package com.android.tools.idea.gradle.util;
 
-import static com.android.tools.idea.ui.GuiTestingService.isInTestingMode;
 import static com.android.tools.idea.sdk.IdeSdks.MAC_JDK_CONTENT_PATH;
-import static com.intellij.openapi.util.io.FileUtil.toCanonicalPath;
+import static com.android.tools.idea.ui.GuiTestingService.isInTestingMode;
 import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 
 import com.android.tools.idea.flags.StudioFlags;

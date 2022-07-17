@@ -15,19 +15,17 @@
  */
 package com.android.tools.idea.editors.strings.table;
 
+import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertEquals;
+
 import com.android.tools.adtui.swing.FakeUi;
 import com.android.tools.idea.testing.AndroidProjectRule;
-import java.awt.Component;
-import java.awt.Dimension;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableModel;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-
-import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
 
 public final class FrozenColumnTableTest {
   @Rule

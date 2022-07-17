@@ -16,15 +16,13 @@ package com.android.tools.idea.gradle.dsl.api.ext;
 import com.android.tools.idea.gradle.dsl.api.util.DeletablePsiElementHolder;
 import com.android.tools.idea.gradle.dsl.api.util.GradleDslElementModel;
 import com.android.tools.idea.gradle.dsl.api.util.TypeReference;
-import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * This class represents a property or variable declared or referenced by the ExtraPropertiesExtension

@@ -16,7 +16,6 @@
 package com.android.tools.idea.run.tasks;
 
 import com.android.annotations.Nullable;
-import com.android.tools.idea.log.LogWrapper;
 import com.intellij.openapi.diagnostic.Logger;
 import java.util.concurrent.Callable;
 import org.jetbrains.annotations.NotNull;

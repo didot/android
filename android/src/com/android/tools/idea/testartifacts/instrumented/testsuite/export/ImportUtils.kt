@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.testartifacts.instrumented.testsuite.export
 
-import com.android.annotations.concurrency.UiThread
 import com.android.annotations.concurrency.Slow
+import com.android.annotations.concurrency.UiThread
 import com.android.sdklib.AndroidVersion
 import com.android.tools.idea.testartifacts.instrumented.testsuite.model.AndroidDevice
 import com.android.tools.idea.testartifacts.instrumented.testsuite.model.AndroidDeviceType

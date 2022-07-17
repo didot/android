@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.avdmanager;
 
+import static com.android.tools.idea.avdmanager.AccelerationErrorSolution.SolutionCode.NONE;
+
 import com.android.annotations.NonNull;
 import com.android.sdklib.SdkVersionInfo;
 import com.android.sdklib.devices.Abi;
@@ -32,15 +34,15 @@ import com.intellij.ui.components.JBLabel;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.concurrency.EdtExecutorService;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
+import java.awt.Component;
+import java.awt.Dimension;
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.text.View;
-import java.awt.*;
-
-import static com.android.tools.idea.avdmanager.AccelerationErrorSolution.SolutionCode.NONE;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Component for displaying an alert on the installation state of HAXM/KVM.

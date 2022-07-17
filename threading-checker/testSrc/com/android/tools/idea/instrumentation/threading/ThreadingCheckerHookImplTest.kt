@@ -21,9 +21,9 @@ import com.android.tools.instrumentation.threading.agent.callback.ThreadingCheck
 import com.google.common.truth.Truth
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
-import org.mockito.Mockito.verify
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoMoreInteractions
 import kotlin.concurrent.thread
 

@@ -20,9 +20,7 @@ import static com.android.tools.idea.model.AndroidManifestIndexQueryUtils.queryA
 import com.android.ddmlib.IDevice;
 import com.android.tools.idea.model.ActivitiesAndAliases;
 import com.android.tools.idea.model.AndroidManifestIndex;
-import com.android.tools.idea.model.MergedManifestSnapshot;
 import com.intellij.execution.JavaExecutionUtil;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
@@ -37,7 +35,6 @@ import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.w3c.dom.Element;
 
 public class SpecificActivityLocator extends ActivityLocator {
   @NotNull

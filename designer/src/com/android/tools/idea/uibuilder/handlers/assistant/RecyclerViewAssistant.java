@@ -33,6 +33,7 @@ import com.android.resources.ResourceUrl;
 import com.android.tools.adtui.HorizontalSpinner;
 import com.android.tools.idea.common.command.NlWriteCommandActionUtil;
 import com.android.tools.idea.common.model.NlComponent;
+import com.android.tools.idea.res.IdeResourcesUtil;
 import com.android.tools.idea.res.LocalResourceRepository;
 import com.android.tools.idea.res.ResourceRepositoryManager;
 import com.android.tools.idea.uibuilder.assistant.AssistantPopupPanel;
@@ -65,7 +66,6 @@ import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.jetbrains.android.facet.AndroidFacet;
-import com.android.tools.idea.res.IdeResourcesUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

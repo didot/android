@@ -15,12 +15,12 @@
  */
 package com.android.tools.idea.common.surface;
 
+import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ATTR_ORIENTATION;
 import static com.android.SdkConstants.ATTR_SRC;
 import static com.android.SdkConstants.ATTR_TEXT;
 import static com.android.SdkConstants.BUTTON;
-import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.IMAGE_VIEW;
 import static com.android.SdkConstants.LINEAR_LAYOUT;
 import static com.android.SdkConstants.TEXT_VIEW;
@@ -43,6 +43,7 @@ import com.android.tools.adtui.common.AdtUiUtils;
 import com.android.tools.adtui.common.TestAdtUiCursorsProvider;
 import com.android.tools.idea.common.SyncNlModel;
 import com.android.tools.idea.common.api.InsertType;
+import com.android.tools.idea.common.fixtures.DropTargetDragEventBuilder;
 import com.android.tools.idea.common.model.Coordinates;
 import com.android.tools.idea.common.model.NlComponent;
 import com.android.tools.idea.common.model.SelectionModel;
@@ -52,7 +53,6 @@ import com.android.tools.idea.common.scene.TemporarySceneComponent;
 import com.android.tools.idea.common.scene.draw.DisplayList;
 import com.android.tools.idea.common.util.NlTreeDumper;
 import com.android.tools.idea.uibuilder.LayoutTestCase;
-import com.android.tools.idea.common.fixtures.DropTargetDragEventBuilder;
 import com.android.tools.idea.uibuilder.handlers.ImageViewHandler;
 import com.android.tools.idea.uibuilder.handlers.ViewHandlerManager;
 import com.android.tools.idea.uibuilder.surface.NlDesignSurface;

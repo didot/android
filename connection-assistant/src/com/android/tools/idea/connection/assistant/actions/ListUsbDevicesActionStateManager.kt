@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.connection.assistant.actions
 
-import com.google.common.annotations.VisibleForTesting
 import com.android.ddmlib.AdbDevice
 import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.IDevice
@@ -32,6 +31,7 @@ import com.android.tools.usb.Platform
 import com.android.tools.usb.UsbDeviceCollector
 import com.android.tools.usb.UsbDeviceCollectorImpl
 import com.android.utils.HtmlBuilder
+import com.google.common.annotations.VisibleForTesting
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.ConnectionAssistantEvent
 import com.intellij.openapi.Disposable

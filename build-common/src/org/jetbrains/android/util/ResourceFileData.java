@@ -1,9 +1,8 @@
 package org.jetbrains.android.util;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.jetbrains.annotations.NotNull;
 
 public class ResourceFileData {
   // order matters because of id assigning in R.java

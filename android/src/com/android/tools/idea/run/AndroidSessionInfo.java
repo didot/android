@@ -16,7 +16,6 @@
 
 package com.android.tools.idea.run;
 
-import com.android.ddmlib.Client;
 import com.android.sdklib.AndroidVersion;
 import com.android.tools.idea.run.deployable.SwappableProcessHandler;
 import com.android.tools.idea.run.deployment.AndroidExecutionTarget;

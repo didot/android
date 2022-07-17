@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.uibuilder.handlers.coordinator
 
+import com.android.AndroidXConstants.COORDINATOR_LAYOUT
+import com.android.AndroidXConstants.FLOATING_ACTION_BUTTON
 import com.android.SdkConstants.ANDROID_URI
 import com.android.SdkConstants.ATTR_CONTEXT
 import com.android.SdkConstants.ATTR_FITS_SYSTEM_WINDOWS
@@ -25,8 +27,6 @@ import com.android.SdkConstants.ATTR_LAYOUT_GRAVITY
 import com.android.SdkConstants.ATTR_LAYOUT_MARGIN
 import com.android.SdkConstants.AUTO_URI
 import com.android.SdkConstants.BOTTOM_APP_BAR
-import com.android.AndroidXConstants.COORDINATOR_LAYOUT
-import com.android.AndroidXConstants.FLOATING_ACTION_BUTTON
 import com.android.SdkConstants.ID_PREFIX
 import com.android.tools.idea.common.api.DragType
 import com.android.tools.idea.common.api.InsertType

@@ -30,7 +30,9 @@ import com.android.tools.idea.testing.AndroidGradleTestCase
 import com.android.tools.idea.testing.TestProjectPaths.PSD_SAMPLE_GROOVY
 import com.android.tools.idea.testing.TestProjectPaths.PSD_SAMPLE_KOTLIN
 import com.intellij.pom.java.LanguageLevel
-import org.hamcrest.CoreMatchers.*
+import org.hamcrest.CoreMatchers.equalTo
+import org.hamcrest.CoreMatchers.notNullValue
+import org.hamcrest.CoreMatchers.nullValue
 import org.hamcrest.MatcherAssert.assertThat
 
 class AndroidModuleDescriptorsTest : AndroidGradleTestCase() {

@@ -15,6 +15,10 @@
  */
 package com.android.tools.idea.navigator.nodes.ndk;
 
+import static com.intellij.openapi.util.io.FileUtil.getLocationRelativeToUserHome;
+import static com.intellij.ui.SimpleTextAttributes.GRAY_ATTRIBUTES;
+import static com.intellij.ui.SimpleTextAttributes.REGULAR_ATTRIBUTES;
+
 import com.intellij.ide.projectView.PresentationData;
 import com.intellij.ide.projectView.ViewSettings;
 import com.intellij.ide.projectView.impl.nodes.PsiFileNode;
@@ -23,10 +27,6 @@ import com.intellij.openapi.ui.Queryable;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import static com.intellij.openapi.util.io.FileUtil.getLocationRelativeToUserHome;
-import static com.intellij.ui.SimpleTextAttributes.GRAY_ATTRIBUTES;
-import static com.intellij.ui.SimpleTextAttributes.REGULAR_ATTRIBUTES;
 
 public class ExternalBuildFileNode extends PsiFileNode {
   @NotNull private final String myModuleName;

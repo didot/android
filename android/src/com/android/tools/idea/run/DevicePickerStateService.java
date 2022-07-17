@@ -19,10 +19,9 @@ import com.android.ddmlib.IDevice;
 import com.android.tools.idea.run.editor.DeployTarget;
 import com.intellij.openapi.project.Project;
 import gnu.trove.TIntObjectHashMap;
+import java.util.Set;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Set;
 
 public class DevicePickerStateService {
   /** A map from launch configuration id to the state of devices at the time of the launch. */

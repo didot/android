@@ -48,7 +48,6 @@ import static java.io.File.separatorChar;
 
 import com.android.annotations.NonNull;
 import com.android.annotations.Nullable;
-import com.google.common.annotations.VisibleForTesting;
 import com.android.sdklib.AndroidTargetHash;
 import com.android.sdklib.AndroidVersion;
 import com.android.sdklib.SdkVersionInfo;
@@ -56,6 +55,7 @@ import com.android.tools.idea.gradle.util.PropertiesFiles;
 import com.android.tools.lint.detector.api.Lint;
 import com.android.utils.SdkUtils;
 import com.android.utils.XmlUtils;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;

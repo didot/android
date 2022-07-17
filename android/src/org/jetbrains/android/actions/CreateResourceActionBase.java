@@ -18,14 +18,18 @@ package org.jetbrains.android.actions;
 
 import com.intellij.ide.IdeView;
 import com.intellij.ide.actions.ElementCreator;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.CommonDataKeys;
+import com.intellij.openapi.actionSystem.DataContext;
+import com.intellij.openapi.actionSystem.LangDataKeys;
+import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
 
 /**
  * Based on {@link com.intellij.ide.actions.CreateElementActionBase} but

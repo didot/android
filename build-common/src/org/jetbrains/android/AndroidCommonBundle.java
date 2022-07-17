@@ -1,13 +1,12 @@
 package org.jetbrains.android;
 
 import com.intellij.CommonBundle;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.PropertyKey;
-
 import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.util.ResourceBundle;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.PropertyKey;
 
 public class AndroidCommonBundle {
   @NonNls private static final String BUNDLE_NAME = "messages.AndroidCommonBundle";

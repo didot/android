@@ -16,9 +16,9 @@
 package com.android.tools.idea.gradle.project.model
 
 import com.android.builder.model.LintOptions
-import com.android.tools.idea.gradle.model.stubs.LintOptionsStub
 import com.android.tools.idea.gradle.model.IdeLintOptions
 import com.android.tools.idea.gradle.model.impl.IdeLintOptionsImpl
+import com.android.tools.idea.gradle.model.stubs.LintOptionsStub
 import com.google.common.truth.Truth
 import org.junit.Test
 

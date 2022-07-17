@@ -15,10 +15,13 @@
  */
 package com.android.tools.idea.rendering;
 
+import static com.android.SdkConstants.DOT_CLASS;
+import static com.android.SdkConstants.DOT_JAR;
+import static com.android.SdkConstants.VALUE_FALSE;
+
 import com.android.annotations.Nullable;
 import com.android.tools.adtui.webp.WebpNativeLibHelper;
 import com.android.utils.ILogger;
-
 import com.intellij.openapi.application.PathManager;
 import java.io.File;
 import java.io.FileDescriptor;
@@ -33,8 +36,6 @@ import java.util.Arrays;
 import java.util.PropertyPermission;
 import java.util.concurrent.Callable;
 import org.jetbrains.annotations.NotNull;
-
-import static com.android.SdkConstants.*;
 
 /**
  * A {@link SecurityManager} which is used for layout lib rendering, to

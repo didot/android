@@ -15,14 +15,22 @@
  */
 package com.intellij.testGuiFramework.remote.client
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.impl.ApplicationImpl
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.testGuiFramework.remote.transport.*
+import com.intellij.testGuiFramework.remote.transport.JUnitFailureInfo
+import com.intellij.testGuiFramework.remote.transport.JUnitInfoMessage
+import com.intellij.testGuiFramework.remote.transport.KeepAliveMessage
+import com.intellij.testGuiFramework.remote.transport.MessageFromClient
+import com.intellij.testGuiFramework.remote.transport.MessageFromServer
 import org.junit.runner.notification.Failure
-import java.io.*
-import java.net.*
-import java.util.*
+import java.io.IOException
+import java.io.InvalidClassException
+import java.io.NotSerializableException
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
+import java.io.OutputStream
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue

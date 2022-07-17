@@ -21,12 +21,12 @@ import static com.android.tools.idea.gradle.project.AndroidStudioGradleInstallat
 import static com.android.tools.idea.gradle.project.build.BuildStatus.CANCELED;
 import static com.android.tools.idea.gradle.project.build.BuildStatus.FAILED;
 import static com.android.tools.idea.gradle.project.build.BuildStatus.SUCCESS;
-import static com.android.tools.idea.ui.GuiTestingService.isInTestingMode;
 import static com.android.tools.idea.gradle.util.AndroidGradleSettings.createProjectProperty;
 import static com.android.tools.idea.gradle.util.GradleBuilds.PARALLEL_BUILD_OPTION;
 import static com.android.tools.idea.gradle.util.GradleUtil.attemptToUseEmbeddedGradle;
 import static com.android.tools.idea.gradle.util.GradleUtil.getOrCreateGradleExecutionSettings;
 import static com.android.tools.idea.gradle.util.GradleUtil.hasCause;
+import static com.android.tools.idea.ui.GuiTestingService.isInTestingMode;
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.intellij.openapi.ui.MessageType.ERROR;
 import static com.intellij.openapi.ui.MessageType.INFO;
@@ -39,7 +39,6 @@ import static com.intellij.util.ui.UIUtil.invokeLaterIfNeeded;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.jetbrains.plugins.gradle.service.execution.GradleExecutionHelper.prepare;
 
-import com.android.flags.Flags;
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.idea.IdeInfo;
 import com.android.tools.idea.flags.StudioFlags;

@@ -18,7 +18,6 @@ package com.android.tools.idea.testing;
 import com.google.common.truth.ComparableSubject;
 import com.google.common.truth.FailureMetadata;
 import com.google.common.truth.Subject;
-
 import java.io.File;
 import org.jetbrains.annotations.Nullable;
 

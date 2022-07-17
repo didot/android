@@ -18,7 +18,6 @@ package com.android.tools.idea.editors.strings.action
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.mock
 import com.android.testutils.MockitoKt.whenever
-import com.android.tools.adtui.TreeWalker
 import com.android.tools.adtui.swing.createModalDialogAndInteractWithIt
 import com.android.tools.adtui.swing.enableHeadlessDialogs
 import com.android.tools.adtui.swing.getDescendant
@@ -52,7 +51,6 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import javax.swing.JButton
 import kotlin.test.assertFailsWith
-import kotlin.test.fail
 
 
 /** Test [AddKeyAction] methods. */

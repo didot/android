@@ -18,9 +18,9 @@ package com.android.tools.idea.welcome.wizard.deprecated;
 import com.intellij.ide.customize.CustomizeUIThemeStepPanel;
 import com.intellij.ide.ui.laf.darcula.DarculaInstaller;
 import com.intellij.util.ui.UIUtil;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 
 /**
  * Step for FirstRunWizard for selecting a color scheme.

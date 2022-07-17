@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.rendering;
 
+import static com.android.AndroidXConstants.CLASS_V4_FRAGMENT;
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ATTR_CLASS;
 import static com.android.SdkConstants.ATTR_ID;
@@ -23,7 +24,6 @@ import static com.android.SdkConstants.ATTR_NAME;
 import static com.android.SdkConstants.CLASS_ATTRIBUTE_SET;
 import static com.android.SdkConstants.CLASS_CONTEXT;
 import static com.android.SdkConstants.CLASS_FRAGMENT;
-import static com.android.AndroidXConstants.CLASS_V4_FRAGMENT;
 import static com.android.SdkConstants.CLASS_VIEW;
 import static com.android.SdkConstants.LAYOUT_RESOURCE_PREFIX;
 import static com.android.SdkConstants.TOOLS_URI;

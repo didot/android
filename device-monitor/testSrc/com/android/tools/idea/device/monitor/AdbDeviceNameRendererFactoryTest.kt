@@ -17,8 +17,8 @@ package com.android.tools.idea.device.monitor
 
 import com.android.tools.idea.adb.AdbService
 import com.android.tools.idea.ddms.DeviceNameProperties
-import com.android.tools.idea.device.monitor.adbimpl.AdbDeviceListService.Companion.getInstance
 import com.android.tools.idea.ddms.DeviceNamePropertiesFetcher
+import com.android.tools.idea.device.monitor.adbimpl.AdbDeviceListService.Companion.getInstance
 import com.android.tools.idea.device.monitor.adbimpl.AdbDeviceNameRendererFactory
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.util.concurrent.FutureCallback

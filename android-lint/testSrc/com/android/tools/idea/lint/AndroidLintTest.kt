@@ -96,7 +96,6 @@ import com.android.tools.idea.lint.inspections.AndroidLintParcelClassLoaderInspe
 import com.android.tools.idea.lint.inspections.AndroidLintParcelCreatorInspection
 import com.android.tools.idea.lint.inspections.AndroidLintPermissionImpliesUnsupportedChromeOsHardwareInspection
 import com.android.tools.idea.lint.inspections.AndroidLintPermissionImpliesUnsupportedHardwareInspection
-import com.android.tools.idea.lint.inspections.AndroidLintProguardInspection
 import com.android.tools.idea.lint.inspections.AndroidLintPxUsageInspection
 import com.android.tools.idea.lint.inspections.AndroidLintReferenceTypeInspection
 import com.android.tools.idea.lint.inspections.AndroidLintRegisteredInspection

@@ -31,9 +31,9 @@ import com.android.tools.profilers.memory.CaptureEntry
 import com.android.tools.profilers.memory.ClassGrouping
 import com.android.tools.profilers.memory.FakeCaptureObjectLoader
 import com.android.tools.profilers.memory.FakeMemoryService
+import com.android.tools.profilers.memory.MainMemoryProfilerStage
 import com.android.tools.profilers.memory.MemoryClassifierView
 import com.android.tools.profilers.memory.MemoryObjectTreeNode
-import com.android.tools.profilers.memory.MainMemoryProfilerStage
 import com.android.tools.profilers.memory.adapters.CaptureObject
 import com.android.tools.profilers.memory.adapters.FakeCaptureObject
 import com.android.tools.profilers.memory.adapters.FakeInstanceObject

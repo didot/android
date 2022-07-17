@@ -16,13 +16,10 @@
 package com.android.tools.idea.explorer.adbimpl;
 
 import com.android.tools.idea.adb.AdbService;
-import com.android.tools.idea.concurrency.FutureUtils;
 import com.android.tools.idea.ddms.DeviceNamePropertiesFetcher;
 import com.android.tools.idea.testing.Sdks;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.roots.ProjectRootManager;
-import java.util.concurrent.TimeUnit;
 import org.jetbrains.android.AndroidTestCase;
 
 public class AdbDeviceFileSystemRendererFactoryTest extends AndroidTestCase {

@@ -27,7 +27,6 @@ import com.android.tools.lint.checks.GradleDetector
 import com.android.tools.lint.detector.api.LintFix
 import com.android.tools.lint.detector.api.LintFix.LintFixGroup
 import com.intellij.psi.PsiElement
-import java.util.ArrayList
 
 class AndroidLintAndroidGradlePluginVersionInspection : AndroidLintInspectionBase(
   AndroidLintBundle.message("android.lint.inspections.android.gradle.plugin.version"), GradleDetector.AGP_DEPENDENCY) {

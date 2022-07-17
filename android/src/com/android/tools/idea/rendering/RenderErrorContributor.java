@@ -15,11 +15,11 @@
  */
 package com.android.tools.idea.rendering;
 
+import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ATTR_ID;
 import static com.android.SdkConstants.ATTR_LAYOUT_HEIGHT;
 import static com.android.SdkConstants.ATTR_LAYOUT_WIDTH;
-import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT;
 import static com.android.SdkConstants.CLASS_FLEXBOX_LAYOUT;
 import static com.android.SdkConstants.CLASS_VIEW;
 import static com.android.SdkConstants.DOT_JAVA;

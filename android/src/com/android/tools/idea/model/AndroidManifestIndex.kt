@@ -42,7 +42,6 @@ import com.android.SdkConstants.TAG_USES_PERMISSION_SDK_23
 import com.android.SdkConstants.TAG_USES_PERMISSION_SDK_M
 import com.android.SdkConstants.TAG_USES_SDK
 import com.android.tools.apk.analyzer.BinaryXmlParser
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.getModuleSystem
 import com.android.tools.idea.util.androidFacet
 import com.android.utils.reflection.qualifiedName

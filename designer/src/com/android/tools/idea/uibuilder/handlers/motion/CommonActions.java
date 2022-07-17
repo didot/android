@@ -15,6 +15,12 @@
  */
 package com.android.tools.idea.uibuilder.handlers.motion;
 
+import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT_CONSTRAINTS;
+import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT_GROUP;
+import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT_LAYER;
+import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT;
+import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT_BARRIER;
+import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT_GUIDELINE;
 import static com.android.SdkConstants.ANDROID_URI;
 import static com.android.SdkConstants.ATTR_BARRIER_DIRECTION;
 import static com.android.SdkConstants.ATTR_GUIDELINE_ORIENTATION_HORIZONTAL;
@@ -24,12 +30,6 @@ import static com.android.SdkConstants.ATTR_LAYOUT_HEIGHT;
 import static com.android.SdkConstants.ATTR_LAYOUT_WIDTH;
 import static com.android.SdkConstants.ATTR_ORIENTATION;
 import static com.android.SdkConstants.ATTR_VALUE;
-import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT_CONSTRAINTS;
-import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT_GROUP;
-import static com.android.AndroidXConstants.CLASS_CONSTRAINT_LAYOUT_LAYER;
-import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT;
-import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT_BARRIER;
-import static com.android.AndroidXConstants.CONSTRAINT_LAYOUT_GUIDELINE;
 import static com.android.SdkConstants.ID_PREFIX;
 import static com.android.SdkConstants.LAYOUT_CONSTRAINT_GUIDE_BEGIN;
 import static com.android.SdkConstants.SHERPA_URI;

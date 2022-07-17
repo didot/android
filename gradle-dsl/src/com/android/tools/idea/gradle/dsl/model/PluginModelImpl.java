@@ -15,6 +15,8 @@
  */
 package com.android.tools.idea.gradle.dsl.model;
 
+import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.STRING;
+
 import com.android.tools.idea.gradle.dsl.api.PluginModel;
 import com.android.tools.idea.gradle.dsl.api.dependencies.ArtifactDependencySpec;
 import com.android.tools.idea.gradle.dsl.api.ext.ResolvedPropertyModel;
@@ -24,8 +26,8 @@ import com.android.tools.idea.gradle.dsl.model.ext.PropertyUtil;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.InexpressiblePropertyTransform;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.InfixPropertyTransform;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.LiteralToInfixTransform;
-import com.android.tools.idea.gradle.dsl.model.ext.transforms.PluginNameTransform;
 import com.android.tools.idea.gradle.dsl.model.ext.transforms.PluginAliasTransform;
+import com.android.tools.idea.gradle.dsl.model.ext.transforms.PluginNameTransform;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap;
@@ -33,16 +35,13 @@ import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslInfixExpressio
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslSimpleExpression;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradlePropertiesDslElement;
 import com.intellij.psi.PsiElement;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import static com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.STRING;
 
 public class PluginModelImpl implements PluginModel {
   @NonNls public static final String ALIAS = "alias";

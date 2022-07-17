@@ -13,16 +13,15 @@ import com.intellij.refactoring.safeDelete.NonCodeUsageSearchInfo;
 import com.intellij.refactoring.safeDelete.SafeDeleteProcessorDelegateBase;
 import com.intellij.usageView.UsageInfo;
 import com.intellij.util.IncorrectOperationException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import org.jetbrains.android.dom.AndroidAttributeValue;
 import org.jetbrains.android.dom.AndroidDomUtil;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.util.AndroidUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 
 public class AndroidComponentSafeDeleteProcessor extends SafeDeleteProcessorDelegateBase {
 

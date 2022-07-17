@@ -40,7 +40,6 @@ import com.android.tools.idea.common.model.StringAutoAttributeDelegate
 import com.android.tools.idea.naveditor.analytics.MetricsLoggingAttributeDelegate
 import com.android.tools.idea.naveditor.analytics.NavUsageTracker
 import com.android.tools.idea.naveditor.surface.NavDesignSurface
-import com.android.tools.idea.uibuilder.model.NlComponentRegistrar
 import com.android.tools.idea.uibuilder.model.createChild
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.collect.HashBasedTable

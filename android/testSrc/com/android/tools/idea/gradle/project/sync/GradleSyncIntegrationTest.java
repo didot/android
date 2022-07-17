@@ -17,6 +17,8 @@ package com.android.tools.idea.gradle.project.sync;
 
 import static com.android.SdkConstants.FN_SETTINGS_GRADLE;
 import static com.android.tools.idea.gradle.project.sync.ModuleDependenciesSubject.moduleDependencies;
+import static com.android.tools.idea.gradle.util.PropertiesFiles.getProperties;
+import static com.android.tools.idea.gradle.util.PropertiesFiles.savePropertiesToFile;
 import static com.android.tools.idea.projectsystem.ProjectSystemUtil.getModuleSystem;
 import static com.android.tools.idea.testing.FileSubject.file;
 import static com.android.tools.idea.testing.TestProjectPaths.APP_WITH_BUILDSRC;
@@ -28,8 +30,6 @@ import static com.android.tools.idea.testing.TestProjectPaths.PURE_JAVA_PROJECT;
 import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION;
 import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION_UNRESOLVED_DEPENDENCY;
 import static com.android.tools.idea.testing.TestProjectPaths.TRANSITIVE_DEPENDENCIES;
-import static com.android.tools.idea.gradle.util.PropertiesFiles.getProperties;
-import static com.android.tools.idea.gradle.util.PropertiesFiles.savePropertiesToFile;
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction;

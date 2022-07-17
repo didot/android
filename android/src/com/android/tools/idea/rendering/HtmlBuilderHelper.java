@@ -17,17 +17,12 @@ package com.android.tools.idea.rendering;
 
 import com.android.utils.HtmlBuilder;
 import com.intellij.icons.AllIcons;
-import com.intellij.openapi.editor.colors.EditorColorsManager;
-import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.ui.UIUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.text.*;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Helper methods for using SDK common's {@link HtmlBuilder} in the IDE

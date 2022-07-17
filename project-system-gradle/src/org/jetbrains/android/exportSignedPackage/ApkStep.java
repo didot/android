@@ -47,11 +47,11 @@ import org.jetbrains.android.compiler.AndroidCompileUtil;
 import org.jetbrains.android.compiler.artifact.ProGuardConfigFilesPanel;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.AndroidFacetConfiguration;
+import org.jetbrains.android.facet.AndroidFacetProperties;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.android.util.SaveFileListener;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.android.facet.AndroidFacetProperties;
 
 class ApkStep extends ExportSignedPackageWizardStep {
   public static final String APK_PATH_PROPERTY = "ExportedApkPath";

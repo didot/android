@@ -15,17 +15,15 @@
  */
 package com.android.tools.idea.navigator.nodes.ndk.includes.model;
 
+import static com.android.tools.idea.navigator.nodes.ndk.includes.model.IncludeValue.SortOrderKey.SHADOWING_INCLUDE_EXPRESSION;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.intellij.util.containers.ContainerUtil;
-import java.util.Objects;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.File;
 import java.util.Collection;
-import java.util.stream.Collectors;
-
-import static com.android.tools.idea.navigator.nodes.ndk.includes.model.IncludeValue.SortOrderKey.SHADOWING_INCLUDE_EXPRESSION;
+import java.util.Objects;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * This is a group of includes in order to be presented as if they are #included.

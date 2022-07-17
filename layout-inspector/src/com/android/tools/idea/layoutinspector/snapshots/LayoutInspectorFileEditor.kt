@@ -17,7 +17,6 @@ package com.android.tools.idea.layoutinspector.snapshots
 
 import com.android.tools.adtui.actions.ZoomType
 import com.android.tools.adtui.workbench.WorkBench
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.layoutinspector.LayoutInspector
 import com.android.tools.idea.layoutinspector.dataProviderForLayoutInspector
 import com.android.tools.idea.layoutinspector.metrics.LayoutInspectorMetrics

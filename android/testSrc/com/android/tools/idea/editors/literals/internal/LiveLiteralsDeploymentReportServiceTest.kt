@@ -17,7 +17,6 @@ package com.android.tools.idea.editors.literals.internal
 
 import com.android.tools.idea.editors.literals.LiveLiteralsMonitorHandler
 import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.util.concurrent.MoreExecutors
 import com.intellij.openapi.project.Project
@@ -30,7 +29,6 @@ import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.CyclicBarrier
 import kotlin.concurrent.thread
-import kotlin.random.Random
 
 internal class LiveLiteralsDeploymentReportServiceTest {
   @get:Rule

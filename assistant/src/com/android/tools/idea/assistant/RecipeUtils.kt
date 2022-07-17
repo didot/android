@@ -30,11 +30,11 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Pair
 import com.intellij.openapi.util.io.FileUtil
-import java.io.File
-import javax.xml.parsers.SAXParserFactory
 import org.jetbrains.android.facet.AndroidRootUtil
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
+import java.io.File
+import javax.xml.parsers.SAXParserFactory
 
 private val log: Logger
   get() = logger<RecipeUtils>()

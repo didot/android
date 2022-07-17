@@ -17,6 +17,8 @@ package com.android.tools.idea.gradle.stubs.gradle;
 
 import com.android.tools.idea.gradle.stubs.FileStructure;
 import com.google.common.collect.Lists;
+import java.io.File;
+import java.util.List;
 import org.gradle.tooling.model.DomainObjectSet;
 import org.gradle.tooling.model.HierarchicalElement;
 import org.gradle.tooling.model.ProjectIdentifier;
@@ -30,9 +32,6 @@ import org.gradle.tooling.model.internal.ImmutableDomainObjectSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.gradle.util.GradleConstants;
-
-import java.io.File;
-import java.util.List;
 
 public class IdeaModuleStub implements IdeaModule {
   @NotNull private final List<IdeaContentRoot> myContentRoots = Lists.newArrayList();

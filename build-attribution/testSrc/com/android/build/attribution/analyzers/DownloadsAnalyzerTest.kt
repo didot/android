@@ -34,7 +34,6 @@ import com.intellij.openapi.util.io.FileUtil
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import org.jetbrains.plugins.gradle.settings.GradleSettings
-import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.nio.file.Paths
 import java.util.Base64

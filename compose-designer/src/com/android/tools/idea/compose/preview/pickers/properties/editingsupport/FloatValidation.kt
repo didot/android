@@ -18,7 +18,6 @@ package com.android.tools.idea.compose.preview.pickers.properties.editingsupport
 import com.android.tools.adtui.model.stdui.EDITOR_NO_ERROR
 import com.android.tools.adtui.model.stdui.EditingErrorCategory
 import com.android.tools.adtui.model.stdui.EditingValidation
-import com.android.tools.idea.compose.preview.message
 
 /**
  * [EditingValidation] instance that validates for positive (>0) float numbers.

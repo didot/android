@@ -18,8 +18,8 @@ package com.android.tools.idea.diagnostics.error;
 
 import com.android.annotations.Nullable;
 import com.android.tools.idea.diagnostics.crash.StudioCrashReport;
-import com.android.tools.idea.diagnostics.crash.StudioExceptionReport;
 import com.android.tools.idea.diagnostics.crash.StudioCrashReporter;
+import com.android.tools.idea.diagnostics.crash.StudioExceptionReport;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.intellij.diagnostic.AbstractMessage;
@@ -48,15 +48,14 @@ import com.intellij.openapi.updateSettings.impl.UpdateSettings;
 import com.intellij.openapi.util.Pair;
 import com.intellij.util.Consumer;
 import com.intellij.util.containers.ContainerUtil;
+import java.awt.Component;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.jetbrains.android.diagnostics.error.ErrorBean;
 import org.jetbrains.android.diagnostics.error.IdeaITNProxy;
 import org.jetbrains.android.util.AndroidBundle;
 import org.jetbrains.annotations.NotNull;
-
-import java.awt.*;
-import java.util.List;
-import java.util.Map;
 
 public class ErrorReporter extends ErrorReportSubmitter {
   private static final String FEEDBACK_TASK_TITLE = "Submitting error report";

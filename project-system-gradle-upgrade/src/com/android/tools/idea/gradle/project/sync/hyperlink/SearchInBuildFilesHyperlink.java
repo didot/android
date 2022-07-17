@@ -15,6 +15,11 @@
  */
 package com.android.tools.idea.gradle.project.sync.hyperlink;
 
+import static com.intellij.find.impl.FindInProjectUtil.StringUsageTarget;
+import static com.intellij.find.impl.FindInProjectUtil.findUsages;
+import static com.intellij.find.impl.FindInProjectUtil.setupProcessPresentation;
+import static com.intellij.find.impl.FindInProjectUtil.setupViewPresentation;
+
 import com.android.SdkConstants;
 import com.android.tools.idea.gradle.project.sync.issues.SyncIssueNotificationHyperlink;
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent;
@@ -24,12 +29,16 @@ import com.intellij.find.FindSettings;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Factory;
 import com.intellij.usageView.UsageInfo;
-import com.intellij.usages.*;
+import com.intellij.usages.FindUsagesProcessPresentation;
+import com.intellij.usages.Usage;
+import com.intellij.usages.UsageInfo2UsageAdapter;
+import com.intellij.usages.UsageSearcher;
+import com.intellij.usages.UsageTarget;
+import com.intellij.usages.UsageViewManager;
+import com.intellij.usages.UsageViewPresentation;
 import com.intellij.util.AdapterProcessor;
 import com.intellij.util.Processor;
 import org.jetbrains.annotations.NotNull;
-
-import static com.intellij.find.impl.FindInProjectUtil.*;
 
 public class SearchInBuildFilesHyperlink extends SyncIssueNotificationHyperlink {
   @NotNull private final String myTextToFind;

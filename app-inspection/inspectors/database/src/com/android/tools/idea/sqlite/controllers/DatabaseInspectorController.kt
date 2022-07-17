@@ -27,7 +27,6 @@ import com.android.tools.idea.concurrency.transformNullable
 import com.android.tools.idea.sqlite.DatabaseInspectorAnalyticsTracker
 import com.android.tools.idea.sqlite.DatabaseInspectorClientCommandsChannel
 import com.android.tools.idea.sqlite.DatabaseInspectorProjectService
-import com.android.tools.idea.sqlite.settings.DatabaseInspectorSettings
 import com.android.tools.idea.sqlite.FileDatabaseManager
 import com.android.tools.idea.sqlite.OfflineModeManager
 import com.android.tools.idea.sqlite.OfflineModeManager.DownloadProgress
@@ -48,6 +47,7 @@ import com.android.tools.idea.sqlite.model.createSqliteStatement
 import com.android.tools.idea.sqlite.model.getAllDatabaseIds
 import com.android.tools.idea.sqlite.model.isInMemoryDatabase
 import com.android.tools.idea.sqlite.repository.DatabaseRepository
+import com.android.tools.idea.sqlite.settings.DatabaseInspectorSettings
 import com.android.tools.idea.sqlite.ui.DatabaseInspectorViewsFactory
 import com.android.tools.idea.sqlite.ui.mainView.AddColumns
 import com.android.tools.idea.sqlite.ui.mainView.AddTable

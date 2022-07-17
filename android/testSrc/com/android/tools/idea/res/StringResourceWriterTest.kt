@@ -41,12 +41,6 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.xml.XmlFile
 import com.intellij.testFramework.EdtRule
 import com.intellij.testFramework.RunsInEdt
-import javax.swing.JCheckBox
-import kotlin.coroutines.resume
-import kotlin.test.assertFailsWith
-import kotlin.test.fail
-import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -61,6 +55,12 @@ import org.junit.runners.JUnit4
 import org.mockito.junit.MockitoJUnit
 import org.mockito.junit.MockitoRule
 import javax.swing.JButton
+import javax.swing.JCheckBox
+import kotlin.coroutines.resume
+import kotlin.test.assertFailsWith
+import kotlin.test.fail
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
 
 /**
  * Tests the [StringResourceWriter].

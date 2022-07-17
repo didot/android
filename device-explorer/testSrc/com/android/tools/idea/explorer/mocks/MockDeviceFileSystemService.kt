@@ -15,18 +15,13 @@
  */
 package com.android.tools.idea.explorer.mocks
 
-import com.android.tools.idea.concurrency.AndroidDispatchers.uiThread
 import com.android.tools.idea.concurrency.FutureCallbackExecutor
 import com.android.tools.idea.explorer.fs.DeviceFileSystem
 import com.android.tools.idea.explorer.fs.DeviceFileSystemService
 import com.android.tools.idea.explorer.fs.DeviceFileSystemServiceListener
 import com.intellij.openapi.project.Project
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.io.File
 import java.util.concurrent.Executor
-import java.util.function.Supplier
 
 const val OPERATION_TIMEOUT_MILLIS = 10L
 

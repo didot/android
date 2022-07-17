@@ -20,7 +20,6 @@ import com.android.ddmlib.Client;
 import com.android.ddmlib.IDevice;
 import com.android.fakeadbserver.DeviceState;
 import com.android.fakeadbserver.FakeAdbServer;
-import com.android.fakeadbserver.devicecommandhandlers.JdwpCommandHandler;
 import com.android.testutils.TestUtils;
 import com.android.tools.idea.run.AndroidProcessHandler;
 import com.android.tools.idea.run.ApkProvisionException;

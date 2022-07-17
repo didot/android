@@ -19,7 +19,6 @@ import com.android.tools.idea.tests.gui.framework.GuiTests;
 import com.android.tools.idea.tests.gui.framework.matcher.Matchers;
 import com.intellij.execution.impl.ConsoleViewImpl;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.wm.ToolWindowId;
 import com.intellij.openapi.wm.ex.ToolWindowEx;
 import com.intellij.openapi.wm.impl.InternalDecorator;
 import com.intellij.openapi.wm.impl.content.BaseLabel;

@@ -21,14 +21,15 @@ import com.intellij.ui.HyperlinkAdapter;
 import com.intellij.util.ui.HTMLEditorKitBuilder;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.StartupUiUtil;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import javax.swing.event.HyperlinkEvent;
-import javax.swing.text.html.HTMLDocument;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.net.URI;
 import java.net.URISyntaxException;
+import javax.swing.JEditorPane;
+import javax.swing.event.HyperlinkEvent;
+import javax.swing.text.html.HTMLDocument;
+import org.jetbrains.annotations.NotNull;
 
 public class HtmlLabel extends JEditorPane {
 

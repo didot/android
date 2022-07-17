@@ -16,10 +16,10 @@
 package com.android.tools.idea.editors.literals.actions
 
 import com.android.tools.adtui.actions.DropDownAction
-import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.editors.literals.LiveLiteralsMonitorHandler
 import com.android.tools.idea.editors.literals.LiveLiteralsService
 import com.android.tools.idea.editors.literals.internal.LiveLiteralsDeploymentReportService
+import com.android.tools.idea.editors.liveedit.LiveEditApplicationConfiguration
 import com.android.tools.idea.projectsystem.cacheInvalidatingOnSyncModifications
 import com.android.tools.idea.projectsystem.getModuleSystem
 import com.intellij.icons.AllIcons

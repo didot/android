@@ -30,11 +30,9 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.fields.ExpandableTextField
 import com.intellij.util.Function
 import com.intellij.util.execution.ParametersListUtil
-import com.intellij.util.ui.JBDimension
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Component
-import java.awt.Dimension
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
 import javax.swing.AbstractAction

@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.uibuilder.property
 
+import com.android.AndroidXConstants.CLASS_MOTION_LAYOUT
 import com.android.SdkConstants.ABSOLUTE_LAYOUT
 import com.android.SdkConstants.ANDROID_URI
 import com.android.SdkConstants.ATTR_BACKGROUND
@@ -41,7 +42,6 @@ import com.android.SdkConstants.ATTR_TEXT_SIZE
 import com.android.SdkConstants.ATTR_VISIBILITY
 import com.android.SdkConstants.AUTO_URI
 import com.android.SdkConstants.BUTTON
-import com.android.AndroidXConstants.CLASS_MOTION_LAYOUT
 import com.android.SdkConstants.FRAME_LAYOUT
 import com.android.SdkConstants.IMAGE_VIEW
 import com.android.SdkConstants.LINEAR_LAYOUT

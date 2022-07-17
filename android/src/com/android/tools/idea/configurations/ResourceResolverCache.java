@@ -18,8 +18,8 @@ package com.android.tools.idea.configurations;
 import static com.android.SdkConstants.PREFIX_RESOURCE_REF;
 
 import com.android.SdkConstants;
-import com.android.annotations.concurrency.Slow;
 import com.android.annotations.concurrency.GuardedBy;
+import com.android.annotations.concurrency.Slow;
 import com.android.ide.common.rendering.api.ResourceNamespace;
 import com.android.ide.common.rendering.api.ResourceReference;
 import com.android.ide.common.resources.ResourceRepository;

@@ -17,15 +17,12 @@ package com.android.build.attribution.analyzers
 
 import com.android.SdkConstants
 import com.android.build.attribution.BuildAttributionManagerImpl
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.build.attribution.BuildAttributionManager
 import com.android.tools.idea.testing.AndroidGradleProjectRule
 import com.android.tools.idea.testing.TestProjectPaths
 import com.android.utils.FileUtils
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.util.io.FileUtil
-import org.junit.After
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.File

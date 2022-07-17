@@ -16,7 +16,6 @@
 package com.android.tools.idea.uibuilder.property.support
 
 import com.android.SdkConstants
-import com.android.ide.common.rendering.api.ResourceReference
 import com.android.ide.common.rendering.api.ResourceValue
 import com.android.resources.ResourceType
 import com.android.tools.adtui.actions.componentToRestoreFocusTo

@@ -19,7 +19,6 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Shorts;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.util.lang.JavaVersion;
-import java.util.Collection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.org.objectweb.asm.ClassReader;
 import org.jetbrains.org.objectweb.asm.ClassVisitor;

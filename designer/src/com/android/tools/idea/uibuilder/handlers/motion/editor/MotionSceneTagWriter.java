@@ -24,7 +24,6 @@ import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.Annotati
 import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.MTag;
 import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.MotionSceneAttrs;
 import com.android.tools.idea.uibuilder.handlers.motion.editor.adapters.Track;
-import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.command.WriteCommandAction;

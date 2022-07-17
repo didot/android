@@ -15,6 +15,15 @@
  */
 package com.android.tools.idea.apk;
 
+import static com.android.tools.idea.Projects.getBaseDirPath;
+import static com.android.tools.idea.apk.ImportApkAction.LAST_IMPORTED_LOCATION;
+import static com.android.tools.idea.testing.ProjectFiles.createFileInProjectRoot;
+import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
+import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
+
 import com.android.tools.adtui.workbench.PropertiesComponentMock;
 import com.android.tools.idea.project.CustomProjectTypeImporter;
 import com.intellij.ide.RecentProjectsManager;
@@ -26,22 +35,12 @@ import com.intellij.openapi.fileChooser.FileChooserDialog;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.PlatformTestCase;
+import java.io.File;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.mockito.Mock;
-
-import java.io.File;
-import java.nio.file.Path;
-
-import static com.android.tools.idea.Projects.getBaseDirPath;
-import static com.android.tools.idea.apk.ImportApkAction.LAST_IMPORTED_LOCATION;
-import static com.android.tools.idea.testing.ProjectFiles.createFileInProjectRoot;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
-import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 /**
  * Tests for {@link ImportApkAction}.

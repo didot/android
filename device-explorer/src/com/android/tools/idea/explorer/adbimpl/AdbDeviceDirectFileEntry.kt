@@ -15,15 +15,11 @@
  */
 package com.android.tools.idea.explorer.adbimpl
 
-import com.android.ddmlib.AdbCommandRejectedException
-import com.android.ddmlib.ShellCommandUnresponsiveException
 import com.android.ddmlib.SyncException
-import com.android.ddmlib.TimeoutException
 import com.android.tools.idea.adb.AdbShellCommandException
 import com.android.tools.idea.explorer.fs.DeviceFileEntry
 import com.android.tools.idea.explorer.fs.FileTransferProgress
 import kotlinx.coroutines.withContext
-import java.io.IOException
 import java.nio.file.Path
 
 /**

@@ -15,19 +15,18 @@
  */
 package com.android.tools.idea.project;
 
+import static org.junit.Assert.assertSame;
+
 import com.android.tools.idea.project.hyperlink.NotificationHyperlink;
 import com.android.tools.idea.testing.IdeComponents;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationGroup;
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.project.Project;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.junit.Assert.assertSame;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class AndroidNotificationStub extends AndroidNotification {
   @NotNull private final List<NotificationMessage> myMessages = new ArrayList<>();

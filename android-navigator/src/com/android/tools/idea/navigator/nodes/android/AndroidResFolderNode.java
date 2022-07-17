@@ -16,7 +16,6 @@
 package com.android.tools.idea.navigator.nodes.android;
 
 import com.android.resources.ResourceFolderType;
-import com.android.tools.idea.navigator.AndroidProjectViewPane;
 import com.google.common.collect.HashMultimap;
 import com.intellij.ide.projectView.ViewSettings;
 import com.intellij.ide.util.treeView.AbstractTreeNode;

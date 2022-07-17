@@ -15,6 +15,13 @@
  */
 package com.android.tools.idea.configurations;
 
+import static com.android.ide.common.rendering.HardwareConfigHelper.getGenericLabel;
+import static com.android.ide.common.rendering.HardwareConfigHelper.getNexusMenuLabel;
+import static com.android.ide.common.rendering.HardwareConfigHelper.isAutomotive;
+import static com.android.ide.common.rendering.HardwareConfigHelper.isNexus;
+import static com.android.ide.common.rendering.HardwareConfigHelper.isTv;
+import static com.android.ide.common.rendering.HardwareConfigHelper.isWear;
+
 import com.android.resources.ScreenOrientation;
 import com.android.sdklib.devices.Device;
 import com.android.sdklib.devices.State;
@@ -22,20 +29,24 @@ import com.android.tools.adtui.actions.DropDownAction;
 import com.android.tools.adtui.device.DeviceArtPainter;
 import com.android.tools.idea.flags.StudioFlags;
 import com.google.common.collect.ImmutableList;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.DataContext;
+import com.intellij.openapi.actionSystem.DefaultActionGroup;
+import com.intellij.openapi.actionSystem.Presentation;
+import com.intellij.openapi.actionSystem.Toggleable;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import icons.StudioIcons;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
+import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.util.*;
 import org.jetbrains.annotations.VisibleForTesting;
-
-import static com.android.ide.common.rendering.HardwareConfigHelper.*;
 
 public class DeviceMenuAction extends DropDownAction {
   private static final boolean LIST_RECENT_DEVICES = false;

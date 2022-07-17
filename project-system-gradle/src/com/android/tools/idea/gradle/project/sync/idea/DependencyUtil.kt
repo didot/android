@@ -46,7 +46,6 @@ import com.android.tools.idea.gradle.model.impl.IdeResolvedLibraryTableImpl
 import com.android.tools.idea.gradle.model.impl.IdeUnresolvedLibraryTable
 import com.android.tools.idea.gradle.model.projectPath
 import com.android.tools.idea.gradle.model.sourceSet
-import com.android.tools.idea.gradle.project.model.AndroidModuleModel
 import com.android.tools.idea.projectsystem.gradle.GradleProjectPath
 import com.android.tools.idea.projectsystem.gradle.GradleSourceSetProjectPath
 import com.intellij.openapi.diagnostic.Logger

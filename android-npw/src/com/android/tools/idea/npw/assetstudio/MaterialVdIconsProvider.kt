@@ -16,6 +16,7 @@
 package com.android.tools.idea.npw.assetstudio
 
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.npw.assetstudio.MaterialVdIconsProvider.Status
 import com.android.tools.idea.npw.assetstudio.material.icons.MaterialIconsCopyHandler
 import com.android.tools.idea.npw.assetstudio.material.icons.MaterialVdIcons
 import com.android.tools.idea.npw.assetstudio.material.icons.MaterialVdIconsLoader
@@ -31,7 +32,6 @@ import com.android.tools.idea.npw.assetstudio.material.icons.metadata.MaterialIc
 import com.android.tools.idea.npw.assetstudio.material.icons.utils.MaterialIconsUtils.getIconsSdkTargetPath
 import com.android.tools.idea.npw.assetstudio.material.icons.utils.MaterialIconsUtils.getMetadata
 import com.android.tools.idea.npw.assetstudio.material.icons.utils.MaterialIconsUtils.hasMetadataFileInSdkPath
-import com.android.tools.idea.npw.assetstudio.MaterialVdIconsProvider.Status
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager

@@ -22,7 +22,6 @@ import static com.intellij.openapi.util.text.StringUtil.isEmptyOrSpaces;
 
 import com.android.repository.api.RemotePackage;
 import com.android.repository.impl.meta.Archive;
-import com.android.repository.io.FileOpUtils;
 import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.welcome.SdkLocationUtils;
 import com.android.tools.idea.welcome.wizard.WelcomeUiUtils;

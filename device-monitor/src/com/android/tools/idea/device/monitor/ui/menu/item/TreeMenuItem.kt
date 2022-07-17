@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.device.monitor.ui.menu.item
 
-import com.android.tools.idea.device.monitor.ui.DeviceMonitorActionsListener
 import com.android.tools.idea.device.monitor.ProcessTreeNode
+import com.android.tools.idea.device.monitor.ui.DeviceMonitorActionsListener
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import javax.swing.Icon

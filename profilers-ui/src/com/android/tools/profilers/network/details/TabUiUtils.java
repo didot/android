@@ -15,6 +15,8 @@
  */
 package com.android.tools.profilers.network.details;
 
+import static com.android.tools.profilers.ProfilerFonts.STANDARD_FONT;
+
 import com.android.tools.adtui.TreeWalker;
 import com.android.tools.adtui.ui.BreakWordWrapHtmlTextPane;
 import com.android.tools.adtui.ui.HideablePanel;
@@ -22,16 +24,18 @@ import com.intellij.openapi.ui.VerticalFlowLayout;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBEmptyBorder;
 import com.intellij.util.ui.JBUI;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.Component;
+import java.awt.Font;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import static com.android.tools.profilers.ProfilerFonts.STANDARD_FONT;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextPane;
+import javax.swing.ScrollPaneConstants;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * A collection of common UI constants, components, and utility methods shared throughout the

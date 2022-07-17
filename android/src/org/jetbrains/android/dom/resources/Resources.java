@@ -16,9 +16,8 @@
 package org.jetbrains.android.dom.resources;
 
 import com.intellij.util.xml.DefinesXml;
-import org.jetbrains.android.dom.AndroidDomElement;
-
 import java.util.List;
+import org.jetbrains.android.dom.AndroidDomElement;
 
 @DefinesXml
 public interface Resources extends AndroidDomElement {

@@ -14,7 +14,8 @@ import com.android.tools.profilers.StudioProfilers
 import com.android.tools.profilers.WithFakeTimer
 import com.android.tools.profilers.cpu.FakeCpuService
 import com.android.tools.profilers.event.FakeEventService
-import com.android.tools.profilers.memory.BaseStreamingMemoryProfilerStage.LiveAllocationSamplingMode.*
+import com.android.tools.profilers.memory.BaseStreamingMemoryProfilerStage.LiveAllocationSamplingMode.FULL
+import com.android.tools.profilers.memory.BaseStreamingMemoryProfilerStage.LiveAllocationSamplingMode.SAMPLED
 import com.android.tools.profilers.network.FakeNetworkService
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assume.assumeTrue

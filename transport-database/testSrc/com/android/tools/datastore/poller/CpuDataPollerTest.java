@@ -44,7 +44,6 @@ import com.android.tools.profiler.proto.CpuProfiler.GetThreadsRequest;
 import com.android.tools.profiler.proto.CpuProfiler.GetThreadsResponse;
 import com.android.tools.profiler.proto.CpuProfiler.GetTraceInfoRequest;
 import com.android.tools.profiler.proto.CpuProfiler.GetTraceInfoResponse;
-//import com.android.tools.profiler.proto.CpuProfiler.SaveTraceInfoRequest;
 import com.android.tools.profiler.proto.CpuServiceGrpc;
 import com.android.tools.profiler.proto.Transport.TimeRequest;
 import com.android.tools.profiler.proto.Transport.TimeResponse;

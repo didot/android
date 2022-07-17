@@ -43,11 +43,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import javax.swing.Icon;
+import kotlin.Pair;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.facet.AndroidSourceType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import kotlin.Pair;
 
 /**
  * {@link AndroidSourceTypeNode} is a virtual node in the package view of an Android module under which all sources

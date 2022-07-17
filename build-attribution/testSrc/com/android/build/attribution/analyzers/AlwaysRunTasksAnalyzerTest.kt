@@ -20,7 +20,6 @@ import com.android.build.attribution.BuildAttributionManagerImpl
 import com.android.build.attribution.BuildAttributionWarningsFilter
 import com.android.build.attribution.data.AlwaysRunTaskData
 import com.android.build.attribution.data.PluginData
-import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.build.attribution.BuildAttributionManager
 import com.android.tools.idea.testing.AndroidGradleProjectRule
 import com.android.tools.idea.testing.TestProjectPaths.APP_WITH_BUILDSRC
@@ -28,8 +27,6 @@ import com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION
 import com.android.utils.FileUtils
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.util.io.FileUtil
-import org.junit.After
-import org.junit.Before
 import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test

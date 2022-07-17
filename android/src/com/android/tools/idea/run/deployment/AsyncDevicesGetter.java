@@ -30,7 +30,6 @@ import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.serviceContainer.NonInjectable;
 import com.intellij.util.concurrency.AppExecutorUtil;
-import java.nio.file.FileSystems;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;

@@ -38,7 +38,6 @@ import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Locale
 
 class HeapProfdSessionArtifactTest {
 

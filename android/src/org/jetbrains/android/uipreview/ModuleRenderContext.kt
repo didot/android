@@ -19,7 +19,6 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
 import com.intellij.psi.SmartPointerManager
-import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.idea.util.application.runReadAction
 import org.jetbrains.kotlin.idea.util.module

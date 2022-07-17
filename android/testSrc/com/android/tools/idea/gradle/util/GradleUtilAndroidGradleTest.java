@@ -19,7 +19,6 @@ import static com.android.SdkConstants.DOT_KTS;
 import static com.android.tools.idea.testing.AndroidGradleTests.getEmbeddedJdk8Path;
 import static com.android.tools.idea.testing.TestProjectPaths.KOTLIN_GRADLE_DSL;
 import static com.google.common.truth.Truth.assertThat;
-import static org.jetbrains.plugins.gradle.settings.DistributionType.LOCAL;
 
 import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.testing.AndroidGradleTestCase;

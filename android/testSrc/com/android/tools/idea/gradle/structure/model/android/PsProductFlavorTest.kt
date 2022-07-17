@@ -31,8 +31,6 @@ import org.hamcrest.CoreMatchers.hasItems
 import org.hamcrest.CoreMatchers.notNullValue
 import org.hamcrest.CoreMatchers.nullValue
 import org.hamcrest.MatcherAssert.assertThat
-import org.jetbrains.kotlin.idea.KotlinLanguage
-import org.jetbrains.plugins.groovy.GroovyLanguage
 
 class PsProductFlavorTest : AndroidGradleTestCase() {
 

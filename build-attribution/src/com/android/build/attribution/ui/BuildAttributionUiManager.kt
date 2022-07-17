@@ -33,7 +33,6 @@ import com.android.build.attribution.ui.data.BuildSummary
 import com.android.build.attribution.ui.data.ConfigurationUiData
 import com.android.build.attribution.ui.data.CriticalPathPluginsUiData
 import com.android.build.attribution.ui.data.CriticalPathTasksUiData
-import com.android.build.attribution.ui.data.DownloadsSummaryUIData
 import com.android.build.attribution.ui.data.TaskIssuesGroup
 import com.android.build.attribution.ui.model.BuildAnalyzerViewModel
 import com.android.build.attribution.ui.view.BuildAnalyzerComboBoxView

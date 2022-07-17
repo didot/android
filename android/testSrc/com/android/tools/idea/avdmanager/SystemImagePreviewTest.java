@@ -30,14 +30,13 @@ import com.android.sdklib.repository.targets.SystemImageManager;
 import com.android.testutils.file.InMemoryFileSystems;
 import com.android.tools.adtui.swing.FakeUi;
 import com.google.common.collect.ImmutableList;
-
 import com.intellij.openapi.util.text.StringUtil;
 import java.awt.Dimension;
 import java.nio.file.Path;
 import java.util.function.Predicate;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import org.jetbrains.android.AndroidTestCase;
-
-import javax.swing.*;
 
 /**
  * Tests for {@link SystemImagePreview}

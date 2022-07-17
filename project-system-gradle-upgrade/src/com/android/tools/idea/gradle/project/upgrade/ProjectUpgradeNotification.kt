@@ -20,8 +20,6 @@ import com.intellij.notification.NotificationDisplayType
 import com.intellij.notification.NotificationGroup
 import com.intellij.notification.NotificationListener
 import com.intellij.notification.NotificationType
-import com.intellij.notification.NotificationsManager
-import com.intellij.openapi.project.Project
 
 val AGP_UPGRADE_NOTIFICATION_GROUP = NotificationGroup("Android Gradle Upgrade Notification", NotificationDisplayType.STICKY_BALLOON, true)
 

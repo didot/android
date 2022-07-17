@@ -19,7 +19,6 @@ import com.android.tools.idea.common.command.NlWriteCommandActionUtil
 import com.android.tools.idea.common.model.NlComponent
 import com.android.tools.idea.common.model.NlDependencyManager
 import com.android.tools.idea.common.util.XmlTagUtil
-import com.android.tools.idea.uibuilder.model.NlComponentHelper
 import com.android.tools.idea.uibuilder.model.NlComponentRegistrar
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
