@@ -1,4 +1,4 @@
-// Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.android.tools.idea.run;
 
 import static com.android.AndroidProjectTypes.PROJECT_TYPE_APP;
@@ -358,7 +358,7 @@ public abstract class AndroidRunConfigurationBase extends ModuleBasedConfigurati
                                                         @NotNull ApplicationIdProvider applicationIdProvider,
                                                         @NotNull ApkProvider apkProvider,
                                                         @NotNull LaunchOptions launchOptions) {
-    Optional<LaunchTasksProvider> provided = LaunchTasksProvider.Provider.EP_NAME.extensions()
+    Optional<LaunchTasksProvider> provided = LaunchTasksProvider.Provider.EP_NAME.getExtensionList().stream()
       .map(it -> it.createLaunchTasksProvider(this, env, facet, applicationIdProvider, apkProvider, launchOptions))
       .filter(Objects::nonNull)
       .findFirst();
