@@ -200,6 +200,7 @@ class WarningsViewDetailPagesFactory(
       is IncompatiblePluginsDetected -> this.createIncompatiblePluginsDetectedPanel(uiData, projectConfigurationTime)
       is ConfigurationCacheCompatibilityTestFlow -> this.createConfigurationCacheTestFlowPanel()
       ConfigurationCachingTurnedOn -> Unit
+      else -> Unit
     }
   }
 
