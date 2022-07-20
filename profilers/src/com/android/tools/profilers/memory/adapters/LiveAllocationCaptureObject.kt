@@ -345,6 +345,7 @@ class LiveAllocationCaptureObject(private val client: ProfilerClient,
         }
         // ignore CLASS_DATA as they are handled via context updates.
         AllocationEvent.EventCase.CLASS_DATA -> { }
+        else -> { }
       }
     }
 
@@ -366,6 +367,7 @@ class LiveAllocationCaptureObject(private val client: ProfilerClient,
             this.instanceMap[event.objectTag].removeJniRef(refObject as JniReferenceInstanceObject)
           }
         }
+        else -> { }
       }
     }
   }
@@ -417,6 +419,7 @@ class LiveAllocationCaptureObject(private val client: ProfilerClient,
         }
         // ignore CLASS_DATA as they are handled via context updates.
         AllocationEvent.EventCase.CLASS_DATA -> { }
+        else -> { }
       }
     }
 
