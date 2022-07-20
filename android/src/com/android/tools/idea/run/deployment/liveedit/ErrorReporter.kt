@@ -37,6 +37,7 @@ fun errorMessage(exception: LiveEditUpdateException) : String {
     LiveEditUpdateException.Error.ANALYSIS_ERROR -> {
       return "Compilation Error${exception.source?.let {" in ${it.name}"}}. Live Edit is temporary paused until all errors are fixed."
     }
+    else -> { }
   }
   return "${exception.error.message}: \n ${exception.details} \n"
 }
