@@ -1857,6 +1857,7 @@ interface GradleIntegrationTest {
     return testDataDirectory.resolve(toSystemDependentName(testDataPath)).toFile()
   }
 
+  @JvmDefault
   fun getAgpVersionSoftwareEnvironmentDescriptor(): AgpVersionSoftwareEnvironmentDescriptor {
     return AgpVersionSoftwareEnvironmentDescriptor.AGP_CURRENT
   }
