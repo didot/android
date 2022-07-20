@@ -51,7 +51,7 @@ import java.lang.ref.WeakReference
  */
 class ScopedStateStore(
   private val scope: Scope, private val parent: ScopedStateStore?, listener: ScopedStoreListener?
-) : Function<ScopedStateStore.Key<*>, Any> { // Map of the current state
+) : Function<ScopedStateStore.Key<*>?, Any?> { // Map of the current state
   private val state = Maps.newHashMap<Key<*>, Any>()
   // Set of changed key/scope pairs which have been modified since the last call to clearRecentUpdates()
   private val recentlyUpdated = Sets.newHashSet<Key<*>>()
