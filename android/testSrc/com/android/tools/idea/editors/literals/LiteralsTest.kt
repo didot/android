@@ -38,7 +38,6 @@ import org.jetbrains.kotlin.psi.KtFunction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 
@@ -567,6 +566,35 @@ class LiteralsTest {
         it.constantValue
       }.distinct().joinToString("\n")
       assertEquals("-120", contents)
+    }
+  }
+
+  @Suppress("UnstableApiUsage")
+  @Test
+  fun `find literals in non-smart mode`() {
+    val literalsManager = LiteralsManager()
+    val file = projectRule.fixture.addFileToProject(
+      "/src/test/app/LiteralsTest.kt",
+      // language=kotlin
+      """
+      package test.app
+
+      class LiteralsTest {
+        private val SIMPLE = -120
+
+        fun testCall() {
+          method(SIMPLE)
+        }
+    }
+    """.trimIndent())
+
+    runBlocking {
+      withUiContext {
+        (DumbService.getInstance(projectRule.project) as DumbServiceImpl).isDumb = true
+      }
+
+      val literals = literalsManager.findLiterals(file)
+      assertTrue(literals.all.isEmpty())
     }
   }
 }

@@ -62,6 +62,8 @@ data class IdeModelSnapshotComparisonTestDefinition(
   companion object {
     fun tests(): List<IdeModelSnapshotComparisonTestDefinition> = listOf(
       IdeModelSnapshotComparisonTestDefinition(TestProject.SIMPLE_APPLICATION),
+      IdeModelSnapshotComparisonTestDefinition(TestProject.SIMPLE_APPLICATION_VIA_SYMLINK),
+      IdeModelSnapshotComparisonTestDefinition(TestProject.SIMPLE_APPLICATION_APP_VIA_SYMLINK),
       IdeModelSnapshotComparisonTestDefinition(
         TestProject.SIMPLE_APPLICATION_WITH_ADDITIONAL_GRADLE_SOURCE_SETS,
         skipV1toV2Comparison = true,
@@ -97,6 +99,11 @@ data class IdeModelSnapshotComparisonTestDefinition(
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_HIERARCHICAL, skipV1toV2Comparison = true),
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_JVM, skipV1toV2Comparison = true),
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL, skipV1toV2Comparison = true),
+      IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL_KMPAPP, skipV1toV2Comparison = true),
+      IdeModelSnapshotComparisonTestDefinition(
+        TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL_KMPAPP_WITHINTERMEDIATE,
+        skipV1toV2Comparison = true
+      ),
       IdeModelSnapshotComparisonTestDefinition(TestProject.MULTI_FLAVOR),
       IdeModelSnapshotComparisonTestDefinition(TestProject.MULTI_FLAVOR_WITH_FILTERING),
       // Skip V1 and V2 comparison for namespace project. The support for namespace in V2 is stricter since ag/16005984.

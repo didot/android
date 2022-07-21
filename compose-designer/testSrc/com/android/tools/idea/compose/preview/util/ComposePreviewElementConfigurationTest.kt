@@ -29,6 +29,7 @@ import com.android.tools.idea.avdmanager.AvdScreenData
 import com.android.tools.idea.compose.ComposeProjectRule
 import com.android.tools.idea.configurations.Configuration
 import com.android.tools.idea.configurations.ConfigurationManager
+import com.android.tools.idea.preview.PreviewDisplaySettings
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -128,7 +129,7 @@ class ComposePreviewElementConfigurationTest() {
 
     SingleComposePreviewElementInstance("NoSize",
                                         PreviewDisplaySettings("Name", null, false, false, null), null, null,
-                                        PreviewConfiguration.cleanAndGet(null, null, null, null, null, null, null, null)
+                                        PreviewConfiguration.cleanAndGet()
     ).let { previewElement ->
       previewElement.applyConfigurationForTest(configuration,
                                                highestApiTarget = { null },

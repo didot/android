@@ -566,9 +566,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 9,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 
@@ -765,17 +765,24 @@ iml_module(
         "//tools/adt/idea/as-driver:as-driver.utils[module, test]",
         "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
         "//prebuilts/studio/intellij-sdk:studio-sdk[test]",
+        "//tools/adt/idea/.idea/libraries:truth[test]",
     ],
 )
 
 iml_test(
     name = "StartUpTest",
-    data = [":android-studio.linux.zip"],
+    data = select({
+        "@platforms//os:linux": [
+            "//tools/adt/idea/studio:android-studio.linux.zip",
+        ],
+        "@platforms//os:macos": [
+            "//tools/adt/idea/studio:android-studio.mac.zip",
+        ],
+        "@platforms//os:windows": [
+            "//tools/adt/idea/studio:android-studio.win.zip",
+        ],
+    }),
     module = ":intellij.android.studio.integration",
-    tags = [
-        "no_mac",  # Different number of plugins expected from Linux
-        "no_windows",  # Different number of plugins expected from Linux
-    ],
     test_class = "com.android.tools.idea.StartUpTest",
 )
 

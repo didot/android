@@ -102,8 +102,6 @@ fun getGroupKey(compilerOutput: List<OutputFile>, function: KtFunction, parentGr
           ?.let { offset -> return offset.key }
       }
     }
-
-    println("Can't find group")
     return null
   }
   return null

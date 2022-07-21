@@ -19,8 +19,9 @@ import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.common.surface.DesignSurfaceListener
 import com.android.tools.idea.compose.ComposeProjectRule
-import com.android.tools.idea.compose.preview.navigation.PreviewNavigationHandler
+import com.android.tools.idea.compose.preview.navigation.ComposePreviewNavigationHandler
 import com.android.tools.idea.compose.preview.util.ComposePreviewElement
+import com.android.tools.idea.preview.PreviewElementProvider
 import com.android.tools.idea.projectsystem.ProjectSystemService
 import com.android.tools.idea.testing.addFileToProjectAndInvalidate
 import com.android.tools.idea.uibuilder.editor.multirepresentation.PreferredVisibility
@@ -96,10 +97,10 @@ class ComposePreviewRepresentationTest {
       """.trimIndent())
 
     val pinnedSurface = NlDesignSurface.builder(project, fixture.testRootDisposable)
-      .setNavigationHandler(PreviewNavigationHandler())
+      .setNavigationHandler(ComposePreviewNavigationHandler())
       .build()
     val mainSurface = NlDesignSurface.builder(project, fixture.testRootDisposable)
-      .setNavigationHandler(PreviewNavigationHandler())
+      .setNavigationHandler(ComposePreviewNavigationHandler())
       .build()
     val modelRenderedLatch = CountDownLatch(2)
 

@@ -15,11 +15,11 @@
  */
 package com.android.tools.idea.logcat.devices
 
-import com.android.adblib.AdbLibSession
+import com.android.adblib.AdbSession
 import com.android.adblib.DeviceState.AUTHORIZING
 import com.android.adblib.DeviceState.OFFLINE
 import com.android.adblib.DeviceState.ONLINE
-import com.android.adblib.testing.FakeAdbLibSession
+import com.android.adblib.testing.FakeAdbSession
 import com.android.tools.idea.logcat.devices.DeviceEvent.Added
 import com.android.tools.idea.logcat.devices.DeviceEvent.StateChanged
 import com.android.tools.idea.logcat.devices.DeviceEvent.TrackingReset
@@ -47,7 +47,7 @@ class DeviceComboBoxDeviceTrackerTest {
   @get:Rule
   val projectRule = ProjectRule()
 
-  private val adbSession = FakeAdbLibSession()
+  private val adbSession = FakeAdbSession()
   private val hostServices = adbSession.hostServices
   private val deviceServices = adbSession.deviceServices
 
@@ -87,10 +87,9 @@ class DeviceComboBoxDeviceTrackerTest {
     val events = async { deviceTracker.trackDevices().toList() }
 
     hostServices.use {
-      it.sendDevices(
-        emulator,
-        emulator.withState(OFFLINE),
-      )
+      it.sendDevices(emulator)
+      it.sendDevices(emulator.withState(OFFLINE))
+      it.sendDevices()
     }
 
     assertThat(events.await()).containsExactly(
@@ -110,10 +109,9 @@ class DeviceComboBoxDeviceTrackerTest {
     val events = async { deviceTracker.trackDevices().toList() }
 
     hostServices.use {
-      it.sendDevices(
-        emulator,
-        emulator.withState(OFFLINE),
-      )
+      it.sendDevices(emulator)
+      it.sendDevices(emulator.withState(OFFLINE))
+      it.sendDevices()
     }
 
     assertThat(events.await()).containsExactly(
@@ -173,7 +171,7 @@ class DeviceComboBoxDeviceTrackerTest {
 
     hostServices.use {
       it.sendDevices(device1, device2)
-      it.sendDevices(emulator1)
+      it.sendDevices(device1, device2, emulator1)
     }
 
     assertThat(events.await()).containsExactly(
@@ -259,6 +257,7 @@ class DeviceComboBoxDeviceTrackerTest {
     hostServices.use {
       it.sendDevices(device1.withState(ONLINE))
       it.sendDevices(device1.withState(OFFLINE))
+      it.sendDevices()
       it.sendDevices(device1.withState(ONLINE))
     }
 
@@ -278,6 +277,7 @@ class DeviceComboBoxDeviceTrackerTest {
     hostServices.use {
       it.sendDevices(emulator1.withState(ONLINE).withSerialNumber("emulator-1"))
       it.sendDevices(emulator1.withState(OFFLINE))
+      it.sendDevices()
       it.sendDevices(emulator1.withState(ONLINE).withSerialNumber("emulator-2"))
     }
 
@@ -309,7 +309,7 @@ class DeviceComboBoxDeviceTrackerTest {
 
   private fun deviceComboBoxDeviceTracker(
     preexistingDevice: Device? = null,
-    adbSession: AdbLibSession = this@DeviceComboBoxDeviceTrackerTest.adbSession,
+    adbSession: AdbSession = this@DeviceComboBoxDeviceTrackerTest.adbSession,
   ) = DeviceComboBoxDeviceTracker(projectRule.project, preexistingDevice, adbSession, EmptyCoroutineContext)
 }
 

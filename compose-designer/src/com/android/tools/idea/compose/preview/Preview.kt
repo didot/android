@@ -31,16 +31,13 @@ import com.android.tools.idea.compose.preview.actions.UnpinAllPreviewElementsAct
 import com.android.tools.idea.compose.preview.analytics.InteractivePreviewUsageTracker
 import com.android.tools.idea.compose.preview.animation.ComposePreviewAnimationManager
 import com.android.tools.idea.compose.preview.designinfo.hasDesignInfoProviders
-import com.android.tools.idea.compose.preview.navigation.PreviewNavigationHandler
+import com.android.tools.idea.compose.preview.navigation.ComposePreviewNavigationHandler
 import com.android.tools.idea.compose.preview.scene.ComposeSceneComponentProvider
-import com.android.tools.idea.compose.preview.util.CodeOutOfDateTracker
 import com.android.tools.idea.compose.preview.util.ComposePreviewElement
 import com.android.tools.idea.compose.preview.util.ComposePreviewElementInstance
 import com.android.tools.idea.compose.preview.util.FpsCalculator
-import com.android.tools.idea.compose.preview.util.PreviewDisplaySettings
 import com.android.tools.idea.compose.preview.util.containsOffset
 import com.android.tools.idea.compose.preview.util.isComposeErrorResult
-import com.android.tools.idea.compose.preview.util.sortByDisplayAndSourcePosition
 import com.android.tools.idea.compose.preview.util.toDisplayString
 import com.android.tools.idea.concurrency.AndroidCoroutinesAware
 import com.android.tools.idea.concurrency.AndroidDispatchers.uiThread
@@ -62,7 +59,14 @@ import com.android.tools.idea.editors.powersave.PreviewPowerSaveManager
 import com.android.tools.idea.editors.shortcuts.getBuildAndRefreshShortcut
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.log.LoggerWithFixedInfo
+import com.android.tools.idea.preview.FilteredPreviewElementProvider
+import com.android.tools.idea.preview.MemoizedPreviewElementProvider
+import com.android.tools.idea.preview.PreviewDisplaySettings
+import com.android.tools.idea.preview.PreviewElementProvider
+import com.android.tools.idea.preview.refreshExistingPreviewElements
+import com.android.tools.idea.preview.sortByDisplayAndSourcePosition
 import com.android.tools.idea.projectsystem.BuildListener
+import com.android.tools.idea.projectsystem.CodeOutOfDateTracker
 import com.android.tools.idea.projectsystem.setupBuildListener
 import com.android.tools.idea.rendering.RenderService
 import com.android.tools.idea.rendering.classloading.CooperativeInterruptTransform
@@ -97,6 +101,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.util.UserDataHolderEx
+import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.problems.ProblemListener
 import com.intellij.problems.WolfTheProblemSolver
 import com.intellij.psi.PsiFile
 import com.intellij.psi.SmartPointerManager
@@ -117,6 +124,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.android.uipreview.ModuleClassLoaderOverlays
@@ -327,7 +335,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
 
   @Volatile
   private var interactiveMode = ComposePreviewManager.InteractiveMode.DISABLED
-  private val navigationHandler = PreviewNavigationHandler()
+  private val navigationHandler = ComposePreviewNavigationHandler()
 
   private val fpsCounter = FpsCalculator { System.nanoTime() }
 
@@ -627,11 +635,6 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     requireNotNull(psiFile) { "PsiFile was disposed before the preview initialization completed." }
 
     setupBuildListener(project, object : BuildListener {
-      @GuardedBy("previewFreshnessLock")
-      private var pendingBuildsCount = 0
-      @GuardedBy("previewFreshnessLock")
-      private var someConcurrentBuildFailed = false
-
       override fun buildSucceeded() {
         LOG.debug("buildSucceeded")
         module?.let {
@@ -752,17 +755,25 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
         }
       }
 
-      // Flow handling file changes.
+      // Flow handling file changes and syntax error changes.
       launch(workerThread) {
         val psiFile = psiFilePointer.element ?: return@launch
-        val lookupManager = LookupManager.getInstance(project)
-        documentChangeFlow(psiFile, this@ComposePreviewRepresentation, LOG)
-          .debounce {
-            // The debounce timer is smaller when running with Fast Preview so the changes are more responsive to typing.
-            if (FastPreviewManager.getInstance(project).isAvailable) 250L else 1000L
+        merge(
+          documentChangeFlow(psiFile, this@ComposePreviewRepresentation, LOG)
+            .debounce {
+              // The debounce timer is smaller when running with Fast Preview so the changes are more responsive to typing.
+              if (FastPreviewManager.getInstance(project).isAvailable) 250L else 1000L
+            },
+          disposableCallbackFlow<Unit>("SyntaxErrorFlow", LOG, this@ComposePreviewRepresentation) {
+            project.messageBus.connect(disposable).subscribe(ProblemListener.TOPIC, object : ProblemListener {
+              override fun problemsDisappeared(file: VirtualFile) {
+                if (file != psiFilePointer.virtualFile || !FastPreviewManager.getInstance(project).isEnabled) return
+                trySend(Unit)
+              }
+            })
           }
+        )
           .conflate()
-          .filter { lookupManager.activeLookup == null } // Ignore changes while completion is active.
           .collectLatest {
             if (FastPreviewManager.getInstance(project).isEnabled) {
               try {
@@ -853,12 +864,16 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
         memoizedElementsProvider.previewElements()
       }
 
-      filePreviewElements.find { element ->
-        element.previewBodyPsi?.psiRange.containsOffset(offset) || element.previewElementDefinitionPsi?.psiRange.containsOffset(offset)
-      }?.let { selectedPreviewElement ->
-        surface.models.find { it.toPreviewElement() == selectedPreviewElement }
-      }?.let {
-        surface.scrollToVisible(it, true)
+      // Workaround for b/238735830: The following withContext(uiThread) should not be needed but the code below ends up being executed
+      // in a worker thread under some circumstances so we need to prevent that from happening by forcing the context switch.
+      withContext(uiThread) {
+        filePreviewElements.find { element ->
+          element.previewBodyPsi?.psiRange.containsOffset(offset) || element.previewElementDefinitionPsi?.psiRange.containsOffset(offset)
+        }?.let { selectedPreviewElement ->
+          surface.models.find { it.toPreviewElement() == selectedPreviewElement }
+        }?.let {
+          surface.scrollToVisible(it, true)
+        }
       }
     }
   }
@@ -889,7 +904,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
   override fun status(): ComposePreviewManager.Status {
     val isRefreshing = (refreshCallsCount.get() > 0 ||
                         DumbService.isDumb(project) ||
-                        projectBuildStatusManager.isBuilding)
+                        invokeAndWaitIfNeeded { projectBuildStatusManager.isBuilding })
 
     // If we are refreshing, we avoid spending time checking other conditions like errors or if the preview
     // is out of date.
@@ -981,7 +996,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     composeWorkBench.setPinnedSurfaceVisibility(hasPinnedElements)
     val pinnedManager = PinnedPreviewElementManager.getInstance(project)
     if (hasPinnedElements) {
-      pinnedSurface.updatePreviewsAndRefresh(
+      pinnedSurface.updateComposePreviewsAndRefresh(
         false,
         memoizedPinnedPreviewProvider,
         LOG,
@@ -998,7 +1013,7 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
     lastPinsModificationCount = pinnedManager.modificationCount
     if (progressIndicator.isCanceled) return // Return early if user has cancelled the refresh
 
-    val showingPreviewElements = surface.updatePreviewsAndRefresh(
+    val showingPreviewElements = surface.updateComposePreviewsAndRefresh(
       quickRefresh,
       previewElementProvider,
       LOG,
@@ -1100,13 +1115,8 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
           surface.refreshExistingPreviewElements(
             refreshProgressIndicator,
             NlModel::toPreviewElement,
-          ) { displaySettings, sceneManager ->
-            // When showing decorations, show the full device size
-            configureLayoutlibSceneManager(sceneManager,
-                                           showDecorations = displaySettings.showDecoration,
-                                           isInteractive = interactiveMode.isStartingOrReady(),
-                                           requestPrivateClassLoader = usePrivateClassLoader())
-          }
+            this@ComposePreviewRepresentation::configureLayoutlibSceneManagerForPreviewElement
+          )
         }
         else {
           refreshProgressIndicator.text = message("refresh.progress.indicator.refreshing.all.previews")
@@ -1213,6 +1223,11 @@ class ComposePreviewRepresentation(psiFile: PsiFile,
       private var compilationDurationMs: Long = -1
       private var compiledFiles: Int = -1
       override fun compilationSucceeded(compilationDurationMs: Long, compiledFiles: Int, refreshTimeMs: Long) {
+        this.compilationDurationMs = compilationDurationMs
+        this.compiledFiles = compiledFiles
+      }
+
+      override fun compilationFailed(compilationDurationMs: Long, compiledFiles: Int) {
         this.compilationDurationMs = compilationDurationMs
         this.compiledFiles = compiledFiles
       }

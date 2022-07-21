@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.logcat
 
-import com.android.adblib.AdbLibSession
+import com.android.adblib.AdbSession
 import com.android.tools.idea.logcat.devices.Device
 import com.android.tools.idea.logcat.devices.DeviceComboBox
 import com.android.tools.idea.logcat.devices.DeviceComboBoxDeviceTracker
@@ -23,6 +23,7 @@ import com.android.tools.idea.logcat.filters.FilterTextComponent
 import com.android.tools.idea.logcat.filters.LogcatFilterParser
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
+import com.intellij.openapi.application.runInEdt
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.project.Project
@@ -48,7 +49,7 @@ internal class LogcatHeaderPanel(
   packageNamesProvider: PackageNamesProvider,
   filter: String,
   initialDevice: Device?,
-  adbSession: AdbLibSession,
+  adbSession: AdbSession,
 ) : JPanel() {
   private val deviceComboBox = DeviceComboBox(
     logcatPresenter,
@@ -65,7 +66,9 @@ internal class LogcatHeaderPanel(
       font = Font.getFont(Font.MONOSPACED)
       addDocumentListener(object : DocumentListener {
         override fun documentChanged(event: DocumentEvent) {
-          logcatPresenter.applyFilter(filterParser.parse(text))
+          runInEdt {
+            logcatPresenter.applyFilter(filterParser.parse(text))
+          }
         }
       })
     }

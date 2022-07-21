@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("RemoveRedundantQualifierName")
+
 package com.android.tools.idea.gradle.project.sync
 
 import com.android.annotations.concurrency.UiThread
@@ -20,7 +22,6 @@ import com.android.ide.common.repository.GradleVersion
 import com.android.tools.analytics.UsageTracker
 import com.android.tools.idea.IdeInfo
 import com.android.tools.idea.gradle.project.AndroidStudioGradleInstallationManager
-import com.android.tools.idea.gradle.project.ProjectStructure
 import com.android.tools.idea.gradle.project.sync.GradleSyncState.Companion.GRADLE_SYNC_TOPIC
 import com.android.tools.idea.gradle.project.sync.GradleSyncState.Companion.JDK_LOCATION_WARNING_NOTIFICATION_GROUP
 import com.android.tools.idea.gradle.project.sync.hyperlink.DoNotShowJdkHomeWarningAgainHyperlink
@@ -31,6 +32,7 @@ import com.android.tools.idea.gradle.project.sync.projectsystem.GradleSyncResult
 import com.android.tools.idea.gradle.ui.SdkUiStrings.JDK_LOCATION_WARNING_URL
 import com.android.tools.idea.gradle.util.GradleUtil.GRADLE_SYSTEM_ID
 import com.android.tools.idea.project.hyperlink.NotificationHyperlink
+import com.android.tools.idea.sdk.IdeSdks
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.GradleSyncStats
 import com.intellij.build.BuildProgressListener
@@ -62,6 +64,7 @@ import com.intellij.openapi.util.text.StringUtil.formatDuration
 import com.intellij.ui.AppUIUtil.invokeLaterIfProjectAlive
 import com.intellij.util.PathUtil.toSystemIndependentName
 import com.intellij.util.ThreeState
+import org.jetbrains.android.util.AndroidBundle
 import org.jetbrains.plugins.gradle.service.GradleInstallationManager
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
@@ -102,7 +105,7 @@ class GradleSyncStateHolder constructor(private val project: Project)  {
   }
 
   private enum class LastSyncState(val isInProgress: Boolean = false, val isSuccessful: Boolean = false, val isFailed: Boolean = false) {
-    UNKNOWN(),
+    UNKNOWN,
     SKIPPED(isSuccessful = true),
     IN_PROGRESS(isInProgress = true),
     SUCCEEDED(isSuccessful = true),
@@ -141,7 +144,7 @@ class GradleSyncStateHolder constructor(private val project: Project)  {
 
   fun generateSyncEvent(eventKind: AndroidStudioEvent.EventKind) = eventLogger.generateSyncEvent(project, eventKind)
 
-  var lastSyncFinishedTimeStamp = -1L; protected set
+  var lastSyncFinishedTimeStamp = -1L; private set
 
   /**
    * Triggered at the start of a sync.
@@ -220,7 +223,7 @@ class GradleSyncStateHolder constructor(private val project: Project)  {
     }
     val resultMessage = "Gradle sync failed in ${formatDuration(millisTook)}"
     addToEventLog(SYNC_NOTIFICATION_GROUP, resultMessage, MessageType.ERROR, null)
-    LOG.warn(resultMessage + ". " + causeMessage)
+    LOG.warn("$resultMessage. $causeMessage")
 
     // Log the error to ideas log
     // Note: we log this as well as message above so the stack trace is present in the logs.
@@ -285,22 +288,16 @@ class GradleSyncStateHolder constructor(private val project: Project)  {
     if (gradleInstallation.isUsingJavaHomeJdk(project)) {
       return
     }
-    val namePrefix = "Project ${project.name}"
-    val jdkPath: String? = gradleInstallation.getGradleJvmPath(project, project.basePath!!)
-
-
     val quickFixes = mutableListOf<NotificationHyperlink>(OpenUrlHyperlink(JDK_LOCATION_WARNING_URL, "More info..."))
     val selectJdkHyperlink = SelectJdkFromFileSystemHyperlink.create(project)
     if (selectJdkHyperlink != null) quickFixes += selectJdkHyperlink
     quickFixes.add(DoNotShowJdkHomeWarningAgainHyperlink())
 
-    val message = """
-      $namePrefix is using the following JDK location when running Gradle:
-      $jdkPath
-      Using different JDK locations on different processes might cause Gradle to
-      spawn multiple daemons, for example, by executing Gradle tasks from a terminal
-      while using Android Studio.
-    """.trimIndent()
+    val message = AndroidBundle.message("project.sync.warning.multiple.gradle.daemons",
+      project.name,
+      gradleInstallation.getGradleJvmPath(project, project.basePath.orEmpty()) ?: "Undefined",
+      IdeSdks.getJdkFromJavaHome() ?: "Undefined"
+    )
     addToEventLog(JDK_LOCATION_WARNING_NOTIFICATION_GROUP, message, MessageType.WARNING, quickFixes)
   }
 
@@ -327,7 +324,7 @@ class GradleSyncStateHolder constructor(private val project: Project)  {
     var listener: NotificationListener? = null
     if (quickFixes != null) {
       quickFixes.forEach { quickFix ->
-        resultMessage += "\n${quickFix.toHtml()}"
+        resultMessage += "<br>${quickFix.toHtml()}"
       }
       listener = NotificationListener { _, event ->
         quickFixes.forEach { link -> link.executeIfClicked(project, event) }

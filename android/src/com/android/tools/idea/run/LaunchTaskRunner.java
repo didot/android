@@ -119,7 +119,7 @@ public class LaunchTaskRunner extends Task.Backgroundable {
       AndroidVersion androidVersion = myDeviceFutures.getDevices().size() == 1
                                       ? myDeviceFutures.getDevices().get(0).getVersion()
                                       : null;
-      ConnectDebuggerTask debugSessionTask = isSwap() ? null : myLaunchTasksProvider.getConnectDebuggerTask(launchStatus, androidVersion);
+      ConnectDebuggerTask debugSessionTask = isSwap() ? null : myLaunchTasksProvider.getConnectDebuggerTask();
 
       if (debugSessionTask != null) {
         if (listenableDeviceFutures.size() != 1) {
@@ -293,7 +293,8 @@ public class LaunchTaskRunner extends Task.Backgroundable {
             .setImportant(true).notify(myProject);
 
           // Show the tool window when we have an error.
-          RunContentManager.getInstance(myProject).toFrontRunContent(myLaunchInfo.executor, myProcessHandler);
+          ApplicationManager.getApplication().invokeLater(() -> RunContentManager.getInstance(myProject).toFrontRunContent(
+                                                              myLaunchInfo.executor, myProcessHandler));
 
           if (result == Result.ERROR) {
             myStats.setErrorId(launchResult.getErrorId());

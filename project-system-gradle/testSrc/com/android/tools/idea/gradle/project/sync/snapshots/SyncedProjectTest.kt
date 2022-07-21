@@ -93,6 +93,12 @@ abstract class SyncedProjectTest(
   fun testSimpleApplication() = testProject(TestProject.SIMPLE_APPLICATION)
 
   @Test
+  fun testSimpleApplication_viaSymLink() = testProject(TestProject.SIMPLE_APPLICATION_VIA_SYMLINK)
+
+  @Test
+  fun testSimpleApplication_appViaSymLink() = testProject(TestProject.SIMPLE_APPLICATION_APP_VIA_SYMLINK)
+
+  @Test
   fun testAppWithMlModels() = testProject(TestProject.APP_WITH_ML_MODELS)
 
   @Test
@@ -154,6 +160,13 @@ abstract class SyncedProjectTest(
 
   @Test
   fun testKotlinMultiplatform_jvm_hierarchical() = testProject(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL)
+
+  @Test
+  fun testKotlinMultiplatform_jvm_hierarchical_kmpapp() = testProject(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL_KMPAPP)
+
+  @Test
+  fun testKotlinMultiplatform_jvm_hierarchical_kmpapp_withintermediate() =
+    testProject(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL_KMPAPP_WITHINTERMEDIATE)
 
   @Test
   fun testMultiFlavor() = testProject(TestProject.MULTI_FLAVOR)

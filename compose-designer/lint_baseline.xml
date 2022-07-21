@@ -77,14 +77,6 @@
         id="AvoidByLazy"
         message="Avoid `by lazy` for simple lazy initialization">
         <location
-            file="src/com/android/tools/idea/compose/preview/animation/AnimationInspectorPanel.kt"
-            line="115"/>
-    </issue>
-
-    <issue
-        id="AvoidByLazy"
-        message="Avoid `by lazy` for simple lazy initialization">
-        <location
             file="src/com/android/tools/idea/compose/preview/ComposePreviewViewImpl.kt"
             line="255"/>
     </issue>
@@ -125,14 +117,6 @@
         id="AvoidByLazy"
         message="Avoid `by lazy` for simple lazy initialization">
         <location
-            file="src/com/android/tools/idea/compose/preview/util/device/DeviceSpecCompletionContributor.kt"
-            line="121"/>
-    </issue>
-
-    <issue
-        id="AvoidByLazy"
-        message="Avoid `by lazy` for simple lazy initialization">
-        <location
             file="src/com/android/tools/idea/compose/preview/Notifications.kt"
             line="76"/>
     </issue>
@@ -142,7 +126,7 @@
         message="Avoid `by lazy` for simple lazy initialization">
         <location
             file="src/com/android/tools/idea/compose/preview/PinnedPreviewElementManager.kt"
-            line="90"/>
+            line="91"/>
     </issue>
 
     <issue
@@ -150,7 +134,7 @@
         message="Avoid `by lazy` for simple lazy initialization">
         <location
             file="src/com/android/tools/idea/compose/annotator/PreviewAnnotationCheck.kt"
-            line="235"/>
+            line="286"/>
     </issue>
 
     <issue
@@ -206,7 +190,7 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/android/tools/idea/compose/preview/PreviewFilters.kt"
-            line="32"/>
+            line="33"/>
     </issue>
 
     <issue
@@ -214,7 +198,7 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/android/tools/idea/compose/preview/PreviewFilters.kt"
-            line="43"/>
+            line="44"/>
     </issue>
 
     <issue
@@ -222,7 +206,7 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/android/tools/idea/compose/preview/PreviewFilters.kt"
-            line="60"/>
+            line="61"/>
     </issue>
 
     <issue
@@ -230,7 +214,7 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/android/tools/idea/compose/preview/PreviewFilters.kt"
-            line="70"/>
+            line="71"/>
     </issue>
 
     <issue
@@ -238,7 +222,7 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/android/tools/idea/compose/preview/PreviewFilters.kt"
-            line="72"/>
+            line="73"/>
     </issue>
 
     <issue
@@ -246,7 +230,7 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/android/tools/idea/compose/preview/PreviewFilters.kt"
-            line="78"/>
+            line="79"/>
     </issue>
 
     <issue
@@ -254,7 +238,7 @@
         message="This method should only be accessed from tests or within private scope">
         <location
             file="src/com/android/tools/idea/compose/preview/PreviewFilters.kt"
-            line="83"/>
+            line="84"/>
     </issue>
 
 </issues>

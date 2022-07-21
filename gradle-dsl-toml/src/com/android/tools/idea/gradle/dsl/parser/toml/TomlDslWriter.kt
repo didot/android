@@ -18,7 +18,6 @@ package com.android.tools.idea.gradle.dsl.parser.toml
 import com.android.tools.idea.gradle.dsl.model.BuildModelContext
 import com.android.tools.idea.gradle.dsl.parser.GradleDslWriter
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElement
-import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElementMap
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionList
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslExpressionMap
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslLiteral
@@ -28,12 +27,18 @@ import com.android.tools.idea.gradle.dsl.parser.files.GradleDslFile
 import com.android.tools.idea.gradle.dsl.parser.findLastPsiElementIn
 import com.android.tools.idea.gradle.dsl.parser.maybeTrimForParent
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import com.intellij.psi.util.findParentOfType
+import com.intellij.psi.util.siblings
 import org.toml.lang.psi.TomlArray
+import org.toml.lang.psi.TomlElement
 import org.toml.lang.psi.TomlElementTypes
+import org.toml.lang.psi.TomlElementTypes.COMMA
 import org.toml.lang.psi.TomlFile
 import org.toml.lang.psi.TomlInlineTable
 import org.toml.lang.psi.TomlKeyValue
+import org.toml.lang.psi.TomlLiteral
 import org.toml.lang.psi.TomlPsiFactory
 import org.toml.lang.psi.TomlTable
 
@@ -41,8 +46,6 @@ class TomlDslWriter(private val context: BuildModelContext): GradleDslWriter, To
   override fun getContext(): BuildModelContext = context
 
   override fun moveDslElement(element: GradleDslElement): PsiElement? = null
-  override fun deleteDslElement(element: GradleDslElement): Unit = Unit
-  override fun deleteDslLiteral(literal: GradleDslLiteral): Unit = Unit
   override fun createDslMethodCall(methodCall: GradleDslMethodCall): PsiElement? = null
   override fun applyDslMethodCall(methodCall: GradleDslMethodCall): Unit = Unit
   override fun createDslExpressionList(expressionList: GradleDslExpressionList): PsiElement? = createDslElement(expressionList)
@@ -86,11 +89,13 @@ class TomlDslWriter(private val context: BuildModelContext): GradleDslWriter, To
       when (parentPsiElement) {
         is TomlTable, is TomlFile -> addedElement.addAfter(factory.createNewline(), null)
         is TomlInlineTable -> when {
-          anchor is LeafPsiElement && anchor.elementType == TomlElementTypes.L_CURLY -> Unit
-          else -> addedElement.addAfter(comma, null)
+          parentPsiElement.entries.size == 1 -> Unit
+          anchor is LeafPsiElement && anchor.elementType == TomlElementTypes.L_CURLY -> parentPsiElement.addAfter(comma, addedElement)
+          else -> parentPsiElement.addBefore(comma, addedElement)
         }
         is TomlArray -> when {
-          anchor is LeafPsiElement && anchor.elementType == TomlElementTypes.L_BRACKET -> Unit
+          parentPsiElement.elements.size == 1 -> Unit
+          anchor is LeafPsiElement && anchor.elementType == TomlElementTypes.L_BRACKET -> parentPsiElement.addAfter(comma, addedElement)
           else -> parentPsiElement.addBefore(comma, addedElement)
         }
       }
@@ -102,6 +107,22 @@ class TomlDslWriter(private val context: BuildModelContext): GradleDslWriter, To
     }
 
     return element.psiElement
+  }
+
+  override fun deleteDslElement(element: GradleDslElement) {
+    val psiElement = element.psiElement ?: return
+    val parent = element.parent ?: return
+    val parentPsi = ensureParentPsi(element)
+    when (parent) {
+      is GradleDslFile -> psiElement.findParentOfType<TomlKeyValue>()?.delete()
+      is GradleDslExpressionMap -> when (parentPsi) {
+        is TomlTable -> psiElement.findParentOfType<TomlKeyValue>()?.delete()
+        is TomlInlineTable -> deletePsiParentOfTypeFromDslParent<GradleDslExpressionMap, TomlKeyValue>(element, psiElement, parent)
+      }
+      is GradleDslExpressionList -> when (parentPsi) {
+        is TomlArray -> deletePsiParentOfTypeFromDslParent<GradleDslExpressionList, TomlLiteral>(element, psiElement, parent)
+      }
+    }
   }
 
   override fun createDslLiteral(literal: GradleDslLiteral) = createDslElement(literal)
@@ -116,6 +137,10 @@ class TomlDslWriter(private val context: BuildModelContext): GradleDslWriter, To
     literal.commit()
   }
 
+  override fun deleteDslLiteral(literal: GradleDslLiteral) {
+    deleteDslElement(literal)
+  }
+
   private fun ensureParentPsi(element: GradleDslElement) = element.parent?.create()
 
   private fun getAnchorPsi(parent: PsiElement, anchorDsl: GradleDslElement?): PsiElement? {
@@ -126,5 +151,32 @@ class TomlDslWriter(private val context: BuildModelContext): GradleDslWriter, To
       anchor = anchor.parent
     }
     return anchor ?: parent
+  }
+
+  private inline fun <T : GradlePropertiesDslElement, reified P : TomlElement> deletePsiParentOfTypeFromDslParent(
+    element: GradleDslElement,
+    psiElement: PsiElement,
+    parent: T
+  ) {
+    val parentElements = parent.originalElements
+    val position = parentElements.indexOf(element).also { if(it < 0) return }
+    val size = parentElements.size
+    val tomlLiteral = psiElement.findParentOfType<P>(strict = false)
+    when {
+      size == 0 -> return // should not happen
+      size == 1 -> tomlLiteral?.delete()
+      position == size - 1 -> tomlLiteral.deleteToComma(forward = false)
+      else -> tomlLiteral.deleteToComma(forward = true)
+    }
+  }
+
+  private fun TomlElement?.deleteToComma(forward: Boolean = true) {
+    this?.run {
+      var seenComma = false
+      siblings(forward = forward, withSelf = true)
+        .takeWhile { sib -> !seenComma.also { if (sib is LeafPsiElement && sib.elementType == COMMA) seenComma = true } }
+        .toList()
+        .forEach { if (it !is PsiWhiteSpace) it.delete() }
+    }
   }
 }

@@ -38,6 +38,7 @@ public class AndroidStudio implements AutoCloseable {
 
   private final AndroidStudioGrpc.AndroidStudioBlockingStub androidStudio;
   private final ProcessHandle process;
+  private final AndroidStudioInstallation install;
 
   static public AndroidStudio run(AndroidStudioInstallation installation,
                        Display display,
@@ -93,10 +94,11 @@ public class AndroidStudio implements AutoCloseable {
 
     ProcessHandle process = ProcessHandle.of(pid).get();
     int port = waitForDriverServer(installation.getIdeaLog());
-    return new AndroidStudio(process, port);
+    return new AndroidStudio(installation, process, port);
   }
 
-  private AndroidStudio(ProcessHandle process, int port) {
+  private AndroidStudio(AndroidStudioInstallation install, ProcessHandle process, int port) {
+    this.install = install;
     this.process = process;
     ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", port).usePlaintext().build();
     androidStudio = AndroidStudioGrpc.newBlockingStub(channel);
@@ -114,8 +116,8 @@ public class AndroidStudio implements AutoCloseable {
       boolean hasJdwpError = stderrContents.stream().anyMatch((line) -> line.contains("JDWP exit error AGENT_ERROR_TRANSPORT_INIT"));
       boolean isAddressInUse = stderrContents.stream().anyMatch((line) -> line.contains("Address already in use"));
       if (hasJdwpError && isAddressInUse) {
-        throw new IllegalStateException("The JDWP address is already in use. You can fix this either by removing your call to " +
-                                        "addDebugVmOption or by terminating the existing Android Studio process.");
+        throw new IllegalStateException("The JDWP address is already in use. You can fix this either by removing your " +
+                                        "AS_TEST_DEBUG env var or by terminating the existing Android Studio process.");
       }
     }
     catch (IOException e) {
@@ -139,6 +141,7 @@ public class AndroidStudio implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
+    quitAndWaitForShutdown();
     // We must terminate the process on close. If we don't and expect the test to gracefully terminate it always, it means
     // that if the test has an assertEquals, when the assertion exception is thrown the try-catch will attempt to close
     // this object that has not been asked to terminate, blocking forever until the test times out, swallowing the
@@ -153,14 +156,27 @@ public class AndroidStudio implements AutoCloseable {
     return response.getVersion();
   }
 
-  public void kill(int exitCode) {
-    ASDriver.KillRequest rq = ASDriver.KillRequest.newBuilder().setExitCode(exitCode).build();
+  /**
+   * @param force true to kill Studio right away, false to gracefully exit. Note that killing Studio will not allow it to run
+   *              cleanup processes, such as stopping Gradle, which would let Gradle to continue writing to the filesystem.
+   */
+  public void quit(boolean force) {
+    ASDriver.QuitRequest rq = ASDriver.QuitRequest.newBuilder().setForce(force).build();
     try {
-      ASDriver.KillResponse ignore = androidStudio.kill(rq);
+      ASDriver.QuitResponse ignore = androidStudio.quit(rq);
     }
     catch (StatusRuntimeException e) {
       // Expected as the process is killed.
     }
+  }
+
+  /**
+   * Quit Studio such that Gradle and other Studio-owned processes are properly disposed of.
+   */
+  private void quitAndWaitForShutdown() throws IOException, InterruptedException {
+    System.out.println("Quitting Studio...");
+    quit(false);
+    install.getIdeaLog().waitForMatchingLine(".*PersistentFSImpl - VFS dispose completed.*", 30, TimeUnit.SECONDS);
   }
 
   public boolean showToolWindow(String toolWindow) {
@@ -183,25 +199,26 @@ public class AndroidStudio implements AutoCloseable {
   }
 
   public void invokeByIcon(String icon) {
-    InvokeComponentRequestBuilder updateButtonBuilder = new InvokeComponentRequestBuilder();
+    ComponentMatchersBuilder updateButtonBuilder = new ComponentMatchersBuilder();
     updateButtonBuilder.addSvgIconMatch(new ArrayList<>(List.of(icon)));
     invokeComponent(updateButtonBuilder);
   }
 
   public void invokeComponent(String componentText) {
-    InvokeComponentRequestBuilder builder = new InvokeComponentRequestBuilder();
+    ComponentMatchersBuilder builder = new ComponentMatchersBuilder();
     builder.addComponentTextMatch(componentText);
     invokeComponent(builder);
   }
 
-  public void invokeComponent(InvokeComponentRequestBuilder requestBuilder) {
-    ASDriver.InvokeComponentResponse response = androidStudio.invokeComponent(requestBuilder.build());
+  public void invokeComponent(ComponentMatchersBuilder matchers) {
+    ASDriver.InvokeComponentRequest request = ASDriver.InvokeComponentRequest.newBuilder().addAllMatchers(matchers.build()).build();
+    ASDriver.InvokeComponentResponse response = androidStudio.invokeComponent(request);
     switch (response.getResult()) {
       case OK:
         return;
       case ERROR:
         throw new IllegalStateException(String.format("Could not invoke component with these matchers: %s. Check the Android Studio " +
-                                                       "stderr log for the cause.", requestBuilder));
+                                                      "stderr log for the cause.", matchers));
       default:
         throw new IllegalStateException(String.format("Unhandled response: %s", response.getResult()));
     }
@@ -210,5 +227,67 @@ public class AndroidStudio implements AutoCloseable {
   public void waitForIndex() {
     ASDriver.WaitForIndexRequest rq = ASDriver.WaitForIndexRequest.newBuilder().build();
     ASDriver.WaitForIndexResponse ignore = androidStudio.waitForIndex(rq);
+  }
+
+  public void openFile(String project, String file) {
+    ASDriver.OpenFileRequest rq = ASDriver.OpenFileRequest.newBuilder().setProject(project).setFile(file).build();
+    ASDriver.OpenFileResponse response = androidStudio.openFile(rq);
+    switch (response.getResult()) {
+      case OK:
+        return;
+      case ERROR:
+        throw new IllegalStateException(String.format("Could not open file \"%s\" in project \"%s\". Check the Android Studio " +
+                                                      "stderr log for the cause.", file, project));
+      default:
+        throw new IllegalStateException(String.format("Unhandled response: %s", response.getResult()));
+    }
+  }
+
+  public void waitForComponent(String componentText) {
+    ComponentMatchersBuilder builder = new ComponentMatchersBuilder();
+    builder.addComponentTextMatch(componentText);
+    waitForComponent(builder);
+  }
+
+  public void waitForComponentByClass(String... classNames) {
+    ComponentMatchersBuilder builder = new ComponentMatchersBuilder();
+    for (String className : classNames) {
+      builder.addSwingClassRegexMatch(String.format(".*%s.*", className));
+    }
+    waitForComponent(builder);
+  }
+
+  public void waitForComponent(ComponentMatchersBuilder requestBuilder) {
+    ASDriver.WaitForComponentRequest request = ASDriver.WaitForComponentRequest.newBuilder().addAllMatchers(requestBuilder.build()).build();
+    ASDriver.WaitForComponentResponse response = androidStudio.waitForComponent(request);
+    switch (response.getResult()) {
+      case OK:
+        return;
+      case ERROR:
+        throw new IllegalStateException(String.format("Could not wait for component with these matchers: %s. Check the Android Studio " +
+                                                      "stderr log for the cause.", requestBuilder));
+      default:
+        throw new IllegalStateException(String.format("Unhandled response: %s", response.getResult()));
+    }
+  }
+
+  public void waitForBuild() throws IOException, InterruptedException {
+    // "Infinite" timeout
+    waitForBuild(1, TimeUnit.DAYS);
+  }
+
+  public void waitForBuild(long timeout, TimeUnit unit) throws IOException, InterruptedException {
+    Matcher matcher = install.getIdeaLog().waitForMatchingLine(".*Gradle build finished in (.*)", timeout, unit);
+    System.out.println("Build took " + matcher.group(1));
+  }
+
+  public void waitForSync() throws IOException, InterruptedException {
+    // "Infinite" timeout
+    waitForSync(1, TimeUnit.DAYS);
+  }
+
+  public void waitForSync(long timeout, TimeUnit unit) throws IOException, InterruptedException {
+    Matcher matcher = install.getIdeaLog().waitForMatchingLine(".*Gradle sync finished in (.*)", timeout, unit);
+    System.out.println("Sync took " + matcher.group(1));
   }
 }

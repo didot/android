@@ -32,6 +32,7 @@ import com.android.tools.idea.uibuilder.type.PreferenceScreenFileType
 import com.intellij.analysis.problemsView.toolWindow.ProblemsView
 import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.DataKey
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runInEdt
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -44,9 +45,11 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.openapi.wm.ex.ToolWindowManagerListener
+import com.intellij.psi.PsiFile
 import com.intellij.ui.ColorUtil.toHtmlColor
 import com.intellij.ui.content.Content
 import com.intellij.util.ui.UIUtil
+import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.idea.core.util.toPsiFile
 
@@ -111,7 +114,7 @@ class IssuePanelService(private val project: Project) {
     if (StudioFlags.NELE_USE_SHARED_ISSUE_PANEL_FOR_DESIGN_TOOLS.get()) {
       val issueProvider = DesignToolsIssueProvider(project)
       val treeModel = DesignerCommonIssuePanelModelProvider.getInstance(project).model
-      val issuePanel = DesignerCommonIssuePanel(project, project, treeModel, issueProvider)
+      val issuePanel = DesignerCommonIssuePanel(project, project, treeModel, issueProvider, ::getEmptyMessage)
       issueProvider.registerUpdateListener {
         updateSharedIssuePanelTabName()
       }
@@ -207,10 +210,13 @@ class IssuePanelService(private val project: Project) {
    * Remove the [sharedIssueTab] from Problems Tool Window. Return true if the [sharedIssueTab] is removed successfully, or false if
    * the [sharedIssueTab] doesn't exist or the [sharedIssueTab] is not in the Problems Tool Window (e.g. has been removed before).
    */
-  private fun removeSharedIssueTabFromProblemsPanel(): Boolean {
+  @VisibleForTesting
+  fun removeSharedIssueTabFromProblemsPanel(): Boolean {
     val tab = sharedIssueTab ?: return false
     val toolWindow = ProblemsView.getToolWindow(project) ?: return false
-    toolWindow.contentManager.removeContent(tab, false)
+    val contentManager = toolWindow.contentManager
+    contentManager.removeContent(tab, false)
+    contentManager.getContent(0)?.let { contentManager.setSelectedContent(it) }
     return true
   }
 
@@ -326,6 +332,25 @@ class IssuePanelService(private val project: Project) {
       PreferenceScreenFileType.isResourceTypeOf(psiFile) -> "Preference"
       MenuFileType.isResourceTypeOf(psiFile) -> "Menu"
       else -> null
+    }
+  }
+
+  /**
+   * Return the message to display when there is no issue in the given files.
+   */
+  private fun getEmptyMessage(): String {
+    val files = FileEditorManager.getInstance(project).selectedEditors.mapNotNull { it.file }
+    if (files.isEmpty()) {
+      return "No problems found"
+    }
+
+    val psiFiles = ApplicationManager.getApplication().runReadAction<List<PsiFile>> { files.mapNotNull { it.toPsiFile(project) } }
+    val fileNameString = files.joinToString { it.name }
+    return if (psiFiles.size == files.size && psiFiles.all { LayoutFileType.isResourceTypeOf(it) }) {
+      "No layout problems in $fileNameString and qualifiers"
+    }
+    else {
+      "No problems in $fileNameString"
     }
   }
 

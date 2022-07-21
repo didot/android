@@ -26,6 +26,7 @@ import com.android.tools.idea.util.StudioPathManager;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.TestOnly;
 
 /**
  * A collection of all feature flags used by Android Studio. These flags can be used to gate
@@ -49,6 +50,11 @@ public final class StudioFlags {
       userOverrides = new DefaultFlagOverrides();
     }
     return new Flags(userOverrides, new PropertyOverrides(), new ServerFlagOverrides());
+  }
+
+  @TestOnly
+  public static void validate() {
+      FLAGS.validate();
   }
 
   //region New Project Wizard
@@ -674,6 +680,14 @@ public final class StudioFlags {
     "Enables a Logcat filter using the 'is' keyword for example 'is:stacktrace'is:crash' etc",
     true
   );
+
+  public static final Flag<Integer> LOGCAT_MAX_MESSAGES_PER_BATCH = Flag.create(
+    LOGCAT,
+    "logcat.max.messages.per.batch",
+    "Set the max number of messages that are appended to the UI component",
+    "Set the max number of messages that are appended to the UI component",
+    1000
+  );
   //endregion
 
   //region Gradle Project System
@@ -724,7 +738,7 @@ public final class StudioFlags {
     GRADLE_IDE, "gradle.dsl.toml", "Parse TOML files", "Parse TOML files to support use of Version Catalogs.", true);
 
   public static final Flag<Boolean> GRADLE_DSL_TOML_WRITE_SUPPORT = Flag.create(
-    GRADLE_IDE, "gradle.dsl.toml.write", "Write TOML files", "Write changes to TOML Version Catalog files.", false);
+    GRADLE_IDE, "gradle.dsl.toml.write", "Write TOML files", "Write changes to TOML Version Catalog files.", true);
 
   public static final Flag<Boolean> GRADLE_SAVE_LOG_TO_FILE = Flag.create(
     GRADLE_IDE, "save.log.to.file", "Save log to file", "Appends the build log to the given file", false);
@@ -1078,6 +1092,13 @@ public final class StudioFlags {
     true
   );
 
+  public static final Flag<Boolean> COMPOSE_DEPLOY_LIVE_EDIT = Flag.create(
+    COMPOSE, "deploy.live.edit.deploy",
+    "Enable live edit deploy",
+    "If enabled, Live Edit will be visible and available",
+    true
+  );
+
   public static final Flag<Boolean> COMPOSE_DEPLOY_LIVE_EDIT_ADVANCED_SETTINGS_MENU = Flag.create(
     COMPOSE, "deploy.live.edit.deploy.advanced.settings",
     "Enable live edit deploy settings menu",
@@ -1180,13 +1201,6 @@ public final class StudioFlags {
     COMPOSE, "preview.animation.curves",
     "Enable animation curves in Animation Inspector",
     "If enabled, animation curves will be rendered in Animation Inspector timeline.",
-    true
-  );
-
-  public static final Flag<Boolean> COMPOSE_ANIMATION_PREVIEW_COORDINATION = Flag.create(
-    COMPOSE, "preview.animation.coordination",
-    "Enable animation coordination in Animation Inspector",
-    "If enabled, animation coordination will be available in Animation Inspector timeline.",
     true
   );
 
@@ -1385,7 +1399,7 @@ public final class StudioFlags {
                 "Support adding logic for intent handling in Kotlin.", true);
   public static final Flag<Boolean> APP_LINKS_ASSISTANT_V2 =
     Flag.create(APP_LINKS_ASSISTANT, "v2", "App Links Assistant V2",
-                "Revamped App Links Assistant (new surfaces and navigation between surfaces).", true);
+                "Revamped App Links Assistant (new surfaces and navigation between surfaces).", false);
   // endregion App Links Assistant
 
   // region GOOGLE_PLAY_SDK_INDEX

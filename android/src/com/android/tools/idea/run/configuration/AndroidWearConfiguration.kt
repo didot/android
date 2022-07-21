@@ -18,10 +18,15 @@ package com.android.tools.idea.run.configuration
 import com.android.tools.idea.projectsystem.getAndroidModulesForDisplay
 import com.android.tools.idea.projectsystem.getModuleSystem
 import com.android.tools.idea.projectsystem.getProjectSystem
+import com.android.tools.idea.run.ApkProvider
+import com.android.tools.idea.run.ApplicationIdProvider
 import com.android.tools.idea.run.DeviceFutures
 import com.android.tools.idea.run.LaunchableAndroidDevice
 import com.android.tools.idea.run.PreferGradleMake
 import com.android.tools.idea.run.configuration.editors.AndroidWearConfigurationEditor
+import com.android.tools.idea.run.configuration.execution.AndroidConfigurationExecutor
+import com.android.tools.idea.run.configuration.execution.AndroidConfigurationExecutorRunProfileState
+import com.android.tools.idea.run.configuration.execution.DeployOptions
 import com.android.tools.idea.run.deployment.DeviceAndSnapshotComboBoxTargetProvider
 import com.android.tools.idea.run.editor.AndroidDebuggerContext
 import com.android.tools.idea.run.editor.AndroidJavaDebugger
@@ -34,7 +39,6 @@ import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.JavaRunConfigurationModule
 import com.intellij.execution.configurations.ModuleBasedConfiguration
 import com.intellij.execution.configurations.RunConfigurationWithSuppressedDefaultDebugAction
-import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.RunConfigurationWithSuppressedDefaultRunAction
@@ -48,13 +52,18 @@ import org.jetbrains.android.util.AndroidBundle
 
 abstract class AndroidWearConfiguration(project: Project, factory: ConfigurationFactory) :
   ModuleBasedConfiguration<JavaRunConfigurationModule, Element>(JavaRunConfigurationModule(project, false), factory),
-  RunConfigurationWithSuppressedDefaultRunAction, RunConfigurationWithSuppressedDefaultDebugAction, PreferGradleMake, ComponentSpecificConfiguration, RunConfigurationWithAndroidConfigurationExecutorBase {
-  var componentName: String? = null
-  var installFlags = ""
+  RunConfigurationWithSuppressedDefaultRunAction, RunConfigurationWithSuppressedDefaultDebugAction, PreferGradleMake {
 
-  abstract val userVisibleComponentTypeName: String
-  abstract val componentBaseClassesFqNames: Array<String>
+  companion object {
+    const val LAUNCH_OPTIONS_ELEMENT_NAME = "LaunchOptions"
+    const val DEPLOY_OPTIONS_ELEMENT_NAME = "DeployOptions"
+  }
+
   val androidDebuggerContext: AndroidDebuggerContext = AndroidDebuggerContext(AndroidJavaDebugger.ID)
+
+  abstract val componentLaunchOptions: WearSurfaceLaunchOptions
+
+  val deployOptions: DeployOptions = DeployOptions(emptyList(), "", installOnAllUsers = true, alwaysInstallWithPm = true)
 
   override fun getConfigurationEditor(): AndroidWearConfigurationEditor<*> = AndroidWearConfigurationEditor(project, this)
   override fun checkConfiguration() {
@@ -65,15 +74,20 @@ abstract class AndroidWearConfiguration(project: Project, factory: Configuration
     if (project.getProjectSystem().getSyncManager().isSyncInProgress()) {
       throw RuntimeConfigurationError("Project is synchronizing")
     }
-    componentName ?: throw RuntimeConfigurationError("$userVisibleComponentTypeName is not chosen")
+    componentLaunchOptions.componentName ?: throw RuntimeConfigurationError(
+      "${componentLaunchOptions.userVisibleComponentTypeName} is not chosen")
   }
 
-  final override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState {
+  final override fun getState(executor: Executor, environment: ExecutionEnvironment): AndroidConfigurationExecutorRunProfileState {
+    return AndroidConfigurationExecutorRunProfileState(getExecutor(environment))
+  }
+
+  private fun getExecutor(environment: ExecutionEnvironment): AndroidConfigurationExecutor {
     val provider = DeviceAndSnapshotComboBoxTargetProvider()
     val deployTarget = if (provider.requiresRuntimePrompt(project)) {
       invokeAndWaitIfNeeded { provider.showPrompt(project) }
     }
-    else {
+                       else {
       provider.getDeployTarget(project)
     } ?: throw ExecutionException(AndroidBundle.message("deployment.target.not.found"))
 
@@ -82,7 +96,19 @@ abstract class AndroidWearConfiguration(project: Project, factory: Configuration
     val stats = RunStats.from(environment)
     return try {
       stats.start()
-      val state: RunProfileState = AndroidRunProfileStateAdapter(getExecutor(environment, deployTarget))
+      val apkProvider = project.getProjectSystem().getApkProvider(this) ?: throw ExecutionException(
+        AndroidBundle.message("android.run.configuration.not.supported",
+                              name)) // There is no test ApkInfo for AndroidWearConfiguration, thus it should be always single ApkInfo. Only App.
+
+      val applicationIdProvider = project.getProjectSystem().getApplicationIdProvider(this) ?: throw RuntimeException(
+        "Cannot get ApplicationIdProvider")
+
+      val appRunSettings = object : AppRunSettings {
+        override val deployOptions = this@AndroidWearConfiguration.deployOptions
+        override val componentLaunchOptions = this@AndroidWearConfiguration.componentLaunchOptions
+        override val module = this@AndroidWearConfiguration.module
+      }
+      val state = getExecutor(environment, deployTarget, appRunSettings, applicationIdProvider, apkProvider)
       stats.markStateCreated()
       state
     }
@@ -92,6 +118,14 @@ abstract class AndroidWearConfiguration(project: Project, factory: Configuration
     }
   }
 
+  abstract fun getExecutor(
+    environment: ExecutionEnvironment,
+    deployTarget: DeployTarget,
+    appRunSettings: AppRunSettings,
+    applicationIdProvider: ApplicationIdProvider,
+    apkProvider: ApkProvider
+  ): AndroidConfigurationExecutor
+
   private fun fillStatsForEnvironment(environment: ExecutionEnvironment, deployTarget: DeployTarget) {
     val stats = RunStatsService.get(project).create()
     stats.setDebuggable(module!!.getModuleSystem().isDebuggable)
@@ -99,7 +133,7 @@ abstract class AndroidWearConfiguration(project: Project, factory: Configuration
     val appId = project.getProjectSystem().getApplicationIdProvider(this)?.packageName
                 ?: throw RuntimeException("Cannot get ApplicationIdProvider")
     stats.setPackage(appId)
-    stats.setAppComponentType(componentType)
+    stats.setAppComponentType(componentLaunchOptions.componentType)
 
     // Save the stats so that before-run task can access it
     environment.putUserData(RunStats.KEY, stats)
@@ -116,15 +150,28 @@ abstract class AndroidWearConfiguration(project: Project, factory: Configuration
   override fun writeExternal(element: Element) {
     super<ModuleBasedConfiguration>.writeExternal(element)
     XmlSerializer.serializeInto(this, element)
+
+    Element(LAUNCH_OPTIONS_ELEMENT_NAME).apply {
+      element.addContent(this)
+      XmlSerializer.serializeInto(componentLaunchOptions, this)
+    }
+
+    Element(DEPLOY_OPTIONS_ELEMENT_NAME).apply {
+      element.addContent(this)
+      XmlSerializer.serializeInto(deployOptions, this)
+    }
   }
 
   override fun readExternal(element: Element) {
     super<ModuleBasedConfiguration>.readExternal(element)
     XmlSerializer.deserializeInto(this, element)
+
+    element.getChild(LAUNCH_OPTIONS_ELEMENT_NAME)?.let { XmlSerializer.deserializeInto(componentLaunchOptions, it) }
+    element.getChild(DEPLOY_OPTIONS_ELEMENT_NAME)?.let { XmlSerializer.deserializeInto(deployOptions, it) }
   }
 
   override fun getValidModules() = project.getAndroidModulesForDisplay()
 
-  override val module: Module?
+  val module: Module?
     get() = configurationModule.module
 }

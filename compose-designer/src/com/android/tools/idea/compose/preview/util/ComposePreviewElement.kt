@@ -22,33 +22,33 @@ import com.android.SdkConstants.ATTR_LAYOUT_WIDTH
 import com.android.SdkConstants.ATTR_MIN_HEIGHT
 import com.android.SdkConstants.ATTR_MIN_WIDTH
 import com.android.SdkConstants.VALUE_WRAP_CONTENT
+import com.android.ide.common.resources.Locale
 import com.android.resources.Density
 import com.android.resources.ScreenRound
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.devices.Device
 import com.android.tools.compose.COMPOSE_PREVIEW_ANNOTATION_FQN
+import com.android.tools.compose.COMPOSE_VIEW_ADAPTER_FQN
 import com.android.tools.idea.common.model.AndroidDpCoordinate
-import com.android.tools.idea.compose.preview.PreviewElementProvider
+import com.android.tools.idea.compose.preview.hasPreviewElements
 import com.android.tools.idea.compose.preview.pickers.properties.utils.findOrParseFromDefinition
 import com.android.tools.idea.compose.preview.pickers.properties.utils.getDefaultPreviewDevice
 import com.android.tools.idea.configurations.Configuration
+import com.android.tools.idea.preview.DisplayPositioning
+import com.android.tools.idea.preview.PreviewDisplaySettings
+import com.android.tools.idea.preview.PreviewElement
+import com.android.tools.idea.preview.PreviewElementProvider
+import com.android.tools.idea.preview.xml.PreviewXmlBuilder
+import com.android.tools.idea.preview.xml.XmlSerializable
 import com.android.tools.idea.projectsystem.isTestFile
 import com.android.tools.idea.projectsystem.isUnitTestFile
-import com.android.ide.common.resources.Locale
-import com.android.tools.compose.COMPOSE_VIEW_ADAPTER_FQN
-import com.android.tools.idea.compose.preview.PreviewNode
-import com.android.tools.idea.compose.preview.hasPreviewElements
 import com.android.tools.idea.uibuilder.editor.multirepresentation.devkit.FakeLightVirtualFile
 import com.android.tools.idea.uibuilder.model.updateConfigurationScreenSize
 import com.google.common.annotations.VisibleForTesting
-import com.intellij.openapi.application.ReadAction
-import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
 import com.intellij.psi.SmartPsiElementPointer
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.android.sdk.CompatibilityRenderTarget
@@ -59,7 +59,6 @@ import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.allConstructors
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
-import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.toUElementOfType
 import java.awt.Dimension
@@ -85,13 +84,21 @@ const val MAX_HEIGHT = 2000
 private const val DEFAULT_PREVIEW_BACKGROUND = "?android:attr/windowBackground"
 
 /**
+ * Method name to be used when we fail to load a PreviewParameterProvider. In this case, we should create a fake [PreviewElement] and pass
+ * this fake method + the PreviewParameterProvider as the composable FQN. `ComposeRenderErrorContributor` should handle the resulting
+ * [NoSuchMethodException] that will be thrown.
+ */
+@VisibleForTesting
+const val FAKE_PREVIEW_PARAMETER_PROVIDER_METHOD = "${'$'}FailToLoadPreviewParameterProvider"
+
+/**
  * [FakeLightVirtualFile] for composable functions.
  */
 internal class ComposeAdapterLightVirtualFile(
   name: String,
   content: String,
   originFileProvider: () -> VirtualFile?
-) : FakeLightVirtualFile(name, content, originFileProvider)
+) : FakeLightVirtualFile("compose-$name", content, originFileProvider)
 
 /**
  * Transforms a dimension given on the [PreviewConfiguration] into the string value. If the dimension is [UNDEFINED_DIMENSION], the value
@@ -312,15 +319,15 @@ data class PreviewConfiguration internal constructor(val apiLevel: Int,
      * reasonable values before the PreviewConfiguration is created
      */
     @JvmStatic
-    fun cleanAndGet(apiLevel: Int?,
-                    theme: String?,
-                    width: Int?,
-                    height: Int?,
-                    locale: String?,
-                    fontScale: Float?,
-                    uiMode: Int?,
-                    device: String?): PreviewConfiguration =
-    // We only limit the sizes. We do not limit the API because using an incorrect API level will throw an exception that
+    fun cleanAndGet(apiLevel: Int? = null,
+                    theme: String? = null,
+                    width: Int? = null,
+                    height: Int? = null,
+                    locale: String? = null,
+                    fontScale: Float? = null,
+                    uiMode: Int? = null,
+                    device: String? = null): PreviewConfiguration =
+      // We only limit the sizes. We do not limit the API because using an incorrect API level will throw an exception that
       // we will handle and any other error.
       PreviewConfiguration(apiLevel = apiLevel ?: UNDEFINED_API_LEVEL,
                            theme = theme,
@@ -332,31 +339,6 @@ data class PreviewConfiguration internal constructor(val apiLevel: Int,
                            deviceSpec = device ?: NO_DEVICE_SPEC)
   }
 }
-
-/** Configuration equivalent to defining a `@Preview` annotation with no parameters */
-private val nullConfiguration = PreviewConfiguration.cleanAndGet(null, null, null, null, null, null, null, null)
-
-enum class DisplayPositioning {
-  TOP, // Previews with this priority will be displayed at the top
-  NORMAL
-}
-
-/**
- * Settings that modify how a [ComposePreviewElement] is rendered
- *
- * @param name display name of this preview element
- * @param group name that allows multiple previews in separate groups
- * @param showDecoration when true, the system decorations (navigation and status bars) should be displayed as part of the render
- * @param showBackground when true, the preview will be rendered with the material background as background color by default
- * @param backgroundColor when [showBackground] is true, this is the background color to be used by the preview. If null, the default
- * activity background specified in the system theme will be used.
- */
-data class PreviewDisplaySettings(val name: String,
-                                  val group: String?,
-                                  val showDecoration: Boolean,
-                                  val showBackground: Boolean,
-                                  val backgroundColor: String?,
-                                  val displayPositioning: DisplayPositioning = DisplayPositioning.NORMAL)
 
 /**
  * Definition of a preview parameter provider. This is defined by annotating parameters with `PreviewParameter`
@@ -370,29 +352,6 @@ data class PreviewParameter(val name: String,
                             val index: Int,
                             val providerClassFqn: String,
                             val limit: Int)
-
-/**
- * Definition of a preview element
- */
-interface PreviewElement : PreviewNode {
-  /** Settings that affect how the [PreviewElement] is presented in the preview surface */
-  val displaySettings: PreviewDisplaySettings
-
-  /** [SmartPsiElementPointer] to the preview element definition.
-   *  This means the annotation annotating the composable method, that
-   *  won't necessarily be a '@Preview' when Multipreview is enabled.
-   */
-  val previewElementDefinitionPsi: SmartPsiElementPointer<PsiElement>?
-
-  /** [SmartPsiElementPointer] to the preview body. This is the code that will be run during preview */
-  val previewBodyPsi: SmartPsiElementPointer<PsiElement>?
-
-  /** [PsiFile] containing this PreviewElement. null if there is not source file, like in synthetic preview elements */
-  val containingFile: PsiFile?
-    get() = runReadAction {
-      previewBodyPsi?.containingFile ?: previewElementDefinitionPsi?.containingFile
-    }
-}
 
 /**
  * Definition of a Composable preview element
@@ -425,12 +384,11 @@ abstract class ComposePreviewElementInstance : ComposePreviewElement, XmlSeriali
    */
   var hasAnimations = false
 
-  override fun toPreviewXml(xmlBuilder: PreviewXmlBuilder): PreviewXmlBuilder {
+  override fun toPreviewXml(): PreviewXmlBuilder {
     val matchParent = displaySettings.showDecoration
     val width = dimensionToString(configuration.width, if (matchParent) SdkConstants.VALUE_MATCH_PARENT else VALUE_WRAP_CONTENT)
     val height = dimensionToString(configuration.height, if (matchParent) SdkConstants.VALUE_MATCH_PARENT else VALUE_WRAP_CONTENT)
-    xmlBuilder
-      .setRootTagName(COMPOSE_VIEW_ADAPTER_FQN)
+    val xmlBuilder = PreviewXmlBuilder(COMPOSE_VIEW_ADAPTER_FQN)
       .androidAttribute(ATTR_LAYOUT_WIDTH, width)
       .androidAttribute(ATTR_LAYOUT_HEIGHT, height)
       // Compose will fail if the top parent is 0,0 in size so avoid that case by setting a min 1x1 parent (b/169230467).
@@ -483,7 +441,7 @@ class SingleComposePreviewElementInstance(override val composableMethodFqn: Stri
                    showBackground: Boolean = false,
                    backgroundColor: String? = null,
                    displayPositioning: DisplayPositioning = DisplayPositioning.NORMAL,
-                   configuration: PreviewConfiguration = nullConfiguration) =
+                   configuration: PreviewConfiguration = PreviewConfiguration.cleanAndGet()) =
       SingleComposePreviewElementInstance(
         composableMethodFqn,
         PreviewDisplaySettings(
@@ -513,14 +471,12 @@ private class ParametrizedComposePreviewElementInstance(private val basePreviewE
     basePreviewElement.displaySettings.backgroundColor
   )
 
-  override fun toPreviewXml(xmlBuilder: PreviewXmlBuilder): PreviewXmlBuilder {
-    super.toPreviewXml(xmlBuilder)
+  override fun toPreviewXml(): PreviewXmlBuilder {
+    return super.toPreviewXml()
       // The index within the provider of the element to be rendered
       .toolsAttribute("parameterProviderIndex", index.toString())
       // The FQN of the ParameterProvider class
       .toolsAttribute("parameterProviderClass", providerClassFqn)
-
-    return xmlBuilder
   }
 }
 
@@ -574,12 +530,23 @@ class ParametrizedComposePreviewElementTemplate(private val basePreviewElement: 
         }
         catch (e: Throwable) {
           Logger.getInstance(
-            ParametrizedComposePreviewElementTemplate::class.java).debug {
-            "Failed to instantiate ${previewParameter.providerClassFqn} parameter provider"
-          }
+            ParametrizedComposePreviewElementTemplate::class.java
+          ).warn("Failed to instantiate ${previewParameter.providerClassFqn} parameter provider", e)
         }
-
-        return sequenceOf()
+        // Return a fake SingleComposePreviewElementInstance here. ComposeRenderErrorContributor should handle the exception that will be
+        // thrown for this method not being found.
+        // TODO(b/238315228): propagate the exception so it's shown on the issues panel.
+        val fakeElementFqn = "${previewParameter.providerClassFqn}.$FAKE_PREVIEW_PARAMETER_PROVIDER_METHOD"
+        return sequenceOf(
+          SingleComposePreviewElementInstance(fakeElementFqn,
+                                              PreviewDisplaySettings(
+                                                basePreviewElement.displaySettings.name, null, false, false, null
+                                              ),
+                                              null,
+                                              null,
+                                              PreviewConfiguration.cleanAndGet()
+          )
+        )
       }.first()
     }
     finally {
@@ -642,28 +609,4 @@ interface FilePreviewElementFinder {
    * This method always runs on smart mode.
    */
   suspend fun findPreviewMethods(project: Project, vFile: VirtualFile): Collection<ComposePreviewElement>
-}
-
-/**
- * Returns the source offset within the file of the [PreviewElement].
- * We try to read the position of the method but fallback to the position of the annotation if the method body is not valid anymore.
- * If the passed element is null or the position can not be read, this method will return -1.
- *
- * This property needs a [ReadAction] to be read.
- */
-private val PreviewElement?.sourceOffset: Int
-  get() = this?.previewElementDefinitionPsi?.element?.startOffset ?: -1
-
-private val sourceOffsetComparator = compareBy<PreviewElement> { it.sourceOffset }
-private val displayPriorityComparator = compareBy<PreviewElement> { it.displaySettings.displayPositioning }
-private val lexicographicalNameComparator = compareBy<PreviewElement> {it.displaySettings.name }
-
-/**
- * Sorts the [PreviewElement]s by [DisplayPositioning] (top first) and then by source code line number, smaller first.
- * When Multipreview is enabled, different Previews may have the same [PreviewElement.previewElementDefinitionPsi] value,
- * and those will be ordered lexicographically between them, as the actual Previews may be defined in different files and/or
- * in a not structured way, so it is not possible to order them based on code source offsets.
- */
-fun <T : PreviewElement> Collection<T>.sortByDisplayAndSourcePosition(): List<T> = runReadAction {
-  sortedWith(displayPriorityComparator.thenComparing(sourceOffsetComparator).thenComparing(lexicographicalNameComparator))
 }

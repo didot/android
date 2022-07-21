@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.emulator
 
-import com.android.adblib.AdbLibSession
+import com.android.adblib.AdbSession
 import com.android.adblib.DeviceInfo
 import com.android.adblib.DeviceList
 import com.android.adblib.DevicePropertyNames.RO_BOOT_QEMU_AVD_NAME
@@ -112,7 +112,7 @@ internal class EmulatorToolWindowManager private constructor(
       panels.remove(panel)
       savedUiState.remove(panel.id)
       if (panels.isEmpty()) {
-        createPlaceholderPanel()
+        createEmptyStatePanel()
         hideLiveIndicator(getToolWindow())
       }
     }
@@ -277,7 +277,7 @@ internal class EmulatorToolWindowManager private constructor(
 
     val contentManager = toolWindow.contentManager
     if (contentManager.contentCount == 0) {
-      createPlaceholderPanel()
+      createEmptyStatePanel()
     }
 
     contentManager.addContentManagerListener(contentManagerListener)
@@ -392,11 +392,10 @@ internal class EmulatorToolWindowManager private constructor(
     contentManager.removeContent(content, true)
   }
 
-  private fun createPlaceholderPanel() {
-    val panel = PlaceholderPanel(project)
+  private fun createEmptyStatePanel() {
+    val panel = EmptyStatePanel(project)
     val contentFactory = ContentFactory.SERVICE.getInstance()
-    val content = contentFactory.createContent(panel, panel.title, false).apply {
-      tabName = panel.title
+    val content = contentFactory.createContent(panel, null, false).apply {
       isCloseable = false
     }
     val contentManager = getContentManager()
@@ -423,7 +422,7 @@ internal class EmulatorToolWindowManager private constructor(
   }
 
   @AnyThread
-  private suspend fun physicalDeviceConnected(deviceSerialNumber: String, adbSession: AdbLibSession) {
+  private suspend fun physicalDeviceConnected(deviceSerialNumber: String, adbSession: AdbSession) {
     try {
       val properties = adbSession.deviceServices.deviceProperties(DeviceSelector.fromSerialNumber(deviceSerialNumber)).allReadonly()
       var title = (properties[RO_BOOT_QEMU_AVD_NAME] ?: properties[RO_KERNEL_QEMU_AVD_NAME])?.replace('_', ' ')
@@ -649,7 +648,7 @@ internal class EmulatorToolWindowManager private constructor(
       return true
     }
 
-    private suspend fun onDeviceListChanged(deviceList: DeviceList, adbSession: AdbLibSession) {
+    private suspend fun onDeviceListChanged(deviceList: DeviceList, adbSession: AdbSession) {
       val added: Set<String>
       val removed: Set<String>
       synchronized(this) {

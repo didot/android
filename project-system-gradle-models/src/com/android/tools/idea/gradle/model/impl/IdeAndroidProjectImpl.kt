@@ -22,7 +22,7 @@ import java.io.Serializable
 
 data class IdeAndroidProjectImpl(
   override val agpVersion: String,
-  override val name: String,
+  override val projectPath: IdeProjectPathImpl,
   override val projectType: IdeAndroidProjectType,
   override val defaultConfig: IdeProductFlavorContainerImpl,
   override val buildTypes: Collection<IdeBuildTypeContainerImpl>,
@@ -49,5 +49,5 @@ data class IdeAndroidProjectImpl(
   override val variantsBuildInformation: Collection<IdeVariantBuildInformationImpl>,
   override val lintChecksJars: List<File>?,
   override val testNamespace: String?,
-  override val isKaptEnabled: Boolean,
+  override val isKaptEnabled: Boolean
 ) : IdeAndroidProject, Serializable

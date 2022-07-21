@@ -23,10 +23,10 @@ import com.android.tools.compose.COMPOSE_PREVIEW_ANNOTATION_NAME
 import com.android.tools.compose.isComposableFunction
 import com.android.tools.idea.compose.preview.renderer.renderPreviewElement
 import com.android.tools.idea.compose.preview.util.PreviewConfiguration
-import com.android.tools.idea.compose.preview.util.PreviewDisplaySettings
 import com.android.tools.idea.compose.preview.util.SingleComposePreviewElementInstance
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.kotlin.getQualifiedName
+import com.android.tools.idea.preview.PreviewDisplaySettings
 import com.android.utils.reflection.qualifiedName
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.codeInsight.documentation.DocumentationComponent
@@ -167,8 +167,6 @@ class ComposeDocumentationProvider : DocumentationProviderEx() {
       }
   }
 
-  private val nullConfiguration = PreviewConfiguration.cleanAndGet(null, null, null, null, null, null, null, null)
-
   private fun previewFromMethodName(fqName: String): SingleComposePreviewElementInstance {
     val scheme = EditorColorsManager.getInstance().globalScheme
     val background = scheme.getColor(EditorColors.DOCUMENTATION_COLOR) ?: scheme.defaultBackground
@@ -182,7 +180,7 @@ class ComposeDocumentationProvider : DocumentationProviderEx() {
         backgroundColor = ColorUtil.toHtmlColor(background)),
       previewElementDefinitionPsi = null,
       previewBodyPsi = null,
-      configuration = nullConfiguration)
+      configuration = PreviewConfiguration.cleanAndGet())
   }
 
   /**

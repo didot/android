@@ -15,8 +15,9 @@
  */
 package com.android.tools.idea.logcat
 
-import com.android.adblib.AdbLibSession
+import com.android.adblib.AdbSession
 import com.android.annotations.concurrency.UiThread
+import com.android.ddmlib.AndroidDebugBridge
 import com.android.tools.adtui.toolwindow.splittingtabs.state.SplittingTabsStateProvider
 import com.android.tools.idea.adb.processnamemonitor.ProcessNameMonitor
 import com.android.tools.idea.adblib.AdbLibService
@@ -24,6 +25,7 @@ import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers.uiThread
 import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.logcat.LogcatMainPanel.LogcatServiceEvent.PauseLogcat
 import com.android.tools.idea.logcat.LogcatMainPanel.LogcatServiceEvent.StartLogcat
 import com.android.tools.idea.logcat.LogcatMainPanel.LogcatServiceEvent.StopLogcat
 import com.android.tools.idea.logcat.LogcatPanelConfig.FormattingConfig
@@ -93,7 +95,6 @@ import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.CommonDataKeys.EDITOR
-import com.intellij.openapi.actionSystem.CommonDataKeys.PROJECT
 import com.intellij.openapi.actionSystem.DataProvider
 import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.application.ModalityState
@@ -135,6 +136,7 @@ import kotlin.math.max
 // This is probably a massive overkill as we do not expect this many tags/packages in a real Logcat
 private const val MAX_TAGS = 1000
 private const val MAX_PACKAGE_NAMES = 1000
+private const val MAX_PROCESS_NAMES = 1000
 
 private val HAND_CURSOR = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
 private val TEXT_CURSOR = Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR)
@@ -171,7 +173,7 @@ internal class LogcatMainPanel(
   hyperlinkDetector: HyperlinkDetector? = null,
   foldingDetector: FoldingDetector? = null,
   packageNamesProvider: PackageNamesProvider = ProjectPackageNamesProvider(project),
-  adbSession: AdbLibSession = AdbLibService.getInstance(project).session,
+  adbSession: AdbSession = AdbLibService.getInstance(project).session,
   private val logcatService: LogcatService =
     LogcatServiceImpl(project, { AdbLibService.getInstance(project).session.deviceServices }, ProcessNameMonitor.getInstance(project)),
   zoneId: ZoneId = ZoneId.systemDefault()
@@ -198,6 +200,7 @@ internal class LogcatMainPanel(
   internal val messageBacklog = AtomicReference(MessageBacklog(logcatSettings.bufferSize))
   private val tags = MostRecentlyAddedSet<String>(MAX_TAGS)
   private val packages = MostRecentlyAddedSet<String>(MAX_PACKAGE_NAMES)
+  private val processNames = MostRecentlyAddedSet<String>(MAX_PROCESS_NAMES)
 
   @VisibleForTesting
   val headerPanel = LogcatHeaderPanel(
@@ -223,6 +226,9 @@ internal class LogcatMainPanel(
   private var ignoreCaretAtBottom = false // Derived from similar code in ConsoleViewImpl. See initScrollToEndStateHandling()
   private val connectedDevice = AtomicReference<Device?>()
   private val logcatServiceChannel = Channel<LogcatServiceEvent>(1)
+  private val clientListener = ProjectAppMonitor(this, packageNamesProvider)
+  @VisibleForTesting
+  internal var logcatServiceJob: Job? = null
 
   init {
     editor.apply {
@@ -281,15 +287,18 @@ internal class LogcatMainPanel(
     }
 
     coroutineScope.launch {
-      var job: Job? = null
       logcatServiceChannel.consumeEach {
-        job?.cancel()
-        job = when (it) {
-          is StartLogcat -> startLogcat(it.device)
+        logcatServiceJob?.cancel()
+        logcatServiceJob = when (it) {
+          is StartLogcat -> startLogcat(it.device).also { isLogcatPaused = false }
           StopLogcat -> connectedDevice.set(null).let { null }
+          PauseLogcat -> null.also { isLogcatPaused = true }
         }
       }
     }
+
+    AndroidDebugBridge.addDeviceChangeListener(clientListener)
+    AndroidDebugBridge.addClientChangeListener(clientListener)
   }
 
   private fun getPopupActionGroup(actions: Array<AnAction>): ActionGroup {
@@ -345,12 +354,13 @@ internal class LogcatMainPanel(
 
   override suspend fun processMessages(messages: List<LogcatMessage>) {
     messageBacklog.get().addAll(messages)
-    tags.addAll(messages.map { it.header.tag })
-    packages.addAll(messages.map { it.header.getAppName() })
-    if (!isLogcatPaused) {
-      // When paused, we don't send message to the document.
-      messageProcessor.appendMessages(messages)
+    messages.forEach {
+      val (_, _, _, applicationId, processName, tag, _) = it.header
+      tags.add(tag)
+      packages.add(applicationId)
+      processNames.add(processName)
     }
+    messageProcessor.appendMessages(messages)
   }
 
   override fun getState(): String {
@@ -388,6 +398,8 @@ internal class LogcatMainPanel(
 
   override fun dispose() {
     EditorFactory.getInstance().releaseEditor(editor)
+    AndroidDebugBridge.removeDeviceChangeListener(clientListener)
+    AndroidDebugBridge.removeClientChangeListener(clientListener)
   }
 
   override fun applyLogcatSettings(logcatSettings: AndroidLogcatSettings) {
@@ -425,6 +437,8 @@ internal class LogcatMainPanel(
 
   override fun getPackageNames(): Set<String> = packages
 
+  override fun getProcessNames(): Set<String> = processNames
+
   private fun createToolbarActions(project: Project): ActionGroup {
     return SimpleActionGroup().apply {
       add(ClearLogcatAction(this@LogcatMainPanel))
@@ -443,7 +457,7 @@ internal class LogcatMainPanel(
       add(LogcatSplitterActions(splitterPopupActionGroup))
       add(Separator.create())
       add(ScreenshotAction())
-      add(ScreenRecorderAction(this@LogcatMainPanel, project))
+      add(ScreenRecorderAction())
     }
   }
 
@@ -452,15 +466,19 @@ internal class LogcatMainPanel(
 
   @UiThread
   override fun pauseLogcat() {
-    isLogcatPaused = true
+    coroutineScope.launch {
+      logcatServiceChannel.send(PauseLogcat)
+    }
     pausedBanner.isVisible = true
   }
 
   @UiThread
   override fun resumeLogcat() {
-    isLogcatPaused = false
     pausedBanner.isVisible = false
-    reloadMessages()
+    val device = connectedDevice.get() ?: return
+    coroutineScope.launch {
+      logcatServiceChannel.send(StartLogcat(device))
+    }
   }
 
   @UiThread
@@ -507,11 +525,10 @@ internal class LogcatMainPanel(
     return when (dataId) {
       LOGCAT_PRESENTER_ACTION.name -> this
       ScreenshotAction.SCREENSHOT_OPTIONS_KEY.name -> device?.let { DeviceArtScreenshotOptions(it.serialNumber, it.sdk, it.model) }
-      ScreenRecorderAction.SERIAL_NUMBER_KEY.name -> device?.serialNumber
-      ScreenRecorderAction.AVD_NAME_KEY.name -> if (device?.isEmulator == true) device.deviceId else null
-      ScreenRecorderAction.SDK_KEY.name -> device?.sdk
+      ScreenRecorderAction.SCREEN_RECORDER_PARAMETERS_KEY.name -> device?.let {
+        ScreenRecorderAction.Parameters(it.serialNumber, it.sdk, if (it.isEmulator) it.deviceId else null, this)
+      }
       EDITOR.name -> editor
-      PROJECT.name -> project
       else -> null
     }
   }
@@ -604,6 +621,7 @@ internal class LogcatMainPanel(
   private sealed class LogcatServiceEvent {
     class StartLogcat(val device: Device) : LogcatServiceEvent()
     object StopLogcat : LogcatServiceEvent()
+    object PauseLogcat : LogcatServiceEvent()
   }
 }
 

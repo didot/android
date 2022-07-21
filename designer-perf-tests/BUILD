@@ -6,10 +6,15 @@ iml_module(
     name = "intellij.android.designer-perf-tests",
     iml_files = ["intellij.android.designer-perf-tests.iml"],
     split_test_targets = {
-        "perfgate": {
+        "perfgateCompose": {
             "tags": ["perfgate"],
             "shard_count": 2,
             "test_filter": "com.android.tools.idea.rendering.PerfgateComposeTest",
+        },
+        "perfgateVisualLint": {
+            "tags": ["perfgate"],
+            "shard_count": 2,
+            "test_filter": "com.android.tools.idea.uibuilder.visual.visuallint",
         },
         "non-perfgate": {
         },
@@ -59,6 +64,8 @@ iml_module(
         "//tools/adt/idea/intellij.android.compose-common[module]",
         "//tools/adt/idea/designer:intellij.android.designer[module, test]",
         "//tools/adt/idea/layoutlib:intellij.android.layoutlib[module, test]",
+        "//tools/adt/idea/.idea/libraries:mockito[test]",
+        "//tools/adt/idea/adt-ui:intellij.android.adt.ui[module, test]",
     ],
 )
 
@@ -77,6 +84,8 @@ maven_repository(
         "@maven//:androidx.lifecycle.lifecycle-common_2.4.0",
         "@maven//:androidx.savedstate.savedstate_1.1.0-rc01",
         "@maven//:com.android.support.constraint.constraint-layout_2.0.4",
+        "@maven//:com.android.support.test.espresso.espresso-core_3.0.2",
+        "@maven//:com.google.android.material.material_1.4.0",
         "@maven//:com.google.auto.value.auto-value_1.6.2",
         "@maven//:com.google.errorprone.error_prone_annotations_2.3.2",
         "@maven//:com.google.jimfs.jimfs_1.1",

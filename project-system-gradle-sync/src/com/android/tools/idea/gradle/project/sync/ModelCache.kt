@@ -26,6 +26,7 @@ import com.android.builder.model.NativeVariantAbi
 import com.android.builder.model.Variant
 import com.android.builder.model.v2.ide.BasicVariant
 import com.android.builder.model.v2.models.AndroidDsl
+import com.android.builder.model.v2.models.BasicAndroidProject
 import com.android.builder.model.v2.models.VariantDependencies
 import com.android.builder.model.v2.models.Versions
 import com.android.builder.model.v2.models.ndk.NativeModule
@@ -67,7 +68,14 @@ interface ModelCache {
       androidModuleId: ModuleId
     ): IdeVariantWithPostProcessor
 
-    fun androidProjectFrom(project: AndroidProject): IdeAndroidProjectImpl
+    fun androidProjectFrom(
+      rootBuildId: BuildId,
+      buildId: BuildId,
+      buildName: String,
+      projectPath: String,
+      project: AndroidProject,
+      legacyApplicationIdModel: LegacyApplicationIdModel?
+    ): IdeAndroidProjectImpl
 
     fun androidArtifactOutputFrom(output: OutputFile): IdeAndroidArtifactOutputImpl
 
@@ -100,10 +108,13 @@ interface ModelCache {
     ): IdeVariantWithPostProcessor
 
     fun androidProjectFrom(
-      basicProject: com.android.builder.model.v2.models.BasicAndroidProject,
+      rootBuildId: BuildId,
+      buildId: BuildId,
+      basicProject: BasicAndroidProject,
       project: com.android.builder.model.v2.models.AndroidProject,
       androidVersion: Versions,
-      androidDsl: AndroidDsl
+      androidDsl: AndroidDsl,
+      legacyApplicationIdModel: LegacyApplicationIdModel?
     ): IdeAndroidProjectImpl
   }
 

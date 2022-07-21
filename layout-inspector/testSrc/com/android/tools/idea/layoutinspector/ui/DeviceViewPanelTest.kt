@@ -30,7 +30,10 @@ import com.android.tools.adtui.swing.IconLoaderRule
 import com.android.tools.idea.appinspection.api.process.ProcessesModel
 import com.android.tools.idea.appinspection.ide.ui.ICON_PHONE
 import com.android.tools.idea.appinspection.ide.ui.SelectProcessAction
+import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescriptor
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
+import com.android.tools.idea.appinspection.internal.process.TransportProcessDescriptor
+import com.android.tools.idea.appinspection.internal.process.toDeviceDescriptor
 import com.android.tools.idea.appinspection.test.DEFAULT_TEST_INSPECTION_STREAM
 import com.android.tools.idea.appinspection.test.TestProcessDiscovery
 import com.android.tools.idea.concurrency.waitForCondition
@@ -53,6 +56,7 @@ import com.android.tools.idea.layoutinspector.model.VIEW1
 import com.android.tools.idea.layoutinspector.model.VIEW2
 import com.android.tools.idea.layoutinspector.model.ViewNode
 import com.android.tools.idea.layoutinspector.pipeline.DeviceModel
+import com.android.tools.idea.layoutinspector.pipeline.ForegroundProcess
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClientLauncher
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClientSettings
@@ -62,6 +66,8 @@ import com.android.tools.idea.layoutinspector.util.FakeTreeSettings
 import com.android.tools.idea.layoutinspector.util.ReportingCountDownLatch
 import com.android.tools.idea.layoutinspector.view.inspection.LayoutInspectorViewProtocol
 import com.android.tools.idea.layoutinspector.window
+import com.android.tools.idea.transport.faketransport.FakeTransportService
+import com.android.tools.profiler.proto.Common
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
 import com.intellij.ide.DataManager
@@ -646,7 +652,16 @@ class DeviceViewPanelTest {
       }
     }
 
+    val fakeProcess = createFakeStream().createFakeProcess()
     val processes = ProcessesModel(TestProcessDiscovery())
+    val latch = CountDownLatch(1)
+    processes.addSelectedProcessListeners {
+      latch.countDown()
+    }
+
+    processes.selectedProcess = fakeProcess
+    latch.await()
+
     val launcher: InspectorClientLauncher = mock()
     val client: InspectorClient = mock()
     whenever(client.capabilities).thenReturn(setOf(InspectorClient.Capability.SUPPORTS_SKP))
@@ -664,6 +679,7 @@ class DeviceViewPanelTest {
       id -> if (id == LAYOUT_INSPECTOR_DATA_KEY.name) inspector else null
     }
 
+    assertThat(processes.selectedProcess).isNotNull()
 
     contentPanel.setSize(200, 300)
     viewport.extentSize = Dimension(100, 100)
@@ -695,6 +711,13 @@ class DeviceViewPanelTest {
     assertThat(panel.isPanning).isFalse()
     TestCase.assertEquals(0.01, contentPanel.model.xOff)
     TestCase.assertEquals(-0.01, contentPanel.model.yOff)
+
+    startPan(fakeUi, panel)
+    fakeUi.mouse.press(20, 20, panButton)
+    assertThat(panel.isPanning).isTrue()
+    // make sure that disconnecting the process disables panning
+    processes.selectedProcess = null
+    assertThat(panel.isPanning).isFalse()
   }
 }
 
@@ -891,6 +914,43 @@ class DeviceViewPanelWithNoClientsTest {
     waitForCondition(1, TimeUnit.SECONDS) { !loadingPane.isLoading }
     waitForCondition(1, TimeUnit.SECONDS) { contentPanel.showEmptyText }
   }
+
+  @Test
+  fun testNotDebuggablePane() {
+    inspectorRule.startLaunch(4)
+    inspectorRule.launchSynchronously = false
+    val panel = DeviceViewPanel(
+      DeviceModel(inspectorRule.processes),
+      inspectorRule.processes,
+      {},
+      {},
+      inspectorRule.inspector,
+      EditorDeviceViewSettings(),
+      inspectorRule.projectRule.fixture.testRootDisposable
+    )
+
+    val deviceViewContentPanel = flatten(panel).filterIsInstance<DeviceViewContentPanel>().first()
+
+    // false by default
+    assertThat(deviceViewContentPanel.showProcessNotDebuggableText).isFalse()
+
+    panel.onNewForegroundProcess(ForegroundProcess(1, "random"))
+
+    // becomes true because the foreground process is not in the process model
+    assertThat(deviceViewContentPanel.showProcessNotDebuggableText).isTrue()
+
+    val process = MODERN_PROCESS
+    inspectorRule.processNotifier.addDevice(process.device)
+    inspectorRule.processNotifier.fireConnected(process)
+
+    postCreateLatch.countDown()
+    inspectorRule.awaitLaunch()
+
+    panel.onNewForegroundProcess(ForegroundProcess(MODERN_PROCESS.pid, MODERN_PROCESS.name))
+
+    // goes back to false because MODERN_PROCESS is in the process model
+    assertThat(deviceViewContentPanel.showProcessNotDebuggableText).isFalse()
+  }
 }
 
 private fun getToolbar(panel: DeviceViewPanel): JComponent =
@@ -906,4 +966,17 @@ private fun getPresentation(button: ActionButton): Presentation {
                             ActionManager.getInstance(), 0)
   button.action.update(event)
   return presentation
+}
+
+private fun Common.Stream.createFakeProcess(name: String? = null, pid: Int = 0): ProcessDescriptor {
+  return TransportProcessDescriptor(this, FakeTransportService.FAKE_PROCESS.toBuilder()
+    .setName(name ?: FakeTransportService.FAKE_PROCESS_NAME)
+    .setPid(pid)
+    .build())
+}
+
+private fun createFakeStream(): Common.Stream {
+  return Common.Stream.newBuilder()
+    .setDevice(FakeTransportService.FAKE_DEVICE)
+    .build()
 }

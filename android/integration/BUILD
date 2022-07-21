@@ -15,11 +15,6 @@ iml_module(
         "//tools/adt/idea/as-driver:as-driver.utils[module, test]",
         "//tools/base/testutils:studio.android.sdktools.testutils[module, test]",
         "//tools/base/common:studio.android.sdktools.common[module, test]",
-        "//tools/vendor/google/firebase[module, test]",
-        "//tools/adt/idea/.idea/libraries:studio-proto[test]",
-        "//tools/adt/idea/.idea/libraries:firebase_java_proto[test]",
-        "//tools/adt/idea/.idea/libraries:truth[test]",
-        "//tools/adt/idea/android-test-framework:intellij.android.testFramework[module, test]",
     ],
 )
 
@@ -56,7 +51,6 @@ iml_test(
     module = ":intellij.android.core.integration",
     tags = [
         "block-network",
-        "manual",  # 15 out of 500 failures
         "no_mac",  # Path issues, probably easily fixable.
         "no_windows",  # Path issues, probably easily fixable.
     ],
@@ -64,7 +58,63 @@ iml_test(
 )
 
 iml_test(
-    name = "AppInsightsTest",
+    name = "AdbServerConnectionTest",
+    data = [
+        "//prebuilts/studio/sdk:emulator",
+        "//prebuilts/studio/sdk:platform-tools",
+        "@system_image_android-29_default_x86_64//:x86_64-android-29-images",
+    ],
+    module = ":intellij.android.core.integration",
+    tags = [
+        "block-network",
+        "manual",  # Adb startup error: "could not install *smartsocket* listener: Address already in use"
+        "no_mac",  # Same issue as Emulator test (path issues)
+        "no_windows",  # Same issue as Emulator test (path issues)
+    ],
+    test_class = "com.android.tools.idea.AdbServerConnectionTest",
+)
+
+iml_test(
+    name = "EmulatorBeforeStudioTest",
+    data = [
+        ":minapp",
+        "//prebuilts/studio/sdk:emulator",
+        "//prebuilts/studio/sdk:platform-tools",
+        "//tools/adt/idea/studio:android-studio.linux.zip",
+        "//tools/base/build-system:gradle-distrib-7.2",
+        "@system_image_android-29_default_x86_64//:x86_64-android-29-images",
+    ],
+    module = ":intellij.android.core.integration",
+    tags = [
+        "block-network",
+        "no_mac",  # Untested
+        "no_windows",  # Untested
+    ],
+    test_class = "com.android.tools.idea.EmulatorBeforeStudioTest",
+)
+
+iml_test(
+    name = "EmulatorAfterStudioTest",
+    data = [
+        ":minapp",
+        "//prebuilts/studio/sdk:emulator",
+        "//prebuilts/studio/sdk:platform-tools",
+        "//tools/adt/idea/studio:android-studio.linux.zip",
+        "//tools/base/build-system:gradle-distrib-7.2",
+        "@system_image_android-29_default_x86_64//:x86_64-android-29-images",
+    ],
+    module = ":intellij.android.core.integration",
+    tags = [
+        "block-network",
+        "manual",  # Test occasionally fails because emulator can't fully boot
+        "no_mac",  # Untested
+        "no_windows",  # Untested
+    ],
+    test_class = "com.android.tools.idea.EmulatorAfterStudioTest",
+)
+
+iml_test(
+    name = "DeploymentTest",
     timeout = "long",
     data = select({
         "@platforms//os:linux": [
@@ -74,18 +124,21 @@ iml_test(
             "//tools/adt/idea/studio:android-studio.mac.zip",
         ],
     }) + [
-        ":appinsights",
-        ":openproject_deps",
+        ":buildproject_deps",
+        ":minapp",
+        "//prebuilts/studio/sdk:build-tools/latest",
+        "//prebuilts/studio/sdk:emulator",
+        "//prebuilts/studio/sdk:platform-tools",
         "//tools/base/build-system:gradle-distrib-7.2",
+        "@system_image_android-29_default_x86_64//:x86_64-android-29-images",
     ],
     module = ":intellij.android.core.integration",
     tags = [
         "block-network",
-        "manual",  # b/235857661 flaky
-        "no_mac",  # Untested.
-        "no_windows",
+        "no_mac",  # Untested
+        "no_windows",  # Untested
     ],
-    test_class = "com.google.services.firebase.insights.AppInsightsTest",
+    test_class = "com.android.tools.idea.DeploymentTest",
 )
 
 maven_repository(
@@ -93,7 +146,10 @@ maven_repository(
     # keep sorted: for buildifier
     artifacts = [
         "@maven//:com.android.tools.build.gradle_7.1.0",
-        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.5.31",
+        "@maven//:org.jetbrains.kotlin.kotlin-compiler_1.7.0",
+        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin-api_1.7.0",
+        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.7.0",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.7.0",
     ],
 )
 
@@ -128,17 +184,14 @@ maven_repository(
     artifacts = [
         "@maven//:com.android.tools.build.aapt2_7.1.0-7984345",
         "@maven//:com.android.tools.build.gradle_7.1.0",
-        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.5.31",
-        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.5.31",
+        "@maven//:org.jetbrains.kotlin.kotlin-compiler_1.7.0",
+        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin-api_1.7.0",
+        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.7.0",
+        "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.7.0",
     ],
 )
 
 filegroup(
     name = "minapp",
     srcs = glob(["testData/minapp/**"]),
-)
-
-filegroup(
-    name = "appinsights",
-    srcs = glob(["testData/appinsights/**"]),
 )

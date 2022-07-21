@@ -40,9 +40,11 @@ import com.android.tools.idea.gradle.model.impl.IdeAndroidLibraryImpl
 import com.android.tools.idea.gradle.model.impl.IdeAndroidProjectImpl
 import com.android.tools.idea.gradle.model.impl.IdeApiVersionImpl
 import com.android.tools.idea.gradle.model.impl.IdeBasicVariantImpl
+import com.android.tools.idea.gradle.model.impl.IdeBuildImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTasksAndOutputInformationImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTypeContainerImpl
 import com.android.tools.idea.gradle.model.impl.IdeBuildTypeImpl
+import com.android.tools.idea.gradle.model.impl.IdeCompositeBuildMapImpl
 import com.android.tools.idea.gradle.model.impl.IdeDependenciesCoreImpl
 import com.android.tools.idea.gradle.model.impl.IdeDependenciesInfoImpl
 import com.android.tools.idea.gradle.model.impl.IdeDependencyCoreImpl
@@ -53,6 +55,7 @@ import com.android.tools.idea.gradle.model.impl.IdeLintOptionsImpl
 import com.android.tools.idea.gradle.model.impl.IdeModuleLibraryImpl
 import com.android.tools.idea.gradle.model.impl.IdeProductFlavorContainerImpl
 import com.android.tools.idea.gradle.model.impl.IdeProductFlavorImpl
+import com.android.tools.idea.gradle.model.impl.IdeProjectPathImpl
 import com.android.tools.idea.gradle.model.impl.IdeSourceProviderContainerImpl
 import com.android.tools.idea.gradle.model.impl.IdeSourceProviderImpl
 import com.android.tools.idea.gradle.model.impl.IdeVariantBuildInformationImpl
@@ -166,6 +169,8 @@ import com.intellij.testFramework.replaceService
 import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.util.ThrowableConsumer
+import com.intellij.util.messages.MessageBus
+import com.intellij.util.messages.MessageBusConnection
 import org.jetbrains.android.AndroidTestBase
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.annotations.SystemDependent
@@ -1018,12 +1023,23 @@ fun AndroidProjectStubBuilder.buildAndroidProjectStub(): IdeAndroidProjectImpl {
   val projectType = projectType
   return IdeAndroidProjectImpl(
     agpVersion = agpVersion,
-    name = projectName,
+    projectPath = IdeProjectPathImpl(
+      rootBuildId = File("/"),
+      buildId = File("/"),
+      buildName = ":",
+      projectPath = gradleProjectPath
+    ),
     projectType = projectType,
     defaultConfig = defaultConfig,
     buildTypes = buildTypes,
     productFlavors = this.flavorDimensions.orEmpty().flatMap { this.productFlavorContainers(it) },
-    basicVariants = this.variants.map { IdeBasicVariantImpl(name = it.name) },
+    basicVariants = this.variants.map {
+      IdeBasicVariantImpl(
+        name = it.name,
+        it.mainArtifact.applicationId,
+        it.androidTestArtifact?.applicationId
+      )
+    },
     flavorDimensions = this.flavorDimensions.orEmpty(),
     compileTarget = getLatestAndroidPlatform(),
     bootClasspath = listOf(),
@@ -1345,6 +1361,13 @@ private fun setupTestProjectFromAndroidModelCore(
   projectDataNode.createChild(
     AndroidProjectKeys.IDE_LIBRARY_TABLE,
     internedModels.createResolvedLibraryTable()
+  )
+  projectDataNode.createChild(
+    AndroidProjectKeys.IDE_COMPOSITE_BUILD_MAP,
+    IdeCompositeBuildMapImpl(
+      builds = listOf(IdeBuildImpl(buildName = ":", buildId = rootProjectBasePath)),
+      gradleSupportsDirectTaskInvocation = true
+    )
   )
 
   setupDataNodesForSelectedVariant(project, toSystemIndependentName(rootProjectBasePath.path), androidModels, projectDataNode, libraryResolver)
@@ -1814,7 +1837,8 @@ data class OpenPreparedProjectOptions @JvmOverloads constructor(
   val syncExceptionHandler: (Exception) -> Unit = { e ->
     println(e.message)
     e.printStackTrace()
-  }
+  },
+  val subscribe: (MessageBusConnection) -> Unit = {},
 )
 
 /**
@@ -1847,40 +1871,48 @@ private fun <T> openPreparedProject(
   }
 
   fun body(): T {
-    val project = runInEdtAndGet {
-      PlatformTestUtil.dispatchAllEventsInIdeEventQueue();
-
-      // This method is used to simulate what happens when the IDE is restarted before re-opening a project in order to catch issues
-      // that cannot be reproduced otherwise.
-      clearKotlinPluginCompilerArgumentCaches()
-
-      val project = GradleProjectImporter.withAfterCreate(
-        afterCreate = { project -> injectSyncOutputDumper(project, project, options.outputHandler, options.syncExceptionHandler) }
-      ) {
-        ProjectUtil.openOrImport(
-          projectPath.toPath(),
-          OpenProjectTask(
-            projectToClose = null,
-            forceOpenInNewFrame = true
-          )
-        )!!
-      }
-      // Unfortunately we do not have start-up activities run in tests so we have to trigger a refresh here.
-      emulateStartupActivityForTest(project)
-      PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
-      project.maybeOutputDiagnostics()
-      project
-    }
+    val disposable = Disposer.newDisposable()
     try {
-      options.verifyOpened(project)
-      return action(project)
+      val project = runInEdtAndGet {
+        PlatformTestUtil.dispatchAllEventsInIdeEventQueue();
+
+        // This method is used to simulate what happens when the IDE is restarted before re-opening a project in order to catch issues
+        // that cannot be reproduced otherwise.
+        clearKotlinPluginCompilerArgumentCaches()
+
+        val project = GradleProjectImporter.withAfterCreate(
+          afterCreate = { project ->
+            project.messageBus.connect(disposable).let { options.subscribe(it) }
+            injectSyncOutputDumper(project, project, options.outputHandler, options.syncExceptionHandler)
+          }
+        ) {
+          ProjectUtil.openOrImport(
+            projectPath.toPath(),
+            OpenProjectTask(
+              projectToClose = null,
+              forceOpenInNewFrame = true
+            )
+          )!!
+        }
+        // Unfortunately we do not have start-up activities run in tests so we have to trigger a refresh here.
+        emulateStartupActivityForTest(project)
+        PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+        project.maybeOutputDiagnostics()
+        project
+      }
+      try {
+        options.verifyOpened(project)
+        return action(project)
+      } finally {
+        runInEdtAndWait {
+          PlatformTestUtil.saveProject(project, true)
+          ProjectUtil.closeAndDispose(project)
+          PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+        }
+      }
     }
     finally {
-      runInEdtAndWait {
-        PlatformTestUtil.saveProject(project, true)
-        ProjectUtil.closeAndDispose(project)
-        PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
-      }
+      Disposer.dispose(disposable)
     }
   }
 
@@ -2107,34 +2139,21 @@ fun <T> Project.buildAndWait(eventHandler: (BuildEvent) -> Unit = {}, invoker: (
 
 // HACK: b/143864616 and ag/14916674 Bazel hack, until missing dependencies are available in "offline-maven-repo"
 fun updatePluginsResolutionManagement(origContent: String, pluginDefinitions: String): String {
-  fun findPluginVersion(pluginId: String): String? = pluginDefinitions.lines()
-    .firstOrNull { it.contains(pluginId) && it.contains("version") }
-    ?.replace(" apply false", "")?.replace("'", "")
-    ?.substringAfterLast(" ")
-
-  fun pluginIdResolutionText(pluginId: String, resolution: String): String =
-    """
-          if (requested.id.id == "$pluginId") {
-              useModule("$resolution:${'$'}{requested.version}")
-          }
+  val pluginsResolutionStrategy =
     """
 
-  val pluginsResolutionStrategy = findPluginVersion("com.android.application")?.let { agpVersion ->
-    """
       resolutionStrategy {
         eachPlugin {
-          if (requested.id.namespace == "com.android") {
-              useModule("com.android.tools.build:gradle:$agpVersion")
+          if (requested.id.id == "com.google.android.libraries.mapsplatform.secrets-gradle-plugin") {
+              useModule("com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin:${'$'}{requested.version}")
           }
-    """.trimEnd() +
-    pluginIdResolutionText("com.google.android.libraries.mapsplatform.secrets-gradle-plugin",
-                           "com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin") +
-    pluginIdResolutionText("org.jetbrains.kotlin.android", "org.jetbrains.kotlin:kotlin-gradle-plugin") +
-    """
+          if (requested.id.id == "org.jetbrains.kotlin.android" && requested.version == "1.6.21") {
+              // KGP marker for 1.6.21 is not in the offline repo; remove this once Compose tests are updated to 1.7.0+
+              useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.21")
+          }
         }
       }
-    """
-  } ?: ""
+    """.trimMargin()
 
   return origContent.replace("pluginManagement {", "pluginManagement { $pluginsResolutionStrategy")
 }
@@ -2149,4 +2168,3 @@ private fun Project.maybeOutputDiagnostics() {
       .forEach { println(it.name) }
   }
 }
-

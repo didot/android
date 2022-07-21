@@ -163,9 +163,10 @@ class EmulatorToolWindowManagerTest {
     assertThat(call.methodName).isEqualTo("android.emulation.control.EmulatorController/setVmState")
     assertThat(TextFormat.shortDebugString(call.request)).isEqualTo("state: SHUTDOWN")
 
-    // The panel corresponding the the first emulator goes away and is replaced by the placeholder panel.
+    // The panel corresponding the first emulator goes away and is replaced by the empty state panel.
     assertThat(contentManager.contents.size).isEqualTo(1)
-    assertThat(contentManager.contents[0].displayName).isEqualTo("No Running Emulators")
+    assertThat(contentManager.contents[0].component).isInstanceOf(EmptyStatePanel::class.java)
+    assertThat(contentManager.contents[0].displayName).isNull()
   }
 
   @Test
@@ -191,7 +192,8 @@ class EmulatorToolWindowManagerTest {
     // Simulate an emulator crash.
     emulator.crash()
     controllers.first().sendKey(KeyboardEvent.newBuilder().setText(" ").build())
-    waitForCondition(5, TimeUnit.SECONDS) { contentManager.contents[0].displayName == "No Running Emulators" }
+    waitForCondition(5, TimeUnit.SECONDS) { contentManager.contents[0].displayName == null }
+    assertThat(contentManager.contents[0].component).isInstanceOf(EmptyStatePanel::class.java)
   }
 
   @Test
@@ -289,6 +291,9 @@ class EmulatorToolWindowManagerTest {
   fun testPhysicalDevice() {
     if (SystemInfo.isWindows) {
       return // For some unclear reason the test fails on Windows with java.lang.UnsatisfiedLinkError: no jniavcodec in java.library.path.
+    }
+    if (SystemInfo.isMac && !SystemInfo.isOsVersionAtLeast("10.15")) {
+      return // FFmpeg library requires Mac OS 10.15+.
     }
     assertThat(windowFactory.shouldBeAvailable(project)).isTrue()
     windowFactory.createToolWindowContent(project, toolWindow)

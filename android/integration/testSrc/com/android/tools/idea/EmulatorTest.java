@@ -15,34 +15,22 @@
  */
 package com.android.tools.idea;
 
-import com.android.testutils.TestUtils;
 import com.android.tools.asdriver.tests.Adb;
-import com.android.tools.asdriver.tests.AndroidSdk;
-import com.android.tools.asdriver.tests.Display;
+import com.android.tools.asdriver.tests.AndroidSystem;
 import com.android.tools.asdriver.tests.Emulator;
-import com.android.tools.asdriver.tests.TestFileSystem;
-import java.util.HashMap;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 public class EmulatorTest {
   @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
+  public AndroidSystem system = AndroidSystem.basic();
 
   @Test
   public void runEmulatorTest() throws Exception {
-    TestFileSystem fileSystem = new TestFileSystem(tempFolder.getRoot().toPath());
-    HashMap<String, String> env = new HashMap<>();
-    AndroidSdk sdk = new AndroidSdk(TestUtils.resolveWorkspacePath(TestUtils.getRelativeSdk()));
-    sdk.install(env);
-
-    Emulator.createEmulator(fileSystem, TestUtils.getWorkspaceRoot().resolve("../system_image_android-29_default_x86_64"));
-
-    try (Display display = Display.createDefault();
-         Emulator emulator = Emulator.start(fileSystem, sdk, display, "emu")) {
+    try (Adb adb = system.runAdb();
+         Emulator emulator = system.runEmulator()) {
       emulator.waitForBoot();
-      Adb.waitFor(emulator);
+      adb.waitForDevice(emulator);
     }
   }
 }

@@ -19,7 +19,6 @@ import android.widget.TextView
 import com.android.ide.common.rendering.api.ViewInfo
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.rendering.RenderResult
-import com.android.tools.idea.uibuilder.lint.createDefaultHyperLinkListener
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintAnalyzer
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintErrorType
 import com.android.tools.idea.uibuilder.visual.visuallint.VisualLintInspection
@@ -65,8 +64,6 @@ object LongTextAnalyzer : VisualLintAnalyzer() {
     return false
   }
 
-  override fun getHyperlinkListener() = createDefaultHyperLinkListener()
-
   private fun createIssueContent(view: ViewInfo): VisualLintIssueContent {
     val summary = "${nameWithId(view)} has lines containing more than 120 characters"
     val url = "https://material.io/design/layout/responsive-layout-grid.html#breakpoints"
@@ -76,7 +73,7 @@ object LongTextAnalyzer : VisualLintAnalyzer() {
         .newline()
         .add("Material Design recommends reducing the width of TextView or switching to a ")
         .addLink("multi-column layout", url)
-        .add(" for breakpoints over 600dp.")
+        .add(" for breakpoints >= 600dp.")
     }
     return VisualLintIssueContent(view, summary, provider)
   }

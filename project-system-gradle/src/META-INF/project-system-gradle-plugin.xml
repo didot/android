@@ -101,9 +101,14 @@
                            order="first"/>
     <completion.contributor language="TOML"
                             implementationClass="com.android.tools.idea.gradle.completions.TomlVersionRefCompletionContributor" />
+    <completion.contributor language="TOML"
+                            implementationClass="com.android.tools.idea.gradle.completions.TomlVersionCatalogCompletionContributor" />
     <completion.confidence language="TOML"
                            id="EnableAutoPopupInLiteralForTomlVersionRefDependencyCompletion"
                            implementationClass="com.android.tools.idea.gradle.completions.EnableAutoPopupInLiteralForTomlVersionRefDependencyCompletion" />
+    <completion.confidence language="TOML"
+                           id="EnableAutoPopupInTomlVersionCatalogCompletion"
+                           implementationClass="com.android.tools.idea.gradle.completions.EnableAutoPopupInTomlVersionCatalogCompletion" />
     <renameHandler implementation="com.android.tools.idea.gradle.refactoring.GradleRenameModuleHandler" order="last"/>
     <renameInputValidator implementation="com.android.tools.idea.gradle.refactoring.GradleAwareSourceRootRenameValidator"/>
     <editorNotificationProvider implementation="com.android.tools.idea.gradle.notification.ProjectSyncStatusNotificationProvider"/>
@@ -128,7 +133,7 @@
   </projectListeners>
   <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
     <orderEnumerationHandlerFactory implementation="com.android.tools.idea.gradle.project.AndroidGradleOrderEnumeratorHandlerFactory"/>
-    <projectResolve implementation="com.android.tools.idea.gradle.project.sync.idea.AndroidGradleProjectResolver" order="first"/>
+    <projectResolve implementation="com.android.tools.idea.gradle.project.sync.idea.AndroidGradleProjectResolver"/>
     <projectResolve implementation="org.jetbrains.kotlin.android.configure.KotlinAndroidMPPGradleProjectResolver"/>
     <resolve.contributor implementation="com.android.tools.idea.gradle.service.resolve.AndroidDslContributor"/>
     <taskManager implementation="com.android.tools.idea.gradle.task.AndroidGradleTaskManager"/>
@@ -146,6 +151,7 @@
     <issueChecker implementation="com.android.tools.idea.gradle.project.sync.errors.GradleBrokenPipeIssueChecker"/>
     <issueChecker implementation="com.android.tools.idea.gradle.project.sync.errors.GradleDistributionInstallIssueChecker"/>
     <issueChecker implementation="com.android.tools.idea.gradle.project.sync.errors.GradleDslMethodNotFoundIssueChecker"/>
+    <issueChecker implementation="com.android.tools.idea.gradle.project.sync.errors.IncompatibleAgpVersionsIssueChecker"/>
     <issueChecker implementation="com.android.tools.idea.gradle.project.sync.errors.InternetConnectionIssueChecker"/>
     <issueChecker implementation="com.android.tools.idea.gradle.project.sync.errors.MissingBuildToolsIssueChecker"/>
     <issueChecker implementation="com.android.tools.idea.gradle.project.sync.errors.MissingCMakeIssueChecker"/>

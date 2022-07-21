@@ -24,15 +24,16 @@ import com.android.tools.adtui.swing.FakeUi
 import com.android.tools.idea.common.model.NlModel
 import com.android.tools.idea.common.surface.NopInteractionHandler
 import com.android.tools.idea.common.surface.SceneViewPeerPanel
-import com.android.tools.idea.compose.preview.navigation.PreviewNavigationHandler
+import com.android.tools.idea.compose.preview.navigation.ComposePreviewNavigationHandler
 import com.android.tools.idea.compose.preview.scene.ComposeSceneComponentProvider
 import com.android.tools.idea.compose.preview.util.ComposePreviewElementInstance
-import com.android.tools.idea.compose.preview.util.PreviewDisplaySettings
 import com.android.tools.idea.compose.preview.util.SingleComposePreviewElementInstance
 import com.android.tools.idea.concurrency.AndroidDispatchers.workerThread
 import com.android.tools.idea.editors.build.ProjectBuildStatusManager
 import com.android.tools.idea.editors.build.ProjectStatus
 import com.android.tools.idea.flags.StudioFlags
+import com.android.tools.idea.preview.PreviewDisplaySettings
+import com.android.tools.idea.preview.PreviewElementProvider
 import com.android.tools.idea.projectsystem.NamedIdeaSourceProviderBuilder
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.android.tools.idea.testing.addFileToProjectAndInvalidate
@@ -175,7 +176,7 @@ class ComposePreviewViewImplTest {
       fun main() {}
     """.trimIndent())
 
-    val navigationHandler = PreviewNavigationHandler()
+    val navigationHandler = ComposePreviewNavigationHandler()
     val interactionHandler = NopInteractionHandler
     val sceneComponentProvider = ComposeSceneComponentProvider()
 
@@ -215,7 +216,7 @@ class ComposePreviewViewImplTest {
                                                   composePreviewManager: ComposePreviewManager,
                                                   surface: NlDesignSurface = previewView.mainSurface) {
     runBlocking(workerThread) {
-      surface.updatePreviewsAndRefresh(
+      surface.updateComposePreviewsAndRefresh(
         false,
         previewProvider,
         Logger.getInstance(ComposePreviewViewImplTest::class.java),

@@ -257,13 +257,10 @@ class AddLocaleActionTest {
         listOf(
                 "ab",
                 "eu",
-                "be-BY",
                 "en-ZA",
                 "it-CH",
                 "ja",
-                "li-NL",
                 "ru",
-                "sah-RU",
                 "ng",
                 "ii",
                 "es-US",

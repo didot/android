@@ -20,9 +20,13 @@ import com.android.ddmlib.AndroidDebugBridge
 import com.android.fakeadbserver.services.ServiceOutput
 import com.android.testutils.MockitoKt.any
 import com.android.testutils.MockitoKt.whenever
+import com.android.tools.deployer.DeployerException
+import com.android.tools.deployer.model.App
+import com.android.tools.deployer.model.component.AppComponent
+import com.android.tools.idea.run.AndroidRemoteDebugProcessHandler
 import com.android.tools.idea.run.configuration.AndroidConfigurationProgramRunner
-import com.android.tools.idea.run.configuration.AndroidTileConfiguration
 import com.android.tools.idea.run.configuration.AndroidTileConfigurationType
+import com.android.tools.idea.run.configuration.AppRunSettings
 import com.google.common.truth.Truth.assertThat
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.Executor
@@ -32,6 +36,8 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.impl.ConsoleViewImpl
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.application.invokeLater
+import com.intellij.util.ExceptionUtil
+import io.ktor.util.reflect.instanceOf
 import org.junit.Test
 import org.mockito.Mockito
 import java.util.concurrent.CompletableFuture
@@ -56,9 +62,6 @@ class AndroidTileConfigurationExecutorTest : AndroidConfigurationExecutorBaseTes
   private fun getExecutionEnvironment(executorInstance: Executor): ExecutionEnvironment {
     val configSettings = RunManager.getInstance(project).createConfiguration(
       "run Tile", AndroidTileConfigurationType().configurationFactories.single())
-    val androidTileConfiguration = configSettings.configuration as AndroidTileConfiguration
-    androidTileConfiguration.setModule(myModule)
-    androidTileConfiguration.componentName = componentName
     return ExecutionEnvironment(executorInstance, AndroidConfigurationProgramRunner(), configSettings, project)
   }
 
@@ -92,14 +95,23 @@ class AndroidTileConfigurationExecutorTest : AndroidConfigurationExecutorBaseTes
     val device = AndroidDebugBridge.getBridge()!!.devices.single()
 
     val deployTarget = TestDeployTarget(device)
-    val executor = Mockito.spy(AndroidTileConfigurationExecutor(env, deployTarget))
+    val settings = object : AppRunSettings {
+      override val deployOptions = DeployOptions(emptyList(), "", true, true)
+      override val componentLaunchOptions = TileLaunchOptions().apply {
+        componentName = this@AndroidTileConfigurationExecutorTest.componentName
+      }
+      override val module = myModule
+    }
+
+    val executor = Mockito.spy(
+      AndroidTileConfigurationExecutor(env, deployTarget, settings, TestApplicationIdProvider(appId), TestApksProvider(appId)))
 
     val app = createApp(device, appId, servicesName = listOf(componentName), activitiesName = emptyList())
     val appInstaller = TestApplicationInstaller(appId, app)
     // Mock app installation.
     Mockito.doReturn(appInstaller).whenever(executor).getApplicationInstaller(any())
 
-    val runContentDescriptor = executor.doOnDevices(listOf(device)).blockingGet(10, TimeUnit.SECONDS)!!
+    val runContentDescriptor = executor.run().blockingGet(10, TimeUnit.SECONDS)!!
 
     // Verify commands sent to device.
 
@@ -153,13 +165,24 @@ class AndroidTileConfigurationExecutorTest : AndroidConfigurationExecutorBaseTes
     val device = AndroidDebugBridge.getBridge()!!.devices.single()
 
     val deployTarget = TestDeployTarget(device)
-    val executor = Mockito.spy(AndroidTileConfigurationExecutor(env, deployTarget))
+    val settings = object : AppRunSettings {
+      override val deployOptions = DeployOptions(emptyList(), "", true, true)
+      override val componentLaunchOptions = TileLaunchOptions().apply {
+        componentName = this@AndroidTileConfigurationExecutorTest.componentName
+      }
+      override val module = myModule
+    }
+
+    val executor = Mockito.spy(
+      AndroidTileConfigurationExecutor(env, deployTarget, settings, TestApplicationIdProvider(appId), TestApksProvider(appId)))
 
     val app = createApp(device, appId, servicesName = listOf(componentName), activitiesName = emptyList())
     val appInstaller = TestApplicationInstaller(appId, app) // Mock app installation.
     Mockito.doReturn(appInstaller).whenever(executor).getApplicationInstaller(any())
 
-    val e = assertFailsWith<ExecutionException> { executor.doOnDevices(listOf(device)) }
+    val e = assertFailsWith<Throwable> { executor.debug().blockingGet(10, TimeUnit.SECONDS) }.let {
+      ExceptionUtil.findCause(it, ExecutionException::class.java)
+    }
     assertThat(e).hasMessageThat().contains("Error while setting the tile, message: $failedResponse")
   }
 
@@ -182,20 +205,33 @@ class AndroidTileConfigurationExecutorTest : AndroidConfigurationExecutorBaseTes
         checkVersion -> serviceOutput.writeStdout(
           "Broadcasting: Intent { act=com.google.android.wearable.app.DEBUG_SURFACE flg=0x400000 (has extras) }\n" +
           "Broadcast completed: result=1, data=\"3\"")
-        addTile -> serviceOutput.writeStdout(failedResponse)
       }
     }
 
     val device = AndroidDebugBridge.getBridge()!!.devices.single()
 
     val deployTarget = TestDeployTarget(device)
-    val executor = Mockito.spy(AndroidTileConfigurationExecutor(env, deployTarget))
+    val settings = object : AppRunSettings {
+      override val deployOptions = DeployOptions(emptyList(), "", true, true)
+      override val componentLaunchOptions = TileLaunchOptions().apply {
+        componentName = this@AndroidTileConfigurationExecutorTest.componentName
+      }
+      override val module = myModule
+    }
 
-    val app = createApp(device, appId, servicesName = listOf(componentName), activitiesName = emptyList())
+    val executor = Mockito.spy(
+      AndroidTileConfigurationExecutor(env, deployTarget, settings, TestApplicationIdProvider(appId), TestApksProvider(appId)))
+
+    val app = Mockito.mock(App::class.java)
+    Mockito.doThrow(DeployerException.componentActivationException(failedResponse))
+      .whenever(app).activateComponent(any(), any(), any(AppComponent.Mode::class.java), any())
     val appInstaller = TestApplicationInstaller(appId, app) // Mock app installation.
     Mockito.doReturn(appInstaller).whenever(executor).getApplicationInstaller(any())
 
-    val e = assertFailsWith<ExecutionException> { executor.doOnDevices(listOf(device)) }
+    val e = assertFailsWith<Throwable> { executor.run().blockingGet(10, TimeUnit.SECONDS) }.let {
+      ExceptionUtil.findCause(it, ExecutionException::class.java)
+    }
+
     assertThat(e).hasMessageThat().contains("Error while setting the tile, message: $failedResponse")
   }
 
@@ -235,18 +271,24 @@ class AndroidTileConfigurationExecutorTest : AndroidConfigurationExecutorBaseTes
     val device = AndroidDebugBridge.getBridge()!!.devices.single()
 
     val deployTarget = TestDeployTarget(device)
-    val executor = Mockito.spy(AndroidTileConfigurationExecutor(env, deployTarget))
+    val settings = object : AppRunSettings {
+      override val deployOptions = DeployOptions(emptyList(), "", true, true)
+      override val componentLaunchOptions = TileLaunchOptions().apply {
+        componentName = this@AndroidTileConfigurationExecutorTest.componentName
+      }
+      override val module = myModule
+    }
+
+    val executor = Mockito.spy(
+      AndroidTileConfigurationExecutor(env, deployTarget, settings, TestApplicationIdProvider(appId), TestApksProvider(appId)))
 
     val app = createApp(device, appId, servicesName = listOf(componentName), activitiesName = emptyList())
     val appInstaller = TestApplicationInstaller(appId, app)
     // Mock app installation.
     Mockito.doReturn(appInstaller).whenever(executor).getApplicationInstaller(any())
 
-    val runContentDescriptor = executor.doOnDevices(listOf(device)).blockingGet(10, TimeUnit.SECONDS)
-    assertThat(runContentDescriptor!!.processHandler).isNotNull()
-
-    // Verify previous app instance is terminated.
-    Mockito.verify(executor, Mockito.times(1)).terminatePreviousAppInstance(any())
+    val runContentDescriptor = executor.debug().blockingGet(10, TimeUnit.SECONDS)
+    assertThat(runContentDescriptor!!.processHandler).instanceOf(AndroidRemoteDebugProcessHandler::class)
 
     // Stop configuration.
     runContentDescriptor.processHandler!!.destroyProcess()

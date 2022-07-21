@@ -29,6 +29,7 @@ COMMON_DATA = [
     "//tools/base/build-system:android_gradle_plugin.zip",
     "//tools/base/build-system:android_gradle_plugin_runtime_dependencies",
     "//tools/base/build-system:gradle-distrib",
+    "//tools/base/build-system/integration-test:kotlin_gradle_plugin_prebuilts",
     "//tools/base/third_party/kotlin:kotlin-m2repository",
     "//tools/data-binding:data_binding_runtime.zip",
     "//tools/vendor/google/testing/display:xvfb",
@@ -197,13 +198,9 @@ maven_repository(
         "@maven//:javax.annotation.javax.annotation-api_1.2",
         "@maven//:junit.junit_4.13.2",
         "@maven//:org.jdeferred.jdeferred-android-aar_1.2.3",
-        "@maven//:org.jetbrains.kotlin.kotlin-android-extensions-runtime_1.6.20",
         "@maven//:org.jetbrains.kotlin.kotlin-android-extensions-runtime_1.6.21",
-        "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.6.20",
         "@maven//:org.jetbrains.kotlin.kotlin-gradle-plugin_1.6.21",
-        "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.6.20",
         "@maven//:org.jetbrains.kotlin.kotlin-reflect_1.6.21",
-        "@maven//:org.jetbrains.kotlin.kotlin-script-runtime_1.6.20",
         "@maven//:org.jetbrains.kotlin.kotlin-script-runtime_1.6.21",
         "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk7_1.4.32",
         "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.6.21",
@@ -603,9 +600,7 @@ java_test(
     ]),
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.layoutinspector.LayoutInspectorTest"],
     tags = COMMON_TAGS + [
-        "qa_smoke",
-        "qa_unreliable",  # b/139761045
-        "qa_smoke_unreliable",  # b/139761045
+        "manual",
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],
@@ -635,6 +630,21 @@ java_test(
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.webp.FilterIconTest"],
     tags = COMMON_TAGS + [
         "qa_fast",
+    ],
+    test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
+    runtime_deps = [":intellij.android.guiTests_testlib"],
+)
+
+java_test(
+    name = "BuildAnalyzerTest",
+    data = COMMON_DATA + [
+        "//prebuilts/studio/layoutlib/data:framework_res.jar",
+    ] + glob([
+        "testData/BuildAttributionApp/**",
+    ]),
+    jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.build.analyzer.BuildAnalyzerTest"],
+    tags = COMMON_TAGS + [
+        "qa_smoke",
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],
@@ -1739,9 +1749,7 @@ java_test(
     ]),
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.uibuilder.ThemeEditorTest"],
     tags = COMMON_TAGS + [
-        "qa_fast",
-        "qa_unreliable",  # b/115685973
-        "qa_fast_unreliable",  # b/115685973
+        "manual",
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],

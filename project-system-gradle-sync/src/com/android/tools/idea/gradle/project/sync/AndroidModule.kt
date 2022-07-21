@@ -21,6 +21,7 @@ import com.android.ide.common.repository.GradleVersion
 import com.android.ide.gradle.model.ArtifactIdentifier
 import com.android.ide.gradle.model.ArtifactIdentifierImpl
 import com.android.ide.gradle.model.LegacyApplicationIdModel
+import com.android.ide.gradle.model.LegacyV1AgpVersionModel
 import com.android.ide.gradle.model.artifacts.AdditionalClassifierArtifactsModel
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType
 import com.android.tools.idea.gradle.model.IdeArtifactLibrary
@@ -114,15 +115,23 @@ sealed class DeliverableGradleModule(
 sealed class BasicIncompleteGradleModule(val gradleProject: BasicGradleProject)
 
 /**
- * The container class of Android modules that can be fetched using V2 sync.
+ * The container class of Android modules that can be fetched using V2 builder models.
  */
 class BasicV2AndroidModuleGradleProject(gradleProject: BasicGradleProject, val versions: Versions) :
   BasicIncompleteGradleModule(gradleProject)
 
 /**
- * The container class of Android and non-Android modules that cannot be fetched using V2 nor parallel sync.
+*  The container class of Android modules that can be fetched using V1 builder models.
+ *  legacyV1AgpVersion: The model that contains the agp version used by the AndroidProject. This can be null if the AndroidProject is using
+ *  an AGP version lower than the minimum supported version by Android Studio
+*/
+class BasicV1AndroidModuleGradleProject(gradleProject: BasicGradleProject, val legacyV1AgpVersion: LegacyV1AgpVersionModel?) :
+  BasicIncompleteGradleModule(gradleProject)
+
+/**
+ * The container class of non-Android modules.
  */
-class BasicNonV2IncompleteGradleModule(gradleProject: BasicGradleProject) : BasicIncompleteGradleModule(gradleProject)
+class BasicNonAndroidIncompleteGradleModule(gradleProject: BasicGradleProject) : BasicIncompleteGradleModule(gradleProject)
 
 /**
  * The container class for Java module, containing its Android models handled by the Android plugin.
@@ -157,8 +166,9 @@ class DeliverableJavaModule(
 @VisibleForTesting
 sealed class AndroidModule constructor(
   val agpVersion: GradleVersion?,
-  val buildName: String?,
-  val buildNameMap: Map<String, BuildId>?,
+  val buildName: String,
+  val buildNameMap: Map<String, BuildId>,
+  val buildIdMap: Map<BuildId, String>,
   gradleProject: BasicGradleProject,
   val androidProject: IdeAndroidProjectImpl,
   /** All configured variant names if supported by the AGP version. */
@@ -178,7 +188,6 @@ sealed class AndroidModule constructor(
     return nativeModule?.variants?.firstOrNull { it.name == variantName }?.abis?.map { it.name }
            ?: nativeAndroidProject?.variantInfos?.get(variantName)?.abiNames
   }
-
 
   enum class NativeModelVersion { None, V1, V2 }
 
@@ -208,8 +217,9 @@ sealed class AndroidModule constructor(
 
   class V1(
     agpVersion: GradleVersion?,
-    buildName: String?,
-    buildNameMap: Map<String, BuildId>?,
+    buildName: String,
+    buildNameMap: Map<String, BuildId>,
+    buildIdMap: Map<BuildId, String>,
     gradleProject: BasicGradleProject,
     androidProject: IdeAndroidProjectImpl,
     /** All configured variant names if supported by the AGP version. */
@@ -225,6 +235,7 @@ sealed class AndroidModule constructor(
     agpVersion = agpVersion,
     buildName = buildName,
     buildNameMap = buildNameMap,
+    buildIdMap = buildIdMap,
     gradleProject = gradleProject,
     androidProject = androidProject,
     /** All configured variant names if supported by the AGP version. */
@@ -241,8 +252,9 @@ sealed class AndroidModule constructor(
 
   class V2(
     agpVersion: GradleVersion?,
-    buildName: String?,
-    buildNameMap: Map<String, BuildId>?,
+    buildName: String,
+    buildNameMap: Map<String, BuildId>,
+    buildIdMap: Map<BuildId, String>,
     gradleProject: BasicGradleProject,
     androidProject: IdeAndroidProjectImpl,
     allVariantNames: Set<String>,
@@ -255,6 +267,7 @@ sealed class AndroidModule constructor(
     agpVersion = agpVersion,
     buildName = buildName,
     buildNameMap = buildNameMap,
+    buildIdMap = buildIdMap,
     gradleProject = gradleProject,
     androidProject = androidProject,
     allVariantNames = allVariantNames,

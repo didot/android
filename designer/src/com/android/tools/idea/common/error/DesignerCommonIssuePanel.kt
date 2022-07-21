@@ -63,7 +63,8 @@ private val KEY_DETAIL_VISIBLE = DesignerCommonIssuePanel::class.java.name + "_d
  * The issue panel to load the issues from Layout Editor and Layout Validation Tool.
  */
 class DesignerCommonIssuePanel(parentDisposable: Disposable, private val project: Project, private val treeModel: DesignerCommonIssueModel,
-                               val issueProvider: DesignerCommonIssueProvider<Any>) : Disposable {
+                               val issueProvider: DesignerCommonIssueProvider<Any>,
+                               private val emptyMessageProvider: () -> String) : Disposable {
 
   var sidePanelVisible = PropertiesComponent.getInstance(project).getBoolean(KEY_DETAIL_VISIBLE, true)
     set(value) {
@@ -106,10 +107,13 @@ class DesignerCommonIssuePanel(parentDisposable: Disposable, private val project
     setIssueNodeOrder(problemsViewState.sortBySeverity, problemsViewState.sortByName)
     issueProvider.registerUpdateListener {
       updateTree()
+      updateEmptyMessageIfNeed()
     }
+
     val asyncModel = AsyncTreeModel(treeModel, this)
     tree = Tree(asyncModel)
-    tree.emptyText.text = "No design issue is found"
+    tree.emptyText.text = "Loading..."
+    updateEmptyMessageIfNeed()
     PopupHandler.installPopupMenu(tree, POPUP_HANDLER_ACTION_ID, "Android.Designer.IssuePanel.TreePopup")
 
     tree.isRootVisible = false
@@ -157,6 +161,15 @@ class DesignerCommonIssuePanel(parentDisposable: Disposable, private val project
           surface.revalidateScrollArea()
           surface.repaint()
         }
+      }
+    }
+  }
+
+  private fun updateEmptyMessageIfNeed() {
+    if (issueProvider.getFilteredIssues().isEmpty()) {
+      val newEmptyString = emptyMessageProvider()
+      if (newEmptyString != tree.emptyText.text) {
+        tree.emptyText.text = newEmptyString
       }
     }
   }
@@ -269,6 +282,9 @@ class DesignerIssueNodeVisitor(private val node: DesignerCommonIssueNode) : Tree
 
     if (issue1 is VisualLintRenderIssue || issue2 is VisualLintRenderIssue) {
       if (issue1 !is VisualLintRenderIssue || issue2 !is VisualLintRenderIssue) {
+        return TreeVisitor.Action.CONTINUE
+      }
+      if (issue1.summary != issue2.summary) {
         return TreeVisitor.Action.CONTINUE
       }
       val files1 = issue1.models.toList()

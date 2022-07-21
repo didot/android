@@ -59,7 +59,7 @@ class TomlDslParser(
     fun getVisitor(context: GradlePropertiesDslElement, name: GradleNameElement): TomlRecursiveVisitor = object : TomlRecursiveVisitor() {
       var stringContext = ""
 
-      // TODO(b/200280395): this is just around for print-debugging the visited structure of the Psi.  Probably remove this (and
+      // TODO(xof): this is just around for print-debugging the visited structure of the Psi.  Probably remove this (and
       //  any overrides that are just calls to dovisit { super() }) when the parser is more complete.
       private fun doVisit(description: String, thunk: () -> Unit) {
         val printVisit = false
@@ -128,7 +128,6 @@ class TomlDslParser(
     return when (literal) {
       is String -> TomlPsiFactory(context.dslFile.project, true).createLiteral("\"$literal\"")
       is Int, is Boolean, is BigDecimal -> TomlPsiFactory(context.dslFile.project, true).createLiteral(literal.toString())
-      is ReferenceTo -> null // TODO(b/200280395): we might need this to set versions to version.refs?
       else -> null
     }
   }
@@ -141,7 +140,7 @@ class TomlDslParser(
     return when (literal) {
       is TomlLiteral -> when (val kind = literal.kind) {
         is TomlLiteralKind.String -> kind.value
-        // TODO(b/200280395): handle the other kinds too!  (TomlLiteralKind is sealed so this should be easy(!))
+        // TODO(b/238982591): handle the other kinds too!  (TomlLiteralKind is sealed so this should be easy(!))
         else -> literal.text
       }
       else -> literal.text

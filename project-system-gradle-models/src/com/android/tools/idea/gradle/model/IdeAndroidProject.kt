@@ -20,18 +20,14 @@ import java.io.Serializable
 
 interface IdeAndroidProject : Serializable {
   /**
-   * Returns the model version. This is a string in the format X.Y.Z
-   *
-   * @return a string containing the model version.
+   * Returns the AGP version. This is a string in the format X.Y.Z
    */
   val agpVersion: String
 
   /**
-   * Returns the name of the module.
-   *
-   * @return the name of the module.
+   * Returns a project path together with the name and location of the build containing it.
    */
-  val name: String
+  val projectPath: IdeProjectPath
 
   /**
    * Returns the type of project: Android application, library, feature, instantApp.

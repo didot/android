@@ -24,7 +24,6 @@ import com.android.tools.idea.rendering.RenderTask
 import com.android.tools.idea.rendering.RenderTestUtil
 import com.android.tools.idea.testing.AndroidGradleProjectRule
 import com.android.tools.idea.uibuilder.model.NlComponentRegistrar
-import com.android.tools.idea.uibuilder.visual.analytics.VisualLintUsageTracker
 import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.BottomAppBarAnalyzerInspection
 import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.BottomNavAnalyzerInspection
 import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.BoundsAnalyzerInspection
@@ -110,18 +109,18 @@ class VisualLintAnalysisTest {
           assertEquals(3, it.models.size)
           assertEquals("text_dashboard <TextView> is covered by imageView <ImageView>", it.summary)
           assertEquals(
-            "The content of TextView is partially hidden.<BR/>This may pose a problem for the readability of the text it contains.",
+            "Content of text_dashboard &lt;TextView> is partially covered by imageView &lt;ImageView> in 3 preview configurations." +
+            "<BR/>This may affect text readability. Fix this issue by adjusting widget positioning.",
             it.description)
-          assertNull(it.hyperlinkListener)
         }
         VisualLintErrorType.BOTTOM_NAV -> {
           assertEquals(3, it.models.size)
           assertEquals("Bottom navigation bar is not recommended for breakpoints over 600dp", it.summary)
           assertEquals(
-            "Bottom navigation bar is not recommended for breakpoints over 600dp, which affects 3 preview configurations." +
+            "Bottom navigation bar is not recommended for breakpoints >= 600dp, which affects 3 preview configurations." +
             "<BR/>Material Design recommends replacing bottom navigation bar with " +
             "<A HREF=\"https://material.io/components/navigation-rail/android\">navigation rail</A> or " +
-            "<A HREF=\"https://material.io/components/navigation-drawer/android\">navigation drawer</A> for breakpoints over 600dp.",
+            "<A HREF=\"https://material.io/components/navigation-drawer/android\">navigation drawer</A> for breakpoints >= 600dp.",
             it.description)
           assertNotNull(it.hyperlinkListener)
         }
@@ -132,7 +131,7 @@ class VisualLintAnalysisTest {
             "TextView has lines containing more than 120 characters in 2 preview configurations.<BR/>Material Design recommends " +
             "reducing the width of TextView or switching to a " +
             "<A HREF=\"https://material.io/design/layout/responsive-layout-grid.html#breakpoints\">multi-column layout</A> for " +
-            "breakpoints over 600dp.",
+            "breakpoints >= 600dp.",
             it.description)
           assertNotNull(it.hyperlinkListener)
         }
@@ -143,7 +142,6 @@ class VisualLintAnalysisTest {
             "ImageView is partially hidden in layout because it is not contained within the bounds of its parent in 2 preview " +
             "configurations.<BR/>Fix this issue by adjusting the size or position of ImageView.",
             it.description)
-          assertNull(it.hyperlinkListener)
         }
         VisualLintErrorType.BUTTON_SIZE -> {
           assertEquals(4, it.models.size)
@@ -152,7 +150,6 @@ class VisualLintAnalysisTest {
             "The button Button is wider than 320dp in 4 preview configurations." +
             "<BR/>Material Design recommends buttons to be no wider than 320dp",
             it.description)
-          assertNull(it.hyperlinkListener)
         }
         VisualLintErrorType.TEXT_FIELD_SIZE -> {
           assertEquals(3, it.models.size)
@@ -161,7 +158,6 @@ class VisualLintAnalysisTest {
             "The text field EditText is wider than 488dp in 3 preview configurations." +
             "<BR/>Material Design recommends text fields to be no wider than 488dp",
             it.description)
-          assertNull(it.hyperlinkListener)
         }
         else -> fail("Unexpected visual lint error")
       }
@@ -203,7 +199,6 @@ class VisualLintAnalysisTest {
     wearIssues.forEach {
       assertEquals("Visual Lint Issue", it.category)
       assertEquals(HighlightSeverity.WARNING, it.severity)
-      assertNull(it.hyperlinkListener)
       when (it.components.first().id) {
         "image_view" -> {
           assertEquals(3, it.models.size)
@@ -262,8 +257,7 @@ class VisualLintAnalysisTest {
         task.setDecorations(false)
         try {
           val result = task.render().get()
-          VisualLintService.getInstance(projectRule.project)
-            .analyzeAfterModelUpdate(result, nlModel, VisualLintBaseConfigIssues(), VisualLintUsageTracker.getInstance(null))
+          VisualLintService.getInstance(projectRule.project).analyzeAfterModelUpdate(result, nlModel, VisualLintBaseConfigIssues())
         }
         catch (ex: Exception) {
           throw RuntimeException(ex)

@@ -85,11 +85,11 @@ class LogcatFilterCompletionContributorTest {
       "age:",
       "is:",
       "level:",
-      "line:",
       "message:",
       "name:",
       "package:",
       "package:mine ",
+      "process:",
       "tag:")
   }
 
@@ -106,11 +106,11 @@ class LogcatFilterCompletionContributorTest {
       "age:",
       "is:",
       "level:",
-      "line:",
       "message:",
       "name:",
       "package:",
       "package:mine ",
+      "process:",
       "tag:",
       "favorite item",
       "history item",
@@ -389,11 +389,11 @@ class LogcatFilterCompletionContributorTest {
         "age:",
         "is:",
         "level:",
-        "line:",
         "message:",
         "name:",
         "package:",
         "package:mine ",
+        "process:",
         "tag:")
     }
   }
@@ -421,6 +421,17 @@ class LogcatFilterCompletionContributorTest {
     fixture.completeBasic()
 
     assertThat(fixture.lookupElementStrings).containsExactly("foo ")
+  }
+
+  @Test
+  fun caseInsensitivity() {
+    listOf("tag:t$caret", "tag:T$caret").forEach {
+      fixture.configure(it, tags = setOf("Tag", "tag"))
+
+      fixture.completeBasic()
+
+      assertThat(fixture.lookupElementStrings).named("it").containsExactlyElementsIn(setOf("Tag ", "tag "))
+    }
   }
 }
 

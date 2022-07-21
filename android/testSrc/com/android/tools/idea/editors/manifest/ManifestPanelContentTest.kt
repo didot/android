@@ -25,7 +25,6 @@ import com.android.tools.idea.testing.GradleIntegrationTest
 import com.android.tools.idea.testing.SnapshotComparisonTest
 import com.android.tools.idea.testing.TestProjectPaths
 import com.android.tools.idea.testing.assertAreEqualToSnapshots
-import com.android.tools.idea.testing.assertIsEqualToSnapshot
 import com.android.tools.idea.testing.gradleModule
 import com.android.tools.idea.testing.onEdt
 import com.android.tools.idea.testing.openPreparedProject
@@ -42,6 +41,7 @@ import java.io.File
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import java.io.StringWriter
+import javax.swing.tree.TreeModel
 import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
@@ -63,17 +63,30 @@ class ManifestPanelContentTest : GradleIntegrationTest, SnapshotComparisonTest {
   override fun getTestDataDirectoryWorkspaceRelativePath(): String = "tools/adt/idea/android/testData"
   override fun getAdditionalRepos(): Collection<File> = listOf()
 
-  override val snapshotDirectoryWorkspaceRelativePath = Paths
-    .get(getTestDataDirectoryWorkspaceRelativePath())
-    .resolve(TestProjectPaths.NAVIGATION_EDITOR_INCLUDE_FROM_LIB)
-    .resolve("snapshots")
-    .toString()
+  override lateinit var snapshotDirectoryWorkspaceRelativePath: String
 
   override fun getName(): String = testName.methodName
 
   @Test
-  fun contentForNavigationEditor_includeFromLib() {
-    val projectPath = TestProjectPaths.NAVIGATION_EDITOR_INCLUDE_FROM_LIB
+  fun testProject_navigationEditor_includeFromLib() {
+    testProject(TestProjectPaths.NAVIGATION_EDITOR_INCLUDE_FROM_LIB)
+  }
+  @Test
+  fun testProject_withErrors_simpleApplicationMissingExport() {
+    testProject(TestProjectPaths.WITH_ERRORS_SIMPLE_APPLICATION_MISSING_EXPORT)
+  }
+
+  @Test
+  fun testProject_withErrors_simpleApplicationMultipleErrors() {
+    testProject(TestProjectPaths.WITH_ERRORS_SIMPLE_APPLICATION_MULTIPLE_ERRORS)
+  }
+
+  private fun testProject(projectPath : String) {
+    snapshotDirectoryWorkspaceRelativePath = Paths
+      .get(getTestDataDirectoryWorkspaceRelativePath())
+      .resolve(projectPath)
+      .resolve("snapshots")
+      .toString()
     val projectRoot = prepareGradleProject(projectPath, "project")
     openPreparedProject("project") { project ->
       val appModule = project.gradleModule(":app")?.getMainModule() ?: error("Cannot find :app module")
@@ -84,7 +97,8 @@ class ManifestPanelContentTest : GradleIntegrationTest, SnapshotComparisonTest {
       val panel = ManifestPanel(appModuleFacet, projectRule.testRootDisposable)
       panel.showManifest(mergedManifest, appModuleFacet.sourceProviders.mainManifestFile!!, false)
       val detailsPaneContent = panel.detailsPane.text
-      val manifestPaneContent = (panel.tree.model.root as ManifestTreeNode).userObject.transformToString()
+      val model: TreeModel? = panel.tree.model
+      val manifestPaneContent: String? = model?.transformToString()
 
       ProjectDumper().nest(projectRoot, "PROJECT_DIR") {
         assertAreEqualToSnapshots(
@@ -96,19 +110,15 @@ class ManifestPanelContentTest : GradleIntegrationTest, SnapshotComparisonTest {
   }
 
   /* Goes through each line, removing empty lines and replacing hyperlinks with files with stable naming across different config/runs. */
-  private fun ProjectDumper.normalizeContentForTest(htmlString: String) = htmlString
+  private fun ProjectDumper.normalizeContentForTest(htmlString: String?) = htmlString
+    .let { it ?: "Pane content is empty" }
     .lines()
     .filter { it.trim().isNotEmpty() }
     .joinToString(separator = "\n", postfix = "\n") {
       it.replace(Regex("\"file:(.*)\"")) { matchResult ->
         val fileAndPosition = matchResult.groupValues[1]
         val (file, suffix) = splitFileAndSuffixPosition(fileAndPosition)
-        // build.gradle file depends on the source location, so replacing that with something generic
-        if (file.endsWith("build.gradle")) {
-          "<BUILD.GRADLE>"
-        } else {
-          "'${toSystemIndependentPath(File(file).absolutePath).toPrintablePath()}$suffix'"
-        }
+        "'${toSystemIndependentPath(File(file).absolutePath).toPrintablePath()}$suffix'"
       }.trimEnd()
     }.trimIndent()
 
@@ -124,12 +134,16 @@ class ManifestPanelContentTest : GradleIntegrationTest, SnapshotComparisonTest {
     return fileAndPosition.substring(0, suffixPosition) to fileAndPosition.substring(suffixPosition, fileAndPosition.length)
   }
 
-  private fun Node.transformToString() =
-    StringWriter().let {
-      TransformerFactory.newInstance().newTransformer().apply {
-        setOutputProperty(OutputKeys.INDENT, "yes")
-        setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-      }.transform(DOMSource(this), StreamResult(it))
-      it.buffer.toString()
+  private fun TreeModel?.transformToString() : String? =
+    if (this == null) {
+      null
+    } else {
+      StringWriter().let {
+        TransformerFactory.newInstance().newTransformer().apply {
+          setOutputProperty(OutputKeys.INDENT, "yes")
+          setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+        }.transform(DOMSource((this.root as ManifestTreeNode).userObject), StreamResult(it))
+        it.buffer.toString()
+      }
     }
 }

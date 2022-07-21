@@ -33,7 +33,6 @@ import com.android.tools.idea.devicemanager.MergedTableColumn;
 import com.android.tools.idea.devicemanager.PopUpMenuValue;
 import com.android.tools.idea.devicemanager.Tables;
 import com.android.tools.idea.devicemanager.virtualtab.VirtualDeviceTableModel.EditValue;
-import com.android.tools.idea.devicemanager.virtualtab.VirtualDeviceTableModel.LaunchOrStopValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -75,22 +74,22 @@ public final class VirtualDeviceTable extends DeviceTable<VirtualDevice> impleme
   }
 
   VirtualDeviceTable(@NotNull VirtualDevicePanel panel) {
-    this(panel, new VirtualDeviceAsyncSupplier(), VirtualDeviceTable::newSetDevices);
+    this(panel, panel.getProject(), new VirtualDeviceAsyncSupplier(), VirtualDeviceTable::newSetDevices);
   }
 
   @VisibleForTesting
   VirtualDeviceTable(@NotNull VirtualDevicePanel panel,
+                     @Nullable Project project,
                      @NotNull VirtualDeviceAsyncSupplier asyncSupplier,
                      @NotNull NewSetDevices newSetDevices) {
-    super(new VirtualDeviceTableModel(), VirtualDevice.class);
+    super(new VirtualDeviceTableModel(project), VirtualDevice.class);
 
     myAsyncSupplier = asyncSupplier;
     myNewSetDevices = newSetDevices;
+
     initListener();
 
-    Project project = panel.getProject();
-
-    setDefaultEditor(LaunchOrStopValue.class, new LaunchOrStopButtonTableCellEditor(project));
+    setDefaultEditor(VirtualDevice.State.class, new LaunchOrStopButtonTableCellEditor());
 
     setDefaultEditor(ActivateDeviceFileExplorerWindowValue.class,
                      new ActivateDeviceFileExplorerWindowButtonTableCellEditor<>(project,
@@ -103,7 +102,7 @@ public final class VirtualDeviceTable extends DeviceTable<VirtualDevice> impleme
     setDefaultRenderer(Device.class, new VirtualDeviceTableCellRenderer());
     setDefaultRenderer(AndroidVersion.class, new ApiTableCellRenderer());
     setDefaultRenderer(Long.class, new SizeOnDiskTableCellRenderer());
-    setDefaultRenderer(LaunchOrStopValue.class, new LaunchOrStopButtonTableCellRenderer());
+    setDefaultRenderer(VirtualDevice.State.class, new LaunchOrStopButtonTableCellRenderer());
 
     setDefaultRenderer(ActivateDeviceFileExplorerWindowValue.class,
                        new ActivateDeviceFileExplorerWindowButtonTableCellRenderer<>(project, this));
@@ -259,7 +258,7 @@ public final class VirtualDeviceTable extends DeviceTable<VirtualDevice> impleme
                      JBUIScale.scale(20));
 
     Tables.setWidths(columnModel.getColumn(launchOrStopViewColumnIndex()),
-                     IconButtonTableCellRenderer.getPreferredWidth(this, LaunchOrStopValue.class));
+                     IconButtonTableCellRenderer.getPreferredWidth(this, VirtualDevice.State.class));
 
     Tables.setWidths(columnModel.getColumn(activateDeviceFileExplorerWindowViewColumnIndex()),
                      IconButtonTableCellRenderer.getPreferredWidth(this, ActivateDeviceFileExplorerWindowValue.class));

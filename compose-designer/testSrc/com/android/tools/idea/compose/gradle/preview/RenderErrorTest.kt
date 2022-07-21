@@ -22,10 +22,10 @@ import com.android.tools.idea.common.surface.SceneViewPeerPanel
 import com.android.tools.idea.compose.gradle.ComposeGradleProjectRule
 import com.android.tools.idea.compose.preview.AnnotationFilePreviewElementFinder
 import com.android.tools.idea.compose.preview.ComposePreviewRepresentation
-import com.android.tools.idea.compose.preview.PreviewElementProvider
 import com.android.tools.idea.compose.preview.SIMPLE_COMPOSE_PROJECT_PATH
 import com.android.tools.idea.compose.preview.SimpleComposeAppPaths
 import com.android.tools.idea.compose.preview.util.ComposePreviewElement
+import com.android.tools.idea.preview.PreviewElementProvider
 import com.android.tools.idea.uibuilder.editor.multirepresentation.PreferredVisibility
 import com.android.tools.idea.uibuilder.scene.hasRenderErrors
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
@@ -36,6 +36,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.psi.PsiManager
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
 import junit.framework.Assert.assertFalse
+import junit.framework.Assert.assertTrue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -43,7 +44,6 @@ import org.junit.Test
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.JPanel
-import kotlin.test.assertTrue
 
 class RenderErrorTest {
 

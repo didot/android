@@ -25,6 +25,11 @@ import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.I
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.INTERPOLATED
 import com.android.tools.idea.gradle.dsl.api.ext.GradlePropertyModel.ValueType.STRING
 import com.android.tools.idea.gradle.dsl.api.ext.PropertyType.REGULAR
+import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo
+import com.android.tools.idea.gradle.dsl.parser.files.GradleBuildFile
+import com.android.tools.idea.gradle.dsl.parser.files.GradlePropertiesFile
+import com.android.tools.idea.gradle.dsl.parser.files.GradleSettingsFile
+import com.android.tools.idea.gradle.dsl.parser.files.GradleVersionCatalogFile
 import com.android.tools.idea.gradle.dsl.parser.semantics.AndroidGradlePluginVersion
 import org.hamcrest.CoreMatchers.hasItems
 import org.hamcrest.MatcherAssert.assertThat
@@ -357,6 +362,55 @@ class ProjectBuildModelTest : GradleFileModelTestCase() {
   }
 
   @Test
+  fun testContextOrdering() {
+    writeToBuildFile("")
+    writeToSubModuleBuildFile("")
+    writeToNewSubModule("a", "", "")
+    writeToNewSubModule("b", "", "")
+    writeToVersionCatalogFile("")
+    writeToSettingsFile(subModuleSettingsText + getSubModuleSettingsText("a") + getSubModuleSettingsText("b"))
+
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+
+    try {
+      val pbm = projectBuildModel
+      pbm.getAllIncludedBuildModels()
+      val context = pbm.context
+      val allRequestedFiles = context.allRequestedFiles
+      assertSize(11, allRequestedFiles)
+      assertInstanceOf(allRequestedFiles[0], GradleSettingsFile::class.java)
+      assertInstanceOf(allRequestedFiles[1], GradlePropertiesFile::class.java)
+      assertInstanceOf(allRequestedFiles[2], GradleVersionCatalogFile::class.java)
+      assertInstanceOf(allRequestedFiles[3], GradleBuildFile::class.java)
+      assertEquals(":", (allRequestedFiles[3] as GradleBuildFile).name)
+      // buildSrc
+      assertInstanceOf(allRequestedFiles[4], GradleBuildFile::class.java)
+      // TODO(b/239564531)
+      //assertEquals(":buildSrc", (allRequestedFiles[4] as GradleBuildFile).name)
+      // gradleModelTest
+      assertInstanceOf(allRequestedFiles[5], GradlePropertiesFile::class.java)
+      assertInstanceOf(allRequestedFiles[6], GradleBuildFile::class.java)
+      // TODO(b/239564531)
+      //assertEquals(":gradleModelTest", (allRequestedFiles[5] as GradleBuildFile).name)
+      // a
+      assertInstanceOf(allRequestedFiles[7], GradlePropertiesFile::class.java)
+      assertInstanceOf(allRequestedFiles[8], GradleBuildFile::class.java)
+      // TODO(b/239564531)
+      //assertEquals(":a", (allRequestedFiles[5] as GradleBuildFile).name)
+      // b
+      assertInstanceOf(allRequestedFiles[9], GradlePropertiesFile::class.java)
+      assertInstanceOf(allRequestedFiles[10], GradleBuildFile::class.java)
+      // TODO(b/239564531)
+      //assertEquals(":b", (allRequestedFiles[5] as GradleBuildFile).name)
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
   fun testContextAgpVersion() {
     writeToBuildFile(TestFile.CONTEXT_AGP_VERSION)
     writeToSettingsFile("")
@@ -392,6 +446,26 @@ class ProjectBuildModelTest : GradleFileModelTestCase() {
     assertEquals(version, settingsModel.context.agpVersion)
     buildModel.involvedFiles.forEach {
       assertEquals(version, it.context.agpVersion)
+    }
+  }
+
+  @Test
+  fun testNoVersionCatalogResolutionIfSettingIsOff() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    GradleDslModelExperimentalSettings.getInstance().isVersionCatalogEnabled = false
+    try {
+      writeToBuildFile(TestFile.VERSION_CATALOG_BUILD_FILE)
+      writeToVersionCatalogFile(TestFile.VERSION_CATALOG_COMPACT_NOTATION)
+
+      val pbm = projectBuildModel
+      val buildModel = pbm.projectBuildModel!!
+      val dependencies = buildModel.dependencies()
+      val artifacts = dependencies.artifacts()
+      assertSize(0, artifacts)
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      GradleDslModelExperimentalSettings.getInstance().isVersionCatalogEnabled = true
     }
   }
 
@@ -649,6 +723,26 @@ class ProjectBuildModelTest : GradleFileModelTestCase() {
   }
 
   @Test
+  fun testVersionCatalogModelNullIfSettingIsOff() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    GradleDslModelExperimentalSettings.getInstance().isVersionCatalogEnabled = false
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("")
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel
+      assertNull(vcModel)
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+      GradleDslModelExperimentalSettings.getInstance().isVersionCatalogEnabled = true
+    }
+  }
+
+  @Test
   fun testVersionCatalogCreateVersionProperty() {
     StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
     StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
@@ -664,6 +758,672 @@ class ProjectBuildModelTest : GradleFileModelTestCase() {
 
       verifyFileContents(myBuildFile, "")
       verifyVersionCatalogFileContents(myVersionCatalogFile, TestFile.VERSION_CATALOG_CREATE_VERSION_PROPERTY_EXPECTED)
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testVersionCatalogDeleteVersionProperty() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        foo = "1.2.3"
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val versions = vcModel.versions()
+      val foo = versions.findProperty("foo")
+      assertEquals("1.2.3", foo.toString())
+      foo.delete()
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testVersionCatalogDeleteMapOnlyElement() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [libraries]
+        foo = { arbitrary = "abc" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("abc", foo.getMapValue("arbitrary").toString())
+      foo.getMapValue("arbitrary").delete()
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [libraries]
+        foo = { }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testVersionCatalogDeleteMapElementOne() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [libraries]
+        foo = { version = "1.2.3", group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("1.2.3", foo.getMapValue("version").toString())
+      assertEquals("com.example", foo.getMapValue("group").toString())
+      assertEquals("foo", foo.getMapValue("name").toString())
+      foo.getMapValue("version").delete()
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [libraries]
+        foo = { group = "com.example", name = "foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testVersionCatalogDeleteMapElementTwo() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [libraries]
+        foo = { version = "1.2.3", group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("1.2.3", foo.getMapValue("version").toString())
+      assertEquals("com.example", foo.getMapValue("group").toString())
+      assertEquals("foo", foo.getMapValue("name").toString())
+      foo.getMapValue("group").delete()
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [libraries]
+        foo = { version = "1.2.3", name = "foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testVersionCatalogDeleteMapElementThree() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [libraries]
+        foo = { version = "1.2.3", group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("1.2.3", foo.getMapValue("version").toString())
+      assertEquals("com.example", foo.getMapValue("group").toString())
+      assertEquals("foo", foo.getMapValue("name").toString())
+      foo.getMapValue("name").delete()
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [libraries]
+        foo = { version = "1.2.3", group = "com.example" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryMapVersionToVersion() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [libraries]
+        foo = { version = "1.2.3", group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("1.2.3", foo.getMapValue("version").toString())
+      foo.getMapValue("version").setValue("2.3.4")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [libraries]
+        foo = { version = "2.3.4", group = "com.example", name = "foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryMapVersionRefToVersionRef() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+        otherFooVersion = "2.3.4"
+
+        [libraries]
+        foo = { version.ref = "fooVersion", group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("\"fooVersion\"", foo.getMapValue("version").toString())
+      foo.getMapValue("version").setValue(ReferenceTo(vcModel.versions().findProperty("otherFooVersion")))
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+        otherFooVersion = "2.3.4"
+
+        [libraries]
+        foo = { version.ref = "otherFooVersion", group = "com.example", name = "foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryMapVersionMapRefToVersionRef() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+        otherFooVersion = "2.3.4"
+
+        [libraries]
+        foo = { version = { ref = "fooVersion" }, group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("\"fooVersion\"", foo.getMapValue("version").toString())
+      foo.getMapValue("version").setValue(ReferenceTo(vcModel.versions().findProperty("otherFooVersion")))
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+        otherFooVersion = "2.3.4"
+
+        [libraries]
+        foo = { version = { ref = "otherFooVersion" }, group = "com.example", name = "foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryMapVersionToVersionRef() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "2.3.4"
+
+        [libraries]
+        foo = { version = "1.2.3", group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("1.2.3", foo.getMapValue("version").toString())
+      foo.getMapValue("version").setValue(ReferenceTo(vcModel.versions().findProperty("fooVersion")))
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "2.3.4"
+
+        [libraries]
+        foo = { version.ref = "fooVersion", group = "com.example", name = "foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryMapVersionRefToVersion() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { version.ref = "fooVersion", group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("\"fooVersion\"", foo.getMapValue("version").toString())
+      foo.getMapValue("version").setValue("2.3.4")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { version = "2.3.4", group = "com.example", name = "foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryMapVersionMapRefToVersion() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { version = { ref = "fooVersion" }, group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      assertEquals("\"fooVersion\"", foo.getMapValue("version").toString())
+      foo.getMapValue("version").setValue("2.3.4")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { version = "2.3.4", group = "com.example", name = "foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryCreateVersion() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      foo.getMapValue("version").setValue("2.3.4")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { group = "com.example", name = "foo", version = "2.3.4" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryCreateVersionRef() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { group = "com.example", name = "foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      foo.getMapValue("version").setValue(ReferenceTo(vcModel.versions().findProperty("fooVersion")))
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { group = "com.example", name = "foo", version.ref = "fooVersion" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryCreateMapWithVersion() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      foo.getMapValue("version").setValue("2.3.4")
+      foo.getMapValue("module").setValue("com.example:foo")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { version = "2.3.4", module = "com.example:foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testLibraryCreateMapWithVersionRef() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      foo.getMapValue("version").setValue(ReferenceTo(vcModel.versions().findProperty("fooVersion")))
+      foo.getMapValue("module").setValue("com.example:foo")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [libraries]
+        foo = { version.ref = "fooVersion", module = "com.example:foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testPluginCreateVersion() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [plugins]
+        foo = { id = "com.example.foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val plugins = vcModel.plugins()
+      val foo = plugins.findProperty("foo")
+      foo.getMapValue("version").setValue("2.3.4")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [plugins]
+        foo = { id = "com.example.foo", version = "2.3.4" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testPluginCreateVersionRef() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [plugins]
+        foo = { id = "com.example.foo" }
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val plugins = vcModel.plugins()
+      val foo = plugins.findProperty("foo")
+      foo.getMapValue("version").setValue(ReferenceTo(vcModel.versions().findProperty("fooVersion")))
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [plugins]
+        foo = { id = "com.example.foo", version.ref = "fooVersion" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testPluginCreateMapWithVersion() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [plugins]
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val plugins = vcModel.plugins()
+      val foo = plugins.findProperty("foo")
+      foo.getMapValue("version").setValue("2.3.4")
+      foo.getMapValue("id").setValue("com.example.foo")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [plugins]
+        foo = { version = "2.3.4", id = "com.example.foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testPluginCreateMapWithVersionRef() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "1.2.3"
+
+        [plugins]
+      """.trimIndent())
+
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val plugins = vcModel.plugins()
+      val foo = plugins.findProperty("foo")
+      foo.getMapValue("version").setValue(ReferenceTo(vcModel.versions().findProperty("fooVersion")))
+      foo.getMapValue("id").setValue("com.example.foo")
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "1.2.3"
+
+        [plugins]
+        foo = { version.ref = "fooVersion", id = "com.example.foo" }
+      """.trimIndent())
+    }
+    finally {
+      StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()
+      StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.clearOverride()
+    }
+  }
+
+  @Test
+  fun testSetVersionToReferenceByText() {
+    StudioFlags.GRADLE_DSL_TOML_SUPPORT.override(true)
+    StudioFlags.GRADLE_DSL_TOML_WRITE_SUPPORT.override(true)
+    try {
+      writeToBuildFile("")
+      writeToVersionCatalogFile("""
+        [versions]
+        fooVersion = "2.3.4"
+
+        [libraries]
+        foo = { module = "com.example:foo", version = "1.2.3" }
+      """.trimIndent())
+      val pbm = projectBuildModel
+      val vcModel = pbm.versionCatalogModel!!
+      val libraries = vcModel.libraries()
+      val foo = libraries.findProperty("foo")
+      val ref = ReferenceTo.createReferenceFromText("versions.fooVersion", foo)!!
+      foo.getMapValue("version").setValue(ref)
+      applyChanges(pbm)
+      verifyVersionCatalogFileContents(myVersionCatalogFile, """
+        [versions]
+        fooVersion = "2.3.4"
+
+        [libraries]
+        foo = { module = "com.example:foo", version.ref = "fooVersion" }
+      """.trimIndent())
+
+
     }
     finally {
       StudioFlags.GRADLE_DSL_TOML_SUPPORT.clearOverride()

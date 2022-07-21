@@ -15,52 +15,54 @@
  */
 package com.android.tools.idea.run.configuration.execution
 
-import com.android.annotations.concurrency.WorkerThread
+import com.android.AndroidProjectTypes
 import com.android.ddmlib.IDevice
 import com.android.tools.deployer.model.App
 import com.android.tools.idea.run.AndroidLaunchTaskContributor
-import com.android.tools.idea.run.AndroidProcessHandler
 import com.android.tools.idea.run.AndroidRunConfiguration
+import com.android.tools.idea.run.ApkProvider
+import com.android.tools.idea.run.ApplicationIdProvider
+import com.android.tools.idea.run.activity.InstantAppStartActivityFlagsProvider
 import com.android.tools.idea.run.activity.launch.ActivityLaunchOptionState
-import com.android.tools.idea.run.configuration.isDebug
+import com.android.tools.idea.run.configuration.AppRunSettings
 import com.android.tools.idea.run.editor.DeployTarget
-import com.intellij.execution.ExecutionException
+import com.android.tools.idea.util.androidFacet
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.RunContentDescriptor
-import com.intellij.openapi.progress.ProgressIndicatorProvider
-import com.intellij.openapi.progress.ProgressManager
+import com.intellij.xdebugger.impl.XDebugSessionImpl
 import org.jetbrains.concurrency.Promise
 
-class AndroidActivityConfigurationExecutor(environment: ExecutionEnvironment, deployTarget: DeployTarget) : AndroidConfigurationExecutorBase(environment, deployTarget) {
+class AndroidActivityConfigurationExecutor(environment: ExecutionEnvironment,
+                                           deployTarget: DeployTarget,
+                                           appRunSettings: AppRunSettings,
+                                           applicationIdProvider: ApplicationIdProvider,
+                                           apkProvider: ApkProvider) : AndroidConfigurationExecutorBase(environment, deployTarget,
+                                                                                                        appRunSettings,
+                                                                                                        applicationIdProvider,
+                                                                                                        apkProvider) {
+  private val activityLaunchOptions = appRunSettings.componentLaunchOptions as ActivityLaunchOptionState
+  override fun getStopCallback(console: ConsoleView, isDebug: Boolean): (IDevice) -> Unit = { it.forceStop(appId) }
 
-  override val configuration = environment.runProfile as AndroidRunConfiguration
+  override fun launch(device: IDevice, app: App, console: ConsoleView, isDebug: Boolean) {
+    activityLaunchOptions.launch(device, app, apkProvider, isDebug, getFlags(device), console)
+  }
 
-  @WorkerThread
-  override fun doOnDevices(devices: List<IDevice>): Promise<RunContentDescriptor> {
-    val isDebug = environment.executor.isDebug
-    if (isDebug && devices.size > 1) {
-      throw ExecutionException("Debugging is allowed only for single device")
-    }
-    val console = createConsole()
-    val indicator = ProgressIndicatorProvider.getGlobalProgressIndicator()
-    val applicationInstaller = getApplicationInstaller(console)
-    val processHandler = AndroidProcessHandler(project, appId)
-    devices.forEach { device ->
-      terminatePreviousAppInstance(device)
-      processHandler.addTargetDevice(device)
-      ProgressManager.checkCanceled()
-      indicator?.text = "Installing app"
-      val app = applicationInstaller.installAppOnDevice(device, appId, getApkPaths(device), configuration.PM_INSTALL_OPTIONS)
-      activateActivity(device, app, console)
-    }
-    ProgressManager.checkCanceled()
-    if (isDebug) {
-      return DebugSessionStarter(environment)
-        .attachDebuggerToClient(devices.single(), { device -> device.forceStop(appId) }, console)
-        .then { it.runContentDescriptor }
-    }
-    return createRunContentDescriptor(processHandler, console, environment)
+  public override fun startDebugSession(device: IDevice, console: ConsoleView): Promise<XDebugSessionImpl> {
+    return DebugSessionStarter(environment, applicationIdProvider)
+      .attachDebuggerToClient(device, { it.forceStop(appId) }, console)
+  }
+
+  override fun runAsInstantApp(): Promise<RunContentDescriptor> {
+    throw RuntimeException("Unsupported operation")
+  }
+
+  override fun applyChanges(): Promise<RunContentDescriptor> {
+    throw RuntimeException("Unsupported operation")
+  }
+
+  override fun applyCodeChanges(): Promise<RunContentDescriptor> {
+    throw RuntimeException("Unsupported operation")
   }
 
   private fun StringBuilder.appendWithSpace(text: String) {
@@ -71,27 +73,22 @@ class AndroidActivityConfigurationExecutor(environment: ExecutionEnvironment, de
   }
 
   private fun getFlags(device: IDevice): String {
-    //val facet = AndroidFacet.getInstance(configuration.module!!) ?: throw RuntimeException(AndroidBundle.message("no.facet.error", configuration.module!!))
-    //if (facet.configuration.projectType == AndroidProjectTypes.PROJECT_TYPE_INSTANTAPP) {
-    //  return InstantAppStartActivityFlagsProvider().getFlags(device)
-    //}
-
-    val amStartOptions = StringBuilder()
-    for (taskContributor in AndroidLaunchTaskContributor.EP_NAME.extensions) {
-      val amOptions = taskContributor.getAmStartOptions(appId, configuration, device, environment.executor)
-      amStartOptions.appendWithSpace(amOptions)
-      // TODO: use contributors launch tasks
+    if (appRunSettings.module!!.androidFacet?.configuration?.projectType == AndroidProjectTypes.PROJECT_TYPE_INSTANTAPP) {
+      return InstantAppStartActivityFlagsProvider().getFlags(device)
     }
 
-    amStartOptions.appendWithSpace(configuration.ACTIVITY_EXTRA_FLAGS)
+    val amStartOptions = StringBuilder()
+    if (configuration is AndroidRunConfiguration) {
+      for (taskContributor in AndroidLaunchTaskContributor.EP_NAME.extensions) {
+        val amOptions = taskContributor.getAmStartOptions(appId, configuration, device, environment.executor)
+        amStartOptions.appendWithSpace(amOptions)
+        // TODO: use contributors launch tasks
+      }
+    }
+
+    amStartOptions.appendWithSpace(activityLaunchOptions.amFlags)
 
     return amStartOptions.toString()
-  }
-
-  private fun activateActivity(device: IDevice, app: App, console: ConsoleView) {
-    val state: ActivityLaunchOptionState = configuration.getLaunchOptionState(configuration.MODE)!!
-
-    state.launch(device, app, configuration, environment.executor.isDebug, getFlags(device), console)
   }
 }
 

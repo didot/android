@@ -16,11 +16,16 @@
 package com.android.tools.idea.devicemanager.virtualtab;
 
 import com.android.annotations.concurrency.UiThread;
+import com.android.annotations.concurrency.WorkerThread;
+import com.android.ddmlib.EmulatorConsole;
+import com.android.ddmlib.IDevice;
 import com.android.sdklib.AndroidVersion;
 import com.android.tools.idea.avdmanager.AvdManagerConnection;
 import com.android.tools.idea.devicemanager.ActivateDeviceFileExplorerWindowValue;
 import com.android.tools.idea.devicemanager.Device;
+import com.android.tools.idea.devicemanager.DeviceManagerAndroidDebugBridge;
 import com.android.tools.idea.devicemanager.DeviceManagerFutureCallback;
+import com.android.tools.idea.devicemanager.DeviceManagerUsageTracker;
 import com.android.tools.idea.devicemanager.Devices;
 import com.android.tools.idea.devicemanager.Key;
 import com.android.tools.idea.devicemanager.PopUpMenuValue;
@@ -29,17 +34,22 @@ import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.wireless.android.sdk.stats.DeviceManagerEvent;
+import com.google.wireless.android.sdk.stats.DeviceManagerEvent.EventKind;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.project.Project;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.concurrency.EdtExecutorService;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import javax.swing.table.AbstractTableModel;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 @UiThread
 final class VirtualDeviceTableModel extends AbstractTableModel {
@@ -51,26 +61,18 @@ final class VirtualDeviceTableModel extends AbstractTableModel {
   static final int EDIT_MODEL_COLUMN_INDEX = 5;
   static final int POP_UP_MENU_MODEL_COLUMN_INDEX = 6;
 
+  private final @Nullable Project myProject;
   private @NotNull List<@NotNull VirtualDevice> myDevices;
-
-  private final @NotNull Callable<@NotNull AvdManagerConnection> myGetDefaultAvdManagerConnection;
   private final @NotNull NewSetOnline myNewSetOnline;
+  private final @NotNull Callable<@NotNull AvdManagerConnection> myGetDefaultAvdManagerConnection;
+  private final @NotNull Function<@NotNull VirtualDeviceTableModel, @NotNull FutureCallback<@Nullable Object>> myNewSetAllOnline;
+  private final @NotNull DeviceManagerAndroidDebugBridge myBridge;
+  private final @NotNull Function<@NotNull IDevice, @NotNull EmulatorConsole> myGetConsole;
+  private final @NotNull BiConsumer<@NotNull Throwable, @Nullable Project> myShowErrorDialog;
 
   @VisibleForTesting
   interface NewSetOnline {
     @NotNull FutureCallback<@NotNull Boolean> apply(@NotNull VirtualDeviceTableModel model, @NotNull Key key);
-  }
-
-  static final class LaunchOrStopValue {
-    static final LaunchOrStopValue INSTANCE = new LaunchOrStopValue();
-
-    private LaunchOrStopValue() {
-    }
-
-    @Override
-    public @NotNull String toString() {
-      return "Launch or stop";
-    }
   }
 
   static final class EditValue {
@@ -85,22 +87,34 @@ final class VirtualDeviceTableModel extends AbstractTableModel {
     }
   }
 
-  VirtualDeviceTableModel() {
-    this(Collections.emptyList());
+  VirtualDeviceTableModel(@Nullable Project project) {
+    this(project,
+         List.of(),
+         VirtualDeviceTableModel::newSetOnline,
+         AvdManagerConnection::getDefaultAvdManagerConnection,
+         SetAllOnline::new,
+         new DeviceManagerAndroidDebugBridge(),
+         EmulatorConsole::getConsole,
+         VirtualTabMessages::showErrorDialog);
   }
 
   @VisibleForTesting
-  VirtualDeviceTableModel(@NotNull Collection<@NotNull VirtualDevice> devices) {
-    this(devices, AvdManagerConnection::getDefaultAvdManagerConnection, VirtualDeviceTableModel::newSetOnline);
-  }
-
-  @VisibleForTesting
-  VirtualDeviceTableModel(@NotNull Collection<@NotNull VirtualDevice> devices,
+  VirtualDeviceTableModel(@Nullable Project project,
+                          @NotNull Collection<@NotNull VirtualDevice> devices,
+                          @NotNull NewSetOnline newSetOnline,
                           @NotNull Callable<@NotNull AvdManagerConnection> getDefaultAvdManagerConnection,
-                          @NotNull NewSetOnline newSetOnline) {
+                          @NotNull Function<@NotNull VirtualDeviceTableModel, @NotNull FutureCallback<@Nullable Object>> newSetAllOnline,
+                          @NotNull DeviceManagerAndroidDebugBridge bridge,
+                          @NotNull Function<@NotNull IDevice, @NotNull EmulatorConsole> getConsole,
+                          @NotNull BiConsumer<@NotNull Throwable, @Nullable Project> showErrorDialog) {
+    myProject = project;
     myDevices = new ArrayList<>(devices);
-    myGetDefaultAvdManagerConnection = getDefaultAvdManagerConnection;
     myNewSetOnline = newSetOnline;
+    myGetDefaultAvdManagerConnection = getDefaultAvdManagerConnection;
+    myNewSetAllOnline = newSetAllOnline;
+    myBridge = bridge;
+    myGetConsole = getConsole;
+    myShowErrorDialog = showErrorDialog;
   }
 
   @VisibleForTesting
@@ -112,24 +126,8 @@ final class VirtualDeviceTableModel extends AbstractTableModel {
         return;
       }
 
-      VirtualDevice oldDevice = model.myDevices.get(modelRowIndex);
-
-      VirtualDevice newDevice = new VirtualDevice.Builder()
-        .setKey(oldDevice.getKey())
-        .setType(oldDevice.getType())
-        .setName(oldDevice.getName())
-        .setOnline(online)
-        .setTarget(oldDevice.getTarget())
-        .setCpuArchitecture(oldDevice.getCpuArchitecture())
-        .setAndroidVersion(oldDevice.getAndroidVersion())
-        .setSizeOnDisk(oldDevice.getSizeOnDisk())
-        .setResolution(oldDevice.getResolution())
-        .setDensity(oldDevice.getDensity())
-        .setAvdInfo(oldDevice.getAvdInfo())
-        .build();
-
-      model.myDevices.set(modelRowIndex, newDevice);
-      model.fireTableCellUpdated(modelRowIndex, DEVICE_MODEL_COLUMN_INDEX);
+      model.myDevices.set(modelRowIndex, model.myDevices.get(modelRowIndex).withState(VirtualDevice.State.valueOf(online)));
+      model.fireTableRowsUpdated(modelRowIndex, modelRowIndex);
     });
   }
 
@@ -244,7 +242,7 @@ final class VirtualDeviceTableModel extends AbstractTableModel {
       case SIZE_ON_DISK_MODEL_COLUMN_INDEX:
         return Long.class;
       case LAUNCH_OR_STOP_MODEL_COLUMN_INDEX:
-        return LaunchOrStopValue.class;
+        return VirtualDevice.State.class;
       case ACTIVATE_DEVICE_FILE_EXPLORER_WINDOW_MODEL_COLUMN_INDEX:
         return ActivateDeviceFileExplorerWindowValue.class;
       case EDIT_MODEL_COLUMN_INDEX:
@@ -264,6 +262,8 @@ final class VirtualDeviceTableModel extends AbstractTableModel {
       case SIZE_ON_DISK_MODEL_COLUMN_INDEX:
         return false;
       case LAUNCH_OR_STOP_MODEL_COLUMN_INDEX:
+        VirtualDevice device = myDevices.get(modelRowIndex);
+        return device.getState().isEnabled(device);
       case ACTIVATE_DEVICE_FILE_EXPLORER_WINDOW_MODEL_COLUMN_INDEX:
       case EDIT_MODEL_COLUMN_INDEX:
       case POP_UP_MENU_MODEL_COLUMN_INDEX:
@@ -283,7 +283,7 @@ final class VirtualDeviceTableModel extends AbstractTableModel {
       case SIZE_ON_DISK_MODEL_COLUMN_INDEX:
         return myDevices.get(modelRowIndex).getSizeOnDisk();
       case LAUNCH_OR_STOP_MODEL_COLUMN_INDEX:
-        return LaunchOrStopValue.INSTANCE;
+        return myDevices.get(modelRowIndex).getState();
       case ACTIVATE_DEVICE_FILE_EXPLORER_WINDOW_MODEL_COLUMN_INDEX:
         return ActivateDeviceFileExplorerWindowValue.INSTANCE;
       case EDIT_MODEL_COLUMN_INDEX:
@@ -292,6 +292,133 @@ final class VirtualDeviceTableModel extends AbstractTableModel {
         return PopUpMenuValue.INSTANCE;
       default:
         throw new AssertionError(modelColumnIndex);
+    }
+  }
+
+  @Override
+  public void setValueAt(@NotNull Object value, int modelRowIndex, int modelColumnIndex) {
+    switch (modelColumnIndex) {
+      case DEVICE_MODEL_COLUMN_INDEX:
+      case API_MODEL_COLUMN_INDEX:
+      case SIZE_ON_DISK_MODEL_COLUMN_INDEX:
+        // noinspection DuplicateBranchesInSwitch
+        assert false : modelColumnIndex;
+        break;
+      case LAUNCH_OR_STOP_MODEL_COLUMN_INDEX:
+        launchOrStop((VirtualDevice.State)value, modelRowIndex);
+        break;
+      case ACTIVATE_DEVICE_FILE_EXPLORER_WINDOW_MODEL_COLUMN_INDEX:
+      case EDIT_MODEL_COLUMN_INDEX:
+      case POP_UP_MENU_MODEL_COLUMN_INDEX:
+        break;
+      default:
+        assert false : modelColumnIndex;
+        break;
+    }
+  }
+
+  private void launchOrStop(@NotNull VirtualDevice.State state, int modelRowIndex) {
+    switch (state) {
+      case STOPPED:
+        assert false;
+        break;
+      case LAUNCHING:
+        launch(modelRowIndex);
+        break;
+      case LAUNCHED:
+        // noinspection DuplicateBranchesInSwitch
+        assert false;
+        break;
+      case STOPPING:
+        stop(modelRowIndex);
+        break;
+      default:
+        assert false : state;
+        break;
+    }
+  }
+
+  private void launch(int modelRowIndex) {
+    DeviceManagerEvent event = DeviceManagerEvent.newBuilder()
+      .setKind(EventKind.VIRTUAL_LAUNCH_ACTION)
+      .build();
+
+    DeviceManagerUsageTracker.log(event);
+
+    VirtualDevice device = myDevices.get(modelRowIndex).withState(VirtualDevice.State.LAUNCHING);
+
+    myDevices.set(modelRowIndex, device);
+    fireTableCellUpdated(modelRowIndex, LAUNCH_OR_STOP_MODEL_COLUMN_INDEX);
+
+    Executor executor = EdtExecutorService.getInstance();
+
+    // noinspection UnstableApiUsage
+    FluentFuture.from(getDefaultAvdManagerConnection())
+      .transformAsync(connection -> connection.startAvd(myProject, device.getAvdInfo()), executor)
+      .addCallback(myNewSetAllOnline.apply(this), executor);
+  }
+
+  private void stop(int modelRowIndex) {
+    DeviceManagerEvent event = DeviceManagerEvent.newBuilder()
+      .setKind(EventKind.VIRTUAL_STOP_ACTION)
+      .build();
+
+    DeviceManagerUsageTracker.log(event);
+
+    VirtualDevice device = myDevices.get(modelRowIndex).withState(VirtualDevice.State.STOPPING);
+
+    myDevices.set(modelRowIndex, device);
+    fireTableCellUpdated(modelRowIndex, LAUNCH_OR_STOP_MODEL_COLUMN_INDEX);
+
+    // noinspection UnstableApiUsage
+    FluentFuture.from(myBridge.findDevice(myProject, device.getKey()))
+      .transform(d -> stop(d, device), AppExecutorUtil.getAppExecutorService())
+      .addCallback(myNewSetAllOnline.apply(this), EdtExecutorService.getInstance());
+  }
+
+  /**
+   * Called by an application pool thread
+   */
+  @WorkerThread
+  @SuppressWarnings("SameReturnValue")
+  private @Nullable Void stop(@Nullable IDevice d, @NotNull Object device) {
+    if (d == null) {
+      throw new ErrorDialogException("Unable to stop " + device,
+                                     "An error occurred stopping " + device + ". To stop the device, try manually closing the " + device +
+                                     " emulator window.");
+    }
+
+    EmulatorConsole console = myGetConsole.apply(d);
+
+    console.kill();
+    console.close();
+
+    return null;
+  }
+
+  @UiThread
+  @VisibleForTesting
+  static final class SetAllOnline implements FutureCallback<Object> {
+    private final @NotNull VirtualDeviceTableModel myModel;
+
+    @VisibleForTesting
+    SetAllOnline(@NotNull VirtualDeviceTableModel model) {
+      myModel = model;
+    }
+
+    @Override
+    public void onSuccess(@Nullable Object object) {
+      // The launch succeeded. Rely on the VirtualDeviceChangeListener, which calls VirtualDeviceTableModel::setAllOnline, to transition the
+      // device state from VirtualDevice.State.LAUNCHING to VirtualDevice.State.LAUNCHED. Likewise for STOPPING and STOPPED.
+    }
+
+    @Override
+    public void onFailure(@NotNull Throwable throwable) {
+      // The launch failed. Manually transition the state from LAUNCHING to whatever the AvdManagerConnection reports (STOPPED, presumably).
+      // Likewise for STOPPING.
+      myModel.setAllOnline();
+
+      myModel.myShowErrorDialog.accept(throwable, myModel.myProject);
     }
   }
 }

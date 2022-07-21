@@ -16,6 +16,7 @@
 package com.android.tools.idea.gradle.project.sync.snapshots
 
 import com.android.SdkConstants.FN_SETTINGS_GRADLE
+import com.android.testutils.AssumeUtil.assumeNotWindows
 import com.android.tools.idea.sdk.IdeSdks
 import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor
 import com.android.tools.idea.testing.FileSubject.file
@@ -27,8 +28,10 @@ import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertAbout
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.vfs.VfsUtil
 import org.jetbrains.android.AndroidTestBase.refreshProjectFiles
 import java.io.File
+import java.nio.file.Files
 
 /**
  * Defines test projects used in [SyncedProjectTest].
@@ -47,6 +50,29 @@ enum class TestProject(
   COMPATIBILITY_TESTS_AS_36(TestProjectToSnapshotPaths.COMPATIBILITY_TESTS_AS_36, patch = { updateProjectJdk(it) }),
   COMPATIBILITY_TESTS_AS_36_NO_IML(TestProjectToSnapshotPaths.COMPATIBILITY_TESTS_AS_36_NO_IML, patch = { updateProjectJdk(it) }),
   SIMPLE_APPLICATION(TestProjectToSnapshotPaths.SIMPLE_APPLICATION),
+  SIMPLE_APPLICATION_VIA_SYMLINK(
+    TestProjectToSnapshotPaths.SIMPLE_APPLICATION,
+    testName = "viaSymLink",
+    patch = { root ->
+      assumeNotWindows()
+      val linkSourcePath = root.parentFile.resolve(root.name + "_sm_src").toPath()
+      Files.move(root.toPath(), linkSourcePath)
+      Files.createSymbolicLink(root.toPath(), linkSourcePath)
+      VfsUtil.markDirtyAndRefresh(false, true, true, root)
+    }
+  ),
+  SIMPLE_APPLICATION_APP_VIA_SYMLINK(
+    TestProjectToSnapshotPaths.SIMPLE_APPLICATION,
+    testName = "appViaSymLink",
+    patch = { root ->
+      assumeNotWindows()
+      val app = root.resolve("app").toPath()
+      val linkSourcePath = root.resolve("app_sm_src").toPath()
+      Files.move(app, linkSourcePath)
+      Files.createSymbolicLink(app, linkSourcePath)
+      VfsUtil.markDirtyAndRefresh(false, true, true, root)
+    }
+  ),
   SIMPLE_APPLICATION_WITH_ADDITIONAL_GRADLE_SOURCE_SETS(
     TestProjectToSnapshotPaths.SIMPLE_APPLICATION, testName = "additionalGradleSourceSets", patch = { root ->
       val buildFile = root.resolve("app").resolve("build.gradle")
@@ -105,13 +131,25 @@ enum class TestProject(
     TestProjectToSnapshotPaths.KOTLIN_MULTIPLATFORM,
     testName = "jvm",
     isCompatibleWith = { it == AgpVersionSoftwareEnvironmentDescriptor.AGP_CURRENT },
-    patch = { patchMppProject(it, enableHierarchicalSupport = false, addJvmTo = "module2") }
+    patch = { patchMppProject(it, enableHierarchicalSupport = false, addJvmTo = listOf("module2")) }
   ),
   KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL(
     TestProjectToSnapshotPaths.KOTLIN_MULTIPLATFORM,
     testName = "jvm_hierarchical",
     isCompatibleWith = { it == AgpVersionSoftwareEnvironmentDescriptor.AGP_CURRENT },
-    patch = { patchMppProject(it, enableHierarchicalSupport = true, addJvmTo = "module2") }
+    patch = { patchMppProject(it, enableHierarchicalSupport = true, addJvmTo = listOf("module2")) }
+  ),
+  KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL_KMPAPP(
+    TestProjectToSnapshotPaths.KOTLIN_MULTIPLATFORM,
+    testName = "jvm_hierarchical_kmpapp",
+    isCompatibleWith = { it == AgpVersionSoftwareEnvironmentDescriptor.AGP_CURRENT },
+    patch = { patchMppProject(it, enableHierarchicalSupport = true, convertAppToKmp = true, addJvmTo = listOf("app", "module2")) }
+  ),
+  KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL_KMPAPP_WITHINTERMEDIATE(
+    TestProjectToSnapshotPaths.KOTLIN_MULTIPLATFORM,
+    testName = "jvm_hierarchical_kmpapp_withintermediate",
+    isCompatibleWith = { it == AgpVersionSoftwareEnvironmentDescriptor.AGP_CURRENT },
+    patch = { patchMppProject(it, enableHierarchicalSupport = true, convertAppToKmp = true, addJvmTo = listOf("app", "module2"), addIntermediateTo = listOf("module2")) }
   ),
   MULTI_FLAVOR(TestProjectToSnapshotPaths.MULTI_FLAVOR),
   MULTI_FLAVOR_WITH_FILTERING(
@@ -192,17 +230,57 @@ private fun truncateForV2(settingsFile: File) {
   settingsFile.writeText(patchedText)
 }
 
-private fun patchMppProject(projectRoot: File, enableHierarchicalSupport: Boolean, addJvmTo: String? = null) {
+private fun patchMppProject(
+  projectRoot: File,
+  enableHierarchicalSupport: Boolean,
+  convertAppToKmp: Boolean = false,
+  addJvmTo: List<String> = emptyList(),
+  addIntermediateTo: List<String> = emptyList()
+) {
   if (enableHierarchicalSupport) {
     projectRoot.resolve("gradle.properties").replaceInContent(
       "kotlin.mpp.hierarchicalStructureSupport=false",
       "kotlin.mpp.hierarchicalStructureSupport=true"
     )
   }
-  if (addJvmTo != null) {
-    projectRoot.resolve(addJvmTo).resolve("build.gradle").replaceInContent(
+  if (convertAppToKmp) {
+    projectRoot.resolve("app").resolve("build.gradle").replaceInContent(
+      """
+        plugins {
+            id 'com.android.application'
+            id 'kotlin-android'
+        }
+      """.trimIndent(),
+      """
+        plugins {
+            id 'com.android.application'
+            id 'kotlin-multiplatform'
+        }
+        kotlin {
+            android()
+        }
+     """.trimIndent(),
+    )
+  }
+  for (module in addJvmTo) {
+    projectRoot.resolve(module).resolve("build.gradle").replaceInContent(
       "android()",
       "android()\njvm()"
+    )
+  }
+  for (module in addIntermediateTo) {
+    projectRoot.resolve(module).resolve("build.gradle").replaceInContent(
+      """
+        |sourceSets {
+      """.trimMargin(),
+      """
+        |sourceSets {
+        |  create("jvmAndAndroid") {
+        |    dependsOn(commonMain)
+        |    androidMain.dependsOn(it)
+        |    jvmMain.dependsOn(it)
+        |  }
+      """.trimMargin()
     )
   }
 }

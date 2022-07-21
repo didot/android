@@ -19,6 +19,7 @@ import com.android.repository.testframework.FakeProgressIndicator;
 import com.android.repository.util.InstallerUtil;
 import com.android.testutils.TestUtils;
 import com.intellij.openapi.util.SystemInfo;
+import com.google.common.collect.Sets;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -99,6 +100,8 @@ public class AndroidStudioInstallation {
 
     String vmOptions = String.format("-javaagent:%s%n", agentZip) +
                        String.format("-javaagent:%s%n", threadingCheckerAgentZip) +
+                       // Need to disable android first run checks, or we get stuck in a modal dialog complaining about lack of web access.
+                       String.format("-Ddisable.android.first.run=true%n") +
                        String.format("-Dgradle.ide.save.log.to.file=true%n") +
                        String.format("-Didea.config.path=%s%n", configDir) +
                        String.format("-Didea.plugins.path=%s/plugins%n", configDir) +
@@ -106,6 +109,11 @@ public class AndroidStudioInstallation {
                        String.format("-Didea.log.path=%s%n", logsDir) +
                        String.format("-Duser.home=%s%n", fileSystem.getHome());
     Files.write(vmOptionsPath, vmOptions.getBytes(StandardCharsets.UTF_8));
+
+    // Handy utility to allow run configurations to force debugging
+    if (Sets.newHashSet("true", "1").contains(System.getenv("AS_TEST_DEBUG"))) {
+      addDebugVmOption(true);
+    }
   }
 
   private static void unzip(Path zipFile, Path outDir) throws IOException {
@@ -177,15 +185,15 @@ public class AndroidStudioInstallation {
     }
 
     Files.createDirectories(filetypePaths.getParent());
-    String filetypeContents =
-      "<application>\n" +
-      "  <component name=\"FileTypeManager\" version=\"18\">\n" +
-      "    <extensionMap>\n" +
-      "      <removed_mapping ext=\"pro\" type=\"DeviceSpecFile\" />\n" +
-      "      <mapping ext=\"pro\" type=\"Shrinker Config File\" />\n" +
-      "    </extensionMap>\n" +
-      "  </component>\n" +
-      "</application>";
+    String filetypeContents = String.format(
+      "<application>%n" +
+      "  <component name=\"FileTypeManager\" version=\"18\">%n" +
+      "    <extensionMap>%n" +
+      "      <removed_mapping ext=\"pro\" type=\"DeviceSpecFile\" />%n" +
+      "      <mapping ext=\"pro\" type=\"Shrinker Config File\" />%n" +
+      "    </extensionMap>%n" +
+      "  </component>%n" +
+      "</application>");
     Files.writeString(filetypePaths, filetypeContents, StandardCharsets.UTF_8);
   }
 
@@ -235,6 +243,21 @@ public class AndroidStudioInstallation {
     Files.writeString(dest, firstRunContents, StandardCharsets.UTF_8);
   }
 
+  public void createGeneralPropertiesXml() throws IOException {
+    Path dest = configDir.resolve("options").resolve("ide.general.xml");
+    System.out.println("Creating " + dest);
+
+    Files.createDirectories(dest.getParent());
+    String generalPropertyContents =
+      "<application>\n" +
+      "  <component name=\"GeneralSettings\">\n" +
+      "    <option name=\"confirmExit\" value=\"false\" />\n" +
+      "    <option name=\"processCloseConfirmation\" value=\"TERMINATE\" />\n" +
+      "  </component>\n" +
+      "</application>";
+    Files.writeString(dest, generalPropertyContents, StandardCharsets.UTF_8);
+  }
+
   public Path getWorkDir() {
     return workDir;
   }
@@ -261,7 +284,7 @@ public class AndroidStudioInstallation {
     }
   }
 
-  public void addDebugVmOption(boolean suspend) throws IOException {
+  private void addDebugVmOption(boolean suspend) throws IOException {
     // It's easy to forget that debugging was left on, so this emits a warning in that case.
     if (suspend) {
       String hr = "*".repeat(80);
@@ -286,9 +309,17 @@ public class AndroidStudioInstallation {
     return run(display, env, new String[] {});
   }
 
+  public AndroidStudio run(Display display, Map<String, String> env, AndroidProject project) throws IOException, InterruptedException {
+    Path projectPath = project.install(fileSystem.getRoot());
+    // Mark that project as trusted
+    trustPath(projectPath);
+    return run(display, env, new String[]{ projectPath.toString() });
+  }
+
   public AndroidStudio run(Display display, Map<String, String> env, String[] args) throws IOException, InterruptedException {
     Map<String, String> newEnv = new HashMap<>(env);
     newEnv.put("STUDIO_VM_OPTIONS", vmOptionsPath.toString());
+    newEnv.put("HOME", fileSystem.getHome().toString());
     newEnv.put("ANDROID_USER_HOME", this.fileSystem.getAndroidHome().toString());
 
     return AndroidStudio.run(this, display, newEnv, args);

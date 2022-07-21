@@ -22,6 +22,8 @@ import com.android.tools.idea.compose.preview.COMPOSE_PREVIEW_MANAGER
 import com.android.tools.idea.compose.preview.ComposePreviewManager
 import com.android.tools.idea.compose.preview.message
 import com.android.tools.idea.editors.fast.fastPreviewManager
+import com.android.tools.idea.editors.shortcuts.asString
+import com.android.tools.idea.editors.shortcuts.getBuildAndRefreshShortcut
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.projectsystem.ProjectSystemBuildManager
 import com.android.tools.idea.projectsystem.ProjectSystemService
@@ -50,6 +52,7 @@ import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.EditorNotifications
+import com.intellij.ui.Gray
 import com.intellij.ui.JBColor
 import com.intellij.ui.RoundedLineBorder
 import com.intellij.ui.components.AnActionLink
@@ -73,7 +76,7 @@ import javax.swing.border.Border
  * Utility getter that indicates if the project needs a build. This is the case if the previews build is not valid, like after a clean or
  * cancelled, or if it has failed.
  */
-private val Project.needsBuild: Boolean
+internal val Project.needsBuild: Boolean
   get() {
     val lastBuildResult = ProjectSystemService.getInstance(project = this).projectSystem.getBuildManager().getLastBuildResult()
     return lastBuildResult.status == ProjectSystemBuildManager.BuildStatus.CANCELLED ||
@@ -285,7 +288,7 @@ fun defaultCreateInformationPopup(
       listOfNotNull(
         actionLink(
           message("action.build.and.refresh.title")
-            .replace("&&", "&"), // Remove any ampersand escaping for tooltips (not needed in these links)
+            .replace("&&", "&") + getBuildAndRefreshShortcut().asString(), // Remove any ampersand escaping for tooltips (not needed in these links)
           BuildAndRefresh(composePreviewManager), dataContext),
         if (isAutoDisabled)
           actionLink(message("fast.preview.disabled.notification.reenable.action.title"), ReEnableFastPreview(), dataContext)
@@ -379,10 +382,18 @@ class ComposeIssueNotificationAction(
       }
 
       override fun createToolTip(): JToolTip? = null
+
+      // Do not display the regular tooltip
+      override fun updateToolTipText() {}
+
+      override fun updateUI() {
+        super.updateUI()
+
+        font = UIUtil.getLabelFont(UIUtil.FontSize.NORMAL)
+        foreground = JBColor(Gray._110, Gray._187)
+      }
     }.apply {
       setHorizontalTextPosition(textAlignment)
-      font = UIUtil.getLabelFont(UIUtil.FontSize.NORMAL)
-      foreground = UIUtil.getLabelDisabledForeground()
     }
 
   override fun displayTextInToolbar(): Boolean = true

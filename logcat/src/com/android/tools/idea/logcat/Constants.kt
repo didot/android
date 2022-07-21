@@ -28,5 +28,7 @@ internal val TAGS_PROVIDER_KEY = Key<TagsProvider>("TagProvider")
 
 internal val PACKAGE_NAMES_PROVIDER_KEY = Key<PackageNamesProvider>("PackageNamesProvider")
 
+internal val PROCESS_NAMES_PROVIDER_KEY = Key<ProcessNamesProvider>("ProcessNamesProvider")
+
 @JvmField
 internal val SYSTEM_HEADER = LogcatHeader(LogLevel.INFO, 0, 0, "", "", "", Instant.EPOCH)

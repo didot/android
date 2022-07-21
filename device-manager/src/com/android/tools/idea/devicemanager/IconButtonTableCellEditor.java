@@ -17,7 +17,6 @@ package com.android.tools.idea.devicemanager;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.awt.Component;
-import javax.swing.AbstractButton;
 import javax.swing.AbstractCellEditor;
 import javax.swing.Icon;
 import javax.swing.JTable;
@@ -28,28 +27,23 @@ import org.jetbrains.annotations.Nullable;
 
 public class IconButtonTableCellEditor extends AbstractCellEditor implements TableCellEditor {
   protected final @NotNull IconButton myButton;
-  private final @NotNull Object myValue;
+  protected @Nullable Object myValue;
 
-  protected IconButtonTableCellEditor(@NotNull Object value) {
-    this(value, null);
+  protected IconButtonTableCellEditor() {
+    this(null, null);
   }
 
-  protected IconButtonTableCellEditor(@NotNull Object value, @Nullable Icon icon) {
+  protected IconButtonTableCellEditor(@Nullable Object value, @Nullable Icon icon) {
     this(value, icon, null);
   }
 
-  protected IconButtonTableCellEditor(@NotNull Object value, @Nullable Icon icon, @Nullable String tooltipText) {
+  protected IconButtonTableCellEditor(@Nullable Object value, @Nullable Icon icon, @Nullable String tooltipText) {
     myButton = new IconButton(icon);
 
     myButton.setOpaque(true);
     myButton.setToolTipText(tooltipText);
 
     myValue = value;
-  }
-
-  @VisibleForTesting
-  public final @NotNull AbstractButton getButton() {
-    return myButton;
   }
 
   @VisibleForTesting
@@ -70,6 +64,7 @@ public class IconButtonTableCellEditor extends AbstractCellEditor implements Tab
 
   @Override
   public final @NotNull Object getCellEditorValue() {
+    assert myValue != null;
     return myValue;
   }
 }
