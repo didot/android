@@ -15,24 +15,18 @@
  */
 package com.android.tools.idea.explorer
 
-import com.intellij.AbstractBundle
-import com.intellij.reference.SoftLazyValue
+import com.intellij.DynamicBundle
+import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.PropertyKey
-import java.util.ResourceBundle
 
+@NonNls
 private const val BUNDLE_NAME = "messages.DeviceExplorerBundle"
 
-class DeviceExplorerBundle private constructor() {
-  companion object {
-    private val bundle: SoftLazyValue<ResourceBundle> = object : SoftLazyValue<ResourceBundle>() {
-      override fun compute(): ResourceBundle {
-        return ResourceBundle.getBundle(BUNDLE_NAME)
-      }
-    }
+object DeviceExplorerBundle : DynamicBundle(BUNDLE_NAME) {
+  @JvmStatic
+  fun message(@PropertyKey(resourceBundle = BUNDLE_NAME) key: String, vararg params: Any): String = getMessage(key, *params)
 
-    @JvmStatic
-    fun message(@PropertyKey(resourceBundle = BUNDLE_NAME) key: String, vararg params: Any?): String {
-      return AbstractBundle.message(bundle.value, key, *params)
-    }
-  }
+  @JvmStatic
+  fun messagePointer(@PropertyKey(resourceBundle = BUNDLE_NAME) key: String,
+                     vararg params: Any): java.util.function.Supplier<String> = getLazyMessage(key, *params)
 }
