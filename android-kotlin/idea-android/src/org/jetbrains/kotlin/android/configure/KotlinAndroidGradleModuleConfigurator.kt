@@ -146,13 +146,14 @@ class KotlinAndroidGradleModuleConfigurator : KotlinWithGradleConfigurator() {
         return false
     }
 
-    override fun addElementsToFile(file: PsiFile, isTopLevelProjectFile: Boolean, version: IdeKotlinVersion): Boolean {
+    override fun addElementsToFile(file: PsiFile, isTopLevelProjectFile: Boolean, originalVersion: IdeKotlinVersion): Boolean {
         val module = ModuleUtil.findModuleForPsiElement(file) ?: return false
         val project = module.project
         val projectBuildModel = ProjectBuildModel.get(project)
         val moduleBuildModel = projectBuildModel.getModuleBuildModel(module) ?: error("Build model for module $module not found")
         val sdk = ModuleRootManager.getInstance(module).sdk
-        val jvmTarget = getJvmTarget(sdk, version)
+        val jvmTarget = getJvmTarget(sdk, originalVersion)
+        val version = originalVersion.rawVersion // FIXME-ank
 
         if (isTopLevelProjectFile) {
             // We need to handle the following cases:
@@ -202,7 +203,7 @@ class KotlinAndroidGradleModuleConfigurator : KotlinWithGradleConfigurator() {
             moduleBuildModel.applyPlugin("org.jetbrains.kotlin.android")
             if (version == "default_version" /* for tests */ ||
                 GradleVersion.tryParse(version)?.compareTo("1.4")?.let { it < 0 } != false) {
-                val stdLibArtifactName = getStdlibArtifactName(sdk, version)
+                val stdLibArtifactName = getStdlibArtifactName(sdk, originalVersion)
                 val buildModel = projectBuildModel.projectBuildModel
                 val versionString = when (buildModel?.buildscript()?.ext()?.findProperty("kotlin_version")?.valueType) {
                       STRING -> if (file.isKtDsl()) "\${extra[\"kotlin_version\"]}" else "\$kotlin_version"
@@ -252,7 +253,7 @@ class KotlinAndroidGradleModuleConfigurator : KotlinWithGradleConfigurator() {
     fun doConfigure(project: Project, modules: List<Module>, version: String): NotificationMessageCollector {
         return project.executeCommand(KotlinIdeaGradleBundle.message("command.name.configure.kotlin")) {
             val collector = createConfigureKotlinNotificationCollector(project)
-            val changedFiles = configureWithVersion(project, modules, version, collector)
+            val changedFiles = configureWithVersion(project, modules, IdeKotlinVersion.get(version), collector)
 
             for (file in changedFiles) {
                 OpenFileAction.openFile(file.virtualFile, project)
