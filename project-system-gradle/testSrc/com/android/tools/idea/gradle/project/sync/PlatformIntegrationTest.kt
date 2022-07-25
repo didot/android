@@ -48,7 +48,7 @@ import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.impl.CoreProgressManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.io.FileUtil.toSystemIndependentName
+import com.intellij.openapi.util.io.FileUtilRt.toSystemIndependentName
 import com.intellij.testFramework.RunsInEdt
 import org.junit.Rule
 import org.junit.Test
