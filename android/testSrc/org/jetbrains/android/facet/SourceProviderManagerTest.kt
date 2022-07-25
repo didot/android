@@ -19,6 +19,7 @@ import com.android.tools.idea.projectsystem.sourceProviders
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.application.runWriteActionAndWait
+import com.intellij.openapi.project.RootsChangeRescanningInfo
 import org.jetbrains.kotlin.idea.base.util.invalidateProjectRoots
 import org.junit.Rule
 import org.junit.Test
@@ -32,7 +33,7 @@ class SourceProviderManagerTest {
     val facet = AndroidFacet.getInstance(projectRule.module)!!
     val sourceProviderManagerBeforeNotification = facet.sourceProviders
     runWriteActionAndWait {
-      projectRule.project.invalidateProjectRoots()
+      projectRule.project.invalidateProjectRoots(RootsChangeRescanningInfo.NO_RESCAN_NEEDED)
     }
     val sourceProviderManagerAfterNotification = facet.sourceProviders
     assertThat(sourceProviderManagerAfterNotification).isNotSameAs(sourceProviderManagerBeforeNotification)
