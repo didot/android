@@ -735,8 +735,8 @@ class InferAnnotations(val settings: InferAnnotationsSettings, val project: Proj
           return clz.startsWith("kotlin.") || clz.startsWith("java.") || clz.startsWith("android.") ||
             clz.contains(".math.") || clz.contains(".Math")
         }
-        is KtLightMethodForDecompiledDeclaration -> return clsDelegate.isGeneralCode()
-        is KtLightFieldForDecompiledDeclaration -> return clsDelegate.isGeneralCode()
+        //is KtLightMethodForDecompiledDeclaration -> return clsDelegate.isGeneralCode() // FIXME
+        //is KtLightFieldForDecompiledDeclaration -> return clsDelegate.isGeneralCode()  // FIXME
         else -> return false
       }
     }
