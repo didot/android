@@ -19,7 +19,7 @@ import com.android.tools.idea.projectsystem.sourceProviders
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.application.runWriteActionAndWait
-import org.jetbrains.kotlin.idea.roots.invalidateProjectRoots
+import org.jetbrains.kotlin.idea.base.util.invalidateProjectRoots
 import org.junit.Rule
 import org.junit.Test
 
