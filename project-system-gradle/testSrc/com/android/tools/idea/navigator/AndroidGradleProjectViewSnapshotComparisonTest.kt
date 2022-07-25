@@ -40,7 +40,7 @@ import com.android.tools.idea.testing.prepareGradleProject
 import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.IconLoader
-import com.intellij.openapi.util.io.FileUtil.toSystemDependentName
+import com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.util.PathUtil
 import org.jetbrains.android.AndroidTestBase
