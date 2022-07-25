@@ -28,7 +28,7 @@ import com.android.build.attribution.data.TaskData
 import com.android.build.attribution.data.TasksSharingOutputData
 import com.android.tools.idea.flags.StudioFlags
 import kotlinx.collections.immutable.toImmutableMap
-import org.jetbrains.kotlin.idea.util.ifTrue
+import org.jetbrains.kotlin.utils.addToStdlib.ifTrue
 import org.jetbrains.kotlin.utils.addToStdlib.sumByLong
 
 interface BuildEventsAnalysisResult {
