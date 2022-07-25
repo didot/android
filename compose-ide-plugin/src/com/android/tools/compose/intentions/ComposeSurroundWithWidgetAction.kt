@@ -37,7 +37,8 @@ import com.intellij.psi.util.prevLeaf
 import com.intellij.refactoring.suggested.endOffset
 import com.intellij.refactoring.suggested.startOffset
 import com.intellij.ui.popup.list.ListPopupImpl
-import org.jetbrains.kotlin.idea.core.util.CodeInsightUtils
+import org.jetbrains.kotlin.idea.core.util.ElementKind
+import org.jetbrains.kotlin.idea.core.util.findElements
 import org.jetbrains.kotlin.idea.util.isLineBreak
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
@@ -126,10 +127,10 @@ fun findSurroundingSelectionRange(file: PsiFile, editor: Editor): TextRange? {
   val startSelectionOffset = findNearestSurroundableElement(file, editor.selectionModel.selectionStart)?.startOffset ?: Int.MAX_VALUE
   val endSelectionOffset = findNearestSurroundableElement(file, editor.selectionModel.selectionEnd)?.endOffset ?: -1
 
-  val statements = CodeInsightUtils.findElements(file,
+  val statements = findElements(file,
                                                  minOf(editor.selectionModel.selectionStart, startSelectionOffset),
                                                  maxOf(editor.selectionModel.selectionEnd, endSelectionOffset),
-                                                 CodeInsightUtils.ElementKind.EXPRESSION)
+                                                 ElementKind.EXPRESSION)
     .filter { it.isInsideComposableCode() }
   if (statements.isNotEmpty()) {
     return TextRange.create(statements.minOf { it.startOffset }, statements.maxOf { it.endOffset })

@@ -75,7 +75,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.io.FileUtil
 import icons.StudioIcons
-import org.jetbrains.kotlin.idea.roots.findAll
+import org.jetbrains.kotlin.idea.base.externalSystem.findAll
 import org.jetbrains.plugins.gradle.execution.build.CachedModuleDataFinder
 import java.io.FileOutputStream
 import java.io.IOException

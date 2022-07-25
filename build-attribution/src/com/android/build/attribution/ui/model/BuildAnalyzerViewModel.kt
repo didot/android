@@ -18,7 +18,7 @@ package com.android.build.attribution.ui.model
 import com.android.build.attribution.BuildAttributionWarningsFilter
 import com.android.build.attribution.analyzers.DownloadsAnalyzer
 import com.android.build.attribution.ui.data.BuildAttributionReportUiData
-import org.jetbrains.kotlin.idea.util.ifTrue
+import org.jetbrains.kotlin.utils.addToStdlib.ifTrue
 
 class BuildAnalyzerViewModel(
   val reportUiData: BuildAttributionReportUiData,
