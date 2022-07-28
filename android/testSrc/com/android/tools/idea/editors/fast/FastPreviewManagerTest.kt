@@ -76,7 +76,7 @@ internal class FastPreviewManagerTest {
     .outerRule(projectRule)
     .around(FastPreviewRule())
 
-  private val testTracker = TestFastPreviewTrackerManager()
+  private val testTracker = TestFastPreviewTrackerManager(showTimes = false)
 
   @Before
   fun setUp() {
@@ -148,7 +148,7 @@ internal class FastPreviewManagerTest {
     assertEquals("Only one compilation was expected for the 10 identical requests", 1, blockingDaemon.requestReceived)
     assertEquals(
       """
-        compilationSucceeded: files=1
+        compilationSucceeded (compiledFiles=1)
      """.trimIndent(),
       testTracker.logOutput()
     )
@@ -400,8 +400,9 @@ internal class FastPreviewManagerTest {
     assertEquals(
       """
         autoDisabled
-        compilationFailed: files=1
+        compilationFailed (compiledFiles=1)
         userEnabled
+        compilationFailed (compiledFiles=1)
      """.trimIndent(),
       testTracker.logOutput()
     )
@@ -453,9 +454,9 @@ internal class FastPreviewManagerTest {
     }
     assertEquals(
       """
-        compilationFailed: files=1
+        compilationFailed (compiledFiles=1)
         autoDisabled
-        compilationFailed: files=1
+        compilationFailed (compiledFiles=1)
      """.trimIndent(),
       testTracker.logOutput()
     )
@@ -470,7 +471,7 @@ internal class FastPreviewManagerTest {
       Disposer.register(projectRule.testRootDisposable, it)
     }
     val parentDisposable = Disposer.newDisposable()
-    manager.addCompileListener(parentDisposable, object: FastPreviewManager.Companion.CompileListener {
+    manager.addListener(parentDisposable, object: FastPreviewManager.Companion.FastPreviewManagerListener {
       override fun onCompilationStarted(files: Collection<PsiFile>) {}
       override fun onCompilationComplete(result: CompilationResult, files: Collection<PsiFile>) {}
     })
@@ -535,7 +536,7 @@ internal class FastPreviewManagerTest {
     }
 
     val compilationCounter = AtomicInteger(0)
-    manager.addCompileListener(projectRule.testRootDisposable, object : FastPreviewManager.Companion.CompileListener {
+    manager.addListener(projectRule.testRootDisposable, object : FastPreviewManager.Companion.FastPreviewManagerListener {
       override fun onCompilationStarted(files: Collection<PsiFile>) {
         compilationCounter.incrementAndGet()
       }

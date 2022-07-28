@@ -566,9 +566,9 @@ android_studio(
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
     version_eap = True,
-    version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 9,
+    version_full = "dev build",
+    version_micro = 0,
+    version_patch = 0,
     visibility = ["//visibility:public"],
 )
 
@@ -795,13 +795,13 @@ iml_test(
         "@platforms//os:macos": [
             ":android-studio.mac.zip",
         ],
+        "@platforms//os:windows": [
+            ":android-studio.win.zip",
+        ],
     }) + [
         ":updater",
         ":updater.jar",
     ],
     module = ":intellij.android.studio.integration",
-    tags = [
-        "no_windows",  # In RBE, Bazel doesn't actually build the Updater's runfiles for some reason
-    ],
     test_class = "com.android.tools.idea.UpdateTest",
 )

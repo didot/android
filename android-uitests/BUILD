@@ -146,6 +146,7 @@ maven_repository(
         "@maven//:androidx.fragment.fragment_1.3.0-rc01",
         "@maven//:androidx.leanback.leanback_1.0.0",
         "@maven//:androidx.legacy.legacy-support-v13_1.0.0",
+        "@maven//:androidx.lifecycle.lifecycle-common-java8_2.4.0",
         "@maven//:androidx.lifecycle.lifecycle-extensions_2.2.0",
         "@maven//:androidx.lifecycle.lifecycle-livedata-ktx_2.4.1",
         "@maven//:androidx.media.media_1.5.0",
@@ -545,6 +546,40 @@ java_test(
 )
 
 java_test(
+    name = "CodeStyleTest",
+    size = "large",
+    data = COMMON_DATA + [
+        "//prebuilts/studio/layoutlib/data:framework_res.jar",
+    ] + glob([
+        "testData/SimpleApplication/**",
+    ]),
+    jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.editors.CodeStyleTest"],
+    tags = COMMON_TAGS + [
+        "qa_smoke",
+        "no_mac",
+    ],
+    test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
+    runtime_deps = [":intellij.android.guiTests_testlib"],
+)
+
+java_test(
+    name = "AltEnterSuggestionsTest",
+    size = "large",
+    data = COMMON_DATA + [
+        "//prebuilts/studio/layoutlib/data:framework_res.jar",
+    ] + glob([
+        "testData/SimpleApplication/**",
+    ]),
+    jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.editors.AltEnterSuggestionsTest"],
+    tags = COMMON_TAGS + [
+        "qa_fast",
+        "no_mac",
+    ],
+    test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
+    runtime_deps = [":intellij.android.guiTests_testlib"],
+)
+
+java_test(
     name = "GradleBuildTest",
     size = "large",
     data = COMMON_DATA + [
@@ -840,21 +875,6 @@ java_test(
     jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.projectstructure.AddNewBuildTypeTest"],
     tags = COMMON_TAGS + [
         "qa_smoke",
-    ],
-    test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
-    runtime_deps = [":intellij.android.guiTests_testlib"],
-)
-
-java_test(
-    name = "RunOnEmulatorTest",
-    data = COMMON_DATA + glob([
-        "testData/SimpleApplication/**",
-    ]),
-    flaky = True,
-    jvm_flags = ["-Dtest.suite.class=com.android.tools.idea.tests.gui.emulator.RunOnEmulatorTest"],
-    tags = COMMON_TAGS + [
-        "no_mac",
-        "ui_test",
     ],
     test_class = "com.android.tools.idea.tests.gui.GuiJarTestSuite",
     runtime_deps = [":intellij.android.guiTests_testlib"],

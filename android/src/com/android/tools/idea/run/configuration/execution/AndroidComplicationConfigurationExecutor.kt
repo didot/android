@@ -51,14 +51,14 @@ import java.io.File
 private const val COMPLICATION_MIN_DEBUG_SURFACE_VERSION = 2
 private const val COMPLICATION_RECOMMENDED_DEBUG_SURFACE_VERSION = 3
 
-class AndroidComplicationConfigurationExecutor(environment: ExecutionEnvironment,
-                                               deployTarget: DeployTarget,
-                                               appRunSettings: AppRunSettings,
-                                               applicationIdProvider: ApplicationIdProvider,
-                                               apkProvider: ApkProvider) : AndroidWearConfigurationExecutor(environment, deployTarget,
-                                                                                                            appRunSettings,
-                                                                                                            applicationIdProvider,
-                                                                                                            apkProvider) {
+open class AndroidComplicationConfigurationExecutor(environment: ExecutionEnvironment,
+                                                    deployTarget: DeployTarget,
+                                                    appRunSettings: AppRunSettings,
+                                                    applicationIdProvider: ApplicationIdProvider,
+                                                    apkProvider: ApkProvider) : AndroidWearConfigurationExecutor(environment, deployTarget,
+                                                                                                                 appRunSettings,
+                                                                                                                 applicationIdProvider,
+                                                                                                                 apkProvider) {
   private val complicationLaunchOptions = appRunSettings.componentLaunchOptions as ComplicationLaunchOptions
 
   @WorkerThread
@@ -119,7 +119,7 @@ class AndroidComplicationConfigurationExecutor(environment: ExecutionEnvironment
     val watchFaceInfo = complicationLaunchOptions.watchFaceInfo
 
     val apkInfo = ApkInfo(File(watchFaceInfo.apk), watchFaceInfo.appId)
-    return getApplicationInstaller(console).fullDeploy(device, listOf(apkInfo), appRunSettings.deployOptions).app
+    return getApplicationInstaller(console).fullDeploy(device, apkInfo, appRunSettings.deployOptions).app
   }
 
   override fun getStopCallback(console: ConsoleView, isDebug: Boolean): (IDevice) -> Unit {

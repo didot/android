@@ -27,6 +27,8 @@ import com.android.tools.idea.compose.preview.SimpleComposeAppPaths
 import com.android.tools.idea.compose.preview.util.ComposePreviewElement
 import com.android.tools.idea.editors.fast.CompilationResult
 import com.android.tools.idea.editors.fast.FastPreviewManager
+import com.android.tools.idea.editors.fast.FastPreviewTrackerManager
+import com.android.tools.idea.editors.fast.TestFastPreviewTrackerManager
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.gradle.project.build.invoker.GradleBuildInvoker
 import com.android.tools.idea.preview.PreviewElementProvider
@@ -40,6 +42,7 @@ import com.android.tools.idea.uibuilder.editor.multirepresentation.PreferredVisi
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.application.runWriteActionAndWait
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
@@ -51,6 +54,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
+import com.intellij.testFramework.replaceService
 import com.intellij.testFramework.runInEdtAndWait
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.TimeoutCancellationException
@@ -63,6 +67,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import java.awt.BorderLayout
@@ -175,15 +180,15 @@ class ComposePreviewRepresentationGradleTest {
     assertTrue("FastPreviewManager must be enabled", fastPreviewManager.isEnabled)
 
     val compileDeferred = CompletableDeferred<Unit>()
-    val compileListener = object: FastPreviewManager.Companion.CompileListener {
+    val fastPreviewManagerListener = object: FastPreviewManager.Companion.FastPreviewManagerListener {
       override fun onCompilationStarted(files: Collection<PsiFile>) {}
 
       override fun onCompilationComplete(result: CompilationResult, files: Collection<PsiFile>) {
-        compileDeferred.complete(Unit)
+        if (result == CompilationResult.Success) compileDeferred.complete(Unit)
       }
 
     }
-    fastPreviewManager.addCompileListener(fixture.testRootDisposable, compileListener)
+    fastPreviewManager.addListener(fixture.testRootDisposable, fastPreviewManagerListener)
     withTimeout(timeout.toMillis()) {
       while (FastPreviewManager.getInstance(project).isCompiling) delay(50)
       runnable()
@@ -304,6 +309,7 @@ class ComposePreviewRepresentationGradleTest {
     ImageDiffUtil.assertImageSimilar("testImage", firstRender, thirdRender, 10.0, 20)
   }
 
+  @Ignore("b/240180797")
   @Test
   fun `MultiPreview annotation changes are reflected in the previews without rebuilding`() {
     val otherPreviewsFile = getPsiFile(SimpleComposeAppPaths.APP_OTHER_PREVIEWS.path)
@@ -432,14 +438,30 @@ class ComposePreviewRepresentationGradleTest {
   @Test
   fun `fast preview request`() {
     StudioFlags.COMPOSE_FAST_PREVIEW.override(true)
+    val requestCompleted = CompletableDeferred<Unit>()
+    val testTracker = TestFastPreviewTrackerManager {
+      requestCompleted.complete(Unit)
+    }
+
+    project.replaceService(FastPreviewTrackerManager::class.java, testTracker, fixture.testRootDisposable)
+
     runAndWaitForFastRefresh {
-      runWriteActionAndWait {
+      WriteCommandAction.runWriteCommandAction(project) {
         projectRule.fixture.openFileInEditor(psiMainFile.virtualFile)
         projectRule.fixture.moveCaret("Text(\"Hello 2\")|")
-        projectRule.fixture.type("\nText(\"added during test execution\")")
+        projectRule.fixture.editor.insertText("\nText(\"added during test execution\")")
         PsiDocumentManager.getInstance(projectRule.project).commitAllDocuments()
       }
     }
+
+    runBlocking {
+      withTimeout(TimeUnit.SECONDS.toMillis(10)) {
+        // Wait for the tracking request to be submitted
+        requestCompleted.await()
+      }
+    }
+
+    assertEquals("compilationSucceeded (compilationDurationMs=>0, compiledFiles=1, refreshTime=>0)", testTracker.logOutput())
   }
 
   @Test

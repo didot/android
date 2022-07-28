@@ -18,6 +18,7 @@ package com.android.tools.asdriver.tests;
 import com.android.repository.testframework.FakeProgressIndicator;
 import com.android.repository.util.InstallerUtil;
 import com.android.testutils.TestUtils;
+import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.util.SystemInfo;
 import com.google.common.collect.Sets;
 import java.io.BufferedWriter;
@@ -165,6 +166,10 @@ public class AndroidStudioInstallation {
     Path consentOptions = workDir.resolve("data/Google/consentOptions/accepted");
     if (SystemInfo.isMac) {
       consentOptions = fileSystem.getHome().resolve("Library/Application Support/Google/consentOptions/accepted");
+    } else if (SystemInfo.isWindows) {
+      // Since we're running from outside of Android Studio, getCommonDataPath() will have a vendor
+      // name of "null" instead of "Google", so we work around that here.
+      consentOptions = PathManager.getCommonDataPath().getParent().resolve("Google/consentOptions/accepted");
     }
     Files.createDirectories(consentOptions.getParent());
     Files.writeString(consentOptions, combinedString);
@@ -248,12 +253,25 @@ public class AndroidStudioInstallation {
     System.out.println("Creating " + dest);
 
     Files.createDirectories(dest.getParent());
+    String registryChanges = "";
+    if (SystemInfo.isWindows) {
+      // When run in a Windows Docker container, we hit this issue:
+      // https://youtrack.jetbrains.com/issue/IDEA-270104. The resulting error doesn't seem to
+      // crash Android Studio, but the stack traces take up more than 100 lines in the log, so we
+      // work around the issue by disabling jump lists on Windows.
+      registryChanges =
+        "  <component name=\"Registry\">\n" +
+        "    <entry key=\"windows.jumplist\" value=\"false\" />\n" +
+        "  </component>\n";
+    }
+
     String generalPropertyContents =
       "<application>\n" +
       "  <component name=\"GeneralSettings\">\n" +
       "    <option name=\"confirmExit\" value=\"false\" />\n" +
       "    <option name=\"processCloseConfirmation\" value=\"TERMINATE\" />\n" +
       "  </component>\n" +
+      registryChanges +
       "</application>";
     Files.writeString(dest, generalPropertyContents, StandardCharsets.UTF_8);
   }

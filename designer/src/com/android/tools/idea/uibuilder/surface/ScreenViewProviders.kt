@@ -164,7 +164,6 @@ internal fun blueprintProvider(surface: NlDesignSurface, manager: LayoutlibScene
         if (it.hasBorderLayer()) {
           add(BorderLayer(it))
         }
-        add(MockupLayer(it))
         if (!isSecondary) {
           add(CanvasResizeLayer(it.surface, it))
         }
@@ -185,8 +184,8 @@ internal fun visualizationProvider(surface: NlDesignSurface,
         // Always has border in visualization tool.
         add(BorderLayer(it))
         add(ScreenViewLayer(it))
-        add(WarningLayer(it))
         add(SceneLayer(it.surface, it, false).apply { isShowOnHover = true })
+        add(WarningLayer(it))
       }.build()
     }
     .withContentSizePolicy(DEVICE_CONTENT_SIZE_POLICY)
@@ -291,7 +290,6 @@ internal fun composeBlueprintProvider(surface: NlDesignSurface,
         if (it.hasBorderLayer()) {
           add(BorderLayer(it))
         }
-        add(MockupLayer(it))
         add(SceneLayer(it.surface, it, true))
       }.build()
     }

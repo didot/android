@@ -58,7 +58,6 @@ import com.android.tools.idea.uibuilder.api.ViewGroupHandler;
 import com.android.tools.idea.uibuilder.api.ViewHandler;
 import com.android.tools.idea.uibuilder.editor.NlActionManager;
 import com.android.tools.idea.uibuilder.error.RenderIssueProvider;
-import com.android.tools.idea.uibuilder.mockup.editor.MockupEditor;
 import com.android.tools.idea.uibuilder.model.NlComponentHelperKt;
 import com.android.tools.idea.uibuilder.scene.LayoutlibSceneManager;
 import com.android.tools.idea.uibuilder.scene.RenderListener;
@@ -392,7 +391,6 @@ public class NlDesignSurface extends DesignSurface<LayoutlibSceneManager>
   @NotNull private ScreenViewProvider myScreenViewProvider = NlScreenViewProvider.Companion.loadPreferredMode();
   private boolean myIsCanvasResizing = false;
   private boolean myMockupVisible;
-  private MockupEditor myMockupEditor;
   private final boolean myIsInPreview;
   private final RenderListener myRenderListener = this::modelRendered;
   @NotNull private ImmutableList<? extends IssueProvider> myRenderIssueProviders = ImmutableList.of();
@@ -788,15 +786,6 @@ public class NlDesignSurface extends DesignSurface<LayoutlibSceneManager>
     return myMockupVisible;
   }
 
-  public void setMockupEditor(@Nullable MockupEditor mockupEditor) {
-    myMockupEditor = mockupEditor;
-  }
-
-  @Nullable
-  public MockupEditor getMockupEditor() {
-    return myMockupEditor;
-  }
-
   /**
    * Notifies the design surface that the given screen view (which must be showing in this design surface)
    * has been rendered (possibly with errors)
@@ -870,7 +859,7 @@ public class NlDesignSurface extends DesignSurface<LayoutlibSceneManager>
         });
 
         if (myShouldRunVisualLintService && !VisualizationToolWindowFactory.hasVisibleValidationWindow(project)) {
-          VisualLintService.getInstance(project).runVisualLintAnalysis(getModels(), NlDesignSurface.this);
+          VisualLintService.getInstance(project).runVisualLintAnalysis(getModels());
         }
       }
 

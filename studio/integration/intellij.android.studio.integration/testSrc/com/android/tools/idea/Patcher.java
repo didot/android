@@ -62,16 +62,17 @@ public class Patcher {
    * Runs the patcher to produce a patch file from two input directories.
    */
   private Path runPatcher(String currentBuildNumber, String updatedBuildNumber) throws IOException, InterruptedException {
-    Path updaterBin = TestUtils.getBinPath("tools/adt/idea/studio/updater");
     Path patchDir = fileSystem.getRoot().resolve("patch");
     Files.createDirectories(patchDir);
     System.out.println("Creating the patch in " + patchDir);
 
     String platform = "unix";
+    Path updaterBin = TestUtils.getBinPath("tools/adt/idea/studio/updater");
     if (SystemInfo.isMac) {
       platform = CpuArch.isArm64() ? "mac_arm" : "mac";
     } else if (SystemInfo.isWindows) {
       platform = "win";
+      updaterBin = TestUtils.getBinPath("tools/adt/idea/studio/updater.exe");
     }
     String patchName = String.format("AI-%s-%s-patch-%s.jar", currentBuildNumber, updatedBuildNumber, platform);
     Path patchFile = patchDir.resolve(patchName);
@@ -96,7 +97,7 @@ public class Patcher {
 
     long startTime = System.currentTimeMillis();
     Process p = pb.start();
-    p.waitFor(90, TimeUnit.SECONDS);
+    p.waitFor(1, TimeUnit.DAYS);
     long elapsedTime = System.currentTimeMillis() - startTime;
     System.out.println("Creating the patch took " + elapsedTime + "ms");
 

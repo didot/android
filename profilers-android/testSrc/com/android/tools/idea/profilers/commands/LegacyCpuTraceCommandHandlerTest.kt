@@ -29,8 +29,8 @@ import com.android.tools.profiler.proto.Common
 import com.android.tools.profiler.proto.Cpu
 import com.android.tools.profiler.proto.TransportServiceGrpc
 import com.google.common.truth.Truth.assertThat
-import io.grpc.ManagedChannel
-import io.grpc.inprocess.InProcessChannelBuilder
+import com.android.tools.idea.io.grpc.ManagedChannel
+import com.android.tools.idea.io.grpc.inprocess.InProcessChannelBuilder
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.ArgumentMatchers
@@ -146,7 +146,7 @@ class LegacyCpuTraceCommandHandlerTest {
     // Start and stop recording on Device 2.
     val testPid2 = 2
     val startTimestamp2 = 30L
-    val traceBytes = byteArrayOf('b'.toByte())
+    val traceBytes = byteArrayOf('b'.code.toByte())
     // Return different trace bytes.
     val mockClient2 = createMockClient(testPid2, traceBytes)
     val eventQueue2 = LinkedBlockingDeque<Common.Event>()
@@ -164,7 +164,7 @@ class LegacyCpuTraceCommandHandlerTest {
   }
 
   companion object {
-    private val FAKE_TRACE_BYTES = byteArrayOf('a'.toByte())
+    private val FAKE_TRACE_BYTES = byteArrayOf('a'.code.toByte())
     private val TRACE_CONFIG = Cpu.CpuTraceConfiguration.newBuilder().apply {
       userOptions = Cpu.CpuTraceConfiguration.UserOptions.newBuilder().apply {
         traceMode = Cpu.CpuTraceMode.INSTRUMENTED

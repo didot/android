@@ -19,7 +19,6 @@ import com.android.ide.common.rendering.HardwareConfigHelper
 import com.android.tools.idea.common.error.IssueModel
 import com.android.tools.idea.common.model.ModelListener
 import com.android.tools.idea.common.model.NlModel
-import com.android.tools.idea.common.surface.DesignSurface
 import com.android.tools.idea.flags.StudioFlags
 import com.android.tools.idea.rendering.RenderAsyncActionExecutor
 import com.android.tools.idea.rendering.RenderResult
@@ -42,6 +41,8 @@ import com.android.tools.idea.uibuilder.visual.visuallint.analyzers.WearMarginAn
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.codeInsight.daemon.HighlightDisplayKey
 import com.intellij.codeInspection.InspectionProfile
+import com.intellij.lang.annotation.HighlightSeverity
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -65,7 +66,7 @@ private val visualLintAnalyzerExecutorService = AppExecutorUtil.createBoundedApp
  * Service that runs visual lints
  */
 @Service
-class VisualLintService(project: Project) {
+class VisualLintService(val project: Project): Disposable {
 
   companion object {
     @JvmStatic
@@ -74,10 +75,12 @@ class VisualLintService(project: Project) {
     }
   }
 
-  /** Default issue provider for Visual Lint Service. */
-  val issueProvider = VisualLintIssueProvider(project)
+  val issueModel: IssueModel = IssueModel(this, project)
 
-  private val basicAnalyzers = listOf(BoundsAnalyzer, OverlapAnalyzer)
+  /** Default issue provider for Visual Lint Service. */
+  val issueProvider: VisualLintIssueProvider = VisualLintIssueProvider(this)
+
+  private val basicAnalyzers = listOf(BoundsAnalyzer, OverlapAnalyzer, AtfAnalyzer)
   private val adaptiveAnalyzers = listOf(BottomNavAnalyzer, BottomAppBarAnalyzer, TextFieldSizeAnalyzer,
                                          LongTextAnalyzer, ButtonSizeAnalyzer)
   private val wearAnalyzers = listOf(WearMarginAnalyzer)
@@ -85,6 +88,7 @@ class VisualLintService(project: Project) {
   private val ignoredTypes: MutableList<VisualLintErrorType>
 
   init {
+    issueModel.addIssueProvider(issueProvider, false)
     val connection = project.messageBus.connect()
     ignoredTypes = mutableListOf()
     getIgnoredTypesFromProfile(InspectionProfileManager.getInstance(project).currentProfile)
@@ -112,29 +116,28 @@ class VisualLintService(project: Project) {
     }
   }
 
-  fun removeIssues(surface: DesignSurface<*>) {
-    surface.issueModel.removeIssueProvider(issueProvider)
+  fun removeIssues() {
+    issueProvider.clear()
+    issueModel.updateErrorsList()
   }
 
   /**
    * Runs visual lint analysis in a pooled thread for configurations based on the model provided,
    * and adds the issues found to the [IssueModel]
    */
-  fun runVisualLintAnalysis(models: List<NlModel>, surface: DesignSurface<*>) {
-    runVisualLintAnalysis(models, surface, visualLintExecutorService)
+  fun runVisualLintAnalysis(models: List<NlModel>) {
+    runVisualLintAnalysis(models, visualLintExecutorService)
   }
 
   @VisibleForTesting
-  fun runVisualLintAnalysis(models: List<NlModel>, surface: DesignSurface<*>, executorService: ExecutorService) {
+  fun runVisualLintAnalysis(models: List<NlModel>, executorService: ExecutorService) {
     CompletableFuture.runAsync({
-      val issueModel = surface.issueModel
-      issueModel.removeIssueProvider(issueProvider)
       issueProvider.clear()
+      issueModel.updateErrorsList()
       if (models.isEmpty()) {
         return@runAsync
       }
 
-      issueModel.addIssueProvider(issueProvider, false)
       val displayingModel = models[0]
       val listener = object : ModelListener {
         override fun modelChanged(model: NlModel) {
@@ -155,10 +158,11 @@ class VisualLintService(project: Project) {
         val latch = CountDownLatch(modelsToAnalyze.size)
         val visualLintBaseConfigIssues = VisualLintBaseConfigIssues()
         for (model in modelsToAnalyze) {
-          inflate(model).handleAsync({ result, _ ->
+          val requireRender = StudioFlags.NELE_ATF_IN_VISUAL_LINT.get() && VisualLintErrorType.ATF !in ignoredTypes
+          createRenderResult(model, requireRender).handleAsync({ result, _ ->
             if (result != null) {
               updateHierarchy(result, model)
-              analyzeAfterModelUpdate(result, model, visualLintBaseConfigIssues, true)
+              analyzeAfterModelUpdate(issueProvider, result, model, visualLintBaseConfigIssues, true)
             }
             Disposer.dispose(model)
             latch.countDown()
@@ -175,47 +179,55 @@ class VisualLintService(project: Project) {
   /**
    * Collects in [issueProvider] all the [RenderErrorModel.Issue] found when analyzing the given [RenderResult] after model is updated.
    */
-  fun analyzeAfterModelUpdate(result: RenderResult,
+  fun analyzeAfterModelUpdate(targetIssueProvider: VisualLintIssueProvider,
+                              result: RenderResult,
                               model: NlModel,
                               baseConfigIssues: VisualLintBaseConfigIssues,
                               runningInBackground: Boolean = false) {
-    runAnalyzers(basicAnalyzers, result, model, runningInBackground)
+    runAnalyzers(targetIssueProvider, basicAnalyzers, result, model, runningInBackground)
     if (HardwareConfigHelper.isWear(model.configuration.device)) {
-      runAnalyzers(wearAnalyzers, result, model, runningInBackground)
+      runAnalyzers(targetIssueProvider, wearAnalyzers, result, model, runningInBackground)
     } else {
-      runAnalyzers(adaptiveAnalyzers, result, model, runningInBackground)
+      runAnalyzers(targetIssueProvider, adaptiveAnalyzers, result, model, runningInBackground)
       if (VisualLintErrorType.LOCALE_TEXT !in ignoredTypes) {
         LocaleAnalyzer(baseConfigIssues).let {
-          issueProvider.addAllIssues(it.type, it.analyze(result, model, runningInBackground))
+          targetIssueProvider.addAllIssues(it.type, it.analyze(result, model, getSeverity(it.type), runningInBackground))
         }
-      }
-      if (StudioFlags.NELE_ATF_IN_VISUAL_LINT.get() && VisualLintErrorType.ATF !in ignoredTypes) {
-        AtfAnalyzer.analyze(result, model, issueProvider, runningInBackground)
       }
     }
   }
 
-  private fun runAnalyzers(analyzers: List<VisualLintAnalyzer>,
+  private fun runAnalyzers(targetIssueProvider: VisualLintIssueProvider,
+                           analyzers: List<VisualLintAnalyzer>,
                            result: RenderResult,
                            model: NlModel,
                            runningInBackground: Boolean) {
     analyzers.filter { !ignoredTypes.contains(it.type) }.forEach {
-      val issues = it.analyze(result, model, runningInBackground)
-      issueProvider.addAllIssues(it.type, issues)
+      val issues = it.analyze(result, model, getSeverity(it.type), runningInBackground)
+      targetIssueProvider.addAllIssues(it.type, issues)
     }
+  }
+
+  private fun getSeverity(type: VisualLintErrorType): HighlightSeverity {
+    val key = HighlightDisplayKey.find(type.shortName)
+    return key?.let { InspectionProfileManager.getInstance(project).currentProfile.getErrorLevel(it, null).severity }
+           ?: HighlightSeverity.WARNING
+    }
+
+  override fun dispose() {
   }
 }
 
 /**
- * Inflate a view, then return the completable future with render result.
+ * Inflates or renders a model, then returns the completable future with render result.
  */
-fun inflate(model: NlModel): CompletableFuture<RenderResult> {
+fun createRenderResult(model: NlModel, requireRender: Boolean): CompletableFuture<RenderResult> {
   val renderService = RenderService.getInstance(model.project)
   val logger = renderService.createLogger(model.facet)
 
   return renderService.taskBuilder(model.facet, model.configuration)
     .withPsiFile(model.file)
-    .withLayoutScanner(false)
+    .withLayoutScanner(requireRender)
     .withLogger(logger)
     .withPriority(RenderAsyncActionExecutor.RenderingPriority.LOW)
     .build().thenCompose { newTask ->
@@ -226,7 +238,8 @@ fun inflate(model: NlModel): CompletableFuture<RenderResult> {
       }
 
       // TODO: Potentially save this task for future?
-      return@thenCompose newTask.inflate().whenComplete { result, inflateException ->
+      val renderResult = if (requireRender) newTask.render() else newTask.inflate()
+      return@thenCompose renderResult.whenComplete { result, inflateException ->
         val exception: Throwable? = inflateException ?: result.renderResult.exception
         if (exception != null || result == null) {
           logger.error("INFLATE", "Error inflating views for visual lint on background", exception, null, null)

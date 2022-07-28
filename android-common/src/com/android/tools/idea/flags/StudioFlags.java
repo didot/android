@@ -198,10 +198,6 @@ public final class StudioFlags {
     NELE, "animated.motion.horizontal", "Display motion editor horizontally",
     "Controls the placement of the motion editor (horizontal versus vertical).",
     false);
-  public static final Flag<Boolean> NELE_MOCKUP_EDITOR = Flag.create(
-    NELE, "mockup.editor", "Enable the Mockup Editor",
-    "Enable the Mockup Editor to ease the creation of Layouts from a design file.",
-    false);
 
   public static final Flag<Boolean> NELE_RENDER_DIAGNOSTICS = Flag.create(
     NELE, "diagnostics", "Enable rendering on-screen stats",
@@ -468,14 +464,6 @@ public final class StudioFlags {
     RUNDEBUG, "android.new.execution.flow.enabled", "Enable new Execution flow",
     "If enabled, AS executes Run Configuration via new.AndroidRunProfileState",
     false);
-
-  /**
-   * Details: go/decouple-android-debuggers-from-android-configurations, "Android Java Debugger refactoring" section .
-   */
-  public static final Flag<Boolean> NEW_EXECUTION_FLOW_FOR_JAVA_DEBUGGER = Flag.create(
-    RUNDEBUG, "android.new.execution.flow.for.java.debugger.enabled", "Enable new Execution flow for debuggers",
-    "If enabled, AS executes Run Java debugger via com.android.tools.idea.run.debug.StartJavaDebuggerKt.attachJavaDebuggerToClient",
-    true);
 
   public static final Flag<Boolean> ALLOW_RUN_WEAR_CONFIGURATIONS_FROM_GUTTER = Flag.create(
     RUNDEBUG, "run.wear.configuration.gutter.enabled", "Run Wear Configurations from gutter",
@@ -1400,6 +1388,9 @@ public final class StudioFlags {
   public static final Flag<Boolean> APP_LINKS_ASSISTANT_V2 =
     Flag.create(APP_LINKS_ASSISTANT, "v2", "App Links Assistant V2",
                 "Revamped App Links Assistant (new surfaces and navigation between surfaces).", false);
+  public static final Flag<Boolean> WEBSITE_ASSOCIATION_GENERATOR_V2 =
+    Flag.create(APP_LINKS_ASSISTANT, "website.association.generator.v2", "Website Association Generator V2",
+                "Improvements to Website Association Generator.", false);
   // endregion App Links Assistant
 
   // region GOOGLE_PLAY_SDK_INDEX

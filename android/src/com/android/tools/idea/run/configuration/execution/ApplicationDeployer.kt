@@ -23,17 +23,23 @@ import com.android.tools.idea.log.LogWrapper
 import com.android.tools.idea.run.ApkFileUnit
 import com.android.tools.idea.run.ApkInfo
 import com.android.tools.idea.run.tasks.DeployTask
-import com.intellij.execution.ExecutionException
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProgressIndicatorProvider
 import com.intellij.openapi.project.Project
-import java.util.stream.Collectors
 
+/**
+ * Deploys one app, described as [ApkInfo], at a time.
+ */
 interface ApplicationDeployer {
-  fun fullDeploy(device: IDevice, packages: Collection<ApkInfo>, deployOptions: DeployOptions): Deployer.Result
-  fun applyChangesDeploy(device: IDevice, packages: Collection<ApkInfo>, deployOptions: DeployOptions): Deployer.Result
-  fun applyCodeChangesDeploy(device: IDevice, packages: Collection<ApkInfo>, deployOptions: DeployOptions): Deployer.Result
+  @Throws(DeployerException::class)
+  fun fullDeploy(device: IDevice, app: ApkInfo, deployOptions: DeployOptions): Deployer.Result
+
+  @Throws(DeployerException::class)
+  fun applyChangesDeploy(device: IDevice, app: ApkInfo, deployOptions: DeployOptions): Deployer.Result
+
+  @Throws(DeployerException::class)
+  fun applyCodeChangesDeploy(device: IDevice, app: ApkInfo, deployOptions: DeployOptions): Deployer.Result
 }
 
 data class DeployOptions(
@@ -47,65 +53,53 @@ class ApplicationDeployerImpl(private val project: Project,
                               val console: ConsoleView) : ApplicationDeployer {
   private val LOG = Logger.getInstance(this::class.java)
 
-  override fun fullDeploy(device: IDevice, packages: Collection<ApkInfo>, deployOptions: DeployOptions): Deployer.Result {
+  override fun fullDeploy(device: IDevice, app: ApkInfo, deployOptions: DeployOptions): Deployer.Result {
 
     ProgressIndicatorProvider.getGlobalProgressIndicator()?.checkCanceled()
     ProgressIndicatorProvider.getGlobalProgressIndicator()?.text = "Installing app"
 
-    // Add packages to the deployment, filtering out any dynamic features that are disabled.
-    val filtered: List<ApkInfo> = packages.map { apkInfo: ApkInfo ->
-      filterDisabledFeatures(apkInfo, deployOptions.disabledDynamicFeatures)
-    }
+    // Add packages to the deployment,
     val deployTask = DeployTask(
       project,
-      filtered,
+      listOf(filterDisabledFeatures(app, deployOptions.disabledDynamicFeatures)),
       deployOptions.pmInstallFlags,
       deployOptions.installOnAllUsers,
       deployOptions.alwaysInstallWithPm)
-    //TODO: figure out in what cases we have more than one app
-    try {
-      return deployTask.run(device, console, LogWithConsole(LOG, console)).first()
-    }
-    catch (e: DeployerException) {
-      throw ExecutionException("Failed to install app '${filtered.first().applicationId}'. ${e.details ?: ""}", e)
-    }
+
+    // use single(), because we have 1 apkInfo as input.
+    return deployTask.run(device, console, AdbCommandCaptureLoggerWithConsole(LOG, console)).single()
   }
 
-  override fun applyChangesDeploy(device: IDevice, packages: Collection<ApkInfo>, deployOptions: DeployOptions): Deployer.Result {
-     throw RuntimeException("Unsupported operation")
+  override fun applyChangesDeploy(device: IDevice, app: ApkInfo, deployOptions: DeployOptions): Deployer.Result {
+    throw RuntimeException("Unsupported operation")
   }
 
-  override fun applyCodeChangesDeploy(device: IDevice, packages: Collection<ApkInfo>, deployOptions: DeployOptions): Deployer.Result {
-     throw RuntimeException("Unsupported operation")
+  override fun applyCodeChangesDeploy(device: IDevice, app: ApkInfo, deployOptions: DeployOptions): Deployer.Result {
+    throw RuntimeException("Unsupported operation")
   }
 
   private fun filterDisabledFeatures(apkInfo: ApkInfo, disabledFeatures: List<String>): ApkInfo {
     return if (apkInfo.files.size > 1) {
-      val filtered = apkInfo.files.stream()
-        .filter { feature: ApkFileUnit? ->
-          DynamicAppUtils.isFeatureEnabled(disabledFeatures,
-                                           feature!!)
-        }
-        .collect(Collectors.toList())
+      val filtered = apkInfo.files.filter { feature: ApkFileUnit -> DynamicAppUtils.isFeatureEnabled(disabledFeatures, feature) }
       ApkInfo(filtered, apkInfo.applicationId)
     }
     else {
       apkInfo
     }
   }
+}
 
-  private class LogWithConsole(logger: Logger, val console: ConsoleView) : LogWrapper(logger) {
-    override fun info(msgFormat: String, vararg args: Any?) { // print to user console commands that we run on device
-      if (msgFormat.contains("$ adb")) {
-        console.print(msgFormat + "\n")
-      }
-      super.info(msgFormat, *args)
+class AdbCommandCaptureLoggerWithConsole(logger: Logger, val console: ConsoleView) : LogWrapper(logger) {
+  override fun info(msgFormat: String, vararg args: Any?) { // print to user console commands that we run on device
+    if (msgFormat.contains("$ adb")) {
+      console.print(msgFormat + "\n")
     }
+    super.info(msgFormat, *args)
+  }
 
-    override fun warning(msgFormat: String, vararg args: Any?) { // print to user console commands that we run on device
-      console.printError(msgFormat + "\n")
-      super.info(msgFormat, *args)
-    }
+  override fun warning(msgFormat: String, vararg args: Any?) { // print to user console commands that we run on device
+    console.printError(msgFormat + "\n")
+    super.info(msgFormat, *args)
   }
 }
 

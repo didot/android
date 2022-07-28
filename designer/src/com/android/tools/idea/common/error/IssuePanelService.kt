@@ -48,6 +48,7 @@ import com.intellij.openapi.wm.ex.ToolWindowManagerListener
 import com.intellij.psi.PsiFile
 import com.intellij.ui.ColorUtil.toHtmlColor
 import com.intellij.ui.content.Content
+import com.intellij.ui.tree.TreeVisitor
 import com.intellij.util.ui.UIUtil
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.kotlin.idea.KotlinFileType
@@ -72,6 +73,8 @@ class IssuePanelService(private val project: Project) {
 
   private val initLock = Any()
   private var inited = false
+
+  private val fileToSurfaceMap = mutableMapOf<VirtualFile, DesignSurface<*>>()
 
   init {
     val manager = ToolWindowManager.getInstance(project)
@@ -121,6 +124,7 @@ class IssuePanelService(private val project: Project) {
 
       sharedIssuePanel = issuePanel
       contentFactory.createContent(issuePanel.getComponent(), "Design Issue", true).apply {
+        isPinnable = false
         sharedIssueTab = this
         isCloseable = false
         contentManager.addContent(this@apply)
@@ -155,28 +159,10 @@ class IssuePanelService(private val project: Project) {
         }
         val surface = newEditor?.getDesignSurface()
         if (surface != null) {
-          val psiFileType = newFile.toPsiFile(project)?.typeOf()
-          if (psiFileType is DrawableFileType) {
-            // We don't support Shared issue panel for Drawable files.
-            removeSharedIssueTabFromProblemsPanel()
-          }
-          else {
-            addIssuePanel(selectIfVisible)
-          }
+          updateIssuePanelVisibility(newFile, selectIfVisible)
         }
         else {
           removeSharedIssueTabFromProblemsPanel()
-        }
-      }
-
-      /**
-       * Add shared issue panel into IJ's problems panel. If [selected] is true, select the shared issue panel after added.
-       */
-      private fun addIssuePanel(selected: Boolean) {
-        addSharedIssueTabToProblemsPanel()
-        updateSharedIssuePanelTabName()
-        if (selected) {
-          selectSharedIssuePanelTab()
         }
       }
     })
@@ -198,6 +184,28 @@ class IssuePanelService(private val project: Project) {
           }
         }
       }
+    }
+  }
+
+  private fun updateIssuePanelVisibility(file: VirtualFile, selectIfVisible: Boolean) {
+    val psiFileType = file.toPsiFile(project)?.typeOf()
+    if (psiFileType is DrawableFileType) {
+      // We don't support Shared issue panel for Drawable files.
+      removeSharedIssueTabFromProblemsPanel()
+    }
+    else {
+      addIssuePanel(selectIfVisible)
+    }
+  }
+
+  /**
+   * Add shared issue panel into IJ's problems panel. If [selected] is true, select the shared issue panel after added.
+   */
+  private fun addIssuePanel(selected: Boolean) {
+    addSharedIssueTabToProblemsPanel()
+    updateSharedIssuePanelTabName()
+    if (selected) {
+      selectSharedIssuePanelTab()
     }
   }
 
@@ -248,8 +256,9 @@ class IssuePanelService(private val project: Project) {
   /**
    * Set the visibility of shared issue panel.
    * When [visible] is true, this opens the problem panel and switch the tab to shared issue panel tab.
+   * The optional given [onAfterSettingVisibility] is executed after the visibility is changed.
    */
-  fun setSharedIssuePanelVisibility(visible: Boolean) {
+  fun setSharedIssuePanelVisibility(visible: Boolean, onAfterSettingVisibility: Runnable? = null) {
     val tab = sharedIssueTab ?: return
     val problemsViewPanel = ProblemsView.getToolWindow(project) ?: return
     if (visible) {
@@ -257,11 +266,14 @@ class IssuePanelService(private val project: Project) {
         problemsViewPanel.show {
           updateSharedIssuePanelTabName()
           selectSharedIssuePanelTab()
+          onAfterSettingVisibility?.run()
         }
       }
     }
     else {
-      problemsViewPanel.hide()
+      problemsViewPanel.hide {
+        onAfterSettingVisibility?.run()
+      }
     }
   }
 
@@ -280,13 +292,17 @@ class IssuePanelService(private val project: Project) {
   /**
    * Get the title of shared issue panel. The returned string doesn't include the issue count.
    */
-  private fun getSharedIssuePanelTabTitle(): String {
+  @VisibleForTesting
+  fun getSharedIssuePanelTabTitle(): String {
     val editors = FileEditorManager.getInstance(project).selectedEditors ?: return DEFAULT_SHARED_ISSUE_PANEL_TAB_NAME
     if (editors.size != 1) {
       // TODO: What tab name should be show when opening multiple file editor?
       return DEFAULT_SHARED_ISSUE_PANEL_TAB_NAME
     }
     val file = editors[0].file ?: return DEFAULT_SHARED_ISSUE_PANEL_TAB_NAME
+
+    fileToSurfaceMap[file]?.name?.let { return it }
+
     if (isComposeFile(file)) {
       return "Compose"
     }
@@ -410,11 +426,40 @@ class IssuePanelService(private val project: Project) {
   }
 
   /**
+   * Focus IJ's problems pane if Problems Panel is visible. Or do nothing otherwise.
+   */
+  fun focusIssuePanelIfVisible() {
+    val problemsViewPanel = ProblemsView.getToolWindow(project) ?: return
+    if (problemsViewPanel.isVisible) {
+      problemsViewPanel.activate(null, true)
+    }
+  }
+
+  /**
    * Get the selected issues from shared issue panel.
    */
   fun getSelectedIssues(): List<Issue> {
     val issuePanelComponent = sharedIssuePanel?.getComponent() ?: return emptyList()
     return DataManager.getInstance().getDataContext(issuePanelComponent).getData(SELECTED_ISSUES) ?: emptyList()
+  }
+
+  fun registerSurfaceFile(file: VirtualFile, surface: DesignSurface<*>) {
+    fileToSurfaceMap[file] = surface
+
+    if (FileEditorManager.getInstance(project).selectedEditor?.getDesignSurface() == surface) {
+      updateIssuePanelVisibility(file, false)
+    }
+  }
+
+  fun unregisterSurfaceFile(file: VirtualFile) {
+    fileToSurfaceMap.remove(file)
+  }
+
+  /**
+   * Select the node by using the given [TreeVisitor]
+   */
+  fun setSelectedNode(nodeVisitor: TreeVisitor) {
+    sharedIssuePanel?.setSelectedNode(nodeVisitor)
   }
 
   companion object {
@@ -429,10 +474,11 @@ class IssuePanelService(private val project: Project) {
  * Helper function to set the issue panel in [DesignSurface] without tracking it into the layout editor metrics.
  * @param show whether to show or hide the issue panel.
  * @param userInvoked if true, this was the direct consequence of a user action.
+ * @param onAfterSettingVisibility optional task to execute after the visibility of issue panel is changed.
  */
-fun DesignSurface<*>.setIssuePanelVisibilityNoTracking(show: Boolean, userInvoked: Boolean) {
+fun DesignSurface<*>.setIssuePanelVisibilityNoTracking(show: Boolean, userInvoked: Boolean, onAfterSettingVisibility: Runnable? = null) {
   if (StudioFlags.NELE_USE_SHARED_ISSUE_PANEL_FOR_DESIGN_TOOLS.get()) {
-    IssuePanelService.getInstance(project).setSharedIssuePanelVisibility(show)
+    IssuePanelService.getInstance(project).setSharedIssuePanelVisibility(show, onAfterSettingVisibility)
   }
   else
     UIUtil.invokeLaterIfNeeded {
@@ -440,6 +486,7 @@ fun DesignSurface<*>.setIssuePanelVisibilityNoTracking(show: Boolean, userInvoke
       if (userInvoked) {
         issuePanel.disableAutoSize()
       }
+      onAfterSettingVisibility?.run()
       revalidate()
       repaint()
     }
@@ -449,10 +496,11 @@ fun DesignSurface<*>.setIssuePanelVisibilityNoTracking(show: Boolean, userInvoke
  * Helper function to set the issue panel in [DesignSurface].
  * @param show whether to show or hide the issue panel.
  * @param userInvoked if true, this was the direct consequence of a user action.
+ * @param runnable optional task to execute after the visibility of issue panel is changed.
  */
-fun DesignSurface<*>.setIssuePanelVisibility(show: Boolean, userInvoked: Boolean) {
+fun DesignSurface<*>.setIssuePanelVisibility(show: Boolean, userInvoked: Boolean, runnable: Runnable? = null) {
   analyticsManager.trackShowIssuePanel()
-  setIssuePanelVisibilityNoTracking(show, userInvoked)
+  setIssuePanelVisibilityNoTracking(show, userInvoked, runnable)
 }
 
 /**
