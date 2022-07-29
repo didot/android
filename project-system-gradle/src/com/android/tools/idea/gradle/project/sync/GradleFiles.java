@@ -30,6 +30,7 @@ import com.android.tools.idea.gradle.util.GradleWrapper;
 import com.android.tools.idea.res.AndroidFileChangeListener;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.intellij.ide.impl.ProjectUtilKt;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ReadAction;
@@ -406,7 +407,8 @@ public class GradleFiles {
     } else {
       // If we are not running in tests, schedule ourselves on a background thread so that we don't accidentally freeze the UI if our
       // disk IO is slow.
-      ApplicationManager.getApplication().executeOnPooledThread(this::updateFileHashes);
+      //noinspection deprecation
+      ProjectUtilKt.executeOnPooledIoThread(myProject, this::updateFileHashes);
     }
   }
 
