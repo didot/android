@@ -362,7 +362,7 @@ public class AndroidXmlCompletionContributor extends CompletionContributor {
       if (markDeprecated) {
         return result.withLookupElement(PrioritizedLookupElement.withPriority(new LookupElementDecorator<LookupElement>(lookupElement) {
           @Override
-          public void renderElement(LookupElementPresentation presentation) {
+          public void renderElement(@NotNull LookupElementPresentation presentation) {
             super.renderElement(presentation);
             presentation.setStrikeout(true);
           }
@@ -383,7 +383,7 @@ public class AndroidXmlCompletionContributor extends CompletionContributor {
         }
 
         @Override
-        public void renderElement(LookupElementPresentation presentation) {
+        public void renderElement(@NotNull LookupElementPresentation presentation) {
           super.renderElement(presentation);
           presentation.setStrikeout(markDeprecated);
         }
