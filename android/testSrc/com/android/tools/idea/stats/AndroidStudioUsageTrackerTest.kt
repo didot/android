@@ -75,6 +75,18 @@ class AndroidStudioUsageTrackerTest : TestCase() {
         return 16
       }
 
+      override fun getCpuLoad(): Double {
+        TODO("Not yet implemented")
+      }
+
+      override fun getFreeMemorySize(): Long {
+        TODO("Not yet implemented")
+      }
+
+      override fun getTotalMemorySize(): Long {
+        TODO("Not yet implemented")
+      }
+
       override fun getTotalPhysicalMemorySize(): Long {
         return 16L * 1024 * 1024 * 1024
       }
