@@ -151,11 +151,6 @@ class FakeWindowPeer implements WindowPeer {
   }
 
   @Override
-  public Image createImage(ImageProducer producer) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public Image createImage(int width, int height) {
     throw new UnsupportedOperationException();
   }
@@ -163,16 +158,6 @@ class FakeWindowPeer implements WindowPeer {
   @Override
   public VolatileImage createVolatileImage(int width, int height) {
     throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean prepareImage(Image img, int w, int h, ImageObserver o) {
-    return false;
-  }
-
-  @Override
-  public int checkImage(Image img, int w, int h, ImageObserver o) {
-    return 0;
   }
 
   @Override
