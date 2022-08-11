@@ -32,7 +32,7 @@ import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.DoubleClickListener;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +76,7 @@ public class DeepLinkChooserDialog extends DialogWrapper {
         }
       }
     }
-    myList = new JBList((Object[])ArrayUtil.toStringArray(deepLinks));
+    myList = new JBList((Object[])ArrayUtilRt.toStringArray(deepLinks));
     myList.setEmptyText("None found in AndroidManifest.xml");
     init();
   }

@@ -37,6 +37,7 @@ import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.execution.ParametersListUtil;
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -389,7 +390,7 @@ public class AndroidBuildCommonUtils {
     Map<String, String> home = System.getenv().containsKey(PROGUARD_HOME_ENV_VARIABLE)
                                      ? Collections.emptyMap()
                                      : Collections.singletonMap(PROGUARD_HOME_ENV_VARIABLE, proguardHome);
-    return AndroidExecutionUtil.doExecute(ArrayUtil.toStringArray(commands), home);
+    return AndroidExecutionUtil.doExecute(ArrayUtilRt.toStringArray(commands), home);
   }
 
   @NotNull

@@ -8,7 +8,6 @@ import com.android.SdkConstants;
 import com.android.testutils.TestUtils;
 import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.model.TestAndroidModel;
-import com.android.tools.idea.rendering.RenderSecurityManager;
 import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.testing.AndroidTestUtils;
 import com.android.tools.idea.testing.IdeComponents;
@@ -51,7 +50,7 @@ import com.intellij.testFramework.fixtures.ModuleFixture;
 import com.intellij.testFramework.fixtures.TestFixtureBuilder;
 import com.intellij.testFramework.fixtures.impl.JavaModuleFixtureBuilderImpl;
 import com.intellij.testFramework.fixtures.impl.ModuleFixtureImpl;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.ui.UIUtil;
 import java.io.File;
 import java.io.IOException;
@@ -319,7 +318,7 @@ public abstract class AndroidTestCase extends AndroidTestBase {
     List<String> newRoots = new ArrayList<>(roots);
     newRoots.removeAll(myAllowedRoots);
 
-    String[] newRootsArray = ArrayUtil.toStringArray(newRoots);
+    String[] newRootsArray = ArrayUtilRt.toStringArray(newRoots);
     VfsRootAccess.allowRootAccess(disposable, newRootsArray);
     myAllowedRoots.addAll(newRoots);
 
