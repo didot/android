@@ -25,7 +25,6 @@ import com.android.sdklib.AndroidVersion
 import com.android.sdklib.devices.Abi
 import com.android.testutils.TestUtils.getLatestAndroidPlatform
 import com.android.testutils.TestUtils.getSdk
-import com.android.testutils.TestUtils.getWorkspaceRoot
 import com.android.tools.idea.gradle.LibraryFilePaths
 import com.android.tools.idea.gradle.model.IdeAaptOptions
 import com.android.tools.idea.gradle.model.IdeAndroidProjectType
@@ -1770,7 +1769,7 @@ interface GradleIntegrationTest {
    */
   @JvmDefault
   fun resolveTestDataPath(testDataPath: @SystemIndependent String): File {
-    val testDataDirectory = getWorkspaceRoot().resolve(toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
+    val testDataDirectory = com.android.testutils.TestUtils.resolveWorkspacePath(toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
     return testDataDirectory.resolve(toSystemDependentName(testDataPath)).toFile()
   }
 
