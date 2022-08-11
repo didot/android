@@ -25,6 +25,7 @@ import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.Pair
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.io.FileUtilRt
 import java.io.File
 import java.io.IOException
 import java.lang.System.currentTimeMillis
@@ -151,7 +152,7 @@ object TraceSyncUtil {
   fun createTraceProfileFile(traceMethods: String): String {
     // Specify output file, "Output: /path/to/log/dir/sync_profile_report_[timestamp].json".
     val outputFileName = "sync_profile_report_" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(currentTimeMillis()) + ".json"
-    val outputFilePath = com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(File(PathManager.getLogPath(), outputFileName).absolutePath)
+    val outputFilePath = FileUtilRt.toSystemDependentName(File(PathManager.getLogPath(), outputFileName).absolutePath)
 
     val profileContent = "Output: ${outputFilePath}\n${traceMethods}"
 

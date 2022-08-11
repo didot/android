@@ -19,6 +19,7 @@ import com.google.common.annotations.VisibleForTesting
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.ui.AppUIUtil.invokeLaterIfProjectAlive
 import com.intellij.ui.EditorNotifications
 
@@ -39,7 +40,7 @@ open class StateChangeNotification(private val project: Project) : GradleSyncLis
           editorNotifications.updateNotifications(file)
         }
         catch (e: Throwable) {
-          LOG.info("Failed to update editor notifications for file '${com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(file.path)}'", e)
+          LOG.info("Failed to update editor notifications for file '${FileUtilRt.toSystemDependentName(file.path)}'", e)
         }
       }
     }
