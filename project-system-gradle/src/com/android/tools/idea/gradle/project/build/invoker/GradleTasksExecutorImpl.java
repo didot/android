@@ -88,7 +88,6 @@ import com.intellij.openapi.ui.MessageType;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.wm.IdeFrame;
-import com.intellij.openapi.wm.WindowManager;
 import com.intellij.openapi.wm.ex.ProgressIndicatorEx;
 import com.intellij.openapi.wm.ex.StatusBarEx;
 import com.intellij.openapi.wm.ex.WindowManagerEx;
@@ -139,7 +138,7 @@ class GradleTasksExecutorImpl implements GradleTasksExecutor {
 
   @Override
   public boolean internalIsBuildRunning(@NotNull Project project) {
-    IdeFrame frame = ((WindowManagerEx)WindowManager.getInstance()).findFrameFor(project);
+    IdeFrame frame = WindowManagerEx.getInstanceEx().findFrameFor(project);
     StatusBarEx statusBar = frame == null ? null : (StatusBarEx)frame.getStatusBar();
     if (statusBar == null) {
       return false;
