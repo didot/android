@@ -74,7 +74,7 @@ open class GradleFileModelTestCase {
 
   data class TestFileName(val path: String) {
     fun toFile(testDataPath: String, testDataExtension: String): File {
-      val path = FileUtil.toSystemDependentName(testDataPath) + File.separator + FileUtil.toSystemDependentName(path) + testDataExtension
+      val path = com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(testDataPath) + File.separator + com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(path) + testDataExtension
       return File(path)
     }
   }

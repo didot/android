@@ -176,7 +176,7 @@ fun StringParameter.validateStringType(
         module ?: return false
         val facet = AndroidFacet.getInstance(module) ?: return false
         val modulePath: @SystemIndependent String = AndroidRootUtil.getModuleDirPath(module) ?: return false
-        val file = File(FileUtil.toSystemDependentName(modulePath), value)
+        val file = File(com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(modulePath), value)
         val vFile = VfsUtil.findFileByIoFile(file, true)
         facet.sourceProviders.getForFile(vFile) != null
       }

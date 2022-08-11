@@ -151,7 +151,7 @@ object TraceSyncUtil {
   fun createTraceProfileFile(traceMethods: String): String {
     // Specify output file, "Output: /path/to/log/dir/sync_profile_report_[timestamp].json".
     val outputFileName = "sync_profile_report_" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(currentTimeMillis()) + ".json"
-    val outputFilePath = FileUtil.toSystemDependentName(File(PathManager.getLogPath(), outputFileName).absolutePath)
+    val outputFilePath = com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(File(PathManager.getLogPath(), outputFileName).absolutePath)
 
     val profileContent = "Output: ${outputFilePath}\n${traceMethods}"
 
