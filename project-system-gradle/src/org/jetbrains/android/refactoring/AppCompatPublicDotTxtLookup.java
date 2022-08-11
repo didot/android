@@ -33,7 +33,7 @@ import com.google.common.io.Closeables;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.util.PathUtil;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.util.net.HttpConfigurable;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -132,7 +132,7 @@ public class AppCompatPublicDotTxtLookup {
       return null;
     }
     else {
-      return new File(PathUtil.getCanonicalPath(PathManager.getSystemPath()), "maven.google");
+      return new File(FileUtil.toCanonicalPath(PathManager.getSystemPath()), "maven.google");
     }
   }
 

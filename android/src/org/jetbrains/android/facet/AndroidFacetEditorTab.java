@@ -568,7 +568,7 @@ public class AndroidFacetEditorTab extends FacetEditorTab {
     }
     @SystemIndependent String moduleDirPath = AndroidRootUtil.getModuleDirPath(myContext.getModule());
     if (moduleDirPath == null) return null;
-    final String path = PathUtil.getCanonicalPath(new File(moduleDirPath, genRelativePath).getPath());
+    final String path = FileUtil.toCanonicalPath(new File(moduleDirPath, genRelativePath).getPath());
     return path != null ? PathUtil.getLocalPath(path) : null;
   }
 
