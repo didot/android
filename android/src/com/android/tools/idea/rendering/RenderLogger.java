@@ -38,6 +38,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.util.text.StringUtil;
 import java.io.File;
 import java.io.PrintWriter;
@@ -435,7 +436,7 @@ public class RenderLogger implements IRenderLogger {
               path = path.substring(basePath.length());
               path = StringUtil.trimStart(path, File.separator);
             }
-            path = FileUtil.toSystemDependentName(path);
+            path = FileUtilRt.toSystemDependentName(path);
             builder.add("The relevant image is ").add(path);
             Set<String> widgets = new HashSet<>();
             for (StackTraceElement f : frames) {

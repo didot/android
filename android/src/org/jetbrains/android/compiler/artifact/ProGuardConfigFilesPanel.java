@@ -6,6 +6,7 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -79,7 +80,7 @@ public abstract class ProGuardConfigFilesPanel extends JPanel {
     final FileChooserDescriptor descriptor = FileChooserDescriptorFactory.createSingleFileNoJarsDescriptor();
     final VirtualFile contentRoot = AndroidRootUtil.getMainContentRoot(facet);
     final VirtualFile file = FileChooser.chooseFile(descriptor, this, facet.getModule().getProject(), contentRoot);
-    return file != null ? FileUtil.toSystemDependentName(file.getPath()) : null;
+    return file != null ? FileUtilRt.toSystemDependentName(file.getPath()) : null;
   }
 
   @NotNull

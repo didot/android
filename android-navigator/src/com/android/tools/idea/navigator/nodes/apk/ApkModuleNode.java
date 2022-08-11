@@ -18,7 +18,6 @@ package com.android.tools.idea.navigator.nodes.apk;
 import static com.android.SdkConstants.FN_ANDROID_MANIFEST_XML;
 import static com.android.SdkConstants.REGEX_APK_CLASSES_DEX;
 import static com.android.tools.idea.navigator.nodes.apk.SourceFolders.isInSourceFolder;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 import static com.intellij.openapi.vfs.VfsUtilCore.isAncestor;
@@ -38,6 +37,7 @@ import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Queryable;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
@@ -118,7 +118,7 @@ public class ApkModuleNode extends ProjectViewModuleNode {
   private PsiFile findApkPsiFile() {
     String apkPath = myApkFacet.getConfiguration().APK_PATH;
     if (isNotEmpty(apkPath)) {
-      File apkFilePath = new File(toSystemDependentName(apkPath));
+      File apkFilePath = new File(FileUtilRt.toSystemDependentName(apkPath));
       if (apkFilePath.isFile()) {
         VirtualFile apkFile = findFileByIoFile(apkFilePath, true);
         if (apkFile != null) {

@@ -18,7 +18,7 @@ package org.jetbrains.android.compiler.tools;
 import com.android.sdklib.BuildToolInfo;
 import com.android.sdklib.IAndroidTarget;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.util.ArrayUtilRt;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,9 +54,9 @@ public class AndroidRenderscript {
     command.add("-I");
     command.add(buildToolInfo.getPath(BuildToolInfo.PathId.ANDROID_RS));
     command.add("-p");
-    command.add(FileUtil.toSystemDependentName(genFolderPath));
+    command.add(FileUtilRt.toSystemDependentName(genFolderPath));
     command.add("-o");
-    command.add(FileUtil.toSystemDependentName(rawDirPath));
+    command.add(FileUtilRt.toSystemDependentName(rawDirPath));
 
     command.add("-target-api");
     int targetApi = target.getVersion().getApiLevel();
@@ -67,11 +67,11 @@ public class AndroidRenderscript {
 
     if (depFolderPath != null) {
       command.add("-d");
-      command.add(FileUtil.toSystemDependentName(depFolderPath));
+      command.add(FileUtilRt.toSystemDependentName(depFolderPath));
     }
 
     command.add("-MD");
-    command.add(FileUtil.toSystemDependentName(sourceFilePath));
+    command.add(FileUtilRt.toSystemDependentName(sourceFilePath));
 
     LOG.info(AndroidBuildCommonUtils.command2string(command));
     return AndroidExecutionUtil.doExecute(ArrayUtilRt.toStringArray(command));

@@ -28,7 +28,7 @@ import com.intellij.codeInsight.documentation.DocumentationManager;
 import com.intellij.lang.documentation.DocumentationProvider;
 import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.util.SystemInfoRt;
-import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import java.io.File;
@@ -37,7 +37,7 @@ import org.jetbrains.annotations.NotNull;
 public class AndroidJavaDocWithGradleTest extends AndroidGradleTestCase implements SnapshotComparisonTest {
   @NotNull
   private VirtualFile findFile(@NotNull String path) {
-    File filePath = new File(getProject().getBasePath(), FileUtil.toSystemDependentName(path));
+    File filePath = new File(getProject().getBasePath(), FileUtilRt.toSystemDependentName(path));
     VirtualFile file = findFileByIoFile(filePath, true);
     assertNotNull("File '" + path + "' not found.", file);
     return file;

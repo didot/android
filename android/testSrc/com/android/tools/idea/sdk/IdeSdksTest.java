@@ -27,7 +27,6 @@ import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_14;
 import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_1_7;
 import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_1_8;
 import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_1_9;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
@@ -56,6 +55,7 @@ import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.projectRoots.impl.ProjectJdkImpl;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.testFramework.PlatformTestCase;
 import java.io.File;
 import java.io.IOException;
@@ -277,8 +277,8 @@ public class IdeSdksTest extends PlatformTestCase {
     assertThat(myIdeSdks.isUsingEnvVariableJdk()).isFalse();
     assertThat(myIdeSdks.setUseEnvVariableJdk(true)).isTrue();
     assertThat(myIdeSdks.isUsingEnvVariableJdk()).isTrue();
-    File expectedFile = new File(toSystemDependentName(validPath));
-    File jdkFile = new File(toSystemDependentName(myIdeSdks.getJdk().getHomePath()));
+    File expectedFile = new File(FileUtilRt.toSystemDependentName(validPath));
+    File jdkFile = new File(FileUtilRt.toSystemDependentName(myIdeSdks.getJdk().getHomePath()));
     assertThat(jdkFile).isEqualTo(expectedFile);
   }
 

@@ -208,7 +208,7 @@ public class AndroidApkBuilder {
       final String path = lib.getPath();
       final File srcFile = new File(path);
       if (!srcFile.exists()) {
-        map.get(WARNING).add("File not found: " + FileUtil.toSystemDependentName(path) + ". The native library won't be placed into APK");
+        map.get(WARNING).add("File not found: " + FileUtilRt.toSystemDependentName(path) + ". The native library won't be placed into APK");
         continue;
       }
       final File dstDir = new File(targetDir, lib.getArchitecture());
@@ -220,7 +220,7 @@ public class AndroidApkBuilder {
       }
 
       if (!dstDir.exists() && !dstDir.mkdirs()) {
-        map.get(ERROR).add("Cannot create directory: " + FileUtil.toSystemDependentName(dstDir.getPath()));
+        map.get(ERROR).add("Cannot create directory: " + FileUtilRt.toSystemDependentName(dstDir.getPath()));
         continue;
       }
       FileUtil.copy(srcFile, dstFile);

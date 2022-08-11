@@ -2,6 +2,7 @@ package org.jetbrains.android.util;
 
 import com.android.jarutils.SignedJarBuilder;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -15,7 +16,7 @@ public class SafeSignedJarBuilder extends SignedJarBuilder {
   public SafeSignedJarBuilder(FileOutputStream outputStream, PrivateKey key, X509Certificate certificate, String outFilePath)
     throws IOException, NoSuchAlgorithmException {
     super(outputStream, key, certificate);
-    myOutFilePath = FileUtil.toSystemDependentName(outFilePath);
+    myOutFilePath = FileUtilRt.toSystemDependentName(outFilePath);
   }
 
   @Override

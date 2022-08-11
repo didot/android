@@ -25,7 +25,7 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.util.Pair;
-import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.scale.JBUIScale;
@@ -113,12 +113,12 @@ class ApkStep extends ExportSignedPackageWizardStep {
     String lastModule = properties.getValue(KeystoreStep.getModuleProperty(myIsBundle));
     String lastApkPath = properties.getValue(getApkPathPropertyName());
     if (lastApkPath != null && module.getName().equals(lastModule)) {
-      myApkPathField.setText(FileUtil.toSystemDependentName(lastApkPath));
+      myApkPathField.setText(FileUtilRt.toSystemDependentName(lastApkPath));
     }
     else {
       String contentRootPath = getContentRootPath(module);
       if (contentRootPath != null) {
-        String defaultPath = FileUtil.toSystemDependentName(contentRootPath + "/" + module.getName() + ".apk");
+        String defaultPath = FileUtilRt.toSystemDependentName(contentRootPath + "/" + module.getName() + ".apk");
         myApkPathField.setText(defaultPath);
       }
     }
