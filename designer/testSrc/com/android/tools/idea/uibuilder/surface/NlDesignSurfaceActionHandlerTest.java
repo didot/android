@@ -23,7 +23,7 @@ import static com.android.SdkConstants.TEXT_VIEW;
 import static com.android.tools.idea.common.LayoutTestUtilities.createScreen;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertNotEquals;
-import static org.mockito.ArgumentMatchers.notNull;
+import static org.mockito.Mockito.notNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.MockitoAnnotations.initMocks;
