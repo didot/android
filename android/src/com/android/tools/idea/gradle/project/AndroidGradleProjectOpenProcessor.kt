@@ -69,14 +69,14 @@ internal class AndroidGradleProjectOpenProcessor : ProjectOpenProcessor() {
       return gradleImporter.importAndOpenProjectCore(projectToClose, forceOpenInNewFrame, projectFolder)
     }
     return ProjectManagerEx.getInstanceEx().openProject(
-      adjustedOpenTarget.toNioPath(), OpenProjectTask(
-        forceOpenInNewFrame = forceOpenInNewFrame,
-        projectToClose = projectToClose,
-        beforeOpen = {
+      adjustedOpenTarget.toNioPath(), OpenProjectTask {
+        this.forceOpenInNewFrame = forceOpenInNewFrame
+        this.projectToClose = projectToClose
+        this.beforeOpen = {
           gradleImporter.beforeOpen(it)
           true
-        },
-      )
+        }
+      }
     )
   }
 
