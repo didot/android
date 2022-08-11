@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="library" name="studio-sdk" level="project" />
+    <orderEntry type="library" name="studio-plugin-Kotlin" level="project" />
+    <orderEntry type="module" module-name="android.sdktools.lint-api" exported="" />
+    <orderEntry type="module-library">
+      <library name="liblint-checks-proto">
+        <CLASSES>
+          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/lint/liblint-checks-proto.lib.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="">
+      <library name="precompiled-lint-checks">
+        <CLASSES>
+          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/lint/studio.android.sdktools.lint-checks.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="" scope="TEST">
+      <library name="precompiled-lint-checks-test">
+        <CLASSES>
+          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/lint/studio.android.sdktools.lint-checks_test.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+  </component>
+</module>

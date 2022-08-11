@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="android.sdktools.android-annotations" />
+    <orderEntry type="module" module-name="android.sdktools.common" />
+    <orderEntry type="module" module-name="android.sdktools.testutils" scope="TEST" />
+    <orderEntry type="module-library" scope="TEST">
+      <library>
+        <CLASSES>
+          <root url="jar://$WORKSPACE_ROOT$/prebuilts/tools/common/m2/repository/junit/junit/4.12/junit-4.12.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$WORKSPACE_ROOT$/prebuilts/tools/common/m2/repository/junit/junit/4.12/junit-4.12-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module" module-name="android.sdktools.binary-resources" />
+    <orderEntry type="module-library" exported="">
+      <library name="precompiled-manifest-parser">
+        <CLASSES>
+          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/manifest-parser/studio.android.sdktools.manifest-parser.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="" scope="TEST">
+      <library name="precompiled-manifest-parser-test">
+        <CLASSES>
+          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/manifest-parser/studio.android.sdktools.manifest-parser_test.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+  </component>
+</module>

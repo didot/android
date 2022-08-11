@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="library" name="studio-sdk" level="project" />
+    <orderEntry type="library" scope="TEST" name="kotlin-test" level="project" />
+    <orderEntry type="module" module-name="android.sdktools.fakeadbserver" scope="TEST" />
+    <orderEntry type="module-library" exported="">
+      <library name="precompiled-adblib">
+        <CLASSES>
+          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/adblib/studio.android.sdktools.adblib.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="" scope="TEST">
+      <library name="precompiled-adblib-test">
+        <CLASSES>
+          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/adblib/studio.android.sdktools.adblib_test.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+  </component>
+</module>
