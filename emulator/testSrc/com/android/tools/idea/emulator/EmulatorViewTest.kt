@@ -53,7 +53,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.Mockito.anyBoolean
 import org.mockito.Mockito.atLeast
 import org.mockito.Mockito.verify
 import java.awt.Component

@@ -91,9 +91,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancelAndJoin
-import org.mockito.ArgumentMatchers.anyString
 import org.mockito.InOrder
 import org.mockito.Mockito
+import org.mockito.Mockito.anyString
 import org.mockito.Mockito.inOrder
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.spy

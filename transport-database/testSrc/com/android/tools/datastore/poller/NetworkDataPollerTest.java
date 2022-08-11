@@ -16,7 +16,7 @@
 package com.android.tools.datastore.poller;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -24,11 +24,11 @@ import com.android.tools.datastore.DataStorePollerTest;
 import com.android.tools.datastore.DataStoreService;
 import com.android.tools.datastore.TestGrpcService;
 import com.android.tools.datastore.service.NetworkService;
+import com.android.tools.idea.io.grpc.stub.StreamObserver;
 import com.android.tools.profiler.proto.Common;
 import com.android.tools.profiler.proto.Network;
 import com.android.tools.profiler.proto.NetworkProfiler;
 import com.android.tools.profiler.proto.NetworkServiceGrpc;
-import com.android.tools.idea.io.grpc.stub.StreamObserver;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;

@@ -39,7 +39,7 @@ import org.junit.ClassRule
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import java.awt.event.MouseEvent
