@@ -17,7 +17,7 @@ package com.android.tools.idea.whatsnew.assistant;
 
 import static com.android.tools.idea.concurrency.AsyncTestUtils.waitForCondition;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
