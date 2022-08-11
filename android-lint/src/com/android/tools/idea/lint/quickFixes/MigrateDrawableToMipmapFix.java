@@ -32,6 +32,7 @@ import com.android.tools.idea.res.LocalResourceRepository;
 import com.android.tools.idea.res.ResourceRepositoryManager;
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.fileTypes.FileTypeRegistry;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.JavaPsiFacade;
@@ -132,7 +133,7 @@ public class MigrateDrawableToMipmapFix extends DefaultLintQuickFix {
             continue;
           }
 
-          if (file.getFileType() == XmlFileType.INSTANCE && parent.getName().startsWith(FD_RES_VALUES)) {
+          if (FileTypeRegistry.getInstance().isFileOfType(file, XmlFileType.INSTANCE) && parent.getName().startsWith(FD_RES_VALUES)) {
             // Resource alias rather than an actual drawable XML file: update the type reference instead
             XmlFile xmlFile = (XmlFile)bitmap;
             XmlTag root = xmlFile.getRootTag();
