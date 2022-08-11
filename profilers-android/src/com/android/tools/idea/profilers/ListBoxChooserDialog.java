@@ -24,6 +24,7 @@ import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.ui.components.panels.NonOpaquePanel;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBUI;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -124,7 +125,7 @@ public class ListBoxChooserDialog<T> extends DialogWrapper {
         @Override
         public Dimension getPreferredSize() {
           Dimension d = super.getPreferredSize();
-          d.width = Math.max(d.width, JBUI.scale(75));
+          d.width = Math.max(d.width, JBUIScale.scale(75));
           return d;
         }
       };

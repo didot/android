@@ -17,7 +17,6 @@ package com.android.tools.idea.gradle.variant.view;
 
 import static com.android.tools.idea.gradle.variant.conflict.ConflictResolution.solveSelectionConflict;
 import static com.intellij.ui.TableUtil.scrollSelectionToVisible;
-import static com.intellij.util.ui.JBUI.scale;
 import static com.intellij.util.ui.UIUtil.getTableFocusCellHighlightBorder;
 import static com.intellij.util.ui.UIUtil.getToolTipBackground;
 
@@ -46,6 +45,7 @@ import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.ui.TableSpeedSearch;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.ui.table.JBTable;
 import com.intellij.util.ModalityUiUtil;
 import com.intellij.util.ui.AbstractTableCellEditor;
@@ -181,7 +181,7 @@ public class BuildVariantView {
       Color color = EditorColorsManager.getInstance().getGlobalScheme().getColor(EditorColors.NOTIFICATION_BACKGROUND);
       setBackground(color == null ? getToolTipBackground() : color);
       setBorder(JBUI.Borders.empty(1, 15)); // Same as EditorNotificationPanel
-      setPreferredSize(new Dimension(-1, scale(24)));
+      setPreferredSize(new Dimension(-1, JBUIScale.scale(24)));
 
       JLabel textLabel = new JLabel("Variant selection conflicts found");
       textLabel.setOpaque(false);

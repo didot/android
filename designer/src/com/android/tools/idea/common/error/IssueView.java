@@ -22,6 +22,7 @@ import com.intellij.ui.IdeBorderFactory;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.RoundedLineBorder;
 import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.StyleSheetUtil;
@@ -62,7 +63,7 @@ public class IssueView extends JPanel {
 
   @NotNull private final Issue myIssue;
   private final IssuePanel myContainerIssuePanel;
-  private RoundedLineBorder mySelectedBorder = IdeBorderFactory.createRoundedBorder(JBUI.scale(BORDER_THICKNESS));
+  private RoundedLineBorder mySelectedBorder = IdeBorderFactory.createRoundedBorder(JBUIScale.scale(BORDER_THICKNESS));
   private Border myUnselectedBorder = JBUI.Borders.empty(BORDER_THICKNESS);
   @SuppressWarnings("FieldCanBeLocal") // Used for the form
   private JPanel myContent;
@@ -118,7 +119,7 @@ public class IssueView extends JPanel {
     setBackground(UIUtil.getEditorPaneBackground());
 
     if (myInitialized) {
-      mySelectedBorder = IdeBorderFactory.createRoundedBorder(JBUI.scale(BORDER_THICKNESS));
+      mySelectedBorder = IdeBorderFactory.createRoundedBorder(JBUIScale.scale(BORDER_THICKNESS));
       mySelectedBorder.setColor(UIUtil.getTreeSelectionBorderColor());
       myUnselectedBorder = JBUI.Borders.empty(BORDER_THICKNESS);
       myErrorDescription.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true);

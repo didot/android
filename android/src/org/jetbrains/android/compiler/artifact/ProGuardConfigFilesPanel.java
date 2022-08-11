@@ -15,6 +15,7 @@ import com.intellij.ui.CollectionListModel;
 import com.intellij.ui.ToolbarDecorator;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBList;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import java.awt.BorderLayout;
@@ -52,8 +53,8 @@ public abstract class ProGuardConfigFilesPanel extends JPanel {
         }
       }
     });
-    JPanel tablePanel = decorator.setPreferredSize(new Dimension(-1, JBUI.scale(120))).createPanel();
-    tablePanel.setMinimumSize(new Dimension(-1, JBUI.scale(120)));
+    JPanel tablePanel = decorator.setPreferredSize(new Dimension(-1, JBUIScale.scale(120))).createPanel();
+    tablePanel.setMinimumSize(new Dimension(-1, JBUIScale.scale(120)));
     add(tablePanel, BorderLayout.CENTER);
     final JBLabel label = new JBLabel("Config file paths:");
     label.setBorder(JBUI.Borders.empty(0, 0, 5, 0));
