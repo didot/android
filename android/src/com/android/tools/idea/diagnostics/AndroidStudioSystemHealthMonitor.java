@@ -32,7 +32,6 @@ import com.android.tools.idea.diagnostics.report.MemoryReportReason;
 import com.android.tools.idea.diagnostics.report.PerformanceThreadDumpReport;
 import com.android.tools.idea.diagnostics.report.UnanalyzedHeapReport;
 import com.android.tools.idea.flags.StudioFlags;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.LinkedHashMultiset;
 import com.google.common.collect.Multiset;
@@ -364,7 +363,7 @@ public class AndroidStudioSystemHealthMonitor {
       }
       HotSpotVirtualMachine hotSpotVM = (HotSpotVirtualMachine) vm;
       char[] chars = new char[1024];
-      try (BufferedReader reader = new BufferedReader(new InputStreamReader(hotSpotVM.heapHisto("-live"), Charsets.UTF_8))) {
+      try (BufferedReader reader = new BufferedReader(new InputStreamReader(hotSpotVM.heapHisto("-live"), StandardCharsets.UTF_8))) {
         int read;
         while ((read = reader.read(chars)) != -1) {
           sb.append(chars, 0, read);
@@ -913,7 +912,7 @@ public class AndroidStudioSystemHealthMonitor {
     synchronized (EXCEPTION_COUNT_LOCK) {
       try {
         File f = new File(PathManager.getTempPath(), countFileName);
-        Files.write(Long.toString(count), f, Charsets.UTF_8);
+        Files.write(Long.toString(count), f, StandardCharsets.UTF_8);
       }
       catch (Throwable ignored) {
       }
@@ -924,7 +923,7 @@ public class AndroidStudioSystemHealthMonitor {
     synchronized (EXCEPTION_COUNT_LOCK) {
       try {
         File f = new File(PathManager.getTempPath(), countFileName);
-        String contents = Files.toString(f, Charsets.UTF_8);
+        String contents = Files.toString(f, StandardCharsets.UTF_8);
         return Long.parseLong(contents);
       }
       catch (Throwable t) {

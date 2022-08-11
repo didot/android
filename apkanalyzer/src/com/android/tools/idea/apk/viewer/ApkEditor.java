@@ -29,7 +29,6 @@ import com.android.tools.idea.apk.viewer.dex.DexFileViewer;
 import com.android.tools.idea.apk.viewer.diff.ApkDiffPanel;
 import com.android.tools.idea.log.LogWrapper;
 import com.android.utils.FileUtils;
-import com.google.common.base.Charsets;
 import com.intellij.codeHighlighting.BackgroundEditorHighlighter;
 import com.intellij.ide.structureView.StructureViewBuilder;
 import com.intellij.openapi.application.ApplicationManager;
@@ -60,6 +59,7 @@ import com.intellij.ui.components.JBLabel;
 import com.intellij.util.messages.MessageBusConnection;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -399,7 +399,7 @@ public class ApkEditor extends UserDataHolderBase implements FileEditor, ApkView
     if (archive.isProtoXml(p, content)) {
       try {
         ProtoXmlPrettyPrinter prettyPrinter = new ProtoXmlPrettyPrinterImpl();
-        content = prettyPrinter.prettyPrint(content).getBytes(Charsets.UTF_8);
+        content = prettyPrinter.prettyPrint(content).getBytes(StandardCharsets.UTF_8);
       }
       catch (IOException e) {
         // Ignore error, show encoded content.
