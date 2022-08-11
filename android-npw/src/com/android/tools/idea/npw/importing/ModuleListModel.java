@@ -32,7 +32,6 @@ import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.intellij.openapi.module.Module;
@@ -43,6 +42,7 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -118,7 +118,7 @@ public final class ModuleListModel {
       namesToModules.put(module.name, module);
     }
     Multimap<ModuleToImport, ModuleToImport> requiredModules = LinkedListMultimap.create();
-    Queue<ModuleToImport> queue = Lists.newLinkedList();
+    Queue<ModuleToImport> queue = new LinkedList<>();
 
     for (ModuleToImport module : modules) {
       if (Objects.equal(module, myPrimaryModule) || !isUnselected(module, false)) {
