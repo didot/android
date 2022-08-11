@@ -44,6 +44,7 @@ import java.awt.CardLayout;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 import javax.swing.JCheckBox;
@@ -92,7 +93,7 @@ public class ToolComponentsPanel {
   @VisibleForTesting
   UpdaterTreeNode myToolsSummaryRootNode;
 
-  Set<PackageNodeModel> myStates = Sets.newHashSet();
+  Set<PackageNodeModel> myStates = new HashSet<>();
 
   private boolean myModified = false;
   private final ChangeListener myModificationListener = e -> refreshModified();

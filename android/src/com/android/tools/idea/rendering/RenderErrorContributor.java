@@ -84,6 +84,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -706,7 +707,7 @@ public class RenderErrorContributor {
       return;
     }
 
-    Set<String> seenTags = Sets.newHashSet();
+    Set<String> seenTags = new HashSet<>();
     for (RenderProblem message : messages) {
       String tag = message.getTag();
       if (tag != null && seenTags.contains(tag)) {

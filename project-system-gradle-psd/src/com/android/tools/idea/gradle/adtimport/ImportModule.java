@@ -56,7 +56,6 @@ import com.android.ide.common.repository.GradleCoordinate;
 import com.android.resources.ResourceFolderType;
 import com.android.sdklib.AndroidVersion;
 import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
-import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.intellij.openapi.util.text.StringUtil;
 import java.io.File;
@@ -66,6 +65,7 @@ import java.nio.file.FileSystems;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
@@ -470,7 +470,7 @@ public abstract class ImportModule implements Comparable<ImportModule> {
   public void copyInto(@NonNull File destDir) throws IOException {
     ImportSummary summary = myImporter.getSummary();
 
-    Set<File> copied = Sets.newHashSet();
+    Set<File> copied = new HashSet<>();
 
     final File main = new File(destDir, FD_SOURCES + separator + FD_MAIN);
     myImporter.mkdirs(main);

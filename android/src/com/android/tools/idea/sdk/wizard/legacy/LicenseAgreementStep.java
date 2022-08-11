@@ -28,7 +28,6 @@ import com.android.tools.idea.sdk.StudioSettingsController;
 import com.android.tools.idea.sdk.wizard.AndroidSdkLicenseTemporaryData;
 import com.android.tools.idea.wizard.dynamic.DynamicWizardStepWithDescription;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.ui.Splitter;
@@ -41,6 +40,7 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,9 +71,9 @@ public class LicenseAgreementStep extends DynamicWizardStepWithDescription {
 
   private DefaultTreeModel myTreeModel = new DefaultTreeModel(null);
   private final Map<String, Boolean> myAcceptances = Maps.newHashMap();
-  private final Set<String> myVisibleLicenses = Sets.newHashSet();
+  private final Set<String> myVisibleLicenses = new HashSet<>();
   private String myCurrentLicense;
-  private final Set<License> myLicenses = Sets.newHashSet();
+  private final Set<License> myLicenses = new HashSet<>();
   private final Supplier<List<String>> myInstallRequestsProvider;
   private final Supplier<AndroidSdkHandler> mySdkHandlerSupplier;
 
