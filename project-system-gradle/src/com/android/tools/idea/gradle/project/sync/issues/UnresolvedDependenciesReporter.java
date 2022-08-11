@@ -29,7 +29,6 @@ import com.android.tools.idea.gradle.project.sync.hyperlink.ShowSyncIssuesDetail
 import com.android.tools.idea.project.messages.MessageType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.externalSystem.service.notification.NotificationData;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
@@ -61,7 +60,7 @@ public class UnresolvedDependenciesReporter extends SimpleDeduplicatingSyncIssue
     IdeSyncIssue issue = syncIssues.get(0);
     String dependency = issue.getData();
 
-    List<SyncIssueNotificationHyperlink> quickFixes = Lists.newArrayList();
+    List<SyncIssueNotificationHyperlink> quickFixes = new ArrayList<>();
     if (dependency == null) {
 
       if (isOfflineBuildModeEnabled(project)) {

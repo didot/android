@@ -18,8 +18,8 @@ package com.android.tools.idea.navigator.nodes.ndk.includes.resolver;
 import com.android.tools.idea.navigator.nodes.ndk.includes.RealWorldExamples;
 import com.android.tools.idea.navigator.nodes.ndk.includes.model.SimpleIncludeValue;
 import com.android.tools.idea.navigator.nodes.ndk.includes.utils.IncludeSet;
-import com.google.common.collect.Lists;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,8 +36,8 @@ public class ResolverTests {
    */
   @NotNull
   static List<SimpleIncludeValue> resolvedIncludes(@NotNull IncludeResolver resolver, @NotNull String... sourceIncludes) {
-    List<File> seen = Lists.newArrayList();
-    List<SimpleIncludeValue> resolutions = Lists.newArrayList();
+    List<File> seen = new ArrayList<>();
+    List<SimpleIncludeValue> resolutions = new ArrayList<>();
     List<String> includes = RealWorldExamples.getConcreteCompilerIncludeFlags(PATH_TO_NDK, sourceIncludes);
     IncludeSet set = new IncludeSet();
     set.addIncludesFromCompilerFlags(includes, ROOT_OF_RELATIVE_INCLUDE_PATHS);
@@ -58,7 +58,7 @@ public class ResolverTests {
   @NotNull
   static List<ResolutionResult> resolveAllRealWorldExamples(@NotNull IncludeResolver resolver) {
     Set<File> seen = new HashSet<>();
-    List<ResolutionResult> result = Lists.newArrayList();
+    List<ResolutionResult> result = new ArrayList<>();
     for (List<String> includes : RealWorldExamples.getConcreteCompilerIncludeFlags(PATH_TO_NDK)) {
       IncludeSet set = new IncludeSet();
       set.addIncludesFromCompilerFlags(includes, ROOT_OF_RELATIVE_INCLUDE_PATHS);

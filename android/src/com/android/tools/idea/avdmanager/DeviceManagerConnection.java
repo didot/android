@@ -36,6 +36,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -218,7 +219,7 @@ public class DeviceManagerConnection {
 
   public static List<Device> getDevicesFromFile(@NotNull File xmlFile) {
     InputStream stream = null;
-    List<Device> list = Lists.newArrayList();
+    List<Device> list = new ArrayList<>();
     try {
       stream = new FileInputStream(xmlFile);
       list.addAll(DeviceParser.parse(stream).values());

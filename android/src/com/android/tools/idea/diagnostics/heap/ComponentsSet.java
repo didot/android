@@ -16,9 +16,9 @@
 package com.android.tools.idea.diagnostics.heap;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
@@ -37,7 +37,7 @@ public final class ComponentsSet {
   ComponentsSet() {
     myPackageNameToComponentIdCache = new Object2IntOpenHashMap<>();
     myClassNameToComponentId = new Object2IntOpenHashMap<>();
-    myComponents = Lists.newArrayList();
+    myComponents = new ArrayList<>();
   }
 
   @NotNull

@@ -18,7 +18,6 @@ package org.jetbrains.android.dom.converters;
 import static com.android.SdkConstants.MANIFEST_PLACEHOLDER_PREFIX;
 
 import com.android.tools.idea.model.ManifestPlaceholderResolver;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiReference;
@@ -165,7 +164,7 @@ public class ManifestPlaceholderConverter extends ResolvingConverter implements 
     Collection<String> placeholders = resolver.getPlaceholders().keySet();
 
     String[] placeholdersArray = ArrayUtil.toStringArray(placeholders);
-    ArrayList<PsiReference> result = Lists.newArrayList();
+    ArrayList<PsiReference> result = new ArrayList<>();
     Matcher matcher = PLACEHOLDER_PATTERN.matcher(stringValue);
     while (matcher.find()) {
       TextRange range = new TextRange(matcher.start(1), matcher.end(1));

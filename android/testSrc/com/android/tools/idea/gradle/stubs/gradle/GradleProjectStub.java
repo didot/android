@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.gradle.stubs.gradle;
 
-import com.google.common.collect.Lists;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import org.gradle.tooling.model.DomainObjectSet;
 import org.gradle.tooling.model.GradleProject;
@@ -42,7 +42,7 @@ public class GradleProjectStub implements GradleProject {
     myPath = path;
     myScript = new GradleScriptStub(projectFile);
     myProjectIdentifier = new ProjectIdentifierStub(myPath, rootDir);
-    myTasks = Lists.newArrayList();
+    myTasks = new ArrayList<>();
     for (String taskName : tasks) {
       GradleTaskStub task = new GradleTaskStub(taskName, this);
       myTasks.add(task);

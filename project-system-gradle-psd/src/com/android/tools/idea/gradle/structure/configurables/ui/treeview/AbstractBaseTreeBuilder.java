@@ -18,12 +18,12 @@ package com.android.tools.idea.gradle.structure.configurables.ui.treeview;
 import static com.intellij.util.ui.tree.TreeUtil.collapseAll;
 import static com.intellij.util.ui.tree.TreeUtil.showRowCentered;
 
-import com.google.common.collect.Lists;
 import com.intellij.ide.util.treeView.AbstractTreeBuilder;
 import com.intellij.ide.util.treeView.IndexComparator;
 import com.intellij.ide.util.treeView.NodeDescriptor;
 import com.intellij.ui.treeStructure.SimpleNode;
 import com.intellij.util.ui.tree.TreeUtil;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.swing.JTree;
@@ -83,7 +83,7 @@ public abstract class AbstractBaseTreeBuilder extends AbstractTreeBuilder {
   }
 
   public void expandParents(@NotNull List<? extends SimpleNode> nodes) {
-    List<SimpleNode> toExpand = Lists.newArrayList();
+    List<SimpleNode> toExpand = new ArrayList<>();
     for (SimpleNode node : nodes) {
       SimpleNode parent = node.getParent();
       if (parent != null) {
