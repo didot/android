@@ -42,7 +42,7 @@ class CoroutineDebuggerProjectListener : ProjectManagerListener {
     }
     associatedProject = project
 
-    val connection = project.messageBus.connect(project)
+    val connection = project.messageBus.connect()
 
     val executionListener = CoroutineDebuggerListener(project)
     connection.subscribe(XDebuggerManager.TOPIC, executionListener)
