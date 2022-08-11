@@ -297,7 +297,7 @@ public class MarginPopup extends JPanel {
 
   private static void updateFontsForPresentationMode(Component component) {
     Font font = component.getFont();
-    component.setFont(font.deriveFont((float)JBUI.scaleFontSize(DEFAULT_FONT_SIZE)));
+    component.setFont(font.deriveFont((float)JBUIScale.scaleFontSize(DEFAULT_FONT_SIZE)));
   }
 
   public void addResourcePickerActionListener(@NotNull ActionListener listener) {
