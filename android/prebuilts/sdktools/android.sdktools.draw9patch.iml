@@ -6,18 +6,20 @@
     <orderEntry type="library" name="studio-sdk" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library" exported="">
-      <library name="precompiled-draw9patch">
+      <library name="precompiled-draw9patch" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.draw9patch:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/draw9patch/studio.android.sdktools.draw9patch.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.draw9patch/221.0.9.0/studio.android.sdktools.draw9patch-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="" scope="TEST">
-      <library name="precompiled-draw9patch-test">
+      <library name="precompiled-draw9patch-test" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.draw9patch_test:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/draw9patch/studio.android.sdktools.draw9patch_test.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.draw9patch_test/221.0.9.0/studio.android.sdktools.draw9patch_test-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

@@ -8,18 +8,20 @@
     <orderEntry type="module" module-name="android.sdktools.fakeadbserver" scope="TEST" />
     <orderEntry type="module" module-name="android.sdktools.adblib" />
     <orderEntry type="module-library" exported="">
-      <library name="precompiled-adblib.tools">
+      <library name="precompiled-adblib.tools" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.adblib.tools:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/adblib-tools/studio.android.sdktools.adblib.tools.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.adblib.tools/221.0.9.0/studio.android.sdktools.adblib.tools-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="" scope="TEST">
-      <library name="precompiled-adblib.tools-test">
+      <library name="precompiled-adblib.tools-test" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.adblib.tools_test:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/adblib-tools/studio.android.sdktools.adblib.tools_test.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.adblib.tools_test/221.0.9.0/studio.android.sdktools.adblib.tools_test-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

@@ -8,27 +8,30 @@
     <orderEntry type="library" name="studio-plugin-Kotlin" level="project" />
     <orderEntry type="module" module-name="android.sdktools.lint-api" exported="" />
     <orderEntry type="module-library">
-      <library name="liblint-checks-proto">
+      <library name="liblint-checks-proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:liblint-checks-proto.lib:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/lint/liblint-checks-proto.lib.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/liblint-checks-proto.lib/221.0.9.0/liblint-checks-proto.lib-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="">
-      <library name="precompiled-lint-checks">
+      <library name="precompiled-lint-checks" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.lint-checks:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/lint/studio.android.sdktools.lint-checks.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.lint-checks/221.0.9.0/studio.android.sdktools.lint-checks-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="" scope="TEST">
-      <library name="precompiled-lint-checks-test">
+      <library name="precompiled-lint-checks-test" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.lint-checks_test:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/lint/studio.android.sdktools.lint-checks_test.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.lint-checks_test/221.0.9.0/studio.android.sdktools.lint-checks_test-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

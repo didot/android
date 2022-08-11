@@ -8,18 +8,20 @@
     <orderEntry type="module" module-name="android.sdktools.android-annotations" />
     <orderEntry type="library" scope="TEST" name="truth" level="project" />
     <orderEntry type="module-library" exported="">
-      <library name="precompiled-flags">
+      <library name="precompiled-flags" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.flags:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/flags/studio.android.sdktools.flags.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.flags/221.0.9.0/studio.android.sdktools.flags-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="" scope="TEST">
-      <library name="precompiled-flags-test">
+      <library name="precompiled-flags-test" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.flags_test:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/flags/studio.android.sdktools.flags_test.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.flags_test/221.0.9.0/studio.android.sdktools.flags_test-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

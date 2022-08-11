@@ -8,30 +8,31 @@
     <orderEntry type="module" module-name="android.sdktools.common" />
     <orderEntry type="module" module-name="android.sdktools.testutils" scope="TEST" />
     <orderEntry type="module-library" scope="TEST">
-      <library>
+      <library name="junit" type="repository">
+        <properties include-transitive-deps="false" maven-id="junit:junit:4.12" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/prebuilts/tools/common/m2/repository/junit/junit/4.12/junit-4.12.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/junit/junit/4.12/junit-4.12.jar!/" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES>
-          <root url="jar://$WORKSPACE_ROOT$/prebuilts/tools/common/m2/repository/junit/junit/4.12/junit-4.12-sources.jar!/" />
-        </SOURCES>
+        <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module" module-name="android.sdktools.binary-resources" />
     <orderEntry type="module-library" exported="">
-      <library name="precompiled-manifest-parser">
+      <library name="precompiled-manifest-parser" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.manifest-parser:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/manifest-parser/studio.android.sdktools.manifest-parser.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.manifest-parser/221.0.9.0/studio.android.sdktools.manifest-parser-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="" scope="TEST">
-      <library name="precompiled-manifest-parser-test">
+      <library name="precompiled-manifest-parser-test" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.manifest-parser_test:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/manifest-parser/studio.android.sdktools.manifest-parser_test.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.manifest-parser_test/221.0.9.0/studio.android.sdktools.manifest-parser_test-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

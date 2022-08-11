@@ -7,9 +7,10 @@
     <orderEntry type="library" name="studio-sdk" level="project" />
     <orderEntry type="library" name="studio-proto" level="project" />
     <orderEntry type="module-library" scope="TEST">
-      <library>
+      <library name="junit" type="repository">
+        <properties include-transitive-deps="false" maven-id="junit:junit:4.12" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/prebuilts/tools/common/m2/repository/junit/junit/4.12/junit-4.12.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/junit/junit/4.12/junit-4.12.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -21,18 +22,20 @@
     <orderEntry type="library" name="layoutinspector-view-proto" level="project" />
     <orderEntry type="library" name="layoutinspector-skia-proto" level="project" />
     <orderEntry type="module-library" exported="">
-      <library name="precompiled-dynamic-layout-inspector.common">
+      <library name="precompiled-dynamic-layout-inspector.common" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.dynamic-layout-inspector.common:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/dynamic-layout-inspector/common/studio.dynamic-layout-inspector.common.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.dynamic-layout-inspector.common/221.0.9.0/studio.dynamic-layout-inspector.common-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="" scope="TEST">
-      <library name="precompiled-dynamic-layout-inspector.common-test">
+      <library name="precompiled-dynamic-layout-inspector.common-test" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.dynamic-layout-inspector.common_test:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/dynamic-layout-inspector/common/studio.dynamic-layout-inspector.common_test.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.dynamic-layout-inspector.common_test/221.0.9.0/studio.dynamic-layout-inspector.common_test-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

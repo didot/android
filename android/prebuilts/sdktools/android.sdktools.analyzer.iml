@@ -8,27 +8,30 @@
     <orderEntry type="module" module-name="android.sdktools.android-annotations" />
     <orderEntry type="module" module-name="android.sdktools.common" />
     <orderEntry type="module-library">
-      <library>
+      <library name="explainer" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:explainer:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/prebuilts/tools/common/archive-patcher/explainer.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/explainer/221.0.9.0/explainer-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library>
+      <library name="generator" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:generator:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/prebuilts/tools/common/archive-patcher/generator.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/generator/221.0.9.0/generator-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library>
+      <library name="shared" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:shared:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/prebuilts/tools/common/archive-patcher/shared.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/shared/221.0.9.0/shared-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -42,18 +45,20 @@
     <orderEntry type="module" module-name="android.sdktools.binary-resources" />
     <orderEntry type="module" module-name="android.sdktools.sdk-common" />
     <orderEntry type="module-library" exported="">
-      <library name="precompiled-analyzer">
+      <library name="precompiled-analyzer" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.analyzer:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/apkparser/analyzer/studio.android.sdktools.analyzer.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.analyzer/221.0.9.0/studio.android.sdktools.analyzer-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" exported="" scope="TEST">
-      <library name="precompiled-analyzer-test">
+      <library name="precompiled-analyzer-test" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:studio.android.sdktools.analyzer_test:221.0.9.0" />
         <CLASSES>
-          <root url="jar://$WORKSPACE_ROOT$/bazel-bin/tools/base/apkparser/analyzer/studio.android.sdktools.analyzer_test.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/studio.android.sdktools.analyzer_test/221.0.9.0/studio.android.sdktools.analyzer_test-221.0.9.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
