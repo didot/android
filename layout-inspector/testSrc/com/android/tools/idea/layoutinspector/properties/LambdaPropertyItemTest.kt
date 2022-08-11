@@ -42,8 +42,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.isNull
 import org.mockito.Mockito.anyString
+import org.mockito.Mockito.isNull
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 
