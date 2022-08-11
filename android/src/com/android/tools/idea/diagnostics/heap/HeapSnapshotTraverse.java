@@ -19,7 +19,6 @@ import static com.android.tools.idea.diagnostics.heap.HeapTraverseUtil.processMa
 import static com.android.tools.idea.diagnostics.heap.HeapTraverseUtil.sizeOf;
 import static com.google.common.math.IntMath.isPowerOfTwo;
 
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.intellij.openapi.util.LowMemoryWatcher;
 import com.intellij.testFramework.LeakHunter;
@@ -30,6 +29,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
@@ -94,7 +94,7 @@ public final class HeapSnapshotTraverse {
           return errorCode;
         }
       }
-      final Map<Integer, HeapTraverseNode> objectHashToTraverseNode = Maps.newHashMap();
+      final Map<Integer, HeapTraverseNode> objectHashToTraverseNode = new HashMap<>();
 
       // iterate over objects and update masks
       while (!order.isEmpty()) {

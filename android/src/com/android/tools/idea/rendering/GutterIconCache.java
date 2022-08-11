@@ -17,13 +17,13 @@ package com.android.tools.idea.rendering;
 
 import com.android.ide.common.rendering.api.RenderResources;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
+import java.util.HashMap;
 import java.util.Map;
 import javax.swing.Icon;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -39,13 +39,13 @@ public class GutterIconCache {
 
   private static final GutterIconCache ourInstance = new GutterIconCache();
 
-  private Map<String, Icon> myThumbnailCache = Maps.newHashMap();
+  private Map<String, Icon> myThumbnailCache = new HashMap<>();
 
   /**
    * Stores timestamps for the last modification time of image files using the
    * path as a key.
    */
-  private Map<String, Long> myModificationStampCache = Maps.newHashMap();
+  private Map<String, Long> myModificationStampCache = new HashMap<>();
   private boolean myRetina;
 
   public GutterIconCache() {

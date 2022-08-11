@@ -21,13 +21,13 @@ import com.android.ide.common.resources.Locale;
 import com.android.ide.common.resources.LocaleManager;
 import com.android.ide.common.resources.configuration.FolderConfiguration;
 import com.android.ide.common.resources.configuration.LocaleQualifier;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.SimpleListCellRenderer;
 import com.intellij.util.Function;
 import icons.AndroidIcons;
 import icons.StudioIcons;
+import java.util.HashMap;
 import java.util.Map;
 import javax.swing.Icon;
 import javax.swing.ListCellRenderer;
@@ -71,7 +71,7 @@ public class FlagManager {
    * Map from region to flag icon
    */
   @NotNull
-  private final Map<String, Icon> myImageMap = Maps.newHashMap();
+  private final Map<String, Icon> myImageMap = new HashMap<>();
 
   /**
    * Returns the flag for the given language and region.

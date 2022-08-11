@@ -25,13 +25,13 @@ import com.android.tools.lint.detector.api.DefaultPosition;
 import com.android.tools.lint.detector.api.GradleContext;
 import com.android.tools.lint.detector.api.GradleScanner;
 import com.android.tools.lint.detector.api.Location;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.jetbrains.annotations.NotNull;
@@ -192,7 +192,7 @@ public class LintIdeGradleVisitor extends GradleVisitor {
                       else {
                         // the case above - a 1-arg method call within a closure - is usually (though not always) a Dsl property
                         // assignment.  All other method calls (0 or 2+ arguments) are not, so check it as a method call.
-                        Map<String, String> namedArguments = Maps.newHashMap();
+                        Map<String, String> namedArguments = new HashMap<>();
                         List<String> unnamedArguments = new ArrayList<>();
                         extractMethodCallArguments(assignment, unnamedArguments, namedArguments);
                         for (GradleScanner detector : detectors) {
@@ -253,7 +253,7 @@ public class LintIdeGradleVisitor extends GradleVisitor {
             GrClosableBlock block = PsiTreeUtil.getParentOfType(applicationStatement, GrClosableBlock.class, true);
             List<String> parentNames = block != null ? getClosureNames(block) : new ArrayList<>(0);
             String statementName = applicationStatement.getInvokedExpression().getText();
-            Map<String, String> namedArguments = Maps.newHashMap();
+            Map<String, String> namedArguments = new HashMap<>();
             List<String> unnamedArguments = new ArrayList<>();
             extractMethodCallArguments(applicationStatement, unnamedArguments, namedArguments);
             if (parentNames.size() == 0 && unnamedArguments.size() == 1 && namedArguments.isEmpty()) {

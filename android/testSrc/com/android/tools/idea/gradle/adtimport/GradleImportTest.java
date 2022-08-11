@@ -56,7 +56,6 @@ import com.android.utils.Pair;
 import com.android.utils.SdkUtils;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.execution.process.CapturingProcessHandler;
@@ -72,6 +71,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -3322,7 +3322,7 @@ public class GradleImportTest extends AndroidTestCase {
     importer.getSummary().setWrapErrorMessages(false);
 
     if (isImport) {
-      Map<File, File> map = Maps.newHashMap();
+      Map<File, File> map = new HashMap<>();
       map.put(adtProjectDir, destDir);
       importer.exportIntoProject(gradleProjectDir, true, true, map);
     }

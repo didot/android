@@ -27,7 +27,6 @@ import com.android.tools.idea.sdk.StudioDownloader;
 import com.android.tools.idea.sdk.StudioSettingsController;
 import com.android.tools.idea.sdk.wizard.AndroidSdkLicenseTemporaryData;
 import com.android.tools.idea.wizard.dynamic.DynamicWizardStepWithDescription;
-import com.google.common.collect.Maps;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.ui.Splitter;
@@ -40,6 +39,7 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +70,7 @@ public class LicenseAgreementStep extends DynamicWizardStepWithDescription {
   private final JRadioButton myAcceptRadioButton;
 
   private DefaultTreeModel myTreeModel = new DefaultTreeModel(null);
-  private final Map<String, Boolean> myAcceptances = Maps.newHashMap();
+  private final Map<String, Boolean> myAcceptances = new HashMap<>();
   private final Set<String> myVisibleLicenses = new HashSet<>();
   private String myCurrentLicense;
   private final Set<License> myLicenses = new HashSet<>();
@@ -275,7 +275,7 @@ public class LicenseAgreementStep extends DynamicWizardStepWithDescription {
   }
 
   private void setChanges(List<Change> changes) {
-    Map<String, DefaultMutableTreeNode> licenseNodeMap = Maps.newHashMap();
+    Map<String, DefaultMutableTreeNode> licenseNodeMap = new HashMap<>();
     myVisibleLicenses.clear();
 
     DefaultMutableTreeNode root = new DefaultMutableTreeNode();

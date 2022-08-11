@@ -23,7 +23,6 @@ import com.android.tools.idea.observable.core.ObservableBool;
 import com.android.tools.idea.observable.ui.SelectedProperty;
 import com.android.tools.idea.wizard.model.ModelWizard;
 import com.android.tools.idea.wizard.model.ModelWizardStep;
-import com.google.common.collect.Maps;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.ui.Splitter;
 import com.intellij.ui.ColoredTreeCellRenderer;
@@ -35,6 +34,7 @@ import com.intellij.util.ui.StartupUiUtil;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -71,7 +71,7 @@ public class LicenseAgreementStep extends ModelWizardStep<LicenseAgreementModel>
   @Nullable private String myCurrentLicense;
 
   // Licenses accepted by the user.
-  private final Map<String, Boolean> myAcceptances = Maps.newHashMap();
+  private final Map<String, Boolean> myAcceptances = new HashMap<>();
 
   // Only licenses that have not been accepted in the past by the user are displayed.
   private final Set<String> myVisibleLicenses = new HashSet<>();
@@ -206,7 +206,7 @@ public class LicenseAgreementStep extends ModelWizardStep<LicenseAgreementModel>
    * and updating related UI components.
    */
   private void setChanges(List<Change> changes) {
-    Map<String, DefaultMutableTreeNode> licenseNodeMap = Maps.newHashMap();
+    Map<String, DefaultMutableTreeNode> licenseNodeMap = new HashMap<>();
     myVisibleLicenses.clear();
 
     DefaultMutableTreeNode root = new DefaultMutableTreeNode();

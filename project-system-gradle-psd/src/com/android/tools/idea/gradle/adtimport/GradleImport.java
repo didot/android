@@ -82,6 +82,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -193,7 +194,7 @@ public class GradleImport {
   private Map<File, String> mySelectedModules;
   private boolean myDefaultEncodingInitialized;
   private Charset myDefaultEncoding;
-  private Map<File, EclipseProject> myProjectMap = Maps.newHashMap();
+  private Map<File, EclipseProject> myProjectMap = new HashMap<>();
 
   public GradleImport() {
     String workspace = System.getProperty(WORKSPACE_PROPERTY);
@@ -722,7 +723,7 @@ public class GradleImport {
       // Other files may be in other file systems, mapped by a .location link in the
       // workspace metadata
       if (myWorkspaceProjects == null) {
-        myWorkspaceProjects = Maps.newHashMap();
+        myWorkspaceProjects = new HashMap<>();
         File projectDir = new File(myWorkspaceLocation, ".metadata" +
                                                         separator +
                                                         ".plugins" +
@@ -850,7 +851,7 @@ public class GradleImport {
 
   @Deprecated
   public void setModulesToImport(Map<String, File> modules) {
-    mySelectedModules = Maps.newHashMap();
+    mySelectedModules = new HashMap<>();
     for (File module : modules.values()) {
       mySelectedModules.put(module, null);
     }

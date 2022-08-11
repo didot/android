@@ -26,6 +26,7 @@ import com.android.tools.adtui.model.axis.ResizingAxisComponentModel;
 import com.android.tools.adtui.model.formatter.TimeAxisFormatter;
 import com.android.tools.adtui.model.updater.Updatable;
 import com.android.tools.adtui.model.updater.Updater;
+import com.android.tools.idea.io.grpc.StatusRuntimeException;
 import com.android.tools.idea.transport.manager.StreamQueryUtils;
 import com.android.tools.idea.transport.poller.TransportEventPoller;
 import com.android.tools.profiler.proto.Commands;
@@ -59,12 +60,10 @@ import com.android.tools.profilers.sessions.SessionsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
-import com.android.tools.idea.io.grpc.StatusRuntimeException;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -229,7 +228,7 @@ public class StudioProfilers extends AspectModel<ProfilerAspect> implements Upda
 
     myTimeline = new StreamingTimeline(myUpdater);
 
-    myProcesses = Maps.newHashMap();
+    myProcesses = new HashMap<>();
     myDevice = null;
     myProcess = null;
 
