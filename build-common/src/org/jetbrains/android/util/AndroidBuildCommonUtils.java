@@ -130,7 +130,7 @@ public class AndroidBuildCommonUtils {
   }
 
   public static boolean isTestConfiguration(@NotNull String typeId) {
-    return ArrayUtil.find(TEST_CONFIGURATION_TYPE_IDS, typeId) >= 0;
+    return ArrayUtilRt.find(TEST_CONFIGURATION_TYPE_IDS, typeId) >= 0;
   }
 
   public static boolean isInstrumentationTestConfiguration(@NotNull String typeId) {

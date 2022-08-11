@@ -23,7 +23,7 @@ import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.containers.OrderedSet;
 import com.intellij.util.messages.MessageBusConnection;
 import java.io.File;
@@ -292,7 +292,7 @@ public class ImportDependenciesUtil {
 
       if (depModule != null) {
         if ((allowedDepModule == null || allowedDepModule == depModule) &&
-            ArrayUtil.find(ModuleRootManager.getInstance(depModule).getContentRoots(), libDir) >= 0 &&
+            ArrayUtilRt.find(ModuleRootManager.getInstance(depModule).getContentRoots(), libDir) >= 0 &&
             !(module != null && ModuleRootManager.getInstance(module).isDependsOn(depModule))) {
 
           tasks.add(new AddModuleDependencyTask(moduleProvider, ModuleProvider.create(depModule)));
