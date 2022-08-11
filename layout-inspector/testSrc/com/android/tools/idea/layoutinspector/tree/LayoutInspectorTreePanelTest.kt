@@ -295,7 +295,7 @@ abstract class LayoutInspectorTreePanelTest(useTreeTable: Boolean) {
     fileOpenCaptureRule.checkEditor("demo.xml", 9, "<TextView")
 
     val data = DynamicLayoutInspectorSession.newBuilder()
-    inspector.stats.save(data)
+    inspector.currentClient.stats.save(data)
     assertThat(data.gotoDeclaration.doubleClicks).isEqualTo(1)
   }
 
@@ -604,7 +604,7 @@ abstract class LayoutInspectorTreePanelTest(useTreeTable: Boolean) {
   fun testSystemNodeWithMultipleChildren() {
     val launcher: InspectorClientLauncher = mock()
     val model = InspectorModel(projectRule.project)
-    val inspector = LayoutInspector(launcher, model, mock(), FakeTreeSettings(), MoreExecutors.directExecutor ())
+    val inspector = LayoutInspector(launcher, model, FakeTreeSettings(), MoreExecutors.directExecutor ())
     val treePanel = LayoutInspectorTreePanel(projectRule.fixture.testRootDisposable)
     inspector.treeSettings.hideSystemNodes = true
     inspector.treeSettings.composeAsCallstack = true
@@ -640,7 +640,7 @@ abstract class LayoutInspectorTreePanelTest(useTreeTable: Boolean) {
   fun testSemanticTrees() {
     val launcher: InspectorClientLauncher = mock()
     val model = InspectorModel(projectRule.project)
-    val inspector = LayoutInspector(launcher, model, mock(), FakeTreeSettings(), MoreExecutors.directExecutor())
+    val inspector = LayoutInspector(launcher, model, FakeTreeSettings(), MoreExecutors.directExecutor())
     val treePanel = LayoutInspectorTreePanel(projectRule.fixture.testRootDisposable)
     val tree = treePanel.tree
     inspector.treeSettings.hideSystemNodes = false
@@ -810,6 +810,7 @@ abstract class LayoutInspectorTreePanelTest(useTreeTable: Boolean) {
     assertThat(compose2.recompositions.skips).isEqualTo(33)
 
     setToolContext(tree, inspector)
+    UIUtil.pump()
     val table = tree.focusComponent as JTable
     val scrollPane = tree.component as JBScrollPane
     scrollPane.size = Dimension(800, 1000)
@@ -831,7 +832,7 @@ abstract class LayoutInspectorTreePanelTest(useTreeTable: Boolean) {
     assertThat(lastUpdateSettingsCommand?.includeRecomposeCounts).isTrue()
 
     val data = DynamicLayoutInspectorSession.newBuilder()
-    inspector.stats.save(data)
+    inspector.currentClient.stats.save(data)
     assertThat(data.compose.recompositionResetClicks).isEqualTo(1)
   }
 
@@ -842,7 +843,7 @@ abstract class LayoutInspectorTreePanelTest(useTreeTable: Boolean) {
     setToolContext(panel, inspector)
 
     val data = DynamicLayoutInspectorSession.newBuilder()
-    inspector.stats.save(data)
+    inspector.currentClient.stats.save(data)
     assertThat(data.compose.maxRecompositionCount).isEqualTo(9)
     assertThat(data.compose.maxRecompositionSkips).isEqualTo(33)
   }

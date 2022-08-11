@@ -83,7 +83,7 @@ maven_repository(
     name = "test_deps",
     # keep sorted: for buildifier
     artifacts = [
-        "@maven//:androidx.annotation.annotation_1.2.0-beta01",
+        "@maven//:androidx.annotation.annotation_1.2.0-rc01",
         "@maven//:androidx.appcompat.appcompat_1.0.2",
         "@maven//:androidx.appcompat.appcompat_1.3.0",
         "@maven//:androidx.constraintlayout.constraintlayout_1.1.3",
@@ -101,7 +101,7 @@ maven_repository(
         "@maven//:androidx.savedstate.savedstate_1.1.0-rc01",
         "@maven//:androidx.test.espresso.espresso-core_3.1.0",
         "@maven//:androidx.test.espresso.espresso-core_3.2.0",
-        "@maven//:androidx.test.ext.junit_1.1.1",
+        "@maven//:androidx.test.ext.junit_1.1.2",
         "@maven//:androidx.test.ext.junit_1.1.3-alpha02",
         "@maven//:com.android.support.constraint.constraint-layout_1.0.2",
         "@maven//:com.android.support.constraint.constraint-layout_1.1.0",
@@ -213,7 +213,7 @@ local_old_agp_test(
 local_old_agp_test(
     agp_version = AGP_4_2,
     gradle_version = GRADLE_6_7_1,
-    shard_count = 3,
+    shard_count = 4,
     tags = [
         "block-network",
         "no_test_mac",

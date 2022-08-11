@@ -16,6 +16,7 @@
 package com.android.tools.idea.logcat.filters
 
 import com.android.annotations.concurrency.UiThread
+import com.android.tools.adtui.common.ColoredIconGenerator
 import com.android.tools.idea.concurrency.AndroidCoroutineScope
 import com.android.tools.idea.concurrency.AndroidDispatchers.uiThread
 import com.android.tools.idea.logcat.LogcatBundle
@@ -56,10 +57,8 @@ import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.components.BorderLayoutPanel
 import icons.StudioIcons.Logcat.Input.FAVORITE_FILLED
 import icons.StudioIcons.Logcat.Input.FAVORITE_FILLED_HOVER
-import icons.StudioIcons.Logcat.Input.FAVORITE_FILLED_POPUP_HOVER
 import icons.StudioIcons.Logcat.Input.FAVORITE_OUTLINE
 import icons.StudioIcons.Logcat.Input.FAVORITE_OUTLINE_HOVER
-import icons.StudioIcons.Logcat.Input.FAVORITE_POPUP_HOVER
 import icons.StudioIcons.Logcat.Input.FILTER_HISTORY
 import icons.StudioIcons.Logcat.Input.FILTER_HISTORY_DELETE
 import kotlinx.coroutines.launch
@@ -148,6 +147,7 @@ internal class FilterTextField(
   private val historyButton = InlineButton(FILTER_HISTORY)
   private val clearButton = JLabel(AllIcons.Actions.Close)
   private val favoriteButton = JLabel(FAVORITE_OUTLINE)
+  private var filter: LogcatFilter? = filterParser.parse(initialText)
 
   private var isFavorite: Boolean = false
     set(value) {
@@ -194,6 +194,7 @@ internal class FilterTextField(
     textField.apply {
       addDocumentListener(object : DocumentListener {
         override fun documentChanged(event: DocumentEvent) {
+          filter = filterParser.parse(text)
           isFavorite = false
           filterHistory.mostRecentlyUsed = textField.text
           notifyFilterChangedTask.reschedule(APPLY_FILTER_DELAY_MS) {
@@ -328,6 +329,15 @@ internal class FilterTextField(
             }
           }
         })
+        contentComponent.addMouseMotionListener(object : MouseAdapter() {
+          override fun mouseMoved(e: MouseEvent) {
+            contentComponent.toolTipText = editor?.let {editor ->
+              val position = editor.xyToLogicalPosition(e.point)
+              // The editor is in a single line so we don't have to convert to an offset
+              filter?.findFilterForOffset(position.column)?.displayText
+            }
+          }
+        })
       }
     }
 
@@ -425,6 +435,7 @@ internal class FilterTextField(
 
     override fun getToolTipText(event: MouseEvent): String? {
       val index = selectedIndex
+      if (index < 0) return null
       val item = model.getElementAt(index) as? Item ?: return null
       val cellLocation = getCellBounds(index, index).location
       val favoriteIconBounds = item.getFavoriteIconBounds(cellLocation)
@@ -606,11 +617,11 @@ internal class FilterTextField(
       }
 
       init {
-        val filterName = filterParser.parse(filter)?.getFilterName()
+        val filterName = filterParser.parse(filter)?.filterName
         if (filterName != null) {
           val history = AndroidLogcatFilterHistory.getInstance().items
           // If there is more than one Item with the same filterName, show the name and the filter.
-          val sameName = history.count { filterParser.parse(it)?.getFilterName() == filterName }
+          val sameName = history.count { filterParser.parse(it)?.filterName == filterName }
           filterLabel.append(filterName, NAMED_FILTER_HISTORY_ITEM_COLOR)
           val filterWithoutName = filterParser.removeFilterNames(filter)
           if (sameName > 1) {
@@ -631,8 +642,8 @@ internal class FilterTextField(
       override fun getComponent(isSelected: Boolean, list: JList<out FilterHistoryItem>): JComponent {
         // This can be mico optimized, but it's more readable like this
         favoriteLabel.icon = when {
-          isFavoriteHovered && isFavorite -> FAVORITE_FILLED_POPUP_HOVER
-          isFavoriteHovered && !isFavorite -> FAVORITE_POPUP_HOVER
+          isFavoriteHovered && isFavorite -> ColoredIconGenerator.generateWhiteIcon(FAVORITE_FILLED)
+          isFavoriteHovered && !isFavorite -> ColoredIconGenerator.generateWhiteIcon(FAVORITE_OUTLINE)
           !isFavoriteHovered && isFavorite -> FAVORITE_FILLED
           else -> BLANK_ICON
         }

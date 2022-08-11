@@ -84,6 +84,7 @@ data class ProjectStructureSnapshotTestDef(
       ProjectStructureSnapshotTestDef(TestProject.SIMPLE_APPLICATION, compatibleWith = setOf(AGP_32, AGP_CURRENT)),
       ProjectStructureSnapshotTestDef(TestProject.SIMPLE_APPLICATION_VIA_SYMLINK, compatibleWith = setOf(AGP_32, AGP_CURRENT)),
       ProjectStructureSnapshotTestDef(TestProject.SIMPLE_APPLICATION_APP_VIA_SYMLINK, compatibleWith = setOf(AGP_32, AGP_CURRENT)),
+      ProjectStructureSnapshotTestDef(TestProject.SIMPLE_APPLICATION_NOT_AT_ROOT),
       ProjectStructureSnapshotTestDef(TestProject.PURE_JAVA_PROJECT),
       ProjectStructureSnapshotTestDef(TestProject.MAIN_IN_ROOT),
       ProjectStructureSnapshotTestDef(TestProject.NESTED_MODULE),
@@ -104,6 +105,7 @@ data class ProjectStructureSnapshotTestDef(
       ProjectStructureSnapshotTestDef(TestProject.APP_WITH_BUILDSRC),
       ProjectStructureSnapshotTestDef(TestProject.KOTLIN_MULTIPLATFORM),
       ProjectStructureSnapshotTestDef(TestProject.KOTLIN_MULTIPLATFORM_HIERARCHICAL),
+      ProjectStructureSnapshotTestDef(TestProject.KOTLIN_MULTIPLATFORM_HIERARCHICAL_WITHJS),
       ProjectStructureSnapshotTestDef(TestProject.KOTLIN_MULTIPLATFORM_JVM),
       ProjectStructureSnapshotTestDef(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL),
       ProjectStructureSnapshotTestDef(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL_KMPAPP),
@@ -121,6 +123,7 @@ data class ProjectStructureSnapshotTestDef(
         )
       ),
       ProjectStructureSnapshotTestDef(TestProject.BUILDSRC_WITH_COMPOSITE, compatibleWith = setOf(AGP_42, AGP_CURRENT)),
+      ProjectStructureSnapshotTestDef(TestProject.PRIVACY_SANDBOX_SDK),
     )
   }
 }

@@ -33,7 +33,6 @@ import com.android.tools.adtui.workbench.PropertiesComponentMock
 import com.android.tools.idea.layoutinspector.LEGACY_DEVICE
 import com.android.tools.idea.layoutinspector.createProcess
 import com.android.tools.idea.layoutinspector.metrics.LayoutInspectorMetrics
-import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model
 import com.android.tools.idea.layoutinspector.model.DrawViewImage
 import com.android.tools.idea.layoutinspector.model.InspectorModel
@@ -114,8 +113,7 @@ DONE.
   private fun createSimpleLegacyClient(): LegacyClient {
     val model = model {}
     val process = LEGACY_DEVICE.createProcess()
-    return LegacyClient(process, isInstantlyAutoConnected = false, model,
-                        LayoutInspectorMetrics(model.project, process, SessionStatistics(model, FakeTreeSettings())),
+    return LegacyClient(process, isInstantlyAutoConnected = false, model, LayoutInspectorMetrics(model.project, process),
                         disposableRule.disposable).apply {
       launchMonitor = mock()
     }
@@ -267,7 +265,7 @@ DONE.
       view(0x3d2ff9c)
     }
     assertDrawTreesEqual(expected, window.root)
-    verify(resourceLookup).dpi = 560
+    verify(resourceLookup).updateLegacyConfiguration(eq(560))
     verify(legacyClient.launchMonitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.LEGACY_HIERARCHY_RECEIVED)
     verify(legacyClient.launchMonitor).updateProgress(DynamicLayoutInspectorErrorInfo.AttachErrorState.LEGACY_SCREENSHOT_RECEIVED)
   }

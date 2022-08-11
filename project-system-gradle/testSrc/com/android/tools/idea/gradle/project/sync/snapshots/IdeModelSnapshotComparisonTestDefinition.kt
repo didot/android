@@ -43,7 +43,7 @@ import java.io.File
  * Snapshot test definitions for 'Ide Models' (To run tests see [SyncedProjectTest])
  *
  * These tests convert Ide models to a stable text format which does not depend on local
- * environment (and ideally should not depend on the versions of irrelevant libraries) and compare them to pre-recorded golden
+ * environment (and ideally should not depend on the versions of irrelev ant libraries) and compare them to pre-recorded golden
  * results.
  *
  * The pre-recorded sync results can be found in *.txt files under testData/snapshots/{ideModels,v2IdeModels}.
@@ -68,6 +68,10 @@ data class IdeModelSnapshotComparisonTestDefinition(
         TestProject.SIMPLE_APPLICATION_WITH_ADDITIONAL_GRADLE_SOURCE_SETS,
         skipV1toV2Comparison = true,
         isCompatibleWith = { it.modelVersion == ModelVersion.V2 }),
+      IdeModelSnapshotComparisonTestDefinition(
+        TestProject.SIMPLE_APPLICATION_NOT_AT_ROOT,
+        skipV1toV2Comparison = true
+      ),
       IdeModelSnapshotComparisonTestDefinition(
         TestProject.TRANSITIVE_DEPENDENCIES_NO_TARGET_SDK_IN_LIBS,
           isCompatibleWith = { it >= AGP_35 }
@@ -97,6 +101,7 @@ data class IdeModelSnapshotComparisonTestDefinition(
       ),
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM),
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_HIERARCHICAL, skipV1toV2Comparison = true),
+      IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_HIERARCHICAL_WITHJS, skipV1toV2Comparison = true),
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_JVM, skipV1toV2Comparison = true),
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL, skipV1toV2Comparison = true),
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_MULTIPLATFORM_JVM_HIERARCHICAL_KMPAPP, skipV1toV2Comparison = true),
@@ -114,7 +119,8 @@ data class IdeModelSnapshotComparisonTestDefinition(
         TestProject.LOCAL_AARS_AS_MODULES,
         v1toV2PropertiesToSkip = setOf("provided")
       ), // Skip __wrapped_aars__.
-      IdeModelSnapshotComparisonTestDefinition(TestProject.BASIC)
+      IdeModelSnapshotComparisonTestDefinition(TestProject.BASIC),
+      IdeModelSnapshotComparisonTestDefinition(TestProject.PRIVACY_SANDBOX_SDK, skipV1toV2Comparison = true)
     )
   }
 

@@ -30,10 +30,8 @@ import com.android.tools.adtui.swing.IconLoaderRule
 import com.android.tools.idea.appinspection.api.process.ProcessesModel
 import com.android.tools.idea.appinspection.ide.ui.ICON_PHONE
 import com.android.tools.idea.appinspection.ide.ui.SelectProcessAction
-import com.android.tools.idea.appinspection.inspector.api.process.DeviceDescriptor
 import com.android.tools.idea.appinspection.inspector.api.process.ProcessDescriptor
 import com.android.tools.idea.appinspection.internal.process.TransportProcessDescriptor
-import com.android.tools.idea.appinspection.internal.process.toDeviceDescriptor
 import com.android.tools.idea.appinspection.test.DEFAULT_TEST_INSPECTION_STREAM
 import com.android.tools.idea.appinspection.test.TestProcessDiscovery
 import com.android.tools.idea.concurrency.waitForCondition
@@ -46,7 +44,6 @@ import com.android.tools.idea.layoutinspector.LegacyClientProvider
 import com.android.tools.idea.layoutinspector.MODERN_DEVICE
 import com.android.tools.idea.layoutinspector.OLDER_LEGACY_DEVICE
 import com.android.tools.idea.layoutinspector.createProcess
-import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model
 import com.android.tools.idea.layoutinspector.model.InspectorModel
 import com.android.tools.idea.layoutinspector.model.REBOOT_FOR_LIVE_INSPECTOR_MESSAGE_KEY
@@ -103,6 +100,7 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JViewport
+import javax.swing.plaf.basic.BasicScrollBarUI
 
 private val MODERN_PROCESS = MODERN_DEVICE.createProcess(streamId = DEFAULT_TEST_INSPECTION_STREAM.streamId)
 
@@ -206,8 +204,8 @@ class DeviceViewPanelWithFullInspectorTest {
   fun testTurnOnSnapshotModeWhenDisconnected() {
     installCommandHandlers()
 
-    val stats = inspectorRule.inspector.stats.live
-    stats.toggledToLive()
+    val stats = inspectorRule.inspector.currentClient.stats
+    stats.currentModeIsLive = true
     val settings = EditorDeviceViewSettings()
     val toolbar = getToolbar(
       DeviceViewPanel(deviceModel, inspectorRule.processes, {}, {}, inspectorRule.inspector, settings, inspectorRule.projectRule.fixture.testRootDisposable))
@@ -231,8 +229,8 @@ class DeviceViewPanelWithFullInspectorTest {
     installCommandHandlers()
     InspectorClientSettings.isCapturingModeOn = false
 
-    val stats = inspectorRule.inspector.stats.live
-    stats.toggledToRefresh()
+    val stats = inspectorRule.inspector.currentClient.stats
+    stats.currentModeIsLive = false
     val settings = EditorDeviceViewSettings()
     val toolbar = getToolbar(
       DeviceViewPanel(deviceModel, inspectorRule.processes, {}, {}, inspectorRule.inspector, settings, inspectorRule.projectRule.fixture.testRootDisposable))
@@ -255,13 +253,12 @@ class DeviceViewPanelWithFullInspectorTest {
 
   @Test
   fun testTurnOnSnapshotMode() {
-    val stats = inspectorRule.inspector.stats.live
-    stats.toggledToLive()
     latch = CountDownLatch(1)
-
     installCommandHandlers()
     connect(MODERN_PROCESS)
     assertThat(latch?.await(1, TimeUnit.SECONDS)).isTrue()
+    val stats = inspectorRule.inspector.currentClient.stats
+    stats.currentModeIsLive = true
     latch = CountDownLatch(2)
     val settings = EditorDeviceViewSettings()
     val toolbar = getToolbar(
@@ -287,16 +284,16 @@ class DeviceViewPanelWithFullInspectorTest {
 
   @Test
   fun testTurnOnLiveMode() {
-    val stats = inspectorRule.inspector.stats.live
-    stats.toggledToRefresh()
     latch = CountDownLatch(1)
 
     installCommandHandlers()
     InspectorClientSettings.isCapturingModeOn = false
     connect(MODERN_PROCESS)
     assertThat(latch?.await(1, TimeUnit.SECONDS)).isTrue()
-    latch = CountDownLatch(1)
+    val stats = inspectorRule.inspector.currentClient.stats
+    stats.currentModeIsLive = false
 
+    latch = CountDownLatch(1)
     val settings = EditorDeviceViewSettings()
     val toolbar = getToolbar(
       DeviceViewPanel(deviceModel, inspectorRule.processes, {}, {}, inspectorRule.inspector, settings, inspectorRule.projectRule.fixture.testRootDisposable))
@@ -464,9 +461,7 @@ class DeviceViewPanelTest {
     val launcher = InspectorClientLauncher(processes, listOf(), projectRule.project, disposableRule.disposable,
                                            executor = MoreExecutors.directExecutor())
     val treeSettings = FakeTreeSettings()
-    val stats: SessionStatistics = mock()
-    whenever(stats.rotation).thenReturn(mock())
-    val inspector = LayoutInspector(launcher, model, stats, treeSettings, MoreExecutors.directExecutor())
+    val inspector = LayoutInspector(launcher, model, treeSettings, MoreExecutors.directExecutor())
     treeSettings.hideSystemNodes = false
     val panel = DeviceViewPanel(DeviceModel(processes), processes, {}, {} ,inspector, viewSettings, disposableRule.disposable)
 
@@ -508,9 +503,7 @@ class DeviceViewPanelTest {
     val launcher = InspectorClientLauncher(processes, listOf(), projectRule.project, disposableRule.disposable,
                                            executor = MoreExecutors.directExecutor())
     val treeSettings = FakeTreeSettings()
-    val stats: SessionStatistics = mock()
-    whenever(stats.rotation).thenReturn(mock())
-    val inspector = LayoutInspector(launcher, model, stats, treeSettings, MoreExecutors.directExecutor())
+    val inspector = LayoutInspector(launcher, model, treeSettings, MoreExecutors.directExecutor())
     treeSettings.hideSystemNodes = true
     val panel = DeviceViewPanel(DeviceModel(processes), processes, {}, {}, inspector, viewSettings, disposableRule.disposable)
 
@@ -532,6 +525,36 @@ class DeviceViewPanelTest {
   }
 
   @Test
+  fun testZoomOnConnectWithFilteringAndScreenSizeFromAppContext() {
+    val viewSettings = EditorDeviceViewSettings()
+    val model = InspectorModel(projectRule.project)
+    val processes = ProcessesModel(TestProcessDiscovery())
+    val launcher = InspectorClientLauncher(processes, listOf(), projectRule.project, disposableRule.disposable,
+                                           executor = MoreExecutors.directExecutor())
+    val treeSettings = FakeTreeSettings()
+    val inspector = LayoutInspector(launcher, model, treeSettings, MoreExecutors.directExecutor())
+    treeSettings.hideSystemNodes = true
+    val panel = DeviceViewPanel(DeviceModel(processes), processes, {}, {}, inspector, viewSettings, disposableRule.disposable)
+
+    val scrollPane = flatten(panel).filterIsInstance<JBScrollPane>().first()
+    scrollPane.setSize(200, 300)
+    model.resourceLookup.screenDimension.setSize(200, 300)
+
+    assertThat(viewSettings.scalePercent).isEqualTo(100)
+
+    val newWindow = window(ROOT, ROOT, 0, 0, 100, 200) {
+      view(VIEW1, 25, 30, 50, 50) {
+        image()
+      }
+    }
+
+    model.update(newWindow, listOf(ROOT), 0)
+
+    // now we should be zoomed to fit
+    assertThat(viewSettings.scalePercent).isEqualTo(90)
+  }
+
+  @Test
   fun testDrawNewWindow() {
     val viewSettings = EditorDeviceViewSettings()
     val model = InspectorModel(projectRule.project)
@@ -539,7 +562,7 @@ class DeviceViewPanelTest {
     val launcher = InspectorClientLauncher(processes, listOf(), projectRule.project, disposableRule.disposable,
                                            executor = MoreExecutors.directExecutor())
     val treeSettings = FakeTreeSettings()
-    val inspector = LayoutInspector(launcher, model, SessionStatistics(model, treeSettings), treeSettings, MoreExecutors.directExecutor())
+    val inspector = LayoutInspector(launcher, model, treeSettings, MoreExecutors.directExecutor())
     treeSettings.hideSystemNodes = false
     val panel = DeviceViewPanel(DeviceModel(processes), processes, {}, {}, inspector, viewSettings, disposableRule.disposable, MoreExecutors.directExecutor())
 
@@ -577,7 +600,7 @@ class DeviceViewPanelTest {
     val launcher = InspectorClientLauncher(processes, listOf(), projectRule.project, disposableRule.disposable,
                                            executor = MoreExecutors.directExecutor())
     val treeSettings = FakeTreeSettings()
-    val inspector = LayoutInspector(launcher, model, SessionStatistics(model, treeSettings), treeSettings, MoreExecutors.directExecutor())
+    val inspector = LayoutInspector(launcher, model, treeSettings, MoreExecutors.directExecutor())
     treeSettings.hideSystemNodes = false
     val panel = DeviceViewPanel(DeviceModel(processes), processes, {}, {}, inspector, viewSettings, disposableRule.disposable, MoreExecutors.directExecutor())
 
@@ -617,7 +640,7 @@ class DeviceViewPanelTest {
     val launcher = InspectorClientLauncher(processes, listOf(), projectRule.project, disposableRule.disposable,
                                            executor = MoreExecutors.directExecutor())
     val treeSettings = FakeTreeSettings()
-    val inspector = LayoutInspector(launcher, model, SessionStatistics(model, treeSettings), treeSettings, MoreExecutors.directExecutor())
+    val inspector = LayoutInspector(launcher, model, treeSettings, MoreExecutors.directExecutor())
     treeSettings.hideSystemNodes = false
     val settings = EditorDeviceViewSettings()
     val panel = DeviceViewPanel(DeviceModel(processes), processes, {}, {}, inspector, settings, disposableRule.disposable)
@@ -667,7 +690,7 @@ class DeviceViewPanelTest {
     whenever(client.capabilities).thenReturn(setOf(InspectorClient.Capability.SUPPORTS_SKP))
     whenever(launcher.activeClient).thenReturn(client)
     val treeSettings = FakeTreeSettings()
-    val inspector = LayoutInspector(launcher, model, SessionStatistics(model, treeSettings), treeSettings, MoreExecutors.directExecutor())
+    val inspector = LayoutInspector(launcher, model, treeSettings, MoreExecutors.directExecutor())
     treeSettings.hideSystemNodes = false
     val settings = EditorDeviceViewSettings()
     val panel = DeviceViewPanel(DeviceModel(processes), processes, {}, {}, inspector, settings, disposableRule.disposable)
@@ -772,6 +795,8 @@ class MyViewportLayoutManagerTest {
   private var layerSpacing = INITIAL_LAYER_SPACING
 
   private var rootPosition: Point? = Point(400, 500)
+  private var rootLocationCompute: () -> Point? = { rootPosition }
+  private var rootLocation: () -> Point? = { rootLocationCompute() }
 
   @get:Rule
   val edtRule = EdtRule()
@@ -780,10 +805,18 @@ class MyViewportLayoutManagerTest {
   fun setUp() {
     contentPanel = JPanel()
     scrollPane = JBScrollPane(contentPanel)
+
+    // Avoid MacScrollBarUI setting making the scrollbars opaque.
+    // That would make these test fail if they are run multiple times on Mac.
+    scrollPane.horizontalScrollBar.setUI(BasicScrollBarUI())
+    scrollPane.verticalScrollBar.setUI(BasicScrollBarUI())
+    scrollPane.horizontalScrollBar.isOpaque = false
+    scrollPane.verticalScrollBar.isOpaque = false
+
     scrollPane.size = Dimension(502, 202)
     scrollPane.preferredSize = Dimension(502, 202)
     contentPanel.preferredSize = Dimension(1000, 1000)
-    layoutManager = MyViewportLayoutManager(scrollPane.viewport, { layerSpacing }, { rootPosition })
+    layoutManager = MyViewportLayoutManager(scrollPane.viewport, { layerSpacing }, rootLocation)
     layoutManager.layoutContainer(scrollPane.viewport)
     scrollPane.layout.layoutContainer(scrollPane)
   }
@@ -871,6 +904,45 @@ class MyViewportLayoutManagerTest {
 
     // scroll goes back to origin
     assertThat(scrollPane.viewport.viewPosition).isEqualTo(Point(0, 0))
+  }
+
+  @Test
+  fun testScrollPaneShouldNotOscillateInPlace() {
+    // This is a regression test for a bug that happened frequently on Mac (see b/240289276)
+    // First make the scrollbars opaque (that affect the viewport size when scrollbars are needed)
+    // This will emulate how scrollbars act on a Mac
+    scrollPane.horizontalScrollBar.isOpaque = true
+    scrollPane.verticalScrollBar.isOpaque = true
+
+    // Mimic the real location computation which involves the size of the view (DeviceViewContentPanel)
+    val modelLocation = Point(-500, 0)
+    rootLocationCompute = { Point(modelLocation).apply { translate(contentPanel.width / 2, contentPanel.height / 2) } }
+
+    // Set the size such that the scrollpane can hold the preferred size of the DeviceViewContentPanel if there
+    // are no horizontal scrollbar, but is too small if the horizontal scrollbar is present:
+    scrollPane.size = Dimension(1500, 1010)
+    scrollPane.preferredSize = scrollPane.size
+    scrollPane.layout.layoutContainer(scrollPane)
+    layoutManager.layoutContainer(scrollPane.viewport)
+    scrollPane.viewport.viewPosition = Point(7, 0)
+
+    // Init the cached data:
+    scrollPane.layout.layoutContainer(scrollPane)
+    layoutManager.layoutContainer(scrollPane.viewport)
+    scrollPane.layout.layoutContainer(scrollPane)
+    layoutManager.layoutContainer(scrollPane.viewport)
+    val pos = scrollPane.viewport.viewPosition
+    val positions = mutableListOf<Point>()
+    val expected = mutableListOf<Point>()
+
+    // If the bug is still present the viewPosition will oscillate between 2 points:
+    for (i in 1..20) {
+      scrollPane.layout.layoutContainer(scrollPane)
+      layoutManager.layoutContainer(scrollPane.viewport)
+      positions.add(scrollPane.viewport.viewPosition)
+      expected.add(pos)
+    }
+    assertThat(positions).isEqualTo(expected)
   }
 }
 

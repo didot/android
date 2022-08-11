@@ -20,6 +20,7 @@ studio_plugin(
         "//prebuilts/tools/common/m2:jetifier-core",
         "//prebuilts/tools/common/m2:flatbuffers-java",
         "//prebuilts/tools/common/m2:tensorflow-lite-metadata",
+        "//prebuilts/tools/common/m2:trace-perfetto-library",
         "//tools/adt/idea/.idea/libraries:aapt-proto",
         "//tools/adt/idea/.idea/libraries:aia-proto",
         "//tools/adt/idea/.idea/libraries:android-test-plugin-host-device-info-proto",
@@ -397,6 +398,26 @@ studio_plugin(
 )
 
 studio_plugin(
+    name = "com.google.gct.directaccess",
+    directory = "directaccess",
+    libs = [
+        "//tools/vendor/google/directaccess-client:ftl_client_java_proto",
+    ],
+    modules = {
+        "directaccess.jar": ["//tools/studio/google/cloud/testing/directaccess:directaccess"],
+        "directaccess-client.jar": ["//tools/vendor/google/directaccess-client:directaccess-client"],
+    },
+    resources = {
+        "resources": ["//tools/vendor/google/directaccess-client/reverse-daemon:daemon"],
+    },
+    deps = [
+        ":com.google.gct.login",
+        ":com.google.gct.testing",
+        ":org.jetbrains.android",
+    ],
+)
+
+studio_plugin(
     name = "com.google.gct.testing",
     directory = "firebase-testing",
     libs = [
@@ -554,6 +575,7 @@ android_studio(
         ":com.android.tools.design",
         ":androidx.compose.plugins.idea",
         ":com.google.services.firebase",
+        ":com.google.gct.directaccess",
         ":com.google.gct.testing",
         ":com.google.appindexing",
         ":com.google.gct",
@@ -565,10 +587,12 @@ android_studio(
         ":com.google.urlassistant",
     ],
     searchable_options = "//tools/adt/idea/searchable-options",
-    version_eap = True,
-    version_full = "Electric Eel | {0}.{1}.{2} Canary {3}",
-    version_micro = 1,
-    version_patch = 9,
+    version_code_name = "Electric Eel",
+    version_micro_patch = "1.10",
+    # This will get added to the end of the full-version string.
+    # TODO(b/240707039): automate this.
+    version_release_number = 10,
+    version_type = "Canary",
     visibility = ["//visibility:public"],
 )
 
@@ -675,6 +699,7 @@ iml_module(
         "//tools/vendor/google/android-ndk[module]",
         "//tools/studio/google/cloud/tools/android-studio-plugin:google-cloud-tools-as[module]",
         "//tools/vendor/google/firebase[module]",
+        "//tools/studio/google/cloud/testing/directaccess[module]",
         "//tools/studio/google/cloud/testing/firebase-testing[module]",
         "//tools/studio/google/appindexing:google-appindexing[module]",
         "//tools/studio/google/cloud/tools/core-plugin:google-cloud-tools-core-as[module]",
@@ -805,3 +830,6 @@ iml_test(
     module = ":intellij.android.studio.integration",
     test_class = "com.android.tools.idea.UpdateTest",
 )
+
+# TODO(b/239839457): Remove this export when a real metadata file is generated.
+exports_files(["metadata.textproto.template"])

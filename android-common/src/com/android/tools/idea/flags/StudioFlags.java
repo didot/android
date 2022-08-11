@@ -139,6 +139,19 @@ public final class StudioFlags {
     PROFILER, "profileable.builds", "Support building profileable apps",
     "Allow users to build apps as profileable with a supported Gradle plugin version (>7.3.0)",
     false);
+
+  // TODO(b/211154220): Pending user's feedback, either completely remove the keyboard event functionality in
+  // Event Timeline or find a proper way to support it for Android S and newer.
+  public static final Flag<Boolean> PROFILER_KEYBOARD_EVENT = Flag.create(
+    PROFILER, "keyboard.event", "Enable keyboard event",
+    "Enable the keyboard event functionality in Event Timeline",
+    false);
+
+  public static final Flag<Boolean> PERFETTO_SDK_TRACING = Flag.create(
+    PROFILER, "perfetto.sdk.tracing", "Automatically instrument perfetto sdk builds",
+    "A cpu trace intercept command is added that will enable perfetto instrumentation for apps" +
+    " that use the perfetto SDK",
+    true);
   //endregion
 
   //region ML
@@ -614,6 +627,14 @@ public final class StudioFlags {
     true
   );
 
+  public static final Flag<Boolean> ASWB_RUN_WEAR_ENABLE = Flag.create(
+    RUNDEBUG,
+    "aswb.run.wear",
+    "Enable launching wear surfaces in ASwB.",
+    "Enable launching wear surfaces in ASwB, by enabling the UI option in the Blaze Android Binary Editor.",
+    false
+  );
+
   //endregion
 
   //region Logcat
@@ -695,6 +716,11 @@ public final class StudioFlags {
   public static final Flag<Boolean> BUILD_ANALYZER_DOWNLOADS_ANALYSIS = Flag.create(
     GRADLE_IDE, "build.analyzer.downloads.analysis", "Enable Downloads analysis",
     "Enable Downloads analysis in Build Analyzer.", true);
+
+  public static final Flag<Boolean> BUILD_ANALYZER_HISTORY = Flag.create(
+    GRADLE_IDE, "build.analyzer.history", "Enable access to historic build analysis",
+    "Enable access to historic build analysis in Build Analyzer.", false);
+
   public static final Flag<Boolean> DISABLE_FORCED_UPGRADES = Flag.create(
     GRADLE_IDE, "forced.agp.update", "Disable forced Android Gradle plugin upgrades",
     "This option is only respected when running Android Studio internally.", false);
@@ -707,6 +733,11 @@ public final class StudioFlags {
     GRADLE_IDE, "gradle.sync.parallel.sync.prefetch.variants", "Enables speculative syncing of current variants",
     "This allows the IDE to pre-fetch models for the currently selected variants in parallel before resolving the " +
     "new variant selection (which is less parallelizable process).", false);
+
+  public static final Flag<Boolean> GRADLE_SYNC_OUTPUT_SYNC_STATS = Flag.create(
+    GRADLE_IDE, "gradle.sync.output.sync.stats", "Enables printing sync stats to build output",
+    "When enabled sync execution stats for models requested by Android Studio are printed to the build output tool window when" +
+    "sync completes.", false);
 
   public static final Flag<Boolean> GRADLE_SYNC_ENABLE_CACHED_VARIANTS = Flag.create(
     GRADLE_IDE, "gradle.sync.enable.cached.variants", "Enables caching of build variants",
@@ -761,6 +792,18 @@ public final class StudioFlags {
     LAYOUT_INSPECTOR, "dynamic.layout.inspector.enable.auto.connect.foreground", "Enable automatically connecting to foreground process",
     "When this flag is enabled, LayoutInspector will automatically connect to whatever debuggable process is in the foreground on the phone.",
     false);
+
+  public static final Flag<String> DYNAMIC_LAYOUT_INSPECTOR_COMPOSE_UI_INSPECTION_DEVELOPMENT_FOLDER = Flag.create(
+    LAYOUT_INSPECTOR, "dev.jar.location", "Location of prebuilt compose app inspection jar for development",
+    "If APP_INSPECTION_USE_DEV_JAR is enabled use this location to load the inspector jar in development.",
+    "prebuilts/tools/common/app-inspection/androidx/compose/ui/"
+  );
+
+  public static final Flag<String> DYNAMIC_LAYOUT_INSPECTOR_COMPOSE_UI_INSPECTION_RELEASE_FOLDER = Flag.create(
+    LAYOUT_INSPECTOR, "rel.jar.location", "Location of prebuilt compose app inspection jar for releases",
+    "If APP_INSPECTION_USE_DEV_JAR is enabled use this location to load the inspector jar in releases.",
+    ""
+  );
   //endregion
 
   //region Embedded Emulator
@@ -853,12 +896,6 @@ public final class StudioFlags {
   public static final Flag<Boolean> NDK_SIDE_BY_SIDE_ENABLED = Flag.create(
     NDK_SIDE_BY_SIDE, "ndk.sxs.enabled", "Enable side by side NDK support",
     "If enabled, C/C++ projects will have NDK side by side support",
-    true);
-
-  public static final Flag<Boolean> USE_CONTENT_ROOTS_FOR_NATIVE_PROJECT_VIEW = Flag.create(
-    NDK, "use.content.roots.for.native.project.view", "Use content roots for native project view",
-    "If enabled, the C/C++ content roots are displayed in Android View and Project View. Otherwise, each individual native target " +
-    "is displayed.",
     true);
 
   public static final Flag<Boolean> ENABLE_SHOW_FILES_UNKNOWN_TO_CMAKE = Flag.create(
@@ -1336,6 +1373,18 @@ public final class StudioFlags {
     true
   );
   // endregion SERVER_FLAGS
+
+  // region Firebase Test Lab
+  private static final FlagGroup FIREBASE_TEST_LAB = new FlagGroup(FLAGS, "firebasetestlab", "Firebase Test Lab");
+
+  public static final Flag<Boolean> DIRECT_ACCESS =
+    Flag.create(
+      FIREBASE_TEST_LAB,
+      "direct.access",
+      "Direct Access",
+      "Enable FTL DirectAccess",
+      false);
+  // endregion Firebase Test Lab
 
   // region App Insights
   private static final FlagGroup APP_INSIGHTS = new FlagGroup(FLAGS, "appinsights", "App Insights");

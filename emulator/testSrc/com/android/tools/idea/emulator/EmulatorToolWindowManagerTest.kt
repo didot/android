@@ -136,7 +136,7 @@ class EmulatorToolWindowManagerTest {
     assertThat(contentManager.contents).hasLength(1)
     waitForCondition(2, TimeUnit.SECONDS) { RunningEmulatorCatalog.getInstance().emulators.isNotEmpty() }
     emulator1.getNextGrpcCall(2, TimeUnit.SECONDS) { true } // Wait for the initial "getVmState" call.
-    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents[0].displayName != "No Running Emulators" }
+    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents[0].displayName != null }
     assertThat(contentManager.contents[0].displayName).isEqualTo(emulator1.avdName)
 
     // Start the third emulator.
@@ -165,7 +165,7 @@ class EmulatorToolWindowManagerTest {
     emulator3.stop()
 
     // The panel corresponding to the second emulator goes away.
-    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents.size == 1 }
+    waitForCondition(5, TimeUnit.SECONDS) { contentManager.contents.size == 1 }
     assertThat(contentManager.contents[0].displayName).isEqualTo(emulator1.avdName)
     assertThat(contentManager.contents[0].isSelected).isTrue()
 
@@ -228,7 +228,7 @@ class EmulatorToolWindowManagerTest {
     waitForCondition(2, TimeUnit.SECONDS) { RunningEmulatorCatalog.getInstance().emulators.isNotEmpty() }
     val emulatorController = RunningEmulatorCatalog.getInstance().emulators.first()
     waitForCondition(4, TimeUnit.SECONDS) { emulatorController.connectionState == EmulatorController.ConnectionState.CONNECTED }
-    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents[0].displayName != "No Running Emulators" }
+    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents[0].displayName != null }
     assertThat(contentManager.contents[0].displayName).isEqualTo(emulator.avdName)
 
     assertThat(emulator.extendedControlsVisible).isFalse()
@@ -270,14 +270,14 @@ class EmulatorToolWindowManagerTest {
     waitForCondition(2, TimeUnit.SECONDS) { RunningEmulatorCatalog.getInstance().emulators.isNotEmpty() }
     val emulatorController = RunningEmulatorCatalog.getInstance().emulators.first()
     waitForCondition(4, TimeUnit.SECONDS) { emulatorController.connectionState == EmulatorController.ConnectionState.CONNECTED }
-    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents[0].displayName != "No Running Emulators" }
+    waitForCondition(2, TimeUnit.SECONDS) { contentManager.contents[0].displayName != null }
     assertThat(contentManager.contents[0].displayName).isEqualTo(emulator.avdName)
 
     val panel = contentManager.contents[0].component as EmulatorToolWindowPanel
     panel.setSize(250, 500)
     val ui = FakeUi(panel)
     val emulatorView = ui.getComponent<EmulatorView>()
-    waitForCondition(2, TimeUnit.SECONDS) { emulatorView.frameNumber > 0 }
+    waitForCondition(2, TimeUnit.SECONDS) { renderAndGetFrameNumber(ui, emulatorView) > 0 }
 
     // Zoom in.
     emulatorView.zoom(ZoomType.IN)
@@ -316,13 +316,11 @@ class EmulatorToolWindowManagerTest {
     val device = agentRule.connectDevice("Pixel 4", 30, Dimension(1080, 2280), "arm64-v8a")
     toolWindow.show()
 
-    waitForCondition(10, TimeUnit.SECONDS) { device.agent.running }
-    assertThat(toolWindow.isVisible).isTrue()
-    assertThat(contentManager.contents.size).isEqualTo(1)
+    waitForCondition(10, TimeUnit.SECONDS) { contentManager.contents.size == 1 && contentManager.contents[0].displayName != null }
     assertThat(contentManager.contents[0].displayName).isEqualTo("Google Pixel 4")
 
     agentRule.disconnectDevice(device)
-    waitForCondition(2, TimeUnit.SECONDS) { !device.agent.running }
+    waitForCondition(10, TimeUnit.SECONDS) { contentManager.contents.size == 1 && contentManager.contents[0].displayName == null }
   }
 
   @Test
@@ -361,6 +359,11 @@ class EmulatorToolWindowManagerTest {
     val windowManager = TestToolWindowManager(project)
     project.replaceService(ToolWindowManager::class.java, windowManager, testRootDisposable)
     return windowManager.toolWindow
+  }
+
+  private fun renderAndGetFrameNumber(fakeUi: FakeUi, emulatorView: EmulatorView): Int {
+    fakeUi.render() // The frame number may get updated as a result of rendering.
+    return emulatorView.frameNumber
   }
 
   private class TestToolWindowManager(project: Project) : ToolWindowHeadlessManagerImpl(project) {

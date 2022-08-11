@@ -142,8 +142,15 @@ class EmulatorView(
   deviceFrameVisible: Boolean
 ) : AbstractDisplayView(displayId), ConnectionStateListener, Disposable {
 
+  override var displayOrientationQuadrants: Int
+    get() = screenshotShape.orientation
+    internal set(value) {
+      if (value != screenshotShape.orientation && deviceFrameVisible) {
+        requestScreenshotFeed(currentDisplaySize, value)
+      }
+    }
+
   private var lastScreenshot: Screenshot? = null
-  private var displayRectangle: Rectangle? = null
   private val displayTransform = AffineTransform()
   private val screenshotShape: DisplayShape
     get() = lastScreenshot?.displayShape ?: DisplayShape(0, 0, initialOrientation)
@@ -158,14 +165,11 @@ class EmulatorView(
   internal val displayMode: DisplayMode?
     get() = screenshotShape.displayMode ?: emulatorConfig.displayModes.firstOrNull()
 
-  /** Count of received display frames. */
-  @get:VisibleForTesting
-  var frameNumber = 0
-    private set
-  /** Time of the last frame update in milliseconds since epoch. */
   @get:VisibleForTesting
   var frameTimestampMillis = 0L
     private set
+  private var receivedFrameCount: Int = 0
+  /** Time of the last frame update in milliseconds since epoch. */
 
   private var screenshotFeed: Cancelable? = null
   @Volatile
@@ -176,14 +180,6 @@ class EmulatorView(
   private var notificationReceiver: NotificationReceiver? = null
 
   private val displayConfigurationListeners: MutableList<DisplayConfigurationListener> = ContainerUtil.createLockFreeCopyOnWriteList()
-
-  var displayOrientationQuadrants: Int
-    get() = screenshotShape.orientation
-    set(value) {
-      if (value != screenshotShape.orientation && deviceFrameVisible) {
-        requestScreenshotFeed(currentDisplaySize, value)
-      }
-    }
 
   var deviceFrameVisible: Boolean = deviceFrameVisible
     set(value) {
@@ -416,6 +412,9 @@ class EmulatorView(
       displayTransform.scale(displayRect.width.toDouble() / screenshotShape.width, displayRect.height.toDouble() / screenshotShape.height)
       g.drawImage(screenshot.image, displayTransform, null)
     }
+
+    frameNumber = screenshotShape.frameNumber
+    notifyFrameListeners(displayRect, screenshot.image)
 
     if (multiTouchMode) {
       drawMultiTouchFeedback(g, displayRect, (buttons and BUTTON1_BIT) != 0)
@@ -941,7 +940,7 @@ class EmulatorView(
         displayMode != null -> Rectangle(displayMode.displaySize)
         else -> null
       }
-      val displayShape = DisplayShape(imageFormat.width, imageFormat.height, imageRotation, activeDisplayRegion, displayMode)
+      val displayShape = DisplayShape(imageFormat.width, imageFormat.height, imageRotation, activeDisplayRegion, displayMode, response.seq)
       val screenshot = Screenshot(displayShape, image, frameOriginationTime)
       val skinLayout = skinLayoutCache.getCached(displayShape)
       if (skinLayout == null) {
@@ -1022,7 +1021,7 @@ class EmulatorView(
       val lastDisplayMode = lastScreenshot?.displayShape?.displayMode
       lastScreenshot = screenshot
 
-      frameNumber++
+      receivedFrameCount++
       frameTimestampMillis = System.currentTimeMillis()
       repaint()
 
@@ -1073,7 +1072,8 @@ class EmulatorView(
                                   val height: Int,
                                   val orientation: Int,
                                   val activeDisplayRegion: Rectangle? = null,
-                                  val displayMode: DisplayMode? = null)
+                                  val displayMode: DisplayMode? = null,
+                                  val frameNumber: Int = 0)
 
   private class Stats: Disposable {
     @GuardedBy("this")

@@ -15,6 +15,7 @@
  */
 package com.android.tools.idea.common.error
 
+import com.android.annotations.concurrency.UiThread
 import com.android.tools.idea.actions.DESIGN_SURFACE
 import com.android.tools.idea.common.editor.DesignToolsSplitEditor
 import com.android.tools.idea.common.editor.SplitEditor
@@ -71,7 +72,6 @@ class IssuePanelService(private val project: Project) {
   private var sharedIssueTab: Content? = null
   private var sharedIssuePanel: DesignerCommonIssuePanel? = null
 
-  private val initLock = Any()
   private var inited = false
 
   private val fileToSurfaceMap = mutableMapOf<VirtualFile, DesignSurface<*>>()
@@ -79,7 +79,7 @@ class IssuePanelService(private val project: Project) {
   init {
     val manager = ToolWindowManager.getInstance(project)
     val problemsView = manager.getToolWindow(ProblemsView.ID)
-    if (problemsView != null && !problemsView.isDisposed) {
+    if (problemsView != null) {
       // ProblemsView has registered, init the tab.
       UIUtil.invokeLaterIfNeeded { initIssueTabs(problemsView) }
     }
@@ -90,8 +90,8 @@ class IssuePanelService(private val project: Project) {
         override fun toolWindowsRegistered(ids: MutableList<String>, toolWindowManager: ToolWindowManager) {
           if (ProblemsView.ID in ids) {
             val problemsViewToolWindow = ProblemsView.getToolWindow(project)
-            if (problemsViewToolWindow != null && !problemsViewToolWindow.isDisposed) {
-              initIssueTabs(problemsViewToolWindow)
+            if (problemsViewToolWindow != null) {
+              UIUtil.invokeLaterIfNeeded { initIssueTabs(problemsViewToolWindow) }
               connection.disconnect()
             }
           }
@@ -101,21 +101,22 @@ class IssuePanelService(private val project: Project) {
     }
   }
 
+  @UiThread
   fun initIssueTabs(problemsViewWindow: ToolWindow) {
-    synchronized(initLock) {
-      if (inited) {
-        return
-      }
-      inited = true
+    if (problemsViewWindow.isDisposed) {
+      return
     }
-
+    if (inited) {
+      return
+    }
+    inited = true
     // This is the only common issue panel.
     val contentManager = problemsViewWindow.contentManager
     val contentFactory = contentManager.factory
 
     // The shared issue panel for all design tools.
     if (StudioFlags.NELE_USE_SHARED_ISSUE_PANEL_FOR_DESIGN_TOOLS.get()) {
-      val issueProvider = DesignToolsIssueProvider(project)
+      val issueProvider = DesignToolsIssueProvider(project, NotSuppressedFilter + SelectedEditorFilter(project))
       val treeModel = DesignerCommonIssuePanelModelProvider.getInstance(project).model
       val issuePanel = DesignerCommonIssuePanel(project, project, treeModel, issueProvider, ::getEmptyMessage)
       issueProvider.registerUpdateListener {

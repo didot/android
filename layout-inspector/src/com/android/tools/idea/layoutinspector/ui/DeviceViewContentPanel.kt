@@ -20,7 +20,6 @@ import com.android.tools.adtui.actions.DropDownAction
 import com.android.tools.adtui.common.AdtPrimaryPanel
 import com.android.tools.adtui.common.primaryPanelBackground
 import com.android.tools.idea.layoutinspector.common.showViewContextMenu
-import com.android.tools.idea.layoutinspector.metrics.statistics.SessionStatistics
 import com.android.tools.idea.layoutinspector.model.AndroidWindow
 import com.android.tools.idea.layoutinspector.model.ComposeViewNode
 import com.android.tools.idea.layoutinspector.model.DrawViewChild
@@ -31,7 +30,6 @@ import com.android.tools.idea.layoutinspector.model.getEmphasizedBorderOutlineTh
 import com.android.tools.idea.layoutinspector.model.getFoldStroke
 import com.android.tools.idea.layoutinspector.model.getLabelFontSize
 import com.android.tools.idea.layoutinspector.pipeline.DeviceModel
-import com.android.tools.idea.layoutinspector.pipeline.ForegroundProcessDetection
 import com.android.tools.idea.layoutinspector.pipeline.InspectorClient
 import com.android.tools.idea.layoutinspector.tree.TreeSettings
 import com.intellij.icons.AllIcons
@@ -89,7 +87,6 @@ data class DropDownActionWithButton(val dropDownAction: DropDownAction, val butt
 class DeviceViewContentPanel(
   val inspectorModel: InspectorModel,
   val deviceModel: DeviceModel?,
-  val stats: SessionStatistics,
   val treeSettings: TreeSettings,
   val viewSettings: DeviceViewSettings,
   val currentClient: () -> InspectorClient?,
@@ -101,7 +98,7 @@ class DeviceViewContentPanel(
   var showEmptyText = true
   var showProcessNotDebuggableText = false
 
-  val model = DeviceViewPanelModel(inspectorModel, stats, treeSettings, currentClient)
+  val model = DeviceViewPanelModel(inspectorModel, treeSettings, currentClient)
 
   val rootLocation: Point?
     get() {
@@ -197,7 +194,7 @@ class DeviceViewContentPanel(
         if (e.isConsumed) return
         val view = nodeAtPoint(e)
         inspectorModel.setSelection(view, SelectionOrigin.INTERNAL)
-        stats.selectionMadeFromImage(view)
+        currentClient()?.stats?.selectionMadeFromImage(view)
       }
 
       override fun mouseMoved(e: MouseEvent) {

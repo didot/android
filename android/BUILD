@@ -76,8 +76,6 @@ iml_module(
         "//tools/adt/idea/wizard:intellij.android.wizard[module]",
         "//tools/adt/idea/wizard-model:intellij.android.wizard.model[module]",
         "//tools/adt/idea/smali:intellij.android.smali[module]",
-        "//tools/adt/idea/gradle-tooling/studio-gradle-tooling-api:intellij.android.gradle-tooling.api[module]",
-        "//tools/adt/idea/gradle-tooling/studio-gradle-tooling-impl:intellij.android.gradle-tooling.impl[module]",
         "//tools/base/sdk-common:studio.android.sdktools.sdk-common[module]",
         "//tools/base/layoutlib-api:studio.android.sdktools.layoutlib-api[module]",
         "//tools/base/flags:studio.android.sdktools.flags[module]",
@@ -420,6 +418,14 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+filegroup(
+    name = "directaccess-artifacts",
+    srcs = [
+        "//tools/vendor/google/directaccess-client:ftl_client_java_proto",
+        "//tools/vendor/google/directaccess-client/reverse-daemon:daemon",
+    ],
+)
+
 # Various artifacts that the ANT and within-idea studio build depend on.
 filegroup(
     name = "artifacts",
@@ -428,10 +434,12 @@ filegroup(
         ":android-core-proto-test",
         ":app-inspection-artifacts",
         ":deploy-artifacts",
+        ":directaccess-artifacts",
         ":layout-inspector-artifacts",
         ":profiler-artifacts",
         ":transport-artifacts",
         "//tools/adt/idea/server-flags:server-flag-test-proto",
+        "//tools/adt/idea/emulator/screen-sharing-agent:bundle",
         "//tools/adt/idea/swingp:swing-instrumenter_deploy.jarjar.jar",
         "//tools/analytics-library/protos/src/main/proto:studio.proto",
         "//tools/base/bazel:studio-grpc",
@@ -472,11 +480,11 @@ maven_repository(
         "//tools/adt/idea/kotlin-integration:kotlin-stdlib-jdk8-for-ide-plugin",
         "@maven//:android.arch.navigation.navigation-fragment_1.0.0",
         "@maven//:android.arch.persistence.room.runtime_1.0.0",
-        "@maven//:androidx.annotation.annotation_1.2.0-beta01",
+        "@maven//:androidx.annotation.annotation_1.2.0-rc01",
         "@maven//:androidx.appcompat.appcompat_1.0.2",
         "@maven//:androidx.appcompat.appcompat_1.3.0",
         "@maven//:androidx.benchmark.benchmark-gradle-plugin_1.1.0-beta04",
-        "@maven//:androidx.compose.ui.ui-tooling_1.1.1",
+        "@maven//:androidx.compose.ui.ui-tooling_1.2.0",
         "@maven//:androidx.constraintlayout.constraintlayout_1.1.3",
         "@maven//:androidx.constraintlayout.constraintlayout_2.1.3",
         "@maven//:androidx.core.core-ktx_1.0.1",
@@ -485,6 +493,7 @@ maven_repository(
         "@maven//:androidx.core.core_1.5.0-beta01",
         "@maven//:androidx.core.core_1.5.0-rc02",
         "@maven//:androidx.legacy.legacy-support-v4_1.0.0",
+        "@maven//:androidx.lifecycle.lifecycle-common-java8_2.4.0",
         "@maven//:androidx.lifecycle.lifecycle-livedata-ktx_2.3.1",
         "@maven//:androidx.lifecycle.lifecycle-livedata-ktx_2.4.0",
         "@maven//:androidx.lifecycle.lifecycle-runtime_2.4.0",
@@ -495,7 +504,7 @@ maven_repository(
         "@maven//:androidx.savedstate.savedstate_1.1.0-rc01",
         "@maven//:androidx.test.espresso.espresso-core_3.1.0",
         "@maven//:androidx.test.espresso.espresso-core_3.2.0",
-        "@maven//:androidx.test.ext.junit_1.1.1",
+        "@maven//:androidx.test.ext.junit_1.1.2",
         "@maven//:androidx.test.ext.junit_1.1.3-alpha02",
         "@maven//:com.android.support.appcompat-v7_25.4.0",
         "@maven//:com.android.support.constraint.constraint-layout_1.0.2",
@@ -531,7 +540,7 @@ maven_repository(
         "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk7_1.4.32",
         "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.4.31",
         "@maven//:org.jetbrains.kotlin.kotlin-stdlib-jdk8_1.5.21",
-        "@maven//:org.mockito.mockito-core_3.0.0",
+        "@maven//:org.mockito.mockito-core_3.12.4",
         "@maven//:xmlpull.xmlpull_1.1.3.1",
     ],
     # Do not change: this target is explicitly marked private to avoid bloat.

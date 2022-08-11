@@ -154,12 +154,15 @@ import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.module.StdModuleTypes.JAVA
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ex.ProjectEx
+import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
 import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.io.FileUtil.toCanonicalPath
 import com.intellij.openapi.util.io.FileUtil.toSystemDependentName
 import com.intellij.openapi.util.io.FileUtil.toSystemIndependentName
 import com.intellij.openapi.util.io.systemIndependentPath
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
@@ -173,12 +176,17 @@ import com.intellij.testFramework.runInEdtAndGet
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.util.ThrowableConsumer
 import com.intellij.util.messages.MessageBusConnection
+import com.intellij.util.containers.MultiMap
 import org.jetbrains.android.AndroidTestBase
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.annotations.SystemDependent
 import org.jetbrains.annotations.SystemIndependent
+import org.jetbrains.kotlin.idea.core.script.configuration.ScriptingSupport
+import org.jetbrains.kotlin.idea.core.script.configuration.listener.ScriptChangeListener
+import org.jetbrains.kotlin.idea.core.script.dependencies.KotlinScriptDependenciesLibraryRootProvider
 import org.jetbrains.kotlin.idea.gradleJava.configuration.CompilerArgumentsCacheMergeManager
 import org.jetbrains.kotlin.idea.gradleTooling.arguments.CompilerArgumentsCacheHolder
+import org.jetbrains.kotlin.idea.roots.findAll
 import org.jetbrains.plugins.gradle.model.DefaultGradleExtension
 import org.jetbrains.plugins.gradle.model.DefaultGradleExtensions
 import org.jetbrains.plugins.gradle.model.ExternalProject
@@ -769,6 +777,7 @@ fun AndroidProjectStubBuilder.buildMainArtifactStub(
     ),
     codeShrinker = null,
     modelSyncFiles = listOf(),
+    privacySandboxSdkInfo = null,
   )
 }
 
@@ -831,6 +840,7 @@ fun AndroidProjectStubBuilder.buildAndroidTestArtifactStub(
     ),
     codeShrinker = null,
     modelSyncFiles = listOf(),
+    privacySandboxSdkInfo = null,
   )
 }
 
@@ -937,6 +947,7 @@ fun AndroidProjectStubBuilder.buildTestFixturesArtifactStub(
     ),
     codeShrinker = null,
     modelSyncFiles = listOf(),
+    privacySandboxSdkInfo = null,
   )
 }
 
@@ -1690,44 +1701,115 @@ private fun createGradleModuleDataNode(
   return moduleDataNode
 }
 
+/**
+ * This method is a replica of GradleProjectResolver#mergeSourceSetContentRoots.
+ */
 private fun mergeContentRoots(projectDataNode: DataNode<ProjectData>) {
-  val modules = ExternalSystemApiUtil.findAll(projectDataNode, ProjectKeys.MODULE)
-  val sourceSets = modules.flatMap{ ExternalSystemApiUtil.findAll(it, GradleSourceSetData.KEY) }
-  val roots = (modules + sourceSets).flatMap { ExternalSystemApiUtil.findAll(it, ProjectKeys.CONTENT_ROOT) }
+  val weightMap = mutableMapOf<String, Int>()
 
-  val orderedRoots =
-    roots.map {it.data.rootPath to it.parent}.sortedBy { it.first }
-
-  val mapping = sequence<Pair<String, String>> {
-    var currentNode: DataNode<*>? = null
-    var currentRoot: String = ""
-    for ((root, rootNode) in orderedRoots) {
-      if (rootNode != currentNode || !root.startsWith(currentRoot + "/")) {
-        yield(root to root)
-        currentNode = rootNode
-        currentRoot = root
-      } else {
-        yield(root to currentRoot)
+  val moduleNodes = projectDataNode.findAll(ProjectKeys.MODULE)
+  moduleNodes.forEach { moduleNode ->
+    moduleNode.node.findAll(ProjectKeys.CONTENT_ROOT).forEach { rootNode ->
+      var file: File? = File(rootNode.data.rootPath)
+      while (file != null) {
+        weightMap[file.path] = weightMap.getOrDefault(file.path, 0) + 1
+        file = file.parentFile
       }
     }
-  }.toMap()
 
-  val groupedRoots = roots.groupBy { mapping[it.data.rootPath]!! to it.parent!! }
-  val result = groupedRoots.map {(key, nodes) ->
-    key.second to (ContentRootData(GRADLE_SYSTEM_ID, key.first).also { contentRoot ->
-      nodes
-        .flatMap { node ->
-          ExternalSystemSourceType.values().flatMap { type ->
-            node.data.getPaths(type).map { type to it }
-          }
+    moduleNode.node.findAll(GradleSourceSetData.KEY).forEach { sourceSetNode ->
+      val set = mutableSetOf<String>()
+      sourceSetNode.node.findAll(ProjectKeys.CONTENT_ROOT).forEach { rootNode ->
+        var file: File? = File(rootNode.data.rootPath)
+        while (file != null) {
+          set.add(file!!.path)
+          file = file!!.parentFile
         }
-        .forEach { (rootType, root) -> contentRoot.storePath(rootType, root.path, root.packagePrefix) }
-    })
+      }
+      set.forEach { path ->
+        weightMap[path] = weightMap.getOrDefault(path, 0) + 1
+      }
+    }
   }
 
-  roots.forEach { it.clear(true) }
-  result.forEach {(parent, data) ->
-    parent.addChild(DataNode(ProjectKeys.CONTENT_ROOT, data, null))
+  moduleNodes.forEach { moduleNode ->
+    mergeModuleContentRoots(weightMap, moduleNode.node)
+    moduleNode.node.findAll(GradleSourceSetData.KEY).forEach {  sourceSetNode ->
+      mergeModuleContentRoots(weightMap, sourceSetNode.node)
+    }
+  }
+}
+
+/**
+ * This method is a replica of GradleProjectResolver#mergeModuleContentRoots.
+ */
+private fun mergeModuleContentRoots(weightMap: Map<String, Int>, moduleNode: DataNode<*>) {
+  val buildDir = File((moduleNode.data as ModuleData).linkedExternalProjectPath).resolve("build")
+  val sourceSetRoots: MultiMap<String, ContentRootData> = MultiMap.create()
+  val contentRootsNodes = moduleNode.findAll(ProjectKeys.CONTENT_ROOT)
+  if (contentRootsNodes.size <= 1) return
+
+  contentRootsNodes.forEach { contentRootNode ->
+    var root = File(contentRootNode.data.rootPath)
+    if (FileUtil.isAncestor(buildDir, root, true)) return@forEach
+
+    while (weightMap.containsKey(root.parent) && weightMap[root.parent]!! <= 1) {
+      root = root.parentFile
+    }
+
+    var mergedContentRoot: ContentRootData? = null
+    val rootPath = toCanonicalPath(root.path)
+    val paths = sourceSetRoots.keySet()
+
+    paths.forEach { path ->
+      if (FileUtil.isAncestor(rootPath, path, true)) {
+        val values = sourceSetRoots.remove(path)
+        if (values != null) {
+          sourceSetRoots.put(rootPath, values)
+        }
+      }
+      else if (FileUtil.isAncestor(path, rootPath, false)) {
+        val contentRoots = sourceSetRoots.get(path)
+        contentRoots.forEach { rootData ->
+          if (StringUtil.equals(rootData.rootPath, path)) {
+            mergedContentRoot = rootData
+            return@forEach
+          }
+        }
+        if (mergedContentRoot == null) {
+          mergedContentRoot = contentRoots.iterator().next()
+        }
+        return@forEach
+      }
+      if (sourceSetRoots.size() == 1) return@forEach
+    }
+
+    if (mergedContentRoot == null) {
+      mergedContentRoot = ContentRootData(GradleConstants.SYSTEM_ID, root.path)
+      sourceSetRoots.putValue(mergedContentRoot!!.rootPath, mergedContentRoot)
+    }
+
+    ExternalSystemSourceType.values().forEach { sourceType ->
+      contentRootNode.data.getPaths(sourceType).forEach { sourceRoot ->
+        mergedContentRoot!!.storePath(sourceType, sourceRoot.path, sourceRoot.packagePrefix)
+      }
+    }
+
+    contentRootNode.node.clear(true)
+  }
+
+  sourceSetRoots.entrySet().forEach { entry ->
+    val ideContentRoot = ContentRootData(GradleConstants.SYSTEM_ID, entry.key)
+
+    entry.value.forEach { rootData ->
+      ExternalSystemSourceType.values().forEach { sourceType ->
+        rootData.getPaths(sourceType).forEach { root ->
+          ideContentRoot.storePath(sourceType, root.path, root.packagePrefix)
+        }
+      }
+    }
+
+    moduleNode.createChild(ProjectKeys.CONTENT_ROOT, ideContentRoot)
   }
 }
 
@@ -1842,6 +1924,7 @@ data class OpenPreparedProjectOptions @JvmOverloads constructor(
     e.printStackTrace()
   },
   val subscribe: (MessageBusConnection) -> Unit = {},
+  val disableKtsRelatedIndexing: Boolean = false
 )
 
 /**
@@ -1882,21 +1965,55 @@ private fun <T> openPreparedProject(
         // This method is used to simulate what happens when the IDE is restarted before re-opening a project in order to catch issues
         // that cannot be reproduced otherwise.
         clearKotlinPluginCompilerArgumentCaches()
+        if (options.disableKtsRelatedIndexing) {
+          // NOTE: We do not re-register the extensions since (1) we do not know whether we removed it and (2) there is no simple way to
+          //       re-register it by its class name. It means that this test might affect tests running after this one.
 
-        val project = GradleProjectImporter.withAfterCreate(
-          afterCreate = { project ->
-            project.messageBus.connect(disposable).let { options.subscribe(it) }
-            val outputHandler = options.outputHandler
-            val syncExceptionHandler = options.syncExceptionHandler
-            if (outputHandler != null || syncExceptionHandler != null) {
-              injectSyncOutputDumper(project, project, options.outputHandler ?: {}, options.syncExceptionHandler ?: {})
-            }
-            fixDummySyncViewManager(project, disposable)
+          // [KotlinScriptDependenciesLibraryRootProvider] contributes a lot of classes/sources to index in order to provide Ctrl+Space
+          // experience in the code editor. It takes approximately 4 minutes to complete. We unregister the contributor to make our tests
+          // run faster.
+          AdditionalLibraryRootsProvider.EP_NAME.point.unregisterExtension(KotlinScriptDependenciesLibraryRootProvider::class.java)
+        }
+
+        var afterCreateCalled = false
+
+        fun afterCreate(project: Project) {
+          // After create is invoked via three different execution paths:
+          //   (1) when we import a new Android Gradle project that does not yet have a `.idea` directory. In this case this method is
+          //       called `GradleProjectImporter.createProject`;
+          //   (2) when we import an Android Gradle project with an existing `.idea` directory a request to call this method is passed to
+          //       the project manager from `AndroidGradleProjectOpenProcessor.doOpenProject`;
+          //   (3) when we try to open a project with a `.idea` directory such that it is not recognised as an Android Gradle project this
+          //       method is called normally via `ProjectUtil.openOrImport`.
+          // Note, that this happens because custom `ProjectOpenProcessor`'s currently do not receive `OpenProjectTask` options.
+          if (afterCreateCalled) {
+            error("Attempt to call afterCreate() twice.")
           }
-        ) {
+          afterCreateCalled = true
+
+          @Suppress("UnstableApiUsage")
+          if (options.disableKtsRelatedIndexing) {
+            ScriptingSupport.EPN.getPoint(project).unregisterExtensions({_, _ -> false}, false)
+            ScriptChangeListener.LISTENER.getPoint(project).unregisterExtensions({ _, _ -> false}, false)
+          }
+          project.messageBus.connect(disposable).let { options.subscribe(it) }
+          val outputHandler = options.outputHandler
+          val syncExceptionHandler = options.syncExceptionHandler
+          if (outputHandler != null || syncExceptionHandler != null) {
+            injectSyncOutputDumper(project, project, options.outputHandler ?: {}, options.syncExceptionHandler ?: {})
+          }
+          fixDummySyncViewManager(project, disposable)
+        }
+
+        val project = GradleProjectImporter.withAfterCreate(afterCreate = { project -> afterCreate(project) }) {
           ProjectUtil.openOrImport(
             projectPath.toPath(),
             OpenProjectTask(
+              beforeOpen =
+              {
+                afterCreate(it)
+                true
+              },
               projectToClose = null,
               forceOpenInNewFrame = true
             )
@@ -1927,7 +2044,7 @@ private fun <T> openPreparedProject(
   return body()
 }
 
-private fun GradleIntegrationTest.nameToPath(name: String) =
+fun GradleIntegrationTest.nameToPath(name: String) =
   File(toSystemDependentName(getBaseTestPath() + "/" + name))
 
 private fun verifySyncedSuccessfully(project: Project) {

@@ -43,6 +43,7 @@ import com.android.tools.idea.gradle.project.model.V2NdkModel
 import com.android.tools.idea.gradle.project.sync.IdeAndroidModels
 import com.android.tools.idea.gradle.project.sync.IdeAndroidNativeVariantsModels
 import com.android.tools.idea.gradle.project.sync.IdeAndroidSyncError
+import com.android.tools.idea.gradle.project.sync.IdeSyncExecutionReport
 import com.android.tools.idea.gradle.project.sync.SdkSync
 import com.android.tools.idea.gradle.project.sync.SimulatedSyncErrors
 import com.android.tools.idea.gradle.project.sync.common.CommandLineArgs
@@ -67,7 +68,6 @@ import com.android.tools.idea.stats.withProjectId
 import com.android.utils.appendCapitalized
 import com.android.utils.findGradleSettingsFile
 import com.google.common.annotations.VisibleForTesting
-import com.google.common.base.Preconditions
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent
 import com.google.wireless.android.sdk.stats.AndroidStudioEvent.GradleSyncFailure
 import com.intellij.execution.configurations.SimpleJavaParameters
@@ -101,10 +101,12 @@ import com.intellij.serviceContainer.NonInjectable
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.PathUtil
 import com.intellij.util.SystemProperties
+import com.jetbrains.rd.util.put
 import org.gradle.tooling.model.build.BuildEnvironment
 import org.gradle.tooling.model.idea.IdeaModule
 import org.gradle.tooling.model.idea.IdeaProject
 import org.jetbrains.kotlin.android.configure.patchFromMppModel
+import org.jetbrains.kotlin.idea.gradleJava.configuration.KotlinMPPGradleProjectResolver
 import org.jetbrains.kotlin.idea.gradleTooling.KotlinGradleModel
 import org.jetbrains.kotlin.idea.gradleTooling.KotlinMPPGradleModel
 import org.jetbrains.kotlin.idea.gradleTooling.model.kapt.KaptGradleModel
@@ -137,7 +139,7 @@ class AndroidGradleProjectResolver @NonInjectable @VisibleForTesting internal co
   private val myModuleDataByGradlePath: MutableMap<GradleProjectPath, DataNode<out ModuleData>> = mutableMapOf()
   private val myGradlePathByModuleId: MutableMap<String?, GradleProjectPath> = mutableMapOf()
   private var myResolvedModuleDependencies: IdeResolvedLibraryTable? = null
-  private val myKotlinCacheOriginIdentifiers: MutableList<Long> = mutableListOf()
+  private val myKotlinCacheOriginIdentifiers: MutableSet<Long> = mutableSetOf()
 
   constructor() : this(CommandLineArgs())
 
@@ -181,6 +183,10 @@ class AndroidGradleProjectResolver @NonInjectable @VisibleForTesting internal co
           )
         )
       }
+    }
+    val syncExecutionReport = resolverCtx.models.getModel(IdeSyncExecutionReport::class.java)
+    if (syncExecutionReport != null) {
+      projectDataNode.createChild(AndroidProjectKeys.SYNC_EXECUTION_REPORT, syncExecutionReport)
     }
     if (isAndroidGradleProject) {
       projectDataNode.createChild(AndroidProjectKeys.PROJECT_CLEANUP_MODEL, ProjectCleanupModel.getInstance())
@@ -227,14 +233,11 @@ class AndroidGradleProjectResolver @NonInjectable @VisibleForTesting internal co
   private fun recordKotlinCacheOriginIdentifiers(gradleModule: IdeaModule) {
     val mppModel = resolverCtx.getExtraProject(gradleModule, KotlinMPPGradleModel::class.java)
     val kotlinModel = resolverCtx.getExtraProject(gradleModule, KotlinGradleModel::class.java)
-    if (mppModel != null && kotlinModel != null) {
-      check(mppModel.cacheAware.cacheOriginIdentifier == kotlinModel.cacheAware.cacheOriginIdentifier) { "Mpp and Kotlin model cacheOriginIdentifier's do not match" }
+    if (mppModel != null) {
+      myKotlinCacheOriginIdentifiers.add(mppModel.cacheAware.cacheOriginIdentifier)
     }
-    var cacheOriginIdentifier = 0L
-    if (mppModel != null) cacheOriginIdentifier = mppModel.cacheAware.cacheOriginIdentifier
-    if (kotlinModel != null) cacheOriginIdentifier = kotlinModel.cacheAware.cacheOriginIdentifier
-    if (cacheOriginIdentifier != 0L) {
-      myKotlinCacheOriginIdentifiers.add(cacheOriginIdentifier)
+    if (kotlinModel != null) {
+      myKotlinCacheOriginIdentifiers.add(kotlinModel.cacheAware.cacheOriginIdentifier)
     }
   }
 
@@ -494,17 +497,44 @@ class AndroidGradleProjectResolver @NonInjectable @VisibleForTesting internal co
     ideProject: DataNode<ProjectData>,
     ideLibraryTable: IdeUnresolvedLibraryTable
   ): IdeResolvedLibraryTable {
-    val artifactToModuleIdMap = ideProject.getUserData(GradleProjectResolver.CONFIGURATION_ARTIFACTS)!!
-    val resolvedSourceSets = ideProject.getUserData(GradleProjectResolver.RESOLVED_SOURCE_SETS)!!
-    Preconditions.checkNotNull(artifactToModuleIdMap, "Implementation of GradleProjectResolver has changed")
-    Preconditions.checkNotNull(resolvedSourceSets, "Implementation of GradleProjectResolver has changed")
-    return ResolvedLibraryTableBuilder({ key: Any? -> myGradlePathByModuleId[key] }, { key: Any? -> myModuleDataByGradlePath[key] }
-    ) { artifact: File -> resolveArtifact(artifactToModuleIdMap, artifact) }.buildResolvedLibraryTable(ideLibraryTable)
+    val artifactModuleIdMap = buildArtifactsModuleIdMap(ideProject)
+    return ResolvedLibraryTableBuilder(
+      { key: Any? -> myGradlePathByModuleId[key] },
+      { key: Any? -> myModuleDataByGradlePath[key] },
+      { artifact: File -> resolveArtifact(artifactModuleIdMap, artifact) }
+    ).buildResolvedLibraryTable(ideLibraryTable)
   }
 
-  private fun resolveArtifact(artifactToModuleIdMap: Map<String, String>, artifact: File): GradleProjectPath? {
-    return myGradlePathByModuleId[artifactToModuleIdMap[ExternalSystemApiUtil.toCanonicalPath(artifact.path)]]
+  private fun buildArtifactsModuleIdMap(ideProject: DataNode<ProjectData>): Map<String, List<String>> =
+    mergeProjectResolvedArtifacts(
+      kmpArtifactToModuleIdMap = ideProject
+        .getUserData(KotlinMPPGradleProjectResolver.MPP_CONFIGURATION_ARTIFACTS)
+        .orEmpty(),
+      artifactToModuleIdMap = ideProject
+        .getUserData(GradleProjectResolver.CONFIGURATION_ARTIFACTS)
+        ?.mapValues { listOf(it.value) }
+        .orEmpty()
+    )
+
+  private fun mergeProjectResolvedArtifacts(
+    kmpArtifactToModuleIdMap: Map<String, List<String>>,
+    artifactToModuleIdMap: Map<String, List<String>>
+  ): Map<String, List<String>> {
+    val mergedArtifactModuleIdMap = artifactToModuleIdMap.toMutableMap()
+    kmpArtifactToModuleIdMap.forEach {
+      if (mergedArtifactModuleIdMap.getOrDefault(it.key, it.value) != it.value) {
+        error("Both artifact maps contains same key: ${it.key} with different values " +
+              "for kmp: ${it.value} and platform: ${artifactToModuleIdMap[it.key]}"
+        )
+      }
+      mergedArtifactModuleIdMap.put(it)
+    }
+    return mergedArtifactModuleIdMap
   }
+
+  private fun resolveArtifact(artifactToModuleIdMap: Map<String, List<String>>, artifact: File) =
+    artifactToModuleIdMap[ExternalSystemApiUtil.toCanonicalPath(artifact.path)]
+      ?.mapNotNull { artifactToModuleId -> myGradlePathByModuleId[artifactToModuleId] as? GradleSourceSetProjectPath }
 
   @Suppress("UnstableApiUsage")
   override fun resolveFinished(projectDataNode: DataNode<ProjectData>) {
