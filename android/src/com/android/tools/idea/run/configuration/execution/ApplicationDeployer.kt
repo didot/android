@@ -19,6 +19,7 @@ import com.android.ddmlib.IDevice
 import com.android.tools.deployer.Deployer
 import com.android.tools.deployer.DeployerException
 import com.android.tools.idea.gradle.util.DynamicAppUtils
+import com.android.tools.idea.gradle.util.EmbeddedDistributionPaths
 import com.android.tools.idea.log.LogWrapper
 import com.android.tools.idea.run.ApkFileUnit
 import com.android.tools.idea.run.ApkInfo
@@ -64,7 +65,10 @@ class ApplicationDeployerImpl(private val project: Project,
       listOf(filterDisabledFeatures(app, deployOptions.disabledDynamicFeatures)),
       deployOptions.pmInstallFlags,
       deployOptions.installOnAllUsers,
-      deployOptions.alwaysInstallWithPm)
+      deployOptions.alwaysInstallWithPm
+    ) {
+      EmbeddedDistributionPaths.getInstance().findEmbeddedInstaller()
+    }
 
     // use single(), because we have 1 apkInfo as input.
     return deployTask.run(device, console, AdbCommandCaptureLoggerWithConsole(LOG, console)).single()
