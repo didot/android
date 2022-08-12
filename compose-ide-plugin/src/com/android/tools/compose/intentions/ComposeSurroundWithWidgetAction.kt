@@ -37,8 +37,8 @@ import com.intellij.psi.util.prevLeaf
 import com.intellij.refactoring.suggested.endOffset
 import com.intellij.refactoring.suggested.startOffset
 import com.intellij.ui.popup.list.ListPopupImpl
-import org.jetbrains.kotlin.idea.core.util.ElementKind
-import org.jetbrains.kotlin.idea.core.util.findElements
+import org.jetbrains.kotlin.idea.util.ElementKind
+import org.jetbrains.kotlin.idea.util.findElements
 import org.jetbrains.kotlin.idea.util.isLineBreak
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
