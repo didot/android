@@ -88,5 +88,7 @@
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide.core" />
     <orderEntry type="module" module-name="kotlin.base.fe10.code-insight" />
+    <orderEntry type="module" module-name="kotlin.code-insight.api" />
+    <orderEntry type="module" module-name="kotlin.base.code-insight" />
   </component>
 </module>
