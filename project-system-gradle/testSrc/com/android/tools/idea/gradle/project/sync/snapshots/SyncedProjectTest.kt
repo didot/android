@@ -122,6 +122,12 @@ abstract class SyncedProjectTest(
   fun testSimpleApplicationNotAtRoot() = testProject(TestProject.SIMPLE_APPLICATION_NOT_AT_ROOT)
 
   @Test
+  fun testSimpleApplicationMultipleRoots() = testProject(TestProject.SIMPLE_APPLICATION_MULTIPLE_ROOTS)
+
+  @Test
+  fun testSimpleApplication_withUnnamedDimension() = testProject(TestProject.SIMPLE_APPLICATION_WITH_UNNAMED_DIMENSION)
+
+  @Test
   fun testWithGradleMetadata() = testProject(TestProject.WITH_GRADLE_METADATA)
 
   @Test
@@ -138,6 +144,9 @@ abstract class SyncedProjectTest(
 
   @Test
   fun testNonStandardSourceSetDependencies() = testProject(TestProject.NON_STANDARD_SOURCE_SET_DEPENDENCIES)
+
+  @Test
+  fun testNonStandardSourceSetDependencies_manualTestFixturesWorkaround() = testProject(TestProject.NON_STANDARD_SOURCE_SET_DEPENDENCIES_MANUAL_TEST_FIXTURES_WORKAROUND)
 
   @Test
   fun testNonStandardSourceSetDependencies_hierarchical() = testProject(TestProject.NON_STANDARD_SOURCE_SET_DEPENDENCIES_HIERARCHICAL)
@@ -282,6 +291,7 @@ abstract class SyncedProjectTest(
       fun run(): List<Throwable> {
         return preparedProject.open(
           options = OpenPreparedProjectOptions(
+            expectedSyncIssues = testProject.expectedSyncIssues,
             disableKtsRelatedIndexing = true
           )
         ) { project ->

@@ -11,7 +11,6 @@ studio_plugin(
         "//prebuilts/tools/common/archive-patcher:shared",
         "//prebuilts/tools/common/m2:okio",
         "//prebuilts/tools/common/m2:moshi",
-        "//prebuilts/tools/common/m2:utp-core-proto",
         "//prebuilts/tools/common/m2:eclipse-layout-kernel",
         "//prebuilts/tools/common/m2:juniversalchardet",
         "//prebuilts/tools/common/m2:commons-lang",
@@ -46,6 +45,7 @@ studio_plugin(
         "//tools/adt/idea/.idea/libraries:studio-grpc",
         "//tools/adt/idea/.idea/libraries:studio-proto",
         "//tools/adt/idea/.idea/libraries:transport-proto",
+        "//tools/adt/idea/.idea/libraries:utp-core-proto-jarjar",
         "//tools/adt/idea/.idea/libraries:zxing-core",
         "//tools/adt/idea/android:libandroid-core-proto",
         "//tools/adt/idea/android:libstudio.android-test-plugin-host-retention-proto",
@@ -225,6 +225,7 @@ studio_plugin(
             "//tools/base/adblib-ddmlibcompatibility:studio.android.sdktools.adblib.ddmlibcompatibility",
             "//tools/base/adblib-tools:studio.android.sdktools.adblib.tools",
             "//tools/base/ddmlib:studio.android.sdktools.ddmlib",
+            "//tools/base/device-provisioner:studio.android.sdktools.device-provisioner",
             "//tools/base/deploy/deployer:studio.android.sdktools.deployer",
             "//tools/base/device_validator:studio.android.sdktools.dvlib",
             "//tools/base/draw9patch:studio.android.sdktools.draw9patch",
@@ -353,6 +354,7 @@ studio_plugin(
             "//tools/adt/idea/design-plugin:intellij.android.design-plugin",
             "//tools/adt/idea/designer/customview:intellij.android.designer.customview",
             "//tools/adt/idea/designer:intellij.android.designer",
+            "//tools/adt/idea/glance-designer:intellij.android.glance-designer",
             "//tools/adt/idea/layoutlib:intellij.android.layoutlib",
             "//tools/adt/idea/nav/editor:intellij.android.nav.editor",
         ],
@@ -401,7 +403,7 @@ studio_plugin(
     name = "com.google.gct.directaccess",
     directory = "directaccess",
     libs = [
-        "//tools/vendor/google/directaccess-client:ftl_client_java_proto",
+        "//tools/adt/idea/.idea/libraries:directaccess_client_proto",
     ],
     modules = {
         "directaccess.jar": ["//tools/studio/google/cloud/testing/directaccess:directaccess"],
@@ -593,6 +595,7 @@ android_studio(
     # TODO(b/240707039): automate this.
     version_release_number = 10,
     version_type = "Canary",
+    # version_update_message = "<html>this is optional</html>",
     visibility = ["//visibility:public"],
 )
 

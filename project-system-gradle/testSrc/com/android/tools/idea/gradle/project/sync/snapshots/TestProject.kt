@@ -17,6 +17,7 @@ package com.android.tools.idea.gradle.project.sync.snapshots
 
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_SETTINGS_GRADLE
+import com.android.builder.model.v2.ide.SyncIssue
 import com.android.testutils.AssumeUtil.assumeNotWindows
 import com.android.tools.idea.gradle.project.GradleExperimentalSettings
 import com.android.tools.idea.sdk.IdeSdks
@@ -31,10 +32,12 @@ import com.android.tools.idea.testing.SnapshotComparisonTest
 import com.android.tools.idea.testing.TestProjectToSnapshotPaths
 import com.android.tools.idea.testing.openPreparedProject
 import com.android.tools.idea.testing.prepareGradleProject
+import com.android.utils.FileUtils
 import com.android.utils.FileUtils.writeToFile
 import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertAbout
 import com.google.common.truth.Truth.assertThat
+import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VfsUtil
@@ -53,7 +56,8 @@ enum class TestProject(
   val testName: String? = null,
   val isCompatibleWith: (AgpVersionSoftwareEnvironmentDescriptor) -> Boolean = { true },
   val setup: () -> () -> Unit = { {} },
-  val patch: AgpVersionSoftwareEnvironmentDescriptor.(projectRoot: File) -> Unit = {}
+  val patch: AgpVersionSoftwareEnvironmentDescriptor.(projectRoot: File) -> Unit = {},
+  val expectedSyncIssues: Set<Int> = emptySet()
 ) {
   APP_WITH_ML_MODELS(TestProjectToSnapshotPaths.APP_WITH_ML_MODELS),
   APP_WITH_BUILDSRC(TestProjectToSnapshotPaths.APP_WITH_BUILDSRC),
@@ -117,6 +121,28 @@ enum class TestProject(
     isCompatibleWith = { it == AGP_CURRENT },
     patch = { moveGradleRootUnderGradleProjectDirectory(it) }
   ),
+  SIMPLE_APPLICATION_MULTIPLE_ROOTS(
+    TestProjectToSnapshotPaths.SIMPLE_APPLICATION,
+    testName = "multipleGradleRoots",
+    isCompatibleWith = { it == AGP_CURRENT },
+    patch = { moveGradleRootUnderGradleProjectDirectory(it, makeSecondCopy = true) }
+  ),
+  SIMPLE_APPLICATION_WITH_UNNAMED_DIMENSION(
+    TestProjectToSnapshotPaths.SIMPLE_APPLICATION,
+    testName = "withUnnamedDimension",
+    isCompatibleWith = { it == AGP_CURRENT },
+    patch = { root ->
+      root.resolve("app/build.gradle").replaceContent {
+        it + """
+          android.productFlavors {
+           example {
+           }
+          }
+         """
+      }
+    },
+    expectedSyncIssues = setOf(SyncIssue.TYPE_UNNAMED_FLAVOR_DIMENSION)
+  ),
   WITH_GRADLE_METADATA(TestProjectToSnapshotPaths.WITH_GRADLE_METADATA),
   BASIC_CMAKE_APP(TestProjectToSnapshotPaths.BASIC_CMAKE_APP),
   PSD_SAMPLE_GROOVY(TestProjectToSnapshotPaths.PSD_SAMPLE_GROOVY),
@@ -132,6 +158,15 @@ enum class TestProject(
   NON_STANDARD_SOURCE_SET_DEPENDENCIES(
     TestProjectToSnapshotPaths.NON_STANDARD_SOURCE_SET_DEPENDENCIES,
     isCompatibleWith = { it.modelVersion == ModelVersion.V2 }
+  ),
+  NON_STANDARD_SOURCE_SET_DEPENDENCIES_MANUAL_TEST_FIXTURES_WORKAROUND(
+    TestProjectToSnapshotPaths.NON_STANDARD_SOURCE_SET_DEPENDENCIES,
+    testName = "manualTestFixturesWorkaround",
+    isCompatibleWith = { it.modelVersion == ModelVersion.V2 },
+    patch = {
+      it.resolve("app/build.gradle")
+        .replaceInContent("androidTestImplementation project(':lib')", "// androidTestImplementation project(':lib')")
+    }
   ),
   NON_STANDARD_SOURCE_SET_DEPENDENCIES_HIERARCHICAL(
     TestProjectToSnapshotPaths.NON_STANDARD_SOURCE_SET_DEPENDENCIES,
@@ -281,9 +316,10 @@ private fun truncateForV2(settingsFile: File) {
   settingsFile.writeText(patchedText)
 }
 
-private fun moveGradleRootUnderGradleProjectDirectory(root: File) {
+private fun moveGradleRootUnderGradleProjectDirectory(root: File, makeSecondCopy: Boolean = false) {
   val testJdkName = IdeSdks.getInstance().jdk?.name ?: error("No JDK in test")
-  val newRoot = root.resolve("gradle_project")
+  val newRoot = root.resolve(if (makeSecondCopy) "gradle_project_1" else "gradle_project")
+  val newRoot2 = root.resolve("gradle_project_2")
   val tempRoot = File(root.path + "_tmp")
   val ideaDirectory = root.resolve(".idea")
   val gradleXml = ideaDirectory.resolve("gradle.xml")
@@ -291,7 +327,24 @@ private fun moveGradleRootUnderGradleProjectDirectory(root: File) {
   Files.move(root.toPath(), tempRoot.toPath())
   Files.createDirectory(root.toPath())
   Files.move(tempRoot.toPath(), newRoot.toPath())
+  if (makeSecondCopy) {
+    FileUtils.copyDirectory(newRoot, newRoot2)
+    newRoot2
+      .resolve("settings.gradle")
+      .replaceContent { "rootProject.name = 'gradle_project_name'\n$it" } // Give it a name not matching the directory name.
+  }
   Files.createDirectory(ideaDirectory.toPath())
+
+  fun gradleSettingsFor(rootName: String): String {
+    return """
+      <GradleProjectSettings>
+        <option name="testRunner" value="GRADLE" />
+        <option name="distributionType" value="DEFAULT_WRAPPED" />
+        <option name="externalProjectPath" value="${'$'}PROJECT_DIR${'$'}/$rootName" />
+      </GradleProjectSettings>
+    """
+  }
+
   gradleXml.writeText(
     """
 <?xml version="1.0" encoding="UTF-8"?>
@@ -299,11 +352,8 @@ private fun moveGradleRootUnderGradleProjectDirectory(root: File) {
   <component name="GradleMigrationSettings" migrationVersion="1" />
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
-      <GradleProjectSettings>
-        <option name="testRunner" value="GRADLE" />
-        <option name="distributionType" value="DEFAULT_WRAPPED" />
-        <option name="externalProjectPath" value="${'$'}PROJECT_DIR${'$'}/gradle_project" />
-      </GradleProjectSettings>
+        ${gradleSettingsFor(newRoot.name)}
+        ${if (makeSecondCopy) gradleSettingsFor(newRoot2.name) else ""}
     </option>
   </component>
 </project>        
@@ -409,6 +459,7 @@ fun AgpVersionSoftwareEnvironmentDescriptor.agpSuffix(): String = when (this) {
   AgpVersionSoftwareEnvironmentDescriptor.AGP_71 -> "_Agp_7.1_"
   AgpVersionSoftwareEnvironmentDescriptor.AGP_72_V1 -> "_Agp_7.2_"
   AgpVersionSoftwareEnvironmentDescriptor.AGP_72 -> "_Agp_7.2_"
+  AgpVersionSoftwareEnvironmentDescriptor.AGP_73 -> "_Agp_7.3_"
 }
 
 fun AgpVersionSoftwareEnvironmentDescriptor.gradleSuffix(): String {
@@ -455,7 +506,9 @@ fun GradleIntegrationTest.prepareTestProject(
           name = "$name${testProject.pathToOpen}",
           options = options
         ) { project ->
-          AndroidGradleTests.waitForSourceFolderManagerToProcessUpdates(project)
+          invokeAndWaitIfNeeded {
+            AndroidGradleTests.waitForSourceFolderManagerToProcessUpdates(project)
+          }
           body(project)
         }
       } finally {

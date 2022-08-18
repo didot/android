@@ -51,8 +51,14 @@ import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.impl.CoreProgressManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.io.FileUtil.toSystemIndependentName
-import com.intellij.testFramework.RunsInEdt
+import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.newvfs.NewVirtualFile
+import com.intellij.platform.DirectoryProjectConfigurator
+import com.intellij.task.ProjectTaskManager
+import com.intellij.util.application
 import org.jetbrains.annotations.SystemIndependent
 import org.junit.Rule
 import org.junit.Test
@@ -60,7 +66,6 @@ import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-@RunsInEdt
 class PlatformIntegrationTest : GradleIntegrationTest {
 
   @get:Rule
@@ -91,6 +96,75 @@ class PlatformIntegrationTest : GradleIntegrationTest {
           }
         }
       }
+    }
+  }
+
+  private fun File.resolveVirtualIfCached(relativePath: String): VirtualFile? {
+    val baseVirtual = VfsUtil.findFileByIoFile(this, false)
+    val relativeTarget = resolve(relativePath).relativeTo(this).toPath()
+    return relativeTarget.fold(baseVirtual) { acc, path ->
+      (acc as? NewVirtualFile)?.findChildIfCached(path.toString())
+    }
+  }
+
+  @Test
+  fun `importing an already built project does not add all files to the VFS - existing idea project`() {
+    val root = prepareGradleProject(TestProjectToSnapshotPaths.SIMPLE_APPLICATION, "project")
+
+    openPreparedProject("project") { project ->
+      expect.that(root.resolve("app/build").exists())
+      expect.that(root.resolveVirtualIfCached("app/build")).isNull()
+      ProjectTaskManager.getInstance(project).rebuildAllModules().blockingGet(1, TimeUnit.MINUTES)
+      expect.that(root.resolve("app/build/intermediates/dex/debug").exists())
+      expect.that(root.resolveVirtualIfCached("app/build")).isNull()
+      expect.that(root.resolveVirtualIfCached("app/build/intermediates/dex/debug")).isNull()
+    }
+
+    val copy = root.parentFile.resolve("copy")
+    FileUtil.copyDir(root, copy)
+    openPreparedProject("copy") { project ->
+      expect.that(copy.resolve("app/build/intermediates/dex/debug").exists())
+      expect.that(copy.resolveVirtualIfCached("app/build")).isNotNull()
+      expect.that(copy.resolveVirtualIfCached("app/build/intermediates/dex/debug")).isNull()
+    }
+  }
+
+  @Test
+  fun `importing an already built project does not add all files to the VFS - new idea project`() {
+    val root = prepareGradleProject(TestProjectToSnapshotPaths.SIMPLE_APPLICATION, "project")
+
+    openPreparedProject("project") { project ->
+      expect.that(root.resolve("app/build").exists())
+      expect.that(root.resolveVirtualIfCached("app/build")).isNull()
+      ProjectTaskManager.getInstance(project).rebuildAllModules().blockingGet(1, TimeUnit.MINUTES)
+      expect.that(root.resolve("app/build/intermediates/dex/debug").exists())
+      expect.that(root.resolveVirtualIfCached("app/build")).isNull()
+      expect.that(root.resolveVirtualIfCached("app/build/intermediates/dex/debug")).isNull()
+    }
+
+    val copy = root.parentFile.resolve("copy")
+    FileUtil.copyDir(root, copy)
+    FileUtil.delete(copy.resolve(".idea"))
+    openPreparedProject("copy") { project ->
+      expect.that(copy.resolve("app/build/intermediates/dex/debug").exists())
+      expect.that(copy.resolveVirtualIfCached("app/build")).isNotNull()
+      expect.that(copy.resolveVirtualIfCached("app/build/intermediates/dex/debug")).isNull()
+    }
+  }
+
+  @Test
+  fun testBuildOutputFoldersAreRefreshed() {
+    val root = prepareGradleProject(TestProjectToSnapshotPaths.SIMPLE_APPLICATION, "project")
+    openPreparedProject("project") {project ->
+      val expectedOutputDir = root.resolve("app/build/intermediates/javac/debug")
+      assertThat(expectedOutputDir.exists()).isFalse()  // Verify test assumptions.
+      ProjectTaskManager.getInstance(project).buildAllModules().blockingGet(1, TimeUnit.MINUTES)
+      assertThat(expectedOutputDir.exists()).isTrue()  // Verify test assumptions.
+
+      // TODO(b/241686649): Remove the following assertion, which is wrong and simply illustrates the problem.
+      assertThat(VfsUtil.findFileByIoFile(expectedOutputDir, false)).isNull()
+      // TODO(b/241686649): assertThat(VfsUtil.findFileByIoFile(expectedOutputDir, false)).isNotNull()
+      // TODO(b/241686649): assertThat(VfsUtil.findFileByIoFile(expectedOutputDir, false)?.isValid).isTrue()
     }
   }
 
@@ -362,6 +436,23 @@ class PlatformIntegrationTest : GradleIntegrationTest {
     expect.that(log).isEqualTo("""
       |started(gradle_project)
       |succeeded(gradle_project)
+      |ended: SUCCESS
+      """.trimMargin())
+  }
+
+  @Test
+  fun testSimpleApplicationMultipleRoots() {
+    val preparedProject = prepareTestProject(TestProject.SIMPLE_APPLICATION_MULTIPLE_ROOTS)
+    val log = openProjectWithEventLogging(preparedProject) {project ->
+      expect.that(project.getProjectSystem().getSyncManager().getLastSyncResult()).isEqualTo(SyncResult.SUCCESS)
+    }
+
+    expect.that(log).isEqualTo("""
+      |started(gradle_project_1)
+      |succeeded(gradle_project_1)
+      |ended: SUCCESS
+      |started(gradle_project_2)
+      |succeeded(gradle_project_2)
       |ended: SUCCESS
       """.trimMargin())
   }

@@ -37,6 +37,7 @@ import com.android.tools.idea.layoutinspector.model.ViewNode
 import com.android.tools.idea.layoutinspector.pipeline.legacy.LegacyClient
 import com.android.tools.idea.layoutinspector.util.FakeTreeSettings
 import com.google.common.truth.Truth.assertThat
+import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorAttachToProcess.ClientType.SNAPSHOT_CLIENT
 import com.intellij.testFramework.DisposableRule
 import com.intellij.testFramework.ProjectRule
 import com.intellij.util.io.readBytes
@@ -92,17 +93,17 @@ DONE.
     legacyClient.saveSnapshot(savePath)
     val snapshotLoader = SnapshotLoader.createSnapshotLoader(savePath)!!
     val newModel = InspectorModel(projectRule.project)
-    val stats = SessionStatisticsImpl(newModel)
+    val stats = SessionStatisticsImpl(SNAPSHOT_CLIENT, newModel)
     snapshotLoader.loadFile(savePath, newModel, stats)
 
     val window = newModel.windows[windowName]!!
     window.refreshImages(1.0)
     val root = window.root
     assertThat(root.drawId).isEqualTo(0x41673e3)
-    assertThat(root.x).isEqualTo(0)
-    assertThat(root.y).isEqualTo(0)
-    assertThat(root.width).isEqualTo(1080)
-    assertThat(root.height).isEqualTo(1920)
+    assertThat(root.layoutBounds.x).isEqualTo(0)
+    assertThat(root.layoutBounds.y).isEqualTo(0)
+    assertThat(root.layoutBounds.width).isEqualTo(1080)
+    assertThat(root.layoutBounds.height).isEqualTo(1920)
     assertThat(root.viewId).isNull()
     assertThat(printTree(root).trim()).isEqualTo("""
           0x41673e3
@@ -121,10 +122,10 @@ DONE.
            """.trimIndent())
     val actionMenuView = newModel[0x29668e4]!!
     assertThat(actionMenuView.drawId).isEqualTo(0x29668e4)
-    assertThat(actionMenuView.x).isEqualTo(932)
-    assertThat(actionMenuView.y).isEqualTo(63)
-    assertThat(actionMenuView.width).isEqualTo(148)
-    assertThat(actionMenuView.height).isEqualTo(147)
+    assertThat(actionMenuView.layoutBounds.x).isEqualTo(932)
+    assertThat(actionMenuView.layoutBounds.y).isEqualTo(63)
+    assertThat(actionMenuView.layoutBounds.width).isEqualTo(148)
+    assertThat(actionMenuView.layoutBounds.height).isEqualTo(147)
     assertThat(actionMenuView.viewId.toString()).isEqualTo("ResourceReference{namespace=apk/res-auto, type=id, name=ac}")
     val actualImage = ViewNode.readAccess { window.root.drawChildren.filterIsInstance<DrawViewImage>().first().image }
     ImageDiffUtil.assertImageSimilar(imageFile, actualImage as BufferedImage, 0.0)

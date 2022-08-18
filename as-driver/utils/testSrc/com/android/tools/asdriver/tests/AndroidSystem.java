@@ -139,7 +139,7 @@ public class AndroidSystem implements AutoCloseable, TestRule {
 
   public AndroidStudio runStudio(AndroidProject project) throws IOException, InterruptedException {
     AndroidStudioInstallation install = getInstallation();
-    return install.run(display, env, project);
+    return install.run(display, env, project, sdk.getSourceDir());
   }
 
   public void runStudio(AndroidProject project, Consumer<AndroidStudio> callback) throws Exception {
@@ -156,7 +156,8 @@ public class AndroidSystem implements AutoCloseable, TestRule {
   public Emulator runEmulator() throws IOException, InterruptedException {
     if (emulator == null) {
       emulator = "emu";
-      Emulator.createEmulator(fileSystem, emulator, TestUtils.getWorkspaceRoot().resolve("../system_image_android-29_default_x86_64"));
+      Path workspaceRoot = TestUtils.getWorkspaceRoot("system_image_android-29_default_x86_64");
+      Emulator.createEmulator(fileSystem, emulator, workspaceRoot);
     }
     return Emulator.start(fileSystem, sdk, display, emulator);
   }

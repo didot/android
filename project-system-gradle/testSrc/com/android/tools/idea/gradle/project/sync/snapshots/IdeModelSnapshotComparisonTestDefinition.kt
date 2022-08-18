@@ -19,6 +19,7 @@ import com.android.tools.idea.gradle.project.sync.CapturePlatformModelsProjectRe
 import com.android.tools.idea.gradle.project.sync.internal.dumpAndroidIdeModel
 import com.android.tools.idea.gradle.project.sync.snapshots.SyncedProjectTest.TestDef
 import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor
+import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor.AGP_73
 import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor.AGP_32
 import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor.AGP_35
 import com.android.tools.idea.testing.AgpVersionSoftwareEnvironmentDescriptor.AGP_40
@@ -73,6 +74,14 @@ data class IdeModelSnapshotComparisonTestDefinition(
         skipV1toV2Comparison = true
       ),
       IdeModelSnapshotComparisonTestDefinition(
+        TestProject.SIMPLE_APPLICATION_MULTIPLE_ROOTS,
+        skipV1toV2Comparison = true
+      ),
+      IdeModelSnapshotComparisonTestDefinition(
+        TestProject.SIMPLE_APPLICATION_WITH_UNNAMED_DIMENSION,
+        skipV1toV2Comparison = true
+      ),
+      IdeModelSnapshotComparisonTestDefinition(
         TestProject.TRANSITIVE_DEPENDENCIES_NO_TARGET_SDK_IN_LIBS,
           isCompatibleWith = { it >= AGP_35 }
       ),
@@ -82,6 +91,10 @@ data class IdeModelSnapshotComparisonTestDefinition(
       IdeModelSnapshotComparisonTestDefinition(TestProject.COMPOSITE_BUILD),
       IdeModelSnapshotComparisonTestDefinition(TestProject.NON_STANDARD_SOURCE_SETS),
       IdeModelSnapshotComparisonTestDefinition(TestProject.NON_STANDARD_SOURCE_SET_DEPENDENCIES, skipV1toV2Comparison = true),
+      IdeModelSnapshotComparisonTestDefinition(
+        TestProject.NON_STANDARD_SOURCE_SET_DEPENDENCIES_MANUAL_TEST_FIXTURES_WORKAROUND,
+        skipV1toV2Comparison = true
+      ),
       IdeModelSnapshotComparisonTestDefinition(TestProject.NON_STANDARD_SOURCE_SET_DEPENDENCIES_HIERARCHICAL, skipV1toV2Comparison = true),
       IdeModelSnapshotComparisonTestDefinition(TestProject.LINKED),
       IdeModelSnapshotComparisonTestDefinition(TestProject.KOTLIN_KAPT),
@@ -158,6 +171,7 @@ data class IdeModelSnapshotComparisonTestDefinition(
       AGP_70 -> Unit
       AGP_71 -> Unit
       AGP_72_V1 -> Unit
+      AGP_73 -> Unit
       AGP_CURRENT_V1 -> Unit
     }
   }

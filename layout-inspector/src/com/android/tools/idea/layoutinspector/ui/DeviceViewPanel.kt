@@ -115,14 +115,15 @@ const val DEVICE_VIEW_ACTION_TOOLBAR_NAME = "DeviceViewPanel.ActionToolbar"
  * @param onDeviceSelected is only invoked when [deviceModel] is used.
  */
 class DeviceViewPanel(
-  deviceModel: DeviceModel?,
+  val deviceModel: DeviceModel?,
   val processesModel: ProcessesModel?,
   onDeviceSelected: (newDevice: DeviceDescriptor) -> Unit,
   onProcessSelected: (newProcess: ProcessDescriptor) -> Unit,
+  val onStopInspector: () -> Unit,
   private val layoutInspector: LayoutInspector,
   private val viewSettings: DeviceViewSettings,
   disposableParent: Disposable,
-  @TestOnly private val backgroundExecutor: Executor = AndroidExecutors.getInstance().workerThreadExecutor
+  @TestOnly private val backgroundExecutor: Executor = AndroidExecutors.getInstance().workerThreadExecutor,
 ) : JPanel(BorderLayout()), Zoomable, DataProvider, Pannable {
 
   override val scale
@@ -142,9 +143,6 @@ class DeviceViewPanel(
       deviceModel = deviceModel,
       onDeviceSelected = onDeviceSelected,
       onProcessSelected = onProcessSelected,
-      detachPresentation = SelectDeviceAction.DetachPresentation(
-        "Stop Inspector",
-        "Stop running the layout inspector against the current device"),
       onDetachAction = { stopInspectors() },
       customDeviceAttribution = ::deviceAttribution
     )
@@ -177,7 +175,7 @@ class DeviceViewPanel(
       null
     }
     else {
-      DropDownActionWithButton(selectDeviceAction, selectDeviceAction.button)
+      DropDownActionWithButton(selectDeviceAction) { selectDeviceAction.button }
     }
   }
   else {
@@ -185,7 +183,7 @@ class DeviceViewPanel(
       null
     }
     else {
-      DropDownActionWithButton(selectProcessAction, selectProcessAction.button)
+      DropDownActionWithButton(selectProcessAction) { selectProcessAction.button }
     }
   }
 
@@ -498,6 +496,7 @@ class DeviceViewPanel(
   fun stopInspectors() {
     loadingPane.stopLoading()
     processesModel?.stop()
+    onStopInspector.invoke()
   }
 
   private fun updateLayeredPaneSize() {
@@ -556,7 +555,7 @@ class DeviceViewPanel(
     }
     // For the legacy inspector and for snapshots loaded from file, we do not have the screen size, but we know that all windows are loaded.
     val root = layoutInspector.layoutInspectorModel.root
-    return Dimension(root.width, root.height)
+    return Dimension(root.layoutBounds.width, root.layoutBounds.height)
   }
 
   override fun canZoomIn() = viewSettings.scalePercent < MAX_ZOOM && !layoutInspector.layoutInspectorModel.isEmpty

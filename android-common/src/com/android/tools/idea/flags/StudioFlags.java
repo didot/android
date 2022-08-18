@@ -54,7 +54,7 @@ public final class StudioFlags {
 
   @TestOnly
   public static void validate() {
-      FLAGS.validate();
+    FLAGS.validate();
   }
 
   //region New Project Wizard
@@ -720,6 +720,9 @@ public final class StudioFlags {
   public static final Flag<Boolean> BUILD_ANALYZER_HISTORY = Flag.create(
     GRADLE_IDE, "build.analyzer.history", "Enable access to historic build analysis",
     "Enable access to historic build analysis in Build Analyzer.", false);
+  public static final Flag<Boolean> BUILD_ANALYZER_CATEGORY_ANALYSIS = Flag.create(
+    GRADLE_IDE, "build.analyzer.category.analysis", "Enable 'Group by Task Category' category task analysis",
+    "Enable 'Group by Task Category' category task analysis in Build Analyzer.", false);
 
   public static final Flag<Boolean> DISABLE_FORCED_UPGRADES = Flag.create(
     GRADLE_IDE, "forced.agp.update", "Disable forced Android Gradle plugin upgrades",
@@ -1257,6 +1260,20 @@ public final class StudioFlags {
     false);
   //endregion
 
+  // region Wear surfaces
+  private static final FlagGroup WEAR_SURFACES = new FlagGroup(FLAGS, "wear.surfaces", "Wear Surfaces");
+
+  public static final Flag<Boolean> GLANCE_APP_WIDGET_PREVIEW = Flag.create(
+    WEAR_SURFACES, "glance.preview.appwidget.enabled", "Enable Glance AppWidget preview",
+    "If enabled, a preview for annotated glance app widget composable functions is displayed",
+    false);
+
+  public static final Flag<Boolean> GLANCE_TILE_PREVIEW = Flag.create(
+    WEAR_SURFACES, "glance.preview.tile.enabled", "Enable Glance Tile preview",
+    "If enabled, a preview for annotated glance tile composable functions is displayed",
+    false);
+  // endregion
+
   // region App Inspection
   private static final FlagGroup APP_INSPECTION = new FlagGroup(FLAGS, "appinspection", "App Inspection");
   public static final Flag<Boolean> ENABLE_APP_INSPECTION_TOOL_WINDOW = Flag.create(
@@ -1372,7 +1389,7 @@ public final class StudioFlags {
     "Enable the new consent dialog for opting into metrics",
     true
   );
-  // endregion SERVER_FLAGS
+  // endregion METRICS
 
   // region Firebase Test Lab
   private static final FlagGroup FIREBASE_TEST_LAB = new FlagGroup(FLAGS, "firebasetestlab", "Firebase Test Lab");
@@ -1384,6 +1401,15 @@ public final class StudioFlags {
       "Direct Access",
       "Enable FTL DirectAccess",
       false);
+
+  public static final Flag<String> DIRECT_ACCESS_PROJECT =
+    Flag.create(
+      FIREBASE_TEST_LAB,
+      "direct.access.project",
+      "GCP Project for Direct Access authentication",
+      "The project to use for FTL Direct Access",
+      "cloud-test-external1"
+    );
   // endregion Firebase Test Lab
 
   // region App Insights
@@ -1427,6 +1453,14 @@ public final class StudioFlags {
       "Use transport security",
       "Set Crashlytics gRpc channel to use transport security",
       true);
+
+  public static final Flag<Boolean> OPEN_CLOSE_ISSUES_ENABLED =
+    Flag.create(
+      APP_INSIGHTS,
+      "enable.open.close.issues",
+      "Enable open/close issue functionality.",
+      "Add open/close button to App Quality Insights panel.",
+      false);
   // endregion App Insights
 
   // region App Links Assistant
@@ -1465,6 +1499,14 @@ public final class StudioFlags {
     false
   );
 
-  // endregion GOOGLE_PLAY_SDK_INDEX
+  // region NEW_SEND_FEEDBACK_DIALOG
+  private static final FlagGroup NEW_SEND_FEEDBACK_DIALOG = new FlagGroup(FLAGS, "new.send.feedback", "New Send Feedback Dialog");
+  public static final Flag<Boolean> ENABLE_NEW_SEND_FEEDBACK_DIALOG = Flag.create(
+    NEW_SEND_FEEDBACK_DIALOG, "enable.new.send.feedback.dialog", "Enable new send feedback dialog",
+    "Enable the new send feedback dialog",
+    false
+  );
+
+  // endregion NEW_SEND_FEEDBACK_DIALOG
   private StudioFlags() { }
 }

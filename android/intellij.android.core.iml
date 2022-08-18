@@ -105,15 +105,7 @@
     <orderEntry type="module" module-name="intellij.android.gradle.dsl.kotlin" scope="RUNTIME" />
     <orderEntry type="module" module-name="intellij.android.dagger" />
     <orderEntry type="module" module-name="intellij.android.gradle.dsl.toml" scope="RUNTIME" />
-    <orderEntry type="module-library">
-      <library name="utp-core-proto">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../prebuilts/tools/common/m2/repository/com/google/testing/platform/core-proto/0.0.8-alpha08/core-proto-0.0.8-alpha08.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
+    <orderEntry type="library" name="utp-core-proto-jarjar" level="project" />
     <orderEntry type="library" name="android-test-plugin-host-device-info-proto" level="project" />
     <orderEntry type="module-library">
       <library name="libandroid-core-proto">
@@ -152,5 +144,8 @@
     <orderEntry type="module" module-name="android.sdktools.manifest-parser" />
     <orderEntry type="module" module-name="android.sdktools.threading-agent-callback" />
     <orderEntry type="module" module-name="intellij.android.threading-checker" />
+    <orderEntry type="module" module-name="android.sdktools.adblib.tools" />
+    <orderEntry type="module" module-name="android.sdktools.adblib" />
+    <orderEntry type="module" module-name="android.sdktools.device-provisioner" />
   </component>
 </module>

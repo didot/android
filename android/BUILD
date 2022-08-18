@@ -101,7 +101,7 @@ iml_module(
         "//tools/adt/idea/lint:intellij.lint[module]",
         "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module]",
         "//tools/adt/idea/dagger:intellij.android.dagger[module]",
-        "//prebuilts/tools/common/m2:utp-core-proto",
+        "//tools/adt/idea/.idea/libraries:utp-core-proto-jarjar",
         "//tools/adt/idea/.idea/libraries:android-test-plugin-host-device-info-proto",
         "//tools/adt/idea/android:libandroid-core-proto",
         "//tools/base/zipflinger:studio.android.sdktools.zipflinger[module]",
@@ -124,6 +124,9 @@ iml_module(
         "//tools/base/manifest-parser:studio.android.sdktools.manifest-parser[module]",
         "//tools/base/threading-agent-callback:studio.android.sdktools.threading-agent-callback[module]",
         "//tools/adt/idea/threading-checker:intellij.android.threading-checker[module]",
+        "//tools/base/adblib-tools:studio.android.sdktools.adblib.tools[module]",
+        "//tools/base/adblib:studio.android.sdktools.adblib[module]",
+        "//tools/base/device-provisioner:studio.android.sdktools.device-provisioner[module]",
     ],
 )
 
@@ -233,6 +236,7 @@ iml_module(
         "//tools/adt/idea/android/lib:sampleData",
         "//tools/adt/idea/android/testData",
         "//tools/adt/idea/artwork:device-art-resources",
+        "//tools/adt/idea/compose-ide-plugin/testData",
         "//tools/base/build-system:android_gradle_plugin.zip",  # Please do not add old versions of AGP here. Use the old-agp-tests module instead.
         "//tools/base/build-system:android_gradle_plugin_runtime_dependencies",
         "//tools/base/build-system:gradle-distrib",
@@ -317,7 +321,7 @@ iml_module(
         "//tools/adt/idea/gradle-dsl:intellij.android.gradle.dsl[module]",
         "//tools/adt/idea/project-system-gradle-psd:intellij.android.projectSystem.gradle.psd[module]",
         "//tools/base/build-system/builder-model:studio.android.sdktools.builder-model[module]",
-        "//prebuilts/tools/common/m2:utp-core-proto",
+        "//tools/adt/idea/.idea/libraries:utp-core-proto-jarjar",
         "//tools/adt/idea/.idea/libraries:android-test-plugin-host-device-info-proto",
         "//tools/adt/idea/android:libandroid-core-proto",
         "//tools/adt/idea/android:libandroid-core-proto-test[test]",
@@ -347,6 +351,7 @@ iml_module(
         "//tools/adt/idea/android-navigator:intellij.android.navigator[module, test]",
         "//tools/adt/idea/android-navigator:intellij.android.navigator.testutils[module, test]",
         "//tools/base/threading-agent-callback:studio.android.sdktools.threading-agent-callback[module, test]",
+        "//tools/adt/idea/compose-ide-plugin:intellij.android.compose-ide-plugin[module, test]",
     ],
 )
 
@@ -421,7 +426,7 @@ filegroup(
 filegroup(
     name = "directaccess-artifacts",
     srcs = [
-        "//tools/vendor/google/directaccess-client:ftl_client_java_proto",
+        "//tools/adt/idea/.idea/libraries:directaccess_client_proto",
         "//tools/vendor/google/directaccess-client/reverse-daemon:daemon",
     ],
 )
@@ -455,9 +460,10 @@ filegroup(
         "//tools/base/threading-agent:threading_agent.jar",
         "//tools/base/tracer:trace_agent",
         "//tools/adt/idea/as-driver:as_driver_deploy.jar",
-        "//tools/base/utp/android-test-plugin-host-device-info-proto:studio.android-test-plugin-host-device-info-proto",
-        "//tools/base/utp/android-test-plugin-host-retention-proto:studio.android-test-plugin-host-retention-proto",
-        "//tools/base/utp/android-test-plugin-result-listener-gradle-proto:studio.android-test-plugin-result-listener-gradle-proto",
+        "//tools/base/bazel:utp-core-proto-jarjar",
+        "//tools/base/utp/android-test-plugin-host-device-info-proto:libstudio.android-test-plugin-host-device-info-proto",
+        "//tools/base/utp/android-test-plugin-host-retention-proto:libstudio.android-test-plugin-host-retention-proto",
+        "//tools/base/utp/android-test-plugin-result-listener-gradle-proto:libstudio.android-test-plugin-result-listener-gradle-proto",
         "//tools/data-binding:compilerCommon.antlr_runtime.shaded",
         "//tools/data-binding:compilerCommon.antlr.shaded",
         "//tools/vendor/google/firebase/src/proto:firebase_java_proto",

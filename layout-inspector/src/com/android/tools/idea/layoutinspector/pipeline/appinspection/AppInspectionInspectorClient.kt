@@ -56,6 +56,7 @@ import com.android.tools.idea.sdk.StudioSettingsController
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
+import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorAttachToProcess.ClientType.APP_INSPECTION_CLIENT
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorErrorInfo.AttachErrorCode
 import com.google.wireless.android.sdk.stats.DynamicLayoutInspectorEvent.DynamicLayoutInspectorEventType
@@ -99,7 +100,7 @@ class AppInspectionInspectorClient(
   parentDisposable: Disposable,
   @TestOnly private val apiServices: AppInspectionApiServices = AppInspectionDiscoveryService.instance.apiServices,
   @TestOnly private val sdkHandler: AndroidSdkHandler = AndroidSdks.getInstance().tryToChooseSdkHandler()
-) : AbstractInspectorClient(process, isInstantlyAutoConnected, SessionStatisticsImpl(model), parentDisposable) {
+) : AbstractInspectorClient(process, isInstantlyAutoConnected, SessionStatisticsImpl(APP_INSPECTION_CLIENT, model), parentDisposable) {
 
   private var viewInspector: ViewLayoutInspectorClient? = null
   private lateinit var propertiesProvider: AppInspectionPropertiesProvider
@@ -128,7 +129,7 @@ class AppInspectionInspectorClient(
     )
   }
 
-  private val debugViewAttributes = DebugViewAttributes(model.project, process)
+  private val debugViewAttributes = DebugViewAttributes(model.project)
   private var debugViewAttributesChanged = false
 
   override val capabilities =
@@ -181,7 +182,7 @@ class AppInspectionInspectorClient(
 
       logEvent(DynamicLayoutInspectorEventType.ATTACH_SUCCESS)
 
-      debugViewAttributesChanged = debugViewAttributes.set()
+      debugViewAttributesChanged = debugViewAttributes.set(process)
       if (debugViewAttributesChanged && !isInstantlyAutoConnected) {
         showActivityRestartedInBanner(model.project, process)
       }
@@ -207,7 +208,7 @@ class AppInspectionInspectorClient(
     // Create a new scope since we might be disconnecting because the original one died.
     model.project.coroutineScope.createChildScope(true).launch(loggingExceptionHandler) {
       if (debugViewAttributesChanged) {
-        debugViewAttributes.clear()
+        debugViewAttributes.clear(process)
       }
       viewInspector?.disconnect()
       composeInspector?.disconnect()
