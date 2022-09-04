@@ -103,14 +103,6 @@
     <option name="s" path="ActionManager" hit="Build Bundle(s) / APK(s)" />
     <option name="button" path="ActionManager" hit="Button 1" />
     <option name="button" path="ActionManager" hit="Button 2" />
-    <option name="a" path="ActionManager" hit="Change display size to match a typical desktop" />
-    <option name="change" path="ActionManager" hit="Change display size to match a typical desktop" />
-    <option name="desktop" path="ActionManager" hit="Change display size to match a typical desktop" />
-    <option name="display" path="ActionManager" hit="Change display size to match a typical desktop" />
-    <option name="match" path="ActionManager" hit="Change display size to match a typical desktop" />
-    <option name="size" path="ActionManager" hit="Change display size to match a typical desktop" />
-    <option name="to" path="ActionManager" hit="Change display size to match a typical desktop" />
-    <option name="typical" path="ActionManager" hit="Change display size to match a typical desktop" />
     <option name="a" path="ActionManager" hit="Change display size to match a typical foldable" />
     <option name="change" path="ActionManager" hit="Change display size to match a typical foldable" />
     <option name="display" path="ActionManager" hit="Change display size to match a typical foldable" />
@@ -197,7 +189,6 @@
     <option name="runs" path="ActionManager" hit="Deploys and runs the application without building." />
     <option name="the" path="ActionManager" hit="Deploys and runs the application without building." />
     <option name="without" path="ActionManager" hit="Deploys and runs the application without building." />
-    <option name="desktop" path="ActionManager" hit="Desktop" />
     <option name="display" path="ActionManager" hit="Display Mode" />
     <option name="mode" path="ActionManager" hit="Display Mode" />
     <option name="display" path="ActionManager" hit="Display selected file in the Resource Manager" />
@@ -915,35 +906,6 @@
     <option name="testing" hit="Testing" />
   </configurable>
   <configurable id="live.edit.configurable" configurable_name="Live Edit">
-    <option name="" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="and" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="application" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="changes" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="code" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="composable" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="device" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="devices" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="emulator" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="emulators" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="experimental" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="feature" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="functions" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="in" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="instantaneously" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="learn" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="made" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="more" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="physical" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="re" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="reflects" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="require" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="run" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="settings" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="that" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="the" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="to" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="will" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
-    <option name="within" hit=" Experimental feature that instantaneously reflects code changes made within composable functions in the emulators and physical devices. Settings changes to Device/Emulator will require application re-run. Learn more." />
     <option name="" hit=" Turn both features off." />
     <option name="both" hit=" Turn both features off." />
     <option name="features" hit=" Turn both features off." />
