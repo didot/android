@@ -164,5 +164,5 @@ class ComposeViewNode(
   }
 
   @Suppress("NOTHING_TO_INLINE")
-  inline fun Int.hasFlag(flag: Int) = flag and this == flag
+  private inline fun Int.hasFlag(flag: Int) = flag and this == flag
 }
