@@ -29,7 +29,7 @@ import javax.swing.JPanel
 import javax.swing.ListSelectionModel
 
 class DownloadsInfoPageView(
-  val pageModel: DownloadsInfoPageModel,
+  private val pageModel: DownloadsInfoPageModel,
   val actionHandlers: ViewActionHandlers
 ) : BuildAnalyzerDataPageView {
 
