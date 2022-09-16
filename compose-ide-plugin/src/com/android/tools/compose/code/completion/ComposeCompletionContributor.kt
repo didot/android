@@ -41,6 +41,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.parentOfType
+import com.intellij.util.castSafelyTo
 import icons.StudioIcons
 import org.jetbrains.kotlin.builtins.isBuiltinFunctionalType
 import org.jetbrains.kotlin.builtins.isFunctionType
@@ -81,10 +82,10 @@ private fun CompletionParameters.isForStatement(): Boolean {
 }
 
 private fun LookupElement.getFunctionDescriptor(): FunctionDescriptor? {
-  return (this.`object`
-    as? DescriptorBasedDeclarationLookupObject)
+  return this.`object`
+    .castSafelyTo<DescriptorBasedDeclarationLookupObject>()
     ?.descriptor
-    ?.let { it as? FunctionDescriptor }
+    ?.castSafelyTo<FunctionDescriptor>()
 }
 
 private val List<ValueParameterDescriptor>.hasComposableChildren: Boolean
