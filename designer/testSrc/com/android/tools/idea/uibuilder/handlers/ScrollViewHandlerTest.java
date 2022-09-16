@@ -18,7 +18,7 @@ package com.android.tools.idea.uibuilder.handlers;
 import static com.android.SdkConstants.LINEAR_LAYOUT;
 import static com.android.SdkConstants.SCROLL_VIEW;
 import static com.android.SdkConstants.TEXT_VIEW;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
