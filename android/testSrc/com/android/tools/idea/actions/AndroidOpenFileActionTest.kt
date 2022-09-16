@@ -20,7 +20,7 @@ import com.android.tools.adtui.validation.Validator
 import com.intellij.mock.MockVirtualFile
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import junit.framework.TestCase
-import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.any
 import org.mockito.Mockito.mock
 
 /**

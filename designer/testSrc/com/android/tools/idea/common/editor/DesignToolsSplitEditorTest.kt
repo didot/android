@@ -27,7 +27,7 @@ import com.intellij.openapi.keymap.impl.IdeKeyEventDispatcher
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.android.AndroidTestCase
-import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.Mockito.anyBoolean
 import org.mockito.Mockito.mock
 import java.awt.KeyboardFocusManager
 import java.awt.event.InputEvent

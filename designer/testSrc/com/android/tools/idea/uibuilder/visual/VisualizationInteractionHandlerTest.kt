@@ -29,9 +29,9 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ex.ActionManagerEx
 import com.intellij.openapi.actionSystem.ex.ActionPopupMenuListener
 import com.intellij.openapi.fileEditor.FileEditorManager
-import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.intThat
 import org.mockito.Mockito
+import org.mockito.Mockito.anyInt
 import java.awt.event.KeyEvent
 
 class VisualizationInteractionHandlerTest : SceneTest() {
