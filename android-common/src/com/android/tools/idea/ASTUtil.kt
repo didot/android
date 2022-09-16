@@ -20,7 +20,6 @@ import com.intellij.lang.FileASTNode
 import com.intellij.psi.impl.java.stubs.JavaStubElementTypes
 import com.intellij.psi.impl.source.JavaFileElementType
 import com.intellij.psi.impl.source.tree.JavaElementType
-import org.jetbrains.kotlin.psi.stubs.elements.KtFileElementType
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 
 
@@ -30,7 +29,7 @@ private fun ASTNode.isClass() = when(elementType) {
 }
 
 private fun ASTNode.mayContainClass() = when(elementType) {
-  KtFileElementType.INSTANCE, KtStubElementTypes.CLASS, JavaStubElementTypes.CLASS -> true
+  KtStubElementTypes.FILE, KtStubElementTypes.CLASS, JavaStubElementTypes.CLASS -> true
   is JavaFileElementType -> true
   else -> false
 }
