@@ -12,7 +12,6 @@ import com.android.tools.idea.io.FilePaths;
 import com.android.tools.idea.sdk.AndroidSdks;
 import com.android.tools.idea.sdk.IdeSdks;
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils;
-import com.google.common.collect.Lists;
 import com.intellij.CommonBundle;
 import com.intellij.openapi.projectRoots.AdditionalDataConfigurable;
 import com.intellij.openapi.projectRoots.JavaSdk;
@@ -29,6 +28,7 @@ import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.ui.Messages;
 import icons.StudioIcons;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.swing.Icon;
@@ -100,7 +100,7 @@ public class AndroidSdkType extends JavaDependentSdkType implements JavaSdkType 
 
   @Override
   public boolean setupSdkPaths(@NotNull Sdk sdk, @NotNull SdkModel sdkModel) {
-    final List<String> javaSdks = Lists.newArrayList();
+    final List<String> javaSdks = new ArrayList<>();
     final Sdk[] sdks = sdkModel.getSdks();
     for (Sdk jdk : sdks) {
       if (IdeSdks.getInstance().isJdkCompatible(jdk)) {

@@ -16,9 +16,9 @@
 package com.android.tools.idea.gradle.stubs.gradle;
 
 import com.android.tools.idea.gradle.stubs.FileStructure;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -29,8 +29,8 @@ import org.gradle.tooling.model.internal.ImmutableDomainObjectSet;
 import org.jetbrains.annotations.NotNull;
 
 public class IdeaContentRootStub implements IdeaContentRoot {
-  @NotNull private final List<IdeaSourceDirectory> mySourceDirs = Lists.newArrayList();
-  @NotNull private final List<IdeaSourceDirectory> myTestDirs = Lists.newArrayList();
+  @NotNull private final List<IdeaSourceDirectory> mySourceDirs = new ArrayList<>();
+  @NotNull private final List<IdeaSourceDirectory> myTestDirs = new ArrayList<>();
   @NotNull private final Set<File> myExcludedDirs = Sets.newHashSet();
 
   @NotNull private final FileStructure myFileStructure;

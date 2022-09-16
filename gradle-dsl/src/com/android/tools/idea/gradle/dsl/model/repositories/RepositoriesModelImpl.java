@@ -37,8 +37,8 @@ import com.android.tools.idea.gradle.dsl.parser.repositories.FlatDirRepositoryDs
 import com.android.tools.idea.gradle.dsl.parser.repositories.MavenRepositoryDslElement;
 import com.android.tools.idea.gradle.dsl.parser.repositories.RepositoriesDslElement;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.google.common.collect.Lists;
 import com.intellij.psi.PsiElement;
+import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -51,7 +51,7 @@ public class RepositoriesModelImpl extends GradleDslBlockModel implements Reposi
   @NotNull
   @Override
   public List<RepositoryModel> repositories() {
-    List<RepositoryModel> result = Lists.newArrayList();
+    List<RepositoryModel> result = new ArrayList<>();
     for (GradleDslElement element : myDslElement.getAllPropertyElements()) {
       if (element instanceof MavenRepositoryDslElement) {
         if (MAVEN.name.equals(element.getName())) {

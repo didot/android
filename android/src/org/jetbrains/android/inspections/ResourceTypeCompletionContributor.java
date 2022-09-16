@@ -27,7 +27,6 @@ import static com.android.tools.lint.detector.api.ResourceEvaluator.RES_SUFFIX;
 import com.android.AndroidXConstants;
 import com.android.resources.ResourceType;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
-import com.google.common.collect.Lists;
 import com.intellij.codeInsight.AnnotationUtil;
 import com.intellij.codeInsight.ExpectedTypeInfo;
 import com.intellij.codeInsight.completion.CompletionContributor;
@@ -75,6 +74,7 @@ import com.intellij.psi.util.TypeConversionUtil;
 import com.intellij.util.Consumer;
 import gnu.trove.THashSet;
 import gnu.trove.TObjectHashingStrategy;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -254,7 +254,7 @@ public class ResourceTypeCompletionContributor extends CompletionContributor {
           ResourceType resourceType = getResourceTypeFromAnnotation(qualifiedName);
           if (resourceType != null) {
             if (resourceTypes == null) {
-              resourceTypes = Lists.newArrayList();
+              resourceTypes = new ArrayList<>();
             }
             resourceTypes.add(resourceType);
           }

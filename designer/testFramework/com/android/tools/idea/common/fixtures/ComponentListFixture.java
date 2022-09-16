@@ -21,6 +21,7 @@ import com.android.tools.idea.common.model.NlComponent;
 import com.android.tools.idea.uibuilder.fixtures.ScreenFixture;
 import com.android.tools.idea.uibuilder.surface.ScreenView;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -55,7 +56,7 @@ public class ComponentListFixture {
 
   @NotNull
   public List<NlComponent> getComponents() {
-    List<NlComponent> list = Lists.newArrayList();
+    List<NlComponent> list = new ArrayList<>();
     for (ComponentFixture fixture : myComponents) {
       list.add(fixture.getComponent());
     }
