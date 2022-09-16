@@ -34,7 +34,6 @@ import com.intellij.openapi.util.Condition;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
-import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.CheckBoxList;
@@ -525,7 +524,7 @@ public class AndroidFacetEditorTab extends FacetEditorTab {
     myNativeLibsFolder.setText(libsAbsPath != null ? libsAbsPath : "");
 
     myCustomDebugKeystoreField.setText(FileUtil.toSystemDependentName(
-      VfsUtil.urlToPath(configuration.getState().CUSTOM_DEBUG_KEYSTORE_PATH)));
+      VfsUtilCore.urlToPath(configuration.getState().CUSTOM_DEBUG_KEYSTORE_PATH)));
 
     final boolean runProguard = configuration.getState().RUN_PROGUARD;
     myRunProguardCheckBox.setSelected(runProguard);
