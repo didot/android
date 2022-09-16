@@ -17,7 +17,7 @@ package com.android.tools.idea.logcat;
 
 import com.android.tools.idea.ddms.DevicePanel;
 import com.intellij.openapi.ui.ComboBox;
-import com.intellij.util.ui.JBUI;
+import com.intellij.ui.scale.JBUIScale;
 import java.awt.Component;
 import java.awt.LayoutManager;
 import java.awt.event.ComponentAdapter;
@@ -51,7 +51,7 @@ final class DeviceAndSearchPanel extends JPanel {
     addComponentListener(new ComponentAdapter() {
       @Override
       public void componentResized(@NotNull ComponentEvent event) {
-        setLayout(getWidth() > JBUI.scale(500) ? createWideLayout() : createNarrowLayout());
+        setLayout(getWidth() > JBUIScale.scale(500) ? createWideLayout() : createNarrowLayout());
       }
     });
   }

@@ -55,6 +55,7 @@ import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.ui.speedSearch.ListWithFilter;
 import com.intellij.util.ui.AbstractLayoutManager;
 import com.intellij.util.ui.JBUI;
@@ -410,7 +411,7 @@ public abstract class DeviceConfiguratorPanel extends JPanel {
       }
     };
 
-    final JPanel leftPanel = new JPanel(new BorderLayout(JBUI.scale(5), JBUI.scale(5)));
+    final JPanel leftPanel = new JPanel(new BorderLayout(JBUIScale.scale(5), JBUIScale.scale(5)));
     myAvailableQualifiersList = new JBList<>();
     myAvailableQualifiersList.setMinimumSize(JBUI.size(10, 10));
     JBLabel label = new JBLabel(AndroidBundle.message("android.layout.preview.edit.configuration.available.qualifiers.label"));
@@ -419,7 +420,7 @@ public abstract class DeviceConfiguratorPanel extends JPanel {
     leftPanel.add(new JBScrollPane(myAvailableQualifiersList, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
                                    ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER), BorderLayout.CENTER);
 
-    final JPanel rightPanel = new JPanel(new BorderLayout(JBUI.scale(5), JBUI.scale(5)));
+    final JPanel rightPanel = new JPanel(new BorderLayout(JBUIScale.scale(5), JBUIScale.scale(5)));
     myChosenQualifiersList = new JBList<>();
     myChosenQualifiersList.setMinimumSize(JBUI.size(10, 10));
     label = new JBLabel(AndroidBundle.message("android.layout.preview.edit.configuration.choosen.qualifiers.label"));

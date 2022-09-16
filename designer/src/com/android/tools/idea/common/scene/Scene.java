@@ -57,7 +57,7 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.xml.XmlFile;
 import com.intellij.psi.xml.XmlTag;
-import com.intellij.util.ui.JBUI;
+import com.intellij.ui.scale.JBUIScale;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.event.InputEvent;
@@ -90,7 +90,7 @@ import org.jetbrains.ide.PooledThreadExecutor;
 public class Scene implements SelectionListener, Disposable {
 
   @SwingCoordinate
-  private static final int DRAG_THRESHOLD = JBUI.scale(10);
+  private static final int DRAG_THRESHOLD = JBUIScale.scale(10);
   private static final String PREFERENCE_KEY_PREFIX = "ScenePreference";
   private static final String SHOW_TOOLTIP_KEY = PREFERENCE_KEY_PREFIX + "ShowToolTip";
   private static Boolean SHOW_TOOLTIP_VALUE = null;

@@ -26,6 +26,7 @@ import com.intellij.openapi.util.registry.Registry;
 import com.intellij.ui.ColorUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.awt.RelativePoint;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.IconUtil;
 import com.intellij.util.ui.ImageUtil;
 import com.intellij.util.ui.JBUI;
@@ -56,7 +57,7 @@ public class MEUI {
   public static final Color ourMySelectedTextColor = new JBColor(0xEAEAEA, 0xCCCCCC);
 
   public static int scale(int i) {
-    return JBUI.scale(i);
+    return JBUIScale.scale(i);
   }
 
   public static Dimension size(int width, int height) {
@@ -95,8 +96,8 @@ public class MEUI {
 
   static boolean dark = false;
 
-  public static final int ourLeftColumnWidth = JBUI.scale(150);
-  public static final int ourHeaderHeight = JBUI.scale(30);
+  public static final int ourLeftColumnWidth = JBUIScale.scale(150);
+  public static final int ourHeaderHeight = JBUIScale.scale(30);
   public static final int ourGraphHeight = scale(60);
 
   public static final Color ourErrorColor = makeColor("UIDesigner.motion.Error.foreground", 0x8f831b, 0xffa31b);

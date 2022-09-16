@@ -53,8 +53,8 @@ import com.intellij.openapi.util.ActionCallback;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.PopupHandler;
 import com.intellij.ui.navigation.Place;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.ui.treeStructure.Tree;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.update.MergingUpdateQueue;
 import com.intellij.util.ui.update.Update;
 import java.awt.BorderLayout;
@@ -99,7 +99,7 @@ class DependencyGraphPanel extends AbstractDependenciesPanel {
     DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
     myTree = new Tree(treeModel) {
       {
-        setRowHeight(JBUI.scale(24));
+        setRowHeight(JBUIScale.scale(24));
       }
       @Override
       protected void processMouseEvent(MouseEvent e) {

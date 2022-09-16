@@ -17,7 +17,7 @@ package com.android.tools.idea.devicemanager;
 
 import com.android.tools.adtui.common.ColoredIconGenerator;
 import com.google.common.annotations.VisibleForTesting;
-import com.intellij.util.ui.JBUI;
+import com.intellij.ui.scale.JBUIScale;
 import java.awt.Color;
 import java.awt.Component;
 import java.util.OptionalInt;
@@ -114,6 +114,6 @@ public final class Tables {
       component = table.prepareRenderer(table.getCellRenderer(viewRowIndex, viewColumnIndex), viewRowIndex, viewColumnIndex);
     }
 
-    return component.getPreferredSize().width + JBUI.scale(8);
+    return component.getPreferredSize().width + JBUIScale.scale(8);
   }
 }
