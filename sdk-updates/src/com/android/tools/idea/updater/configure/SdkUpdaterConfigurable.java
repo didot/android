@@ -44,7 +44,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.intellij.icons.AllIcons;
@@ -67,6 +66,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -182,7 +182,7 @@ public class SdkUpdaterConfigurable implements SearchableConfigurable {
     myPanel.saveSources();
 
     final List<LocalPackage> toDelete = new ArrayList<>();
-    final Map<RemotePackage, UpdatablePackage> requestedPackages = Maps.newHashMap();
+    final Map<RemotePackage, UpdatablePackage> requestedPackages = new HashMap<>();
     for (PackageNodeModel model : myPanel.getStates()) {
       if (model.getState() == PackageNodeModel.SelectedState.NOT_INSTALLED) {
         if (model.getPkg().hasLocal()) {

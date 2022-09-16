@@ -44,6 +44,7 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -464,7 +465,7 @@ public class ThemeSelectionPanel implements TreeSelectionListener, ListSelection
     @NotNull private final Map<ThemeCategory, List<ThemeCategory>> myLabels;
 
     CategoryModel() {
-      myLabels = Maps.newHashMap();
+      myLabels = new HashMap<>();
       List<ThemeCategory> topLevel = new ArrayList<>();
 
       if (ourRecent != null) {

@@ -48,6 +48,7 @@ import com.intellij.util.concurrency.AppExecutorUtil;
 import java.awt.Dimension;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -173,7 +174,7 @@ public class ViewEditorImpl extends ViewEditor {
             return Collections.emptyMap();
           }
 
-          Map<NlComponent, Dimension> unweightedSizes = Maps.newHashMap();
+          Map<NlComponent, Dimension> unweightedSizes = new HashMap<>();
           for (Map.Entry<XmlTag, ViewInfo> entry : map.entrySet()) {
             ViewInfo viewInfo = entry.getValue();
             viewInfo = RenderService.getSafeBounds(viewInfo);

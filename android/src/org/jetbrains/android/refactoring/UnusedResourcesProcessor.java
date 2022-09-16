@@ -41,7 +41,6 @@ import com.android.tools.lint.detector.api.LintFix;
 import com.android.tools.lint.detector.api.Scope;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.intellij.analysis.AnalysisScope;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
@@ -130,7 +129,7 @@ public class UnusedResourcesProcessor extends BaseRefactoringProcessor {
     ApplicationManager.getApplication().assertReadAccessAllowed();
     PsiManager manager = PsiManager.getInstance(myProject);
 
-    Map<File, PsiFile> files = Maps.newHashMap();
+    Map<File, PsiFile> files = new HashMap<>();
     Set<PsiFile> excludedFiles = new HashSet<>();
     for (Map.Entry<Issue, Map<File, List<LintProblemData>>> entry : map.entrySet()) {
       for (File file : entry.getValue().keySet()) {
@@ -332,7 +331,7 @@ public class UnusedResourcesProcessor extends BaseRefactoringProcessor {
 
   @NotNull
   private Map<Issue, Map<File, List<LintProblemData>>> computeUnusedMap() {
-    Map<Issue, Map<File, List<LintProblemData>>> map = Maps.newHashMap();
+    Map<Issue, Map<File, List<LintProblemData>>> map = new HashMap<>();
 
     Set<Issue> issues;
     if (myIncludeIds) {

@@ -57,7 +57,6 @@ import com.android.utils.SdkUtils;
 import com.android.utils.XmlUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
-import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
@@ -67,6 +66,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -495,7 +495,7 @@ class EclipseProject implements Comparable<EclipseProject> {
                   }
                   else {
                     if (myFileCharsets == null) {
-                      myFileCharsets = Maps.newHashMap();
+                      myFileCharsets = new HashMap<>();
                     }
                     File file = resolveVariableExpression(path);
                     if (file != null) {
@@ -725,7 +725,7 @@ class EclipseProject implements Comparable<EclipseProject> {
 
   private Map<String, String> getProjectVariableMap() {
     if (myProjectVariableMap == null) {
-      myProjectVariableMap = Maps.newHashMap();
+      myProjectVariableMap = new HashMap<>();
 
       Document document;
       try {
@@ -755,7 +755,7 @@ class EclipseProject implements Comparable<EclipseProject> {
 
   private Map<String, String> getLinkedResourceMap() {
     if (myLinkedResourceMap == null) {
-      myLinkedResourceMap = Maps.newHashMap();
+      myLinkedResourceMap = new HashMap<>();
 
       Document document;
       try {
