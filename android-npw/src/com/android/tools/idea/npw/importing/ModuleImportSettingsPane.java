@@ -19,7 +19,6 @@ import static com.android.tools.idea.wizard.ui.WizardUtils.toHtmlString;
 import static com.google.common.base.Strings.nullToEmpty;
 
 import com.google.common.base.Objects;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.ui.MessageType;
 import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.components.JBLabel;
@@ -31,6 +30,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.LinkedList;
 import java.util.List;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -51,7 +51,7 @@ public final class ModuleImportSettingsPane extends JPanel implements ModuleImpo
   private final JLabel myStatusMessage = new JBLabel();
   private final JCheckBox myImportModule = new JCheckBox("Import");
   private final JLabel mySourcePath = new JLabel();
-  private final List<ActionListener> myListenerList = Lists.newLinkedList();
+  private final List<ActionListener> myListenerList = new LinkedList<>();
   private int componentNumber = 0;
 
   public ModuleImportSettingsPane() {
