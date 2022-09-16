@@ -15,7 +15,7 @@
  */
 package com.android.tools.idea.gradle.actions;
 
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.MockitoAnnotations.initMocks;
 

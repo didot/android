@@ -57,9 +57,9 @@ import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.ArgumentMatcher
 import org.mockito.ArgumentMatchers.argThat
-import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mockito.any
 import org.mockito.Mockito.anyBoolean
+import org.mockito.Mockito.eq
 import org.mockito.Mockito.verify
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
