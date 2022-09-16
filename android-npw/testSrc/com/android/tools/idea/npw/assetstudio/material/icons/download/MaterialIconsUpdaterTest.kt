@@ -21,6 +21,7 @@ import com.android.tools.idea.npw.assetstudio.material.icons.metadata.MaterialIc
 import com.android.tools.idea.npw.assetstudio.material.icons.utils.MaterialIconsUtils.METADATA_FILE_NAME
 import com.android.tools.idea.testing.AndroidProjectRule
 import com.intellij.openapi.util.Pair
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.util.download.DownloadableFileService
 import com.intellij.util.download.FileDownloader
 import com.intellij.util.download.impl.DownloadableFileDescriptionImpl
@@ -107,7 +108,7 @@ class MaterialIconsUpdaterTest {
     // Setup mocked DownloadFileService, this will write a 'downloaded' file to the 'Downloads' directory when called properly
     val mockDownloadableFileService = projectRule.mockService(DownloadableFileService::class.java)
     val fileDescription = DownloadableFileDescriptionImpl(
-      ICON_DOWNLOAD_URL, com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName("style1/my_icon_1/my_icon_1"), "tmp")
+      ICON_DOWNLOAD_URL, FileUtilRt.toSystemDependentName("style1/my_icon_1/my_icon_1"), "tmp")
     val mockDownloader = Mockito.mock(FileDownloader::class.java)
     whenever(mockDownloader.download(downloadDir.toFile())).thenAnswer {
       // Write file with the new file contents to the 'downloads' directory
@@ -118,7 +119,7 @@ class MaterialIconsUpdaterTest {
       return@thenAnswer listOf(Pair(downloadedFile, fileDescription))
     }
     whenever(mockDownloadableFileService.createFileDescription(
-      ICON_DOWNLOAD_URL, com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName("style1/my_icon_1/style1_my_icon_1_24.tmp"))).thenReturn(fileDescription)
+      ICON_DOWNLOAD_URL, FileUtilRt.toSystemDependentName("style1/my_icon_1/style1_my_icon_1_24.tmp"))).thenReturn(fileDescription)
     whenever(mockDownloadableFileService.createDownloader(Mockito.any(), Mockito.eq("Material Icons"))).thenReturn(mockDownloader)
   }
 
