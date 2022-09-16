@@ -79,7 +79,7 @@ fun createTestModuleRepository(
  */
 fun addAndroidModule(moduleName: String, project: Project, packageName: String, createResources: (moduleResDir: File) -> Unit): Module {
   val root = project.basePath
-  val moduleDir = File(FileUtil.toSystemDependentName(root!!), moduleName)
+  val moduleDir = File(com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(root!!), moduleName)
   val moduleFilePath = File(moduleDir, moduleName + ModuleFileType.DOT_DEFAULT_EXTENSION)
 
   createAndroidManifest(moduleDir, packageName)

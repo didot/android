@@ -19,7 +19,6 @@ import com.google.common.annotations.VisibleForTesting
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.ui.AppUIUtil
 import com.intellij.ui.EditorNotifications
 import org.jetbrains.annotations.SystemIndependent
@@ -42,7 +41,7 @@ open class StateChangeNotification(private val project: Project) : GradleSyncLis
         } catch (e: Throwable) {
           LOG.info(
             "Failed to update editor notifications for file '${
-              FileUtil.toSystemDependentName(file.path)
+              com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(file.path)
             }'", e
           )
         }
