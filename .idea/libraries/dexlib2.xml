@@ -1,7 +1,8 @@
 <component name="libraryTable">
-  <library name="dexlib2">
+  <library name="dexlib2" type="repository">
+    <properties include-transitive-deps="false" maven-id="org.smali:dexlib2:2.5.2" />
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/tools/common/m2/repository/org/smali/dexlib2/2.5.2/dexlib2-2.5.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/smali/dexlib2/2.5.2/dexlib2-2.5.2.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
