@@ -30,9 +30,9 @@ import com.android.sdklib.devices.Screen;
 import com.android.tools.adtui.ImageUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.intellij.openapi.application.PathManager;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.reference.SoftReference;
 import com.intellij.ui.Gray;
-import com.intellij.util.PathUtil;
 import com.intellij.util.ui.StartupUiUtil;
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -720,7 +720,7 @@ public class DeviceArtPainter {
     }
 
     private static File getThumbnailCacheDir() {
-      final String path = ourSystemPath != null ? ourSystemPath : (ourSystemPath = PathUtil.getCanonicalPath(PathManager.getSystemPath()));
+      final String path = ourSystemPath != null ? ourSystemPath : (ourSystemPath = FileUtil.toCanonicalPath(PathManager.getSystemPath()));
       //noinspection HardCodedStringLiteral
       return new File(path, "android-devices" + File.separator + "v4");
     }
