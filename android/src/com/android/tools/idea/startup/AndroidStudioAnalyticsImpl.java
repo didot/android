@@ -15,7 +15,6 @@
  */
 package com.android.tools.idea.startup;
 
-import com.android.tools.analytics.AnalyticsPublisher;
 import com.android.tools.analytics.AnalyticsSettings;
 import com.android.tools.analytics.AnalyticsSettingsData;
 import com.android.tools.analytics.HighlightingStats;
@@ -176,7 +175,6 @@ public class AndroidStudioAnalyticsImpl extends AndroidStudioAnalytics {
     UsageTracker.setMaxJournalSize(1000);
 
     ApplicationInfo application = ApplicationInfo.getInstance();
-    AnalyticsPublisher.updatePublisher(logger, scheduler, application.getStrictVersion());
   }
 
   private ILogger getAndroidLogger() {

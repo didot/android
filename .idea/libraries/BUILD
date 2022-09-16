@@ -278,7 +278,7 @@ jvm_import(
 # managed by go/iml_to_build
 jvm_import(
     name = "firebase_java_proto",
-    jars = ["//tools/vendor/google/firebase/src/proto:firebase_java_proto.jar"],
+    jars = [],
     visibility = ["//visibility:public"],
 )
 
@@ -293,6 +293,6 @@ jvm_import(
 # managed by go/iml_to_build
 jvm_import(
     name = "directaccess_client_proto",
-    jars = ["//tools/vendor/google/directaccess-client/proto:ftl_client_java_proto.jar"],
+    jars = [],
     visibility = ["//visibility:public"],
 )
