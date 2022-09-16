@@ -30,6 +30,7 @@ import com.intellij.openapi.util.Computable;
 import com.intellij.psi.xml.XmlTag;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -320,8 +321,8 @@ public class DefaultModelUpdater implements NlModel.NlModelUpdaterInterface {
     XmlTag[] subTags = tag.getSubTags();
     if (subTags.length > 0) {
       if (NlModel.CHECK_MODEL_INTEGRITY) {
-        Set<NlComponent> seen = Sets.newHashSet();
-        Set<XmlTag> seenTags = Sets.newHashSet();
+        Set<NlComponent> seen = new HashSet<>();
+        Set<XmlTag> seenTags = new HashSet<>();
         for (XmlTag t : subTags) {
           if (seenTags.contains(t)) {
             assert false : t;

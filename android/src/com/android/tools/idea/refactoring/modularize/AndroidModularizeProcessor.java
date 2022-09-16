@@ -29,7 +29,6 @@ import com.android.tools.idea.res.ResourceFolderRegistry;
 import com.android.tools.idea.res.ResourceFolderRepository;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import com.intellij.openapi.application.TransactionGuard;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
@@ -114,7 +113,7 @@ AndroidModularizeProcessor extends BaseRefactoringProcessor {
     for (PsiElement root : myRoots) {
       AndroidFacet facet = AndroidFacet.getInstance(root);
       if (facet != null) {
-        if (!collectModulesClosure(facet.getModule(), Sets.newHashSet()).contains(myTargetModule)) {
+        if (!collectModulesClosure(facet.getModule(), new HashSet<>()).contains(myTargetModule)) {
           myShouldSelectAllReferences = false;
           break;
         }

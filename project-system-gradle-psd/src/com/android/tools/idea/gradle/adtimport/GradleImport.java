@@ -82,6 +82,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -161,7 +162,7 @@ public class GradleImport {
   private boolean myCreateGradleWrapper = false;
   private File mySdkLocation;
   private File myNdkLocation;
-  private Set<String> myHandledJars = Sets.newHashSet();
+  private Set<String> myHandledJars = new HashSet<>();
   private Map<String, File> myWorkspaceProjects;
   /**
    * Whether we should convert project names to lowercase module names
@@ -415,7 +416,7 @@ public class GradleImport {
     myErrors.clear();
     myWorkspaceProjects = null;
     myRootModules = Collections.emptyList();
-    myModules = Sets.newHashSet();
+    myModules = new HashSet<>();
 
     for (File file : projectDirs) {
       if (file.isFile()) {

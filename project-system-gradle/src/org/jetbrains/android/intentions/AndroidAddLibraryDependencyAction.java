@@ -28,7 +28,6 @@ import com.android.tools.idea.gradle.repositories.RepositoryUrlManager;
 import com.android.tools.idea.projectsystem.GoogleMavenArtifactId;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
 import com.intellij.codeInsight.intention.AbstractIntentionAction;
 import com.intellij.codeInsight.intention.HighPriorityAction;
 import com.intellij.openapi.command.WriteCommandAction;
@@ -84,7 +83,7 @@ public class AndroidAddLibraryDependencyAction extends AbstractIntentionAction i
    */
   @NotNull
   private static ImmutableCollection<String> findAllDependencies(@NotNull GradleBuildModel buildModel) {
-    HashSet<String> existingDependencies = Sets.newHashSet();
+    HashSet<String> existingDependencies = new HashSet<>();
     for (ArtifactDependencyModel dependency : buildModel.dependencies().artifacts()) {
       existingDependencies.add(dependency.group().toString() + ":" + dependency.name().toString());
     }
