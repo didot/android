@@ -26,7 +26,6 @@ import com.intellij.testFramework.fixtures.IdeaProjectTestFixture;
 import com.intellij.testFramework.fixtures.TestFixtureBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import org.jetbrains.android.AndroidTestCase;
@@ -84,7 +83,7 @@ public class NonGradleApkProviderDependenciesTest extends AndroidTestCase {
     assertEquals(3, apks.size());
     // Sort the apks to keep test consistent.
     List<ApkInfo> apkList = new ArrayList<>(apks);
-    Collections.sort(apkList, new Comparator<ApkInfo>() {
+    apkList.sort(new Comparator<ApkInfo>() {
       @Override
       public int compare(ApkInfo a, ApkInfo b) {
         return a.getApplicationId().compareTo(b.getApplicationId());
