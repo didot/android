@@ -248,7 +248,7 @@ public class AndroidBuildCommonUtils {
     }
     else if (jarFile.isFile()) {
       if (!jarFile.delete()) {
-        throw new IOException("Cannot delete file " + FileUtil.toSystemDependentName(jarFile.getPath()));
+        throw new IOException("Cannot delete file " + FileUtilRt.toSystemDependentName(jarFile.getPath()));
       }
     }
     List<String> srcFiles = new ArrayList<>();
@@ -411,7 +411,7 @@ public class AndroidBuildCommonUtils {
 
     packClassFilesIntoJar(classFilesDirOsPaths, libClassFilesDirOsPaths, inputJar);
 
-    return FileUtil.toSystemDependentName(inputJar.getPath());
+    return FileUtilRt.toSystemDependentName(inputJar.getPath());
   }
 
   public static String platformToolPath(@NotNull String toolFileName) {

@@ -17,7 +17,6 @@ package com.android.tools.idea.gradle.util;
 
 import static com.android.tools.idea.sdk.IdeSdks.MAC_JDK_CONTENT_PATH;
 import static com.android.tools.idea.ui.GuiTestingService.isInTestingMode;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 
 import com.android.tools.idea.flags.StudioFlags;
 import com.android.tools.idea.util.StudioPathManager;
@@ -27,6 +26,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.SystemInfo;
+import com.intellij.openapi.util.io.FileUtilRt;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -179,7 +179,7 @@ public class EmbeddedDistributionPaths {
 
       // Development build.
       String jdkDevPath = System.getProperty("studio.dev.jdk", StudioPathManager.resolvePathFromSourcesRoot("prebuilts/studio/jdk").toString());
-      String relativePath = toSystemDependentName(jdkDevPath);
+      String relativePath = FileUtilRt.toSystemDependentName(jdkDevPath);
       Path jdkRootPath = Paths.get(relativePath, "jdk11");
       if (SystemInfo.isWindows) {
         jdkRootPath = jdkRootPath.resolve("win");
@@ -212,6 +212,6 @@ public class EmbeddedDistributionPaths {
 
   @NotNull
   private static String getIdeHomePath() {
-    return toSystemDependentName(PathManager.getHomePath());
+    return FileUtilRt.toSystemDependentName(PathManager.getHomePath());
   }
 }

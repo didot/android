@@ -67,6 +67,7 @@ import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VfsUtilCore;
@@ -672,7 +673,7 @@ public class AndroidUtils extends CommonAndroidUtil {
       if (sdkHomeCanonicalPath != null) {
         url = StringUtil.replace(url, AndroidFacetProperties.SDK_HOME_MACRO, sdkHomeCanonicalPath);
       }
-      result.add(FileUtil.toSystemDependentName(VfsUtilCore.urlToPath(url)));
+      result.add(FileUtilRt.toSystemDependentName(VfsUtilCore.urlToPath(url)));
     }
     return result;
   }

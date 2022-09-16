@@ -28,6 +28,7 @@ import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.DumbServiceImpl;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -318,7 +319,7 @@ public class RenderErrorContributorTest extends AndroidTestCase {
   }
 
   public void testMismatchedBinary() throws Exception {
-    final String path = FileUtil.toSystemDependentName("/foo/bar/baz.png");
+    final String path = FileUtilRt.toSystemDependentName("/foo/bar/baz.png");
     LogOperation operation = (logger, render) -> {
       Throwable throwable = createExceptionFromDesc(
         "org.xmlpull.v1.XmlPullParserException: unterminated entity ref (position:TEXT \u0050PNG\u001A\u0000\u0000\u0000" +
