@@ -36,7 +36,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
-import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
 
@@ -54,8 +53,7 @@ class BasicCompileTest {
    * The main reason to include that is because the compose compiler plugin expects
    * the runtime to be path of the classpath or else it'll throw an error.
    */
-  private val composeRuntimePath = TestUtils.getWorkspaceRoot().resolve(
-    "tools/adt/idea/compose-ide-plugin/testData/lib/compose-runtime-1.3.0-SNAPSHOT.jar").toString()
+  private val composeRuntimePath = TestUtils.resolveWorkspacePath("tools/adt/idea/compose-ide-plugin/testData/lib/compose-runtime-1.3.0-SNAPSHOT.jar").toString()
 
   @get:Rule
   var projectRule = AndroidProjectRule.inMemory()
