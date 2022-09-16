@@ -631,5 +631,10 @@ public class BuildVariantView {
     public void syncSkipped(@NotNull Project project) {
       BuildVariantView.getInstance(project).projectImportFinished();
     }
+
+    @Override
+    public void syncCancelled(@NotNull Project project, @NotNull @SystemIndependent String rootProjectPath) {
+
+    }
   }
 }
