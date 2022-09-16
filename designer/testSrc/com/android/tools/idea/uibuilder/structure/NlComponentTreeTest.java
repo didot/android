@@ -58,7 +58,6 @@ import com.android.tools.idea.uibuilder.LayoutTestCase;
 import com.android.tools.idea.uibuilder.handlers.constraint.ConstraintHelperHandler;
 import com.android.tools.idea.uibuilder.surface.NlDesignSurface;
 import com.android.tools.idea.uibuilder.util.MockCopyPasteManager;
-import com.google.common.base.Charsets;
 import com.intellij.ide.DeleteProvider;
 import com.intellij.ide.browsers.BrowserLauncher;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -83,6 +82,7 @@ import java.awt.dnd.DropTargetDropEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -464,7 +464,7 @@ public class NlComponentTreeTest extends LayoutTestCase {
   }
 
   private Pair<LineColumn, String> findLineAtOffset(@NotNull VirtualFile file, int offset) throws IOException {
-    String text = new String(file.contentsToByteArray(), Charsets.UTF_8);
+    String text = new String(file.contentsToByteArray(), StandardCharsets.UTF_8);
     LineColumn line = StringUtil.offsetToLineColumn(text, offset);
     String lineText = text.substring(offset - line.column, text.indexOf('\n', offset));
     return Pair.create(line, lineText.trim());
