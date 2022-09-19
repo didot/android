@@ -24,7 +24,7 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="studio-analytics-proto" level="project" />
-    <orderEntry type="module" module-name="analytics-tracker" />
+    <orderEntry type="module" module-name="android.sdktools.analytics-tracker" />
     <orderEntry type="library" name="studio-plugin-platform-images" level="project" />
     <orderEntry type="module" module-name="android.sdktools.lint-api" />
   </component>

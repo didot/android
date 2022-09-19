@@ -22,7 +22,7 @@
     <orderEntry type="module" module-name="intellij.android.common" />
     <orderEntry type="module" module-name="intellij.android.adt.ui" />
     <orderEntry type="module" module-name="intellij.android.artwork" />
-    <orderEntry type="module" module-name="analytics-tracker" />
+    <orderEntry type="module" module-name="android.sdktools.analytics-tracker" />
     <orderEntry type="module" module-name="intellij.android.wizard" />
     <orderEntry type="library" name="studio-plugin-Kotlin" level="project" />
     <orderEntry type="module" module-name="android.sdktools.flags" />
