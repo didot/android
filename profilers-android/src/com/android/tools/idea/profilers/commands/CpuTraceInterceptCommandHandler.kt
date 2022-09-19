@@ -36,7 +36,7 @@ import com.android.tools.profiler.proto.TransportServiceGrpc
 import com.google.gson.stream.JsonReader
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.io.FileUtilRt
-import org.assertj.core.util.VisibleForTesting
+import org.jetbrains.annotations.VisibleForTesting
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
