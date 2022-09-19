@@ -18,6 +18,8 @@ package com.android.tools.idea.gradle.util;
 import static com.android.tools.idea.gradle.project.ProjectImportUtil.findGradleTarget;
 import static com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil.isExternalSystemAwareModule;
 
+import com.android.tools.idea.gradle.project.facet.gradle.GradleFacet;
+import com.android.tools.idea.model.AndroidModel;
 import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager;
@@ -26,6 +28,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ex.ProjectRootManagerEx;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.util.Objects;
+import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.gradle.settings.GradleSettings;
@@ -99,6 +102,17 @@ public final class GradleProjects {
     boolean isRootProject = Objects.equals(moduleProperties.getRootProjectPath(), moduleProperties.getLinkedProjectPath());
 
     return isRootProject ? ":" : linkedProjectId;
+  }
+
+  public static boolean isIdeaAndroidModule(@NotNull Module module) {
+    if (GradleFacet.getInstance(module) != null) {
+      return true;
+    }
+    AndroidFacet androidFacet = AndroidFacet.getInstance(module);
+    if (androidFacet != null && AndroidModel.isRequired(androidFacet)) {
+      return true;
+    }
+    return false;
   }
 
   /**
