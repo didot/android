@@ -1,17 +1,15 @@
 <component name="libraryTable">
   <library name="studio-plugin-gradle">
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/$SDK_PLATFORM$/plugins/gradle/lib/gradle-api-7.4.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/$SDK_PLATFORM$/plugins/gradle/lib/gradle-api-impldep-7.4.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/$SDK_PLATFORM$/plugins/gradle/lib/gradle-launcher-7.4.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/$SDK_PLATFORM$/plugins/gradle/lib/gradle-tooling-extension-api.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/$SDK_PLATFORM$/plugins/gradle/lib/gradle-tooling-extension-impl.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/$SDK_PLATFORM$/plugins/gradle/lib/gradle-wrapper-7.4.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/$SDK_PLATFORM$/plugins/gradle/lib/gradle.jar!/" />
+      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle.jar!/" />
+      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-launcher-7.4.jar!/" />
+      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-api-impldep-7.4.jar!/" />
+      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-tooling-extension-api.jar!/" />
+      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-api-7.4.jar!/" />
+      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-tooling-extension-impl.jar!/" />
+      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-wrapper-7.4.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES>
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/android-studio-sources.zip!/" />
-    </SOURCES>
+    <SOURCES />
   </library>
 </component>

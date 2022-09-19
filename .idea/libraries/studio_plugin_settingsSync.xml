@@ -1,11 +1,9 @@
 <component name="libraryTable">
   <library name="studio-plugin-settingsSync">
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/$SDK_PLATFORM$/plugins/settingsSync/lib/settingsSync.jar!/" />
+      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/settingsSync/lib/settingsSync.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES>
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/studio/intellij-sdk/AI-221/android-studio-sources.zip!/" />
-    </SOURCES>
+    <SOURCES />
   </library>
 </component>
