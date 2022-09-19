@@ -93,7 +93,7 @@ open class AndroidLiveEditJvmIrCodegenFactory(
         val symbolTable = SymbolTable(JvmIdSignatureDescriptor(mangler), IrFactoryImpl)
         mangler to symbolTable
       }
-    val psi2ir = Psi2IrTranslator(input.languageVersionSettings, Psi2IrConfiguration(input.ignoreErrors))
+    val psi2ir = Psi2IrTranslator(input.languageVersionSettings, Psi2IrConfiguration(input.ignoreErrors)) { _, _ -> }
     val messageLogger = input.configuration[IrMessageLogger.IR_MESSAGE_LOGGER] ?: IrMessageLogger.None
     val psi2irContext = psi2ir.createGeneratorContext(
       input.module,
