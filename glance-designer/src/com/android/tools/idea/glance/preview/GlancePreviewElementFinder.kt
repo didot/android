@@ -19,12 +19,12 @@ import com.android.tools.idea.annotations.findAnnotatedMethodsValues
 import com.android.tools.idea.annotations.hasAnnotations
 import com.android.tools.idea.preview.PreviewDisplaySettings
 import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.SmartPsiElementPointer
-import org.jetbrains.kotlin.idea.caches.resolve.util.isInDumbMode
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
@@ -113,7 +113,7 @@ open class GlancePreviewElementFinder(private val surfaceName: String) :
     )
 
   override fun hasPreviewElements(project: Project, vFile: VirtualFile): Boolean {
-    if (project.isInDumbMode()) {
+    if (DumbService.isDumb(project)) {
       return false
     }
     return hasAnnotations(
