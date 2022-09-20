@@ -532,9 +532,10 @@ class AndroidGradleProjectResolver @NonInjectable @VisibleForTesting internal co
 
   private fun buildArtifactsModuleIdMap(ideProject: DataNode<ProjectData>): Map<String, List<String>> =
     mergeProjectResolvedArtifacts(
-      kmpArtifactToModuleIdMap = ideProject
-        .getUserData(KotlinMPPGradleProjectResolver.MPP_CONFIGURATION_ARTIFACTS)
-        .orEmpty(),
+      kmpArtifactToModuleIdMap = emptyMap(),
+      //kmpArtifactToModuleIdMap = ideProject // FIXME
+        //.getUserData(KotlinMPPGradleProjectResolver.MPP_CONFIGURATION_ARTIFACTS)
+        //.orEmpty(),
       artifactToModuleIdMap = ideProject
         .getUserData(GradleProjectResolver.CONFIGURATION_ARTIFACTS)
         ?.mapValues { listOf(it.value) }
