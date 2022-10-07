@@ -5,15 +5,8 @@
       <module fileurl="file://$PROJECT_DIR$/analytics/analytics.iml" filepath="$PROJECT_DIR$/analytics/analytics.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../analytics-library/crash/analytics-crash.iml" filepath="$PROJECT_DIR$/../../analytics-library/crash/analytics-crash.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../analytics-library/inspector/analytics-inspector.iml" filepath="$PROJECT_DIR$/../../analytics-library/inspector/analytics-inspector.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../analytics-library/publisher/analytics-publisher.iml" filepath="$PROJECT_DIR$/../../analytics-library/publisher/analytics-publisher.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../analytics-library/shared/analytics-shared.iml" filepath="$PROJECT_DIR$/../../analytics-library/shared/analytics-shared.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../analytics-library/tracker/analytics-tracker.iml" filepath="$PROJECT_DIR$/../../analytics-library/tracker/analytics-tracker.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/android-apk/android-apk.iml" filepath="$PROJECT_DIR$/../../vendor/google/android-apk/android-apk.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/android-apk/android-apk.tests.iml" filepath="$PROJECT_DIR$/../../vendor/google/android-apk/android-apk.tests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/android-ndk/android-ndk.iml" filepath="$PROJECT_DIR$/../../vendor/google/android-ndk/android-ndk.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/android-ndk/android-ndk.tests.iml" filepath="$PROJECT_DIR$/../../vendor/google/android-ndk/android-ndk.tests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/game-tools/main/android.game-tools.main.iml" filepath="$PROJECT_DIR$/../../vendor/google/game-tools/main/android.game-tools.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/game-tools/packaging/android.game-tools.packaging.iml" filepath="$PROJECT_DIR$/../../vendor/google/game-tools/packaging/android.game-tools.packaging.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/adblib/android.sdktools.adblib.iml" filepath="$PROJECT_DIR$/../../base/adblib/android.sdktools.adblib.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/adblib-ddmlibcompatibility/android.sdktools.adblib.ddmlibcompatibility.iml" filepath="$PROJECT_DIR$/../../base/adblib-ddmlibcompatibility/android.sdktools.adblib.ddmlibcompatibility.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/adblib-tools/android.sdktools.adblib.tools.iml" filepath="$PROJECT_DIR$/../../base/adblib-tools/android.sdktools.adblib.tools.iml" />
@@ -90,20 +83,6 @@
       <module fileurl="file://$PROJECT_DIR$/as-driver/utils/as-driver.utils.iml" filepath="$PROJECT_DIR$/as-driver/utils/as-driver.utils.iml" />
       <module fileurl="file://$PROJECT_DIR$/assistant/assistant.iml" filepath="$PROJECT_DIR$/assistant/assistant.iml" />
       <module fileurl="file://$PROJECT_DIR$/assistant/assistant-test.iml" filepath="$PROJECT_DIR$/assistant/assistant-test.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/debugz/aswb.debugz.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/debugz/aswb.debugz.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/aswb/aswb.jcgdi.blaze.plugin.aswb.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/aswb/aswb.jcgdi.blaze.plugin.aswb.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/base/aswb.jcgdi.blaze.plugin.base.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/base/aswb.jcgdi.blaze.plugin.base.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/cpp/aswb.jcgdi.blaze.plugin.cpp.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/cpp/aswb.jcgdi.blaze.plugin.cpp.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/java/aswb.jcgdi.blaze.plugin.java.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/java/aswb.jcgdi.blaze.plugin.java.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/aswb/aswb.third_party.intellij.bazel.plugin.aswb.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/aswb/aswb.third_party.intellij.bazel.plugin.aswb.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/base/aswb.third_party.intellij.bazel.plugin.base.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/base/aswb.third_party.intellij.bazel.plugin.base.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/aswb/aswb.third_party.intellij.bazel.plugin.base.tests.integrationtests.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/java/com/google/devtools/intellij/blaze/plugin/aswb/aswb.third_party.intellij.bazel.plugin.base.tests.integrationtests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/plugin/common/aswb.third_party.intellij.bazel.plugin.common.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/plugin/common/aswb.third_party.intellij.bazel.plugin.common.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/cpp/aswb.third_party.intellij.bazel.plugin.cpp.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/cpp/aswb.third_party.intellij.bazel.plugin.cpp.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/java/aswb.third_party.intellij.bazel.plugin.java.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/java/aswb.third_party.intellij.bazel.plugin.java.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/kotlin/aswb.third_party.intellij.bazel.plugin.kotlin.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/bazel/plugin/kotlin/aswb.third_party.intellij.bazel.plugin.kotlin.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/plugin/sdkcompat/aswb.third_party.intellij.plugin.sdkcompat.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/plugin/sdkcompat/aswb.third_party.intellij.plugin.sdkcompat.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/plugin/testing/aswb.third_party.intellij.plugin.testing.iml" filepath="$PROJECT_DIR$/../../vendor/google3/blaze/third_party/intellij/plugin/testing/aswb.third_party.intellij.plugin.testing.iml" />
       <module fileurl="file://$PROJECT_DIR$/codenavigation/codenavigation.iml" filepath="$PROJECT_DIR$/codenavigation/codenavigation.iml" />
       <module fileurl="file://$PROJECT_DIR$/connection-assistant/connection-assistant.iml" filepath="$PROJECT_DIR$/connection-assistant/connection-assistant.iml" />
       <module fileurl="file://$PROJECT_DIR$/connection-assistant/connection-assistant-test.iml" filepath="$PROJECT_DIR$/connection-assistant/connection-assistant-test.iml" />
@@ -113,17 +92,6 @@
       <module fileurl="file://$PROJECT_DIR$/../../data-binding/compiler/db-compiler.iml" filepath="$PROJECT_DIR$/../../data-binding/compiler/db-compiler.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../data-binding/compilerCommon/db-compilerCommon.iml" filepath="$PROJECT_DIR$/../../data-binding/compilerCommon/db-compilerCommon.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/dynamic-layout-inspector/common/dynamic-layout-inspector.common.iml" filepath="$PROJECT_DIR$/../../base/dynamic-layout-inspector/common/dynamic-layout-inspector.common.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../swing-testing/fest-swing/fest-swing.iml" filepath="$PROJECT_DIR$/../../swing-testing/fest-swing/fest-swing.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/firebase/firebase.iml" filepath="$PROJECT_DIR$/../../vendor/google/firebase/firebase.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../studio/google/cloud/testing/directaccess/directaccess.iml" filepath="$PROJECT_DIR$/../../studio/google/cloud/testing/directaccess/directaccess.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/directaccess-client/directaccess-client.iml" filepath="$PROJECT_DIR$/../../vendor/google/directaccess-client/directaccess-client.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../studio/google/cloud/testing/firebase-testing/firebase-testing.iml" filepath="$PROJECT_DIR$/../../studio/google/cloud/testing/firebase-testing/firebase-testing.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/firebase/integration/firebase.integration.iml" filepath="$PROJECT_DIR$/../../vendor/google/firebase/integration/firebase.integration.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../studio/google/appindexing/google-appindexing.iml" filepath="$PROJECT_DIR$/../../studio/google/appindexing/google-appindexing.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../studio/google/cloud/tools/android-studio-plugin/google-cloud-tools-as.iml" filepath="$PROJECT_DIR$/../../studio/google/cloud/tools/android-studio-plugin/google-cloud-tools-as.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../studio/google/cloud/tools/core-plugin/google-cloud-tools-core-as.iml" filepath="$PROJECT_DIR$/../../studio/google/cloud/tools/core-plugin/google-cloud-tools-core-as.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../studio/google/cloud/tools/google-login-plugin/google-login-as.iml" filepath="$PROJECT_DIR$/../../studio/google/cloud/tools/google-login-plugin/google-login-as.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../studio/google/samples/google-samples.iml" filepath="$PROJECT_DIR$/../../studio/google/samples/google-samples.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-adb/intellij.android.adb.iml" filepath="$PROJECT_DIR$/android-adb/intellij.android.adb.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-adb/intellij.android.adb.tests.iml" filepath="$PROJECT_DIR$/android-adb/intellij.android.adb.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-adb-ui/intellij.android.adb.ui.iml" filepath="$PROJECT_DIR$/android-adb-ui/intellij.android.adb.ui.iml" />
@@ -146,11 +114,8 @@
       <module fileurl="file://$PROJECT_DIR$/compose-designer/intellij.android.compose-designer.tests.iml" filepath="$PROJECT_DIR$/compose-designer/intellij.android.compose-designer.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/compose-ide-plugin/intellij.android.compose-ide-plugin.iml" filepath="$PROJECT_DIR$/compose-ide-plugin/intellij.android.compose-ide-plugin.iml" />
       <module fileurl="file://$PROJECT_DIR$/compose-ide-plugin/intellij.android.compose-ide-plugin.tests.iml" filepath="$PROJECT_DIR$/compose-ide-plugin/intellij.android.compose-ide-plugin.tests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/compose-samples/intellij.android.compose-samples.iml" filepath="$PROJECT_DIR$/compose-samples/intellij.android.compose-samples.iml" />
-      <module fileurl="file://$PROJECT_DIR$/compose-samples/intellij.android.compose-samples.tests.iml" filepath="$PROJECT_DIR$/compose-samples/intellij.android.compose-samples.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/android/intellij.android.core.iml" filepath="$PROJECT_DIR$/android/intellij.android.core.iml" />
       <module fileurl="file://$PROJECT_DIR$/android/intellij.android.core.agp-integration-tests.iml" filepath="$PROJECT_DIR$/android/intellij.android.core.agp-integration-tests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/android/integration/intellij.android.core.integration.iml" filepath="$PROJECT_DIR$/android/integration/intellij.android.core.integration.iml" />
       <module fileurl="file://$PROJECT_DIR$/android/intellij.android.core.tests.iml" filepath="$PROJECT_DIR$/android/intellij.android.core.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/dagger/intellij.android.dagger.iml" filepath="$PROJECT_DIR$/dagger/intellij.android.dagger.iml" />
       <module fileurl="file://$PROJECT_DIR$/dagger/intellij.android.dagger.tests.iml" filepath="$PROJECT_DIR$/dagger/intellij.android.dagger.tests.iml" />
@@ -180,8 +145,6 @@
       <module fileurl="file://$PROJECT_DIR$/gradle-dsl/intellij.android.gradle.dsl.tests.iml" filepath="$PROJECT_DIR$/gradle-dsl/intellij.android.gradle.dsl.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/gradle-dsl/intellij.android.gradle.dsl.testutils.iml" filepath="$PROJECT_DIR$/gradle-dsl/intellij.android.gradle.dsl.testutils.iml" />
       <module fileurl="file://$PROJECT_DIR$/gradle-dsl-toml/intellij.android.gradle.dsl.toml.iml" filepath="$PROJECT_DIR$/gradle-dsl-toml/intellij.android.gradle.dsl.toml.iml" />
-      <module fileurl="file://$PROJECT_DIR$/uitest-framework/intellij.android.guiTestFramework.iml" filepath="$PROJECT_DIR$/uitest-framework/intellij.android.guiTestFramework.iml" />
-      <module fileurl="file://$PROJECT_DIR$/android-uitests/intellij.android.guiTests.iml" filepath="$PROJECT_DIR$/android-uitests/intellij.android.guiTests.iml" />
       <module fileurl="file://$PROJECT_DIR$/ide-perf-tests/intellij.android.ide-perf-tests.iml" filepath="$PROJECT_DIR$/ide-perf-tests/intellij.android.ide-perf-tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/inspectors-common/api/intellij.android.inspectors-common.api.iml" filepath="$PROJECT_DIR$/inspectors-common/api/intellij.android.inspectors-common.api.iml" />
       <module fileurl="file://$PROJECT_DIR$/inspectors-common/api-ide/intellij.android.inspectors-common.api-ide.iml" filepath="$PROJECT_DIR$/inspectors-common/api-ide/intellij.android.inspectors-common.api-ide.iml" />
@@ -257,8 +220,6 @@
       <module fileurl="file://$PROJECT_DIR$/threading-checker/intellij.android.threading-checker.tests.iml" filepath="$PROJECT_DIR$/threading-checker/intellij.android.threading-checker.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/android-transport/intellij.android.transport.iml" filepath="$PROJECT_DIR$/android-transport/intellij.android.transport.iml" />
       <module fileurl="file://$PROJECT_DIR$/transport-database/intellij.android.transportDatabase.iml" filepath="$PROJECT_DIR$/transport-database/intellij.android.transportDatabase.iml" />
-      <module fileurl="file://$PROJECT_DIR$/studio-updater/intellij.android.updater.studio-updater.iml" filepath="$PROJECT_DIR$/studio-updater/intellij.android.updater.studio-updater.iml" />
-      <module fileurl="file://$PROJECT_DIR$/updater-ui/intellij.android.updater.ui.iml" filepath="$PROJECT_DIR$/updater-ui/intellij.android.updater.ui.iml" />
       <module fileurl="file://$PROJECT_DIR$/glance-designer/intellij.android.glance-designer.iml" filepath="$PROJECT_DIR$/glance-designer/intellij.android.glance-designer.iml" />
       <module fileurl="file://$PROJECT_DIR$/glance-designer/intellij.android.glance-designer.tests.iml" filepath="$PROJECT_DIR$/glance-designer/intellij.android.glance-designer.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/wear-pairing/intellij.android.wear-pairing.iml" filepath="$PROJECT_DIR$/wear-pairing/intellij.android.wear-pairing.iml" />
@@ -271,15 +232,9 @@
       <module fileurl="file://$PROJECT_DIR$/lint/intellij.lint.iml" filepath="$PROJECT_DIR$/lint/intellij.lint.iml" />
       <module fileurl="file://$PROJECT_DIR$/lint/tests/intellij.lint.tests.iml" filepath="$PROJECT_DIR$/lint/tests/intellij.lint.tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/kotlin-integration/kotlin-integration-tests.iml" filepath="$PROJECT_DIR$/kotlin-integration/kotlin-integration-tests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/lldb-integration-tests/lldb-integration-tests.iml" filepath="$PROJECT_DIR$/../../vendor/google/lldb-integration-tests/lldb-integration-tests.iml" />
       <module fileurl="file://$PROJECT_DIR$/native-symbolizer/native-symbolizer.iml" filepath="$PROJECT_DIR$/native-symbolizer/native-symbolizer.iml" />
-      <module fileurl="file://$PROJECT_DIR$/observable-demo/observable-demo.iml" filepath="$PROJECT_DIR$/observable-demo/observable-demo.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/perf-logger/perf-logger.iml" filepath="$PROJECT_DIR$/../../base/perf-logger/perf-logger.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/real-world-integration-test/real-world-integration-tests.iml" filepath="$PROJECT_DIR$/../../vendor/google/real-world-integration-test/real-world-integration-tests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/studio/studio.iml" filepath="$PROJECT_DIR$/studio/studio.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../studio/google/cloud/testing/test-recorder/test-recorder.iml" filepath="$PROJECT_DIR$/../../studio/google/cloud/testing/test-recorder/test-recorder.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/testutils/testutils-tests.iml" filepath="$PROJECT_DIR$/../../base/testutils/testutils-tests.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../vendor/google/url-assistant/url-assistant.iml" filepath="$PROJECT_DIR$/../../vendor/google/url-assistant/url-assistant.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../base/usb-devices/usb-devices.iml" filepath="$PROJECT_DIR$/../../base/usb-devices/usb-devices.iml" />
       <module fileurl="file://$PROJECT_DIR$/utp/utp.iml" filepath="$PROJECT_DIR$/utp/utp.iml" />
       <module fileurl="file://$PROJECT_DIR$/whats-new-assistant/whats-new-assistant.iml" filepath="$PROJECT_DIR$/whats-new-assistant/whats-new-assistant.iml" />
