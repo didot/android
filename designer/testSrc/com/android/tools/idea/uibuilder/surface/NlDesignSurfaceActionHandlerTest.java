@@ -15,6 +15,19 @@
  */
 package com.android.tools.idea.uibuilder.surface;
 
+import static com.android.SdkConstants.ABSOLUTE_LAYOUT;
+import static com.android.SdkConstants.BUTTON;
+import static com.android.SdkConstants.LINEAR_LAYOUT;
+import static com.android.SdkConstants.RELATIVE_LAYOUT;
+import static com.android.SdkConstants.TEXT_VIEW;
+import static com.android.tools.idea.common.LayoutTestUtilities.createScreen;
+import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertNotEquals;
+import static org.mockito.Mockito.notNull;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.MockitoAnnotations.initMocks;
+
 import com.android.tools.idea.common.SyncNlModel;
 import com.android.tools.idea.common.fixtures.ModelBuilder;
 import com.android.tools.idea.common.model.NlComponent;
@@ -28,20 +41,11 @@ import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.util.Disposer;
+import java.util.ArrayList;
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.mockito.Mock;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static com.android.SdkConstants.*;
-import static com.android.tools.idea.common.LayoutTestUtilities.createScreen;
-import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertNotEquals;
-import static org.mockito.ArgumentMatchers.notNull;
-import static org.mockito.Mockito.*;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 public class NlDesignSurfaceActionHandlerTest extends LayoutTestCase {
 
