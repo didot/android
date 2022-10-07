@@ -8,6 +8,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.io.IOException;
@@ -72,7 +73,7 @@ class ImportModuleTask extends ModuleProvidingTask {
   @Override
   public String getTitle() {
     return AndroidBundle
-      .message("android.import.dependencies.import.module.task.title", getModuleName(), FileUtil.toSystemDependentName(myModuleFilePath));
+      .message("android.import.dependencies.import.module.task.title", getModuleName(), FileUtilRt.toSystemDependentName(myModuleFilePath));
   }
 
   @Override

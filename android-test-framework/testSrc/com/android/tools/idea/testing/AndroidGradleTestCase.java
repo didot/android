@@ -29,7 +29,6 @@ import static com.android.tools.idea.testing.TestProjectPaths.SIMPLE_APPLICATION
 import static com.google.common.truth.Truth.assertAbout;
 import static com.google.common.truth.Truth.assertThat;
 import static com.intellij.openapi.util.io.FileUtil.join;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.android.testutils.TestUtils;
@@ -55,6 +54,7 @@ import com.intellij.openapi.project.ex.ProjectManagerEx;
 import com.intellij.openapi.ui.TestDialog;
 import com.intellij.openapi.ui.TestDialogManager;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -176,7 +176,7 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
     ensureSdkManagerAvailable();
 
     Project project = fixture.getProject();
-    FileUtil.ensureExists(new File(toSystemDependentName(project.getBasePath())));
+    FileUtil.ensureExists(new File(FileUtilRt.toSystemDependentName(project.getBasePath())));
     LocalFileSystem.getInstance().refreshAndFindFileByPath(project.getBasePath());
     AndroidGradleTests.setUpSdks(fixture, TestUtils.getSdk().toFile());
     myFixture = fixture;
@@ -336,7 +336,7 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
                                          @Nullable String kotlinVersion,
                                          @Nullable String ndkVersion,
                                          @Nullable String compileSdk) throws IOException {
-    File projectRoot = new File(toSystemDependentName(getProject().getBasePath()));
+    File projectRoot = new File(FileUtilRt.toSystemDependentName(getProject().getBasePath()));
     return prepareProjectForImport(relativePath, projectRoot, gradleVersion, gradlePluginVersion, kotlinVersion, ndkVersion, compileSdk);
   }
 
@@ -350,7 +350,7 @@ public abstract class AndroidGradleTestCase extends AndroidTestBase implements G
   @NotNull
   @Override
   public File resolveTestDataPath(@NotNull @SystemIndependent String relativePath) {
-    return new File(myFixture.getTestDataPath(), toSystemDependentName(relativePath));
+    return new File(myFixture.getTestDataPath(), FileUtilRt.toSystemDependentName(relativePath));
   }
 
 

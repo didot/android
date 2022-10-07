@@ -27,7 +27,6 @@ import static com.intellij.openapi.projectRoots.impl.SdkConfigurationUtil.create
 import static com.intellij.openapi.roots.OrderRootType.CLASSES;
 import static com.intellij.openapi.roots.OrderRootType.SOURCES;
 import static com.intellij.openapi.util.io.FileUtil.toCanonicalPath;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static com.intellij.openapi.util.io.FileUtil.toSystemIndependentName;
 import static com.intellij.openapi.vfs.JarFileSystem.JAR_SEPARATOR;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
@@ -58,6 +57,7 @@ import com.intellij.openapi.roots.OrderEntry;
 import com.intellij.openapi.roots.ProjectFileIndex;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.roots.libraries.ui.OrderRoot;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.JarFileSystem;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -374,7 +374,7 @@ public class AndroidSdks {
 
     // Explicitly add annotations.jar unless the target platform already provides it (API16+).
     if (sdkPath != null && needsAnnotationsJarInClasspath(target)) {
-      File annotationsJarPath = new File(sdkPath, toSystemDependentName(ANNOTATIONS_JAR_RELATIVE_PATH));
+      File annotationsJarPath = new File(sdkPath, FileUtilRt.toSystemDependentName(ANNOTATIONS_JAR_RELATIVE_PATH));
       VirtualFile annotationsJar = findFileInJarFileSystem(annotationsJarPath.getPath());
       if (annotationsJar != null) {
         result.add(new OrderRoot(annotationsJar, CLASSES));

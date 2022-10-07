@@ -104,7 +104,7 @@ public final class AndroidApt {
       }
     }
 
-    final String packageFolderOsPath = FileUtil.toSystemDependentName(outDirOsPath + '/' + aPackage.replace('.', '/'));
+    final String packageFolderOsPath = FileUtilRt.toSystemDependentName(outDirOsPath + '/' + aPackage.replace('.', '/'));
 
     /* We actually need to delete the manifest.java as it may become empty and
     in this case aapt doesn't generate an empty one, but instead doesn't
@@ -127,7 +127,7 @@ public final class AndroidApt {
 
     for (int i = 0, n = libRTxtFilesAndPackages.size(); i < n; i++) {
       final String libPackage = libRTxtFilesAndPackages.get(i).getSecond();
-      final String libPackageFolderOsPath = FileUtil.toSystemDependentName(outDirOsPath + '/' + libPackage.replace('.', '/'));
+      final String libPackageFolderOsPath = FileUtilRt.toSystemDependentName(outDirOsPath + '/' + libPackage.replace('.', '/'));
       extraRJavaFiles[i] = new File(libPackageFolderOsPath + File.separatorChar + AndroidBuildCommonUtils.R_JAVA_FILENAME);
     }
 
@@ -349,18 +349,18 @@ public final class AndroidApt {
     for (String resDirPath : resPaths) {
       if (FileUtil.isAncestor(resDirPath, outputPath, false)) {
         throw new IOException("Resource directory " +
-                              FileUtil.toSystemDependentName(resDirPath) +
+                              FileUtilRt.toSystemDependentName(resDirPath) +
                               " contains output " +
-                              FileUtil.toSystemDependentName(outputPath));
+                              FileUtilRt.toSystemDependentName(outputPath));
       }
     }
 
     for (String assetsDirPath : osAssetDirPaths) {
       if (FileUtil.isAncestor(assetsDirPath, outputPath, false)) {
         throw new IOException("Assets directory " +
-                              FileUtil.toSystemDependentName(assetsDirPath) +
+                              FileUtilRt.toSystemDependentName(assetsDirPath) +
                               " contains output " +
-                              FileUtil.toSystemDependentName(outputPath));
+                              FileUtilRt.toSystemDependentName(outputPath));
       }
     }
 

@@ -37,7 +37,6 @@ import static com.intellij.openapi.projectRoots.JavaSdkVersion.JDK_1_8;
 import static com.intellij.openapi.util.io.FileUtil.copyDir;
 import static com.intellij.openapi.util.io.FileUtil.notNullize;
 import static com.intellij.openapi.util.io.FileUtil.toCanonicalPath;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static com.intellij.openapi.util.text.StringUtil.isEmpty;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 import static org.junit.Assert.assertNotNull;
@@ -75,6 +74,7 @@ import com.intellij.openapi.projectRoots.ProjectJdkTable;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.util.SystemInfo;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.testFramework.EdtTestUtil;
@@ -742,7 +742,7 @@ public class AndroidGradleTests {
 
   public static String getEmbeddedJdk8Path() throws IOException {
     String jdkDevPath = System.getProperty("studio.dev.jdk", StudioPathManager.resolvePathFromSourcesRoot("prebuilts/studio/jdk").toString());
-    String relativePath = toSystemDependentName(jdkDevPath);
+    String relativePath = FileUtilRt.toSystemDependentName(jdkDevPath);
     File jdkRootPath = new File(toCanonicalPath(relativePath));
     if (SystemInfo.isWindows) {
       // For JDK8 we have 32 and 64 bits versions on Windows

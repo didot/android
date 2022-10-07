@@ -38,6 +38,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
@@ -89,7 +90,7 @@ public class ExportProjectZip extends AnAction implements DumbAware {
     excludes.add(zipFile);
 
     assert project.getBasePath() != null;
-    File basePath = new File(FileUtil.toSystemDependentName(project.getBasePath()));
+    File basePath = new File(FileUtilRt.toSystemDependentName(project.getBasePath()));
     allRoots.add(basePath);
 
     excludes.add(new File(basePath, SdkConstants.FN_LOCAL_PROPERTIES));

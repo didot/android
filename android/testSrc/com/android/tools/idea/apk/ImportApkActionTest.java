@@ -18,7 +18,6 @@ package com.android.tools.idea.apk;
 import static com.android.tools.idea.Projects.getBaseDirPath;
 import static com.android.tools.idea.apk.ImportApkAction.LAST_IMPORTED_LOCATION;
 import static com.android.tools.idea.testing.ProjectFiles.createFileInProjectRoot;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -33,6 +32,7 @@ import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.externalSystem.ExternalSystemManager;
 import com.intellij.openapi.fileChooser.FileChooserDialog;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.PlatformTestCase;
 import java.io.File;
@@ -104,7 +104,7 @@ public class ImportApkActionTest extends PlatformTestCase {
     myAction.actionPerformed(mock(AnActionEvent.class));
 
     assertSame(myApkToImport, myProjectTypeImporter.importedApkFile); // Verify that the APK file was imported.
-    assertEquals(toSystemDependentName(myApkToImport.getPath()), myPropertiesComponent.getValue(LAST_IMPORTED_LOCATION));
+    assertEquals(FileUtilRt.toSystemDependentName(myApkToImport.getPath()), myPropertiesComponent.getValue(LAST_IMPORTED_LOCATION));
 
     // See: https://issuetracker.google.com/67708415
     assertEquals(myRecentProjectLocation.getPath(), myRecentProjectsManager.getLastProjectCreationLocation());

@@ -23,7 +23,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ModifiableRootModel;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.util.Computable;
-import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.android.facet.AndroidFacet;
 import org.jetbrains.android.sdk.AndroidSdkUtils;
@@ -65,7 +65,7 @@ class CreateNewModuleTask extends ModuleProvidingTask {
   @NotNull
   @Override
   public String getTitle() {
-    final String contentRootPath = FileUtil.toSystemDependentName(myContentRoot.getPath());
+    final String contentRootPath = FileUtilRt.toSystemDependentName(myContentRoot.getPath());
     return AndroidBundle.message("android.import.dependencies.new.module.task.title", getModuleName(), contentRootPath);
   }
 

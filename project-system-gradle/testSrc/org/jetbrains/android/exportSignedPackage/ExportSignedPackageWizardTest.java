@@ -17,7 +17,6 @@ package org.jetbrains.android.exportSignedPackage;
 
 import static com.android.tools.idea.testing.TestProjectPaths.SIGNAPK_MULTIFLAVOR;
 import static com.android.tools.idea.testing.TestProjectPaths.SIGNAPK_NO_FLAVORS;
-import static com.intellij.openapi.util.io.FileUtil.toSystemDependentName;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.jetbrains.android.exportSignedPackage.ExportSignedPackageWizard.getTaskNamesFromSelectedVariant;
@@ -26,6 +25,7 @@ import com.android.tools.idea.gradle.model.IdeAndroidProject;
 import com.android.tools.idea.gradle.util.BuildMode;
 import com.android.tools.idea.testing.AndroidGradleTestCase;
 import com.google.common.collect.Sets;
+import com.intellij.openapi.util.io.FileUtilRt;
 import java.util.List;
 import java.util.Set;
 
@@ -61,7 +61,7 @@ public class ExportSignedPackageWizardTest extends AndroidGradleTestCase {
 
   public void testApkLocationCorrect() {
     // This test guarantees user is taken to the folder with the selected build type outputs
-    assertEquals(toSystemDependentName("path/to/folder/release"),
+    assertEquals(FileUtilRt.toSystemDependentName("path/to/folder/release"),
                  ExportSignedPackageWizard.getApkLocation("path/to/folder", "release").toString());
   }
 

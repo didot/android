@@ -28,7 +28,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.ValidationInfo;
-import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.util.List;
@@ -159,18 +159,17 @@ public class CreateXmlResourceDialog extends DialogWrapper {
       }
 
       if (!FileTypeRegistry.getInstance().isFileOfType(resFile, XmlFileType.INSTANCE)) {
-        return new ValidationInfo("File " + FileUtil.toSystemDependentName(resFile.getPath()) + " is not XML file");
+        return new ValidationInfo("File " + FileUtilRt.toSystemDependentName(resFile.getPath()) + " is not XML file");
       }
 
       final Resources resources = AndroidUtils.loadDomElement(project, resFile, Resources.class);
       if (resources == null) {
-        return new ValidationInfo(AndroidBundle.message("not.resource.file.error", FileUtil.toSystemDependentName(resFile.getPath())));
+        return new ValidationInfo(AndroidBundle.message("not.resource.file.error", FileUtilRt.toSystemDependentName(resFile.getPath())));
       }
 
       for (ResourceElement element : IdeResourcesUtil.getValueResourcesFromElement(resourceType, resources)) {
         if (resourceName.equals(element.getName().getStringValue()) && !StringUtil.equals(resourceValue, element.getStringValue())) {
-          return new ValidationInfo("resource '" + resourceName + "' already exists in " + FileUtil.toSystemDependentName(
-            resFile.getPath()) + "with a different value.");
+          return new ValidationInfo("resource '" + resourceName + "' already exists in " + FileUtilRt.toSystemDependentName(resFile.getPath()) + "with a different value.");
         }
       }
     }
