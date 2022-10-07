@@ -308,8 +308,7 @@ enum class TestProject(
     listOf(File(AndroidTestBase.getTestDataPath(), PathUtil.toSystemDependentName(TestProjectToSnapshotPaths.PSD_SAMPLE_REPO)))
 
   private fun resolveTestDataPath(testDataPath: @SystemIndependent String): File {
-    val testDataDirectory = TestUtils.getWorkspaceRoot()
-      .resolve(FileUtilRt.toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
+    val testDataDirectory = TestUtils.resolveWorkspacePath(FileUtilRt.toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
     return testDataDirectory.resolve(FileUtilRt.toSystemDependentName(testDataPath)).toFile()
   }
 }
