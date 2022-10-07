@@ -92,7 +92,6 @@ import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.ui.scale.JBUIScale;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.LafIconLookup;
 import icons.StudioIcons;
 import java.awt.Color;
@@ -1172,7 +1171,7 @@ public class CommonActions {
           @Override
           public void paintIcon(Component c, Graphics g, int x, int y) {
             g.setColor(JBColor.foreground());
-            g.setFont(g.getFont().deriveFont(Font.PLAIN, JBUI.scaleFontSize(DEFAULT_ICON_FONT_SIZE)));
+            g.setFont(g.getFont().deriveFont(Font.PLAIN, JBUIScale.scaleFontSize(DEFAULT_ICON_FONT_SIZE)));
             String m = myPreviousDisplay;
             FontMetrics metrics = g.getFontMetrics();
             int strWidth = metrics.stringWidth(m);

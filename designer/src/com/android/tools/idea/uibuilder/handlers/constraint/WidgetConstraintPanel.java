@@ -280,7 +280,7 @@ public class WidgetConstraintPanel extends AdtSecondaryPanel implements CustomPa
     private final int SLIDER_LENGTH = JBUIScale.scale(120);
     private final Dimension V_SIZE = new Dimension(THUMB_SIZE.width, SLIDER_LENGTH);
     private final Dimension H_SIZE = new Dimension(SLIDER_LENGTH, THUMB_SIZE.height);
-    @NotNull private Font SMALL_FONT = new Font("Helvetica", Font.PLAIN, JBUI.scaleFontSize(10));
+    @NotNull private Font SMALL_FONT = new Font("Helvetica", Font.PLAIN, JBUIScale.scaleFontSize(10));
     private ColorSet mColorSet;
 
     WidgetSliderUI(JSlider s, ColorSet colorSet) {
