@@ -65,7 +65,7 @@ import com.intellij.refactoring.util.RefactoringUIUtil;
 import com.intellij.usageView.UsageInfo;
 import com.intellij.usageView.UsageViewDescriptor;
 import com.intellij.usageView.UsageViewUtil;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.IncorrectOperationException;
 import java.io.File;
 import java.util.ArrayList;
@@ -146,7 +146,7 @@ public class UnusedResourcesProcessor extends BaseRefactoringProcessor {
                 // we can skip removing these references later on.
                 Module module = ModuleUtilCore.findModuleForFile(psiFile);
                 if (module != null) {
-                  if (ArrayUtil.find(myModules, module) == -1) {
+                  if (ArrayUtilRt.find(myModules, module) == -1) {
                     excludedFiles.add(psiFile);
                   }
                 }

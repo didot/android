@@ -29,7 +29,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.ColorUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.SimpleListCellRenderer;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import java.awt.event.ItemEvent;
 import java.util.HashMap;
 import java.util.List;
@@ -99,7 +99,7 @@ class AndroidSdkConfigurableForm {
         }
         else {
           String[] configuredRootsForType = configuredRoots.get(root.getType());
-          if (ArrayUtil.find(configuredRootsForType, root.getFile().getPath()) == -1) {
+          if (ArrayUtilRt.find(configuredRootsForType, root.getFile().getPath()) == -1) {
             sdkModificator.addRoot(root.getFile(), root.getType());
           }
         }
