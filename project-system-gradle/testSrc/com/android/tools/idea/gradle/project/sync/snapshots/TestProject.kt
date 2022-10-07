@@ -308,8 +308,8 @@ enum class TestProject(
 
   private fun resolveTestDataPath(testDataPath: @SystemIndependent String): File {
     val testDataDirectory = TestUtils.getWorkspaceRoot()
-      .resolve(FileUtil.toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
-    return testDataDirectory.resolve(FileUtil.toSystemDependentName(testDataPath)).toFile()
+      .resolve(com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
+    return testDataDirectory.resolve(com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(testDataPath)).toFile()
   }
 }
 

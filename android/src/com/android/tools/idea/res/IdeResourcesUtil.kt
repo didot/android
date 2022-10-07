@@ -103,7 +103,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.JdkOrderEntry
 import com.intellij.openapi.roots.LibraryOrderEntry
 import com.intellij.openapi.roots.ProjectFileIndex
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.JarFileSystem
 import com.intellij.openapi.vfs.ReadonlyStatusHandler
@@ -1865,7 +1864,7 @@ private fun findOrCreateResourceFile(
   dirName: String
 ): VirtualFile? {
   val dir = AndroidUtils.createChildDirectoryIfNotExist(project, resDir, dirName)
-  val dirPath = FileUtil.toSystemDependentName(resDir.path + '/' + dirName)
+  val dirPath = com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(resDir.path + '/' + dirName)
   if (dir == null) {
     AndroidUtils.reportError(project, AndroidBundle.message("android.cannot.create.dir.error", dirPath))
     return null
@@ -2301,7 +2300,7 @@ fun findOrCreateStateListFiles(
         fileName += DOT_XML
       }
       for (dirName in dirNames) {
-        val dirPath = FileUtil.toSystemDependentName(resDir.path + '/' + dirName)
+        val dirPath = com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(resDir.path + '/' + dirName)
         val dir: VirtualFile = AndroidUtils.createChildDirectoryIfNotExist(project, resDir, dirName)
                                ?: throw IOException("cannot make " + resDir + File.separatorChar + dirName)
         var file = dir.findChild(fileName)

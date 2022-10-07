@@ -24,7 +24,6 @@ import com.google.common.truth.Truth.assertThat
 import com.intellij.diagnostic.VMOptions
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.testFramework.fixtures.BareTestFixtureTestCase
 import com.intellij.testFramework.replaceService
 import com.intellij.testFramework.rules.TempDirectory
@@ -98,7 +97,7 @@ class TraceSyncUtilTest : BareTestFixtureTestCase() {
     assertTrue(profile.isFile)
     // Verify that the profile starts with Output line, and ends with traceMethods.
     val text = profile.readText()
-    val outputFilePrefix = FileUtil.toSystemDependentName(File(PathManager.getLogPath(), "sync_profile_report_").absolutePath)
+    val outputFilePrefix = com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(File(PathManager.getLogPath(), "sync_profile_report_").absolutePath)
     assertThat(text).startsWith("Output: ${outputFilePrefix}")
     assertThat(text).endsWith(traceMethods)
   }

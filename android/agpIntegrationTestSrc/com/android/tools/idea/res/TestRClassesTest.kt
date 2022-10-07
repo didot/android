@@ -28,7 +28,6 @@ import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementPresentation
 import com.intellij.lang.annotation.HighlightSeverity.ERROR
 import com.intellij.openapi.project.guessProjectDir
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.VfsTestUtil.createFile
@@ -134,7 +133,7 @@ class EnableNonTransitiveRClassTest: TestRClassesTest() {
                                                                "fragment_navigation_drawer", "support_simple_spinner_dropdown_item",
                                                                "class")
 
-    val projectRoot = File(FileUtil.toSystemDependentName(project.basePath!!))
+    val projectRoot = File(com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(project.basePath!!))
     File(projectRoot, "gradle.properties").appendText("android.nonTransitiveRClass=true")
     requestSyncAndWait()
 
