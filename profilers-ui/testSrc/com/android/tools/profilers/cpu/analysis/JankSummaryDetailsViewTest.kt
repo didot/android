@@ -28,8 +28,8 @@ import com.android.tools.profilers.cpu.systemtrace.RenderSequence
 import com.android.tools.profilers.cpu.systemtrace.SystemTraceCpuCapture
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito
+import org.mockito.Mockito.anyInt
 import perfetto.protos.PerfettoTrace
 import java.awt.Component
 import javax.swing.JLabel
