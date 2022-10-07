@@ -51,6 +51,7 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope
@@ -176,7 +177,7 @@ fun StringParameter.validateStringType(
         module ?: return false
         val facet = AndroidFacet.getInstance(module) ?: return false
         val modulePath: @SystemIndependent String = AndroidRootUtil.getModuleDirPath(module) ?: return false
-        val file = File(com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(modulePath), value)
+        val file = File(FileUtilRt.toSystemDependentName(modulePath), value)
         val vFile = VfsUtil.findFileByIoFile(file, true)
         facet.sourceProviders.getForFile(vFile) != null
       }

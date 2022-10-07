@@ -41,6 +41,7 @@ import com.google.common.truth.Truth.assertThat
 import com.intellij.openapi.application.invokeAndWaitIfNeeded
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.util.PathUtil
 import org.jetbrains.android.AndroidTestBase
@@ -308,8 +309,8 @@ enum class TestProject(
 
   private fun resolveTestDataPath(testDataPath: @SystemIndependent String): File {
     val testDataDirectory = TestUtils.getWorkspaceRoot()
-      .resolve(com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
-    return testDataDirectory.resolve(com.intellij.openapi.util.io.FileUtilRt.toSystemDependentName(testDataPath)).toFile()
+      .resolve(FileUtilRt.toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
+    return testDataDirectory.resolve(FileUtilRt.toSystemDependentName(testDataPath)).toFile()
   }
 }
 
