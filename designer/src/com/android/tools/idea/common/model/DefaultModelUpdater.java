@@ -30,6 +30,7 @@ import com.intellij.openapi.util.Computable;
 import com.intellij.psi.xml.XmlTag;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -61,7 +62,7 @@ public class DefaultModelUpdater implements NlModel.NlModelUpdaterInterface {
     /**
      * Map from tags in the view render tree to the corresponding snapshots
      */
-    protected final Map<XmlTag, TagSnapshot> myTagToSnapshot = Maps.newHashMap();
+    protected final Map<XmlTag, TagSnapshot> myTagToSnapshot = new HashMap<>();
   }
 
   private void recordComponentMapping(
@@ -182,7 +183,7 @@ public class DefaultModelUpdater implements NlModel.NlModelUpdaterInterface {
     // Note: We can't use XmlTag#getAttribute on the old component hierarchy;
     // those elements may not be valid and PSI will throw exceptions if we
     // attempt to access them.
-    Map<String, NlComponent> oldIds = Maps.newHashMap();
+    Map<String, NlComponent> oldIds = new HashMap<>();
     for (Map.Entry<TagSnapshot, NlComponent> entry : data.mySnapshotToComponent.entrySet()) {
       TagSnapshot snapshot = entry.getKey();
       if (snapshot != null) {

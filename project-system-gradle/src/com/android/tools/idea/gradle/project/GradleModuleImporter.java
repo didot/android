@@ -53,6 +53,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -150,7 +151,7 @@ public final class GradleModuleImporter extends ModuleImporter {
   private static Set<ModuleToImport> getRequiredProjects(@NotNull VirtualFile sourceProject, @NotNull Project destinationProject) {
     GradleSiblingLookup subProjectLocations = new GradleSiblingLookup(sourceProject, destinationProject);
     Function<VirtualFile, Iterable<String>> parser = GradleProjectDependencyParser.newInstance(destinationProject);
-    Map<String, VirtualFile> modules = Maps.newHashMap();
+    Map<String, VirtualFile> modules = new HashMap<>();
     List<VirtualFile> toAnalyze = new LinkedList<>();
     toAnalyze.add(sourceProject);
 
@@ -158,7 +159,7 @@ public final class GradleModuleImporter extends ModuleImporter {
       Set<String> dependencies = Sets.newHashSet(Iterables.concat(Iterables.transform(toAnalyze, parser)));
       Iterable<String> notAnalyzed = Iterables.filter(dependencies, not(in(modules.keySet())));
       // Turns out, Maps#toMap does not allow null values...
-      Map<String, VirtualFile> dependencyToLocation = Maps.newHashMap();
+      Map<String, VirtualFile> dependencyToLocation = new HashMap<>();
       for (String dependency : notAnalyzed) {
         dependencyToLocation.put(dependency, subProjectLocations.apply(dependency));
       }

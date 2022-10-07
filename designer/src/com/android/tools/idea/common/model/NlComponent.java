@@ -32,7 +32,6 @@ import com.android.tools.idea.uibuilder.model.NlComponentHelperKt;
 import com.android.tools.idea.util.ListenerCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.intellij.lang.LanguageNamesValidation;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.lang.refactoring.NamesValidator;
@@ -830,11 +829,11 @@ public class NlComponent implements NlAttributesHolder {
     }
     // Transfer namespace attributes to the root tag
     Map<String, String> prefixToNamespace = rootTag.getLocalNamespaceDeclarations();
-    Map<String, String> namespaceToPrefix = Maps.newHashMap();
+    Map<String, String> namespaceToPrefix = new HashMap<>();
     for (Map.Entry<String, String> entry : prefixToNamespace.entrySet()) {
       namespaceToPrefix.put(entry.getValue(), entry.getKey());
     }
-    Map<String, String> oldPrefixToPrefix = Maps.newHashMap();
+    Map<String, String> oldPrefixToPrefix = new HashMap<>();
 
     for (Map.Entry<String, String> entry : tag.getLocalNamespaceDeclarations().entrySet()) {
       String namespace = entry.getValue();

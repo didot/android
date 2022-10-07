@@ -45,7 +45,6 @@ import com.android.tools.idea.run.ui.BaseAction;
 import com.android.tools.idea.run.util.LaunchStatus;
 import com.android.tools.idea.stats.RunStats;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionTarget;
 import com.intellij.execution.ExecutionTargetManager;
@@ -79,6 +78,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.refactoring.listeners.RefactoringElementListener;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -102,7 +102,7 @@ public class AndroidRunConfiguration extends AndroidRunConfigurationBase impleme
   public static final List<? extends ActivityLaunchOption> LAUNCH_OPTIONS =
     Arrays.asList(NoLaunch.INSTANCE, DefaultActivityLaunch.INSTANCE, SpecificActivityLaunch.INSTANCE, DeepLinkLaunch.INSTANCE);
   @NonNls private static final String FEATURE_LIST_SEPARATOR = ",";
-  private final Map<String, ActivityLaunchOptionState> myLaunchOptionStates = Maps.newHashMap();
+  private final Map<String, ActivityLaunchOptionState> myLaunchOptionStates = new HashMap<>();
   // Deploy options
   public boolean DEPLOY = true;
   public boolean DEPLOY_APK_FROM_BUNDLE = false;

@@ -42,7 +42,6 @@ import com.android.ide.common.resources.ResourceItem;
 import com.android.ide.common.resources.ResourceRepository;
 import com.android.resources.ResourceType;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.Computable;
@@ -50,6 +49,7 @@ import gnu.trove.TIntArrayList;
 import gnu.trove.TObjectIntHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -152,14 +152,14 @@ public class ResourceClassGenerator {
       cw.visitInnerClass(className, className.substring(0, index), typeName, ACC_PUBLIC + ACC_FINAL + ACC_STATIC);
       long currentIdGeneration = myIdProvider.getGeneration();
       if (myIdGeneratorGeneration != currentIdGeneration || myCache == null) {
-        myCache = Maps.newHashMap();
+        myCache = new HashMap<>();
         myStyleableCache = null;
         myIdGeneratorGeneration = currentIdGeneration;
       }
       if (type == ResourceType.STYLEABLE) {
         if (myStyleableCache == null) {
           myCache.put(ResourceType.STYLEABLE, new TObjectIntHashMap<>());
-          myStyleableCache = Maps.newHashMap();
+          myStyleableCache = new HashMap<>();
           generateStyleable(cw, className);
         }
         else {

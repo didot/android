@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.JBMenuItem;
@@ -48,6 +47,7 @@ import java.awt.event.MouseEvent;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -90,8 +90,8 @@ public class DeviceDefinitionList extends JPanel implements ListSelectionListene
   private static final String DESKTOP = "Desktop";
   private static final List<String> CATEGORY_ORDER = ImmutableList.of(PHONE_TYPE, TABLET_TYPE, WEAR, DESKTOP, TV, AUTOMOTIVE);
 
-  private Map<String, List<Device>> myDeviceCategoryMap = Maps.newHashMap();
-  private static final Map<String, Device> myDefaultCategoryDeviceMap = Maps.newHashMap();
+  private Map<String, List<Device>> myDeviceCategoryMap = new HashMap<>();
+  private static final Map<String, Device> myDefaultCategoryDeviceMap = new HashMap<>();
 
   private static final DecimalFormat ourDecimalFormat = new DecimalFormat(".##");
   private final ListTableModel<Device> myModel = new ListTableModel<>();

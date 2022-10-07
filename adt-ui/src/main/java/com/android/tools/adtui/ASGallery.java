@@ -21,7 +21,6 @@ import com.google.common.base.Objects;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.ui.TreeUIHelper;
 import com.intellij.ui.components.JBList;
@@ -41,6 +40,7 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -94,7 +94,7 @@ public class ASGallery<E> extends JBList {
   /**
    * Caches item images, is reset if different image provider is supplied.
    */
-  @NotNull private Map<E, CellRenderer> myCellRenderers = Maps.newHashMap();
+  @NotNull private Map<E, CellRenderer> myCellRenderers = new HashMap<>();
 
   @Nullable private Action myDefaultAction;
 

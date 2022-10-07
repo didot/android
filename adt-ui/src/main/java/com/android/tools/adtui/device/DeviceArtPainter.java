@@ -29,7 +29,6 @@ import com.android.sdklib.devices.Device;
 import com.android.sdklib.devices.Screen;
 import com.android.tools.adtui.ImageUtils;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.reference.SoftReference;
 import com.intellij.ui.Gray;
@@ -48,6 +47,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -70,7 +70,7 @@ import org.jetbrains.annotations.Nullable;
 public class DeviceArtPainter {
   @NotNull private static final DeviceArtPainter ourInstance = new DeviceArtPainter();
   @Nullable private static volatile String ourSystemPath;
-  @NotNull private Map<Device,DeviceData> myDeviceData = Maps.newHashMap();
+  @NotNull private Map<Device,DeviceData> myDeviceData = new HashMap<>();
   @Nullable private List<DeviceArtDescriptor> myDescriptors;
 
   /** Use {@link #getInstance()} */

@@ -48,7 +48,6 @@ import com.android.tools.lint.model.LintModelModuleType;
 import com.android.tools.lint.model.LintModelVariant;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.intellij.facet.ProjectFacetManager;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil;
@@ -67,6 +66,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -103,9 +103,9 @@ public class AndroidLintIdeProject extends LintIdeProject {
   public static List<Project> create(@NonNull LintIdeClient client, @Nullable List<VirtualFile> files, @NonNull Module... modules) {
     List<Project> projects = new ArrayList<>();
 
-    Map<Project, Module> projectMap = Maps.newHashMap();
-    Map<Module, Project> moduleMap = Maps.newHashMap();
-    Map<LintModelAndroidLibrary, Project> libraryMap = Maps.newHashMap();
+    Map<Project, Module> projectMap = new HashMap<>();
+    Map<Module, Project> moduleMap = new HashMap<>();
+    Map<LintModelAndroidLibrary, Project> libraryMap = new HashMap<>();
     if (files != null && !files.isEmpty()) {
       // Wrap list with a mutable list since we'll be removing the files as we see them
       files = Lists.newArrayList(files);
@@ -155,7 +155,7 @@ public class AndroidLintIdeProject extends LintIdeProject {
     // other than the metadata necessary for this file's type
     Project project = createModuleProject(client, module, true);
     Project main = null;
-    Map<Project, Module> projectMap = Maps.newHashMap();
+    Map<Project, Module> projectMap = new HashMap<>();
     if (project != null) {
       project.setDirectLibraries(Collections.emptyList());
       if (file != null) {

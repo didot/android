@@ -42,6 +42,7 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
@@ -57,9 +58,9 @@ public final class ModuleListModel {
   private Map<ModuleToImport, ModuleValidationState> myModules;
   private Multimap<ModuleToImport, ModuleToImport> myRequiredModules;
   @Nullable private VirtualFile mySelectedDirectory;
-  private Map<ModuleToImport, String> myNameOverrides = Maps.newHashMap();
+  private Map<ModuleToImport, String> myNameOverrides = new HashMap<>();
   private ModuleToImport myPrimaryModule;
-  private Map<ModuleToImport, Boolean> myExplicitSelection = Maps.newHashMap();
+  private Map<ModuleToImport, Boolean> myExplicitSelection = new HashMap<>();
 
   public ModuleListModel(@Nullable Project project) {
     myProject = project;
@@ -261,7 +262,7 @@ public final class ModuleListModel {
   }
 
   private Map<ModuleToImport, ModuleValidationState> validateModules(Iterable<ModuleToImport> modules) {
-    Map<ModuleToImport, ModuleValidationState> result = Maps.newHashMap();
+    Map<ModuleToImport, ModuleValidationState> result = new HashMap<>();
     for (ModuleToImport module : modules) {
       result.put(module, validateModule(module));
     }

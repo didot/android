@@ -39,6 +39,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -123,7 +124,7 @@ public class ScopedDataBinder implements ScopedStateStore.ScopedStoreListener, F
   private final Map<Document, JComponent> myDocumentsToComponent = Maps.newIdentityHashMap();
 
   // Map of keys to custom value derivations
-  private final Map<Key, ValueDeriver> myValueDerivers = Maps.newHashMap();
+  private final Map<Key, ValueDeriver> myValueDerivers = new HashMap<>();
 
   // Table mapping components and keys to bindings
   private final Table<JComponent, Key<?>, ComponentBinding<?, ?>> myComponentBindings = HashBasedTable.create();

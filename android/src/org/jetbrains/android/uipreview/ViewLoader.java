@@ -37,7 +37,6 @@ import com.android.tools.idea.res.AndroidDependenciesCache;
 import com.android.tools.idea.res.ResourceIdManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultiset;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
 import com.intellij.facet.Facet;
@@ -52,6 +51,7 @@ import com.intellij.util.ArrayUtil;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -75,7 +75,7 @@ public class ViewLoader {
   private static final ViewLoaderExtension[] EMPTY_EXTENSION_LIST = new ViewLoaderExtension[0];
 
   @NotNull private final Module myModule;
-  @NotNull private final Map<String, Class<?>> myLoadedClasses = Maps.newHashMap();
+  @NotNull private final Map<String, Class<?>> myLoadedClasses = new HashMap<>();
   /** Classes that are being loaded currently. */
   @NotNull private final Multiset<Class<?>> myLoadingClasses = HashMultiset.create(5);
   /** Classes that have been modified after compilation. */

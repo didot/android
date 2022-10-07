@@ -46,6 +46,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import org.jetbrains.android.facet.AndroidFacet;
@@ -53,7 +54,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class AndroidSdkData {
-  private final Map<String, SoftReference<AndroidTargetData>> myTargetDataByTarget = Maps.newHashMap();
+  private final Map<String, SoftReference<AndroidTargetData>> myTargetDataByTarget = new HashMap<>();
 
   private final DeviceManager myDeviceManager;
 
