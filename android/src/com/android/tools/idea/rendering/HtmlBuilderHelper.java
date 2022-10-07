@@ -18,7 +18,7 @@ package com.android.tools.idea.rendering;
 import com.android.utils.HtmlBuilder;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.util.ui.UIUtil;
+import com.intellij.util.ui.StartupUiUtil;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -62,6 +62,6 @@ public class HtmlBuilderHelper {
   public static String getHeaderFontColor() {
     // See com.intellij.codeInspection.HtmlComposer.appendHeading
     // (which operates on StringBuffers)
-    return UIUtil.isUnderDarcula() ? "#A5C25C" : "#005555";
+    return StartupUiUtil.isUnderDarcula() ? "#A5C25C" : "#005555";
   }
 }

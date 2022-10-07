@@ -21,7 +21,6 @@ import static com.intellij.openapi.keymap.KeymapUtil.createTooltipText;
 import static com.intellij.ui.tabs.TabsUtil.getTabsHeight;
 import static com.intellij.util.ui.UIUtil.drawHeader;
 import static com.intellij.util.ui.UIUtil.drawImage;
-import static com.intellij.util.ui.UIUtil.isUnderDarcula;
 
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.DataManager;
@@ -39,6 +38,7 @@ import com.intellij.ui.components.panels.Wrapper;
 import com.intellij.util.EventDispatcher;
 import com.intellij.util.ui.ImageUtil;
 import com.intellij.util.ui.JBUI;
+import com.intellij.util.ui.StartupUiUtil;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -150,7 +150,7 @@ public class Header extends JPanel {
     super.paintChildren(graphics);
 
     Rectangle r = getBounds();
-    if (!isActive() && !isUnderDarcula()) {
+    if (!isActive() && !StartupUiUtil.isUnderDarcula()) {
       //noinspection UseJBColor
       graphics.setColor(new Color(255, 255, 255, 30));
       graphics.fill(r);
