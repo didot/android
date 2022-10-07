@@ -56,11 +56,11 @@ import com.android.tools.lint.detector.api.Lint;
 import com.android.utils.SdkUtils;
 import com.android.utils.XmlUtils;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -445,7 +445,7 @@ class EclipseProject implements Comparable<EclipseProject> {
       File makefile = new File(jniDir, "Android.mk");
       if (makefile.exists()) {
         Pattern pattern = Pattern.compile("\\s*LOCAL_MODULE\\s*:=\\s*(\\S+)\\s*");
-        for (String line : Files.readLines(makefile, Charsets.UTF_8)) {
+        for (String line : Files.readLines(makefile, StandardCharsets.UTF_8)) {
           Matcher matcher = pattern.matcher(line);
           if (matcher.matches()) {
             myNativeModuleName = matcher.group(1);

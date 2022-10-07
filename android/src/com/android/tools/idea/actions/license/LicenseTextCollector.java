@@ -15,10 +15,10 @@
  */
 package com.android.tools.idea.actions.license;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -59,7 +59,7 @@ public class LicenseTextCollector {
   private static String getLicenseText(@NotNull File f) {
     try {
       return Files
-        .toString(f, Charsets.UTF_8).replaceAll("\\<.*?\\>", "").replace("\n", "<br>");
+        .toString(f, StandardCharsets.UTF_8).replaceAll("\\<.*?\\>", "").replace("\n", "<br>");
     }
     catch (IOException e) {
       return "";

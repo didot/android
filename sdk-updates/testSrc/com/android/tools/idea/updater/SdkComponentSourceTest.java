@@ -35,7 +35,6 @@ import com.android.repository.testframework.FakeSettingsController;
 import com.android.sdklib.repository.AndroidSdkHandler;
 import com.android.testutils.file.InMemoryFileSystems;
 import com.android.tools.idea.progress.StudioProgressIndicatorAdapter;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.intellij.ide.externalComponents.ExternalComponentSource;
@@ -50,6 +49,7 @@ import com.intellij.testFramework.ApplicationRule;
 import com.intellij.testFramework.DisposableRule;
 import com.intellij.testFramework.ExtensionTestUtil;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -145,7 +145,7 @@ public class SdkComponentSourceTest {
     remoteChannels.add(1);
 
     String url = "http://example.com/repo";
-    downloader.registerUrl(new URL(url), getRepoXml(remotePaths, remoteRevisions, remoteChannels, true).getBytes(Charsets.UTF_8));
+    downloader.registerUrl(new URL(url), getRepoXml(remotePaths, remoteRevisions, remoteChannels, true).getBytes(StandardCharsets.UTF_8));
 
     final RepoManager mgr = new RepoManagerImpl();
     mgr.setLocalPath(sdkRoot);

@@ -51,7 +51,6 @@ import com.android.tools.lint.helpers.DefaultJavaEvaluator;
 import com.android.tools.lint.helpers.DefaultUastParser;
 import com.android.tools.lint.model.LintModelLintOptions;
 import com.android.tools.lint.model.LintModelModule;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Files;
@@ -93,6 +92,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -611,7 +611,7 @@ public class LintIdeClient extends LintClient implements Disposable {
 
     if (vFile == null) {
       try {
-        return Files.asCharSource(file, Charsets.UTF_8).read();
+        return Files.asCharSource(file, StandardCharsets.UTF_8).read();
       }
       catch (IOException ioe) {
         LOG.debug("Cannot find file " + file.getPath() + " in the VFS");

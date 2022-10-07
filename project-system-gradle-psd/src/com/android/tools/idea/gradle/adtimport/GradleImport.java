@@ -44,7 +44,6 @@ import static com.android.sdklib.internal.project.ProjectProperties.PROPERTY_NDK
 import static com.android.sdklib.internal.project.ProjectProperties.PROPERTY_SDK;
 import static com.android.tools.idea.gradle.npw.project.GradleBuildSettings.getRecommendedBuildToolsRevision;
 import static com.android.xml.AndroidManifest.NODE_INSTRUMENTATION;
-import static com.google.common.base.Charsets.UTF_8;
 import static java.io.File.separator;
 import static java.io.File.separatorChar;
 
@@ -79,6 +78,7 @@ import com.google.common.primitives.Bytes;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -341,9 +341,9 @@ public class GradleImport {
    */
   private static void copyTextFileWithEncoding(@NonNull File source, @NonNull File dest, @NonNull Charset sourceEncoding)
     throws IOException {
-    if (!UTF_8.equals(sourceEncoding)) {
+    if (!StandardCharsets.UTF_8.equals(sourceEncoding)) {
       String text = Files.asCharSource(source, sourceEncoding).read();
-      Files.asCharSink(dest, UTF_8).write(text);
+      Files.asCharSink(dest, StandardCharsets.UTF_8).write(text);
     }
     else {
       // Already using the right encoding
@@ -749,7 +749,7 @@ public class GradleImport {
                   }
                   try {
                     int length = end - start;
-                    String s = new String(bytes, start, length, UTF_8);
+                    String s = new String(bytes, start, length, StandardCharsets.UTF_8);
                     s = s.substring(5); // skip URI//
                     File file = SdkUtils.urlToFile(s);
                     if (file.exists()) {
@@ -1108,7 +1108,7 @@ public class GradleImport {
       assert false : module;
     }
 
-    Files.asCharSink(file, UTF_8).write(sb.toString());
+    Files.asCharSink(file, StandardCharsets.UTF_8).write(sb.toString());
   }
 
   String getBuildToolsVersion() {
@@ -1134,7 +1134,7 @@ public class GradleImport {
                 "        " + MAVEN_REPOSITORY + NL +
                 "    }" + NL +
                 "}" + NL;
-    Files.asCharSink(file, UTF_8).write(sb);
+    Files.asCharSink(file, StandardCharsets.UTF_8).write(sb);
   }
 
   private void exportSettingsGradle(@NonNull File file, boolean append) throws IOException {
@@ -1146,7 +1146,7 @@ public class GradleImport {
       else {
         // Ensure that the new include statements are separate code statements, not
         // for example inserted at the end of a // line comment
-        String existing = Files.asCharSource(file, UTF_8).read();
+        String existing = Files.asCharSource(file, StandardCharsets.UTF_8).read();
         if (!existing.endsWith(NL)) {
           sb.append(NL);
         }
@@ -1162,10 +1162,10 @@ public class GradleImport {
 
     String code = sb.toString();
     if (append) {
-      Files.asCharSink(file, UTF_8, FileWriteMode.APPEND).write(code);
+      Files.asCharSink(file, StandardCharsets.UTF_8, FileWriteMode.APPEND).write(code);
     }
     else {
-      Files.asCharSink(file, UTF_8).write(code);
+      Files.asCharSink(file, StandardCharsets.UTF_8).write(code);
     }
   }
 
@@ -1346,7 +1346,7 @@ public class GradleImport {
 
   @Nullable
   Document getXmlDocument(File file, boolean namespaceAware) throws IOException {
-    String xml = Files.asCharSource(file, UTF_8).read();
+    String xml = Files.asCharSource(file, StandardCharsets.UTF_8).read();
     try {
       return XmlUtils.parseDocument(xml, namespaceAware);
     }
@@ -1477,7 +1477,7 @@ public class GradleImport {
         }
       }
 
-      Files.asCharSink(dest, UTF_8).write(xml);
+      Files.asCharSink(dest, StandardCharsets.UTF_8).write(xml);
     }
     else if (encoding != null) {
       copyTextFileWithEncoding(source, dest, encoding);

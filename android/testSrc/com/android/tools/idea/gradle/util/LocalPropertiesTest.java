@@ -26,7 +26,6 @@ import static org.easymock.EasyMock.verify;
 
 import com.android.SdkConstants;
 import com.android.tools.idea.io.FilePaths;
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
 import com.intellij.openapi.projectRoots.Sdk;
@@ -38,6 +37,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 /**
@@ -162,7 +162,7 @@ public class LocalPropertiesTest extends PlatformTestCase {
 
     // Next write properties using the UTF-8 encoding. Chars will no longer be escaped.
     // Confirm that we read these in properly too.
-    try (Writer writer = new OutputStreamWriter(new FileOutputStream(localPropertiesFile), Charsets.UTF_8)) {
+    try (Writer writer = new OutputStreamWriter(new FileOutputStream(localPropertiesFile), StandardCharsets.UTF_8)) {
       outProperties.store(writer, null);
     }
 

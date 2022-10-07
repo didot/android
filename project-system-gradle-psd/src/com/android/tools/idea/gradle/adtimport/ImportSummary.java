@@ -21,11 +21,11 @@ import com.android.ide.common.repository.GradleCoordinate;
 import com.android.repository.Revision;
 import com.android.utils.SdkUtils;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -179,7 +179,7 @@ public class ImportSummary {
   public void write(@NonNull File file) throws IOException {
     String summary = createSummary();
     assert file.getParentFile().exists();
-    Files.write(summary, file, Charsets.UTF_8);
+    Files.write(summary, file, StandardCharsets.UTF_8);
   }
 
   public void setDestDir(File destDir) {

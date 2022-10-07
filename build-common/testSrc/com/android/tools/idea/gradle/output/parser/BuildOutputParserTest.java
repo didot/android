@@ -32,7 +32,6 @@ import com.android.ide.common.blame.SourceFilePosition;
 import com.android.ide.common.blame.SourcePosition;
 import com.android.ide.common.blame.parser.PatternAwareOutputParser;
 import com.android.testutils.TestResources;
-import com.google.common.base.Charsets;
 import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 import com.intellij.openapi.util.SystemInfo;
@@ -43,6 +42,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -695,13 +695,13 @@ public class BuildOutputParserTest {
       "    <item name=\"group1\" type=\"id\"/>\n" +
       "    <string name=\"group2_string\">Hello</string>\n" +
       "\n" +
-      "</resources>\n", file1, Charsets.UTF_8);
+      "</resources>\n", file1, StandardCharsets.UTF_8);
 
     Files.write(
       "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
       "<resources xmlns:ns1=\"urn:oasis:names:tc:xliff:document:1.2\">\n" +
       "    <item type=\"string\" name=\"group2_string\">Hello</item>\n" +
-      "</resources>\n", file2, Charsets.UTF_8);
+      "</resources>\n", file2, StandardCharsets.UTF_8);
 
     String output =
       ":preBuild UP-TO-DATE\n" +
@@ -1050,7 +1050,7 @@ public class BuildOutputParserTest {
                 "    <dimen name=\"activity_horizontal_margin\">16dp</dimen>\n" +
                 "    <dimen name=\"activity_vertical_margin\">16dp</dimen>\n" +
                 "    <dimen name=\"new_name\">50</dimen>\n" +
-                "</resources>", source, Charsets.UTF_8);
+                "</resources>", source, StandardCharsets.UTF_8);
     source.deleteOnExit();
     Files.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                 "<resources>\n" +
@@ -1067,7 +1067,7 @@ public class BuildOutputParserTest {
                 "    <item name=\"action_menu_divider\" type=\"id\"/>\n" +
                 "    <item name=\"action_menu_presenter\" type=\"id\"/>\n" +
                 "    <item name=\"home\" type=\"id\"/>\n" +
-                "</resources>\n", sourceFile, Charsets.UTF_8);
+                "</resources>\n", sourceFile, StandardCharsets.UTF_8);
 
     String output =
       "Relying on packaging to define the extension of the main artifact has been deprecated and is scheduled to be removed in Gradle 2.0\n" +
@@ -1135,7 +1135,7 @@ public class BuildOutputParserTest {
                 "    <dimen name=\"activity_horizontal_margin\">16dp</dimen>\n" +
                 "    <dimen name=\"activity_vertical_margin\">16dp</dimen>\n" +
                 "    <dimen name=\"new_name\">50</dimen>\n" +
-                "</resources>", source, Charsets.UTF_8);
+                "</resources>", source, StandardCharsets.UTF_8);
     source.deleteOnExit();
     Files.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                 "<resources>\n" +
@@ -1152,7 +1152,7 @@ public class BuildOutputParserTest {
                 "    <item name=\"action_menu_divider\" type=\"id\"/>\n" +
                 "    <item name=\"action_menu_presenter\" type=\"id\"/>\n" +
                 "    <item name=\"home\" type=\"id\"/>\n" +
-                "</resources>\n", sourceFile, Charsets.UTF_8);
+                "</resources>\n", sourceFile, StandardCharsets.UTF_8);
 
     // TODO: Test layout too
 
@@ -1234,7 +1234,7 @@ public class BuildOutputParserTest {
                 "        android:slayout_alignParentTop=\"true\"\n" +
                 "        android:layout_alignParentLeft=\"true\" />\n" +
                 "\n" +
-                "</RelativeLayout>\n", source, Charsets.UTF_8);
+                "</RelativeLayout>\n", source, StandardCharsets.UTF_8);
     source.deleteOnExit();
     Files.write("<RelativeLayout xmlns:android=\"http://schemas.android.com/apk/res/android\"\n" +
                 "    xmlns:tools=\"http://schemas.android.com/tools\"\n" +
@@ -1256,7 +1256,7 @@ public class BuildOutputParserTest {
                 "        android:layout_alignParentLeft=\"true\" />\n" +
                 "\n" +
                 "</RelativeLayout>\n" +
-                "<!-- " + createPathComment(source, false) + " -->", sourceFile, Charsets.UTF_8);
+                "<!-- " + createPathComment(source, false) + " -->", sourceFile, StandardCharsets.UTF_8);
 
     String output =
       "Relying on packaging to define the extension of the main artifact has been deprecated and is scheduled to be removed in Gradle 2.0\n" +
@@ -2257,7 +2257,7 @@ public class BuildOutputParserTest {
                 "        </activity>\n" +
                 "    </application>\n" +
                 "\n" +
-                "</manifest>\n", source, Charsets.UTF_8);
+                "</manifest>\n", source, StandardCharsets.UTF_8);
     source.deleteOnExit();
     Files.write("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" android:versionCode=\"1\" android:versionName=\"1.0\" package=\"com.example.app\">\n" +
                 "\n" +
@@ -2278,7 +2278,7 @@ public class BuildOutputParserTest {
                 "    <uses-permission android:name=\"android.permission.ACCESS_MOCK_LOCATION\"/>\n" +
                 "\n" +
                 "    <!-- " + createPathComment(source, false) + " -->\n" +
-                "    </manifest>", sourceFile, Charsets.UTF_8);
+                "    </manifest>", sourceFile, StandardCharsets.UTF_8);
 
     String output =
       "Relying on packaging to define the extension of the main artifact has been deprecated and is scheduled to be removed in Gradle 2.0\n" +
@@ -2399,7 +2399,7 @@ public class BuildOutputParserTest {
                 "        </activity>\n" +
                 "    </application>\n" +
                 "\n" +
-                "</manifest>\n", source, Charsets.UTF_8);
+                "</manifest>\n", source, StandardCharsets.UTF_8);
     source.deleteOnExit();
     Files.write("<<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                 "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n" +
@@ -2427,7 +2427,7 @@ public class BuildOutputParserTest {
                 "        </activity>\n" +
                 "    </application>\n" +
                 "\n" +
-                "</manifest><!-- " + createPathComment(source, false) + " -->", sourceFile, Charsets.UTF_8);
+                "</manifest><!-- " + createPathComment(source, false) + " -->", sourceFile, StandardCharsets.UTF_8);
 
     String output =
       "Relying on packaging to define the extension of the main artifact has been deprecated and is scheduled to be removed in Gradle 2.0\n" +

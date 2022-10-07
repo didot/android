@@ -24,7 +24,6 @@ import com.android.sdklib.IAndroidTarget;
 import com.android.sdklib.OptionalLibrary;
 import com.android.sdklib.internal.project.ProjectProperties;
 import com.android.sdklib.repository.PkgProps;
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import com.intellij.execution.process.BaseOSProcessHandler;
 import com.intellij.execution.process.ProcessAdapter;
@@ -46,6 +45,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -449,7 +449,7 @@ public class AndroidBuildCommonUtils {
 
   @NotNull
   public static String readFile(@NotNull File file) throws IOException {
-    return Files.toString(file, Charsets.UTF_8);
+    return Files.toString(file, StandardCharsets.UTF_8);
   }
 
   public static boolean contains2Identifiers(String packageName) {

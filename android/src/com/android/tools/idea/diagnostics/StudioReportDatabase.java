@@ -19,7 +19,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.android.annotations.concurrency.GuardedBy;
 import com.android.tools.idea.diagnostics.report.DiagnosticReport;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileInputStream;
@@ -86,7 +85,7 @@ public class StudioReportDatabase {
       report.serializeReport(sw);
       String content = sw.toString() + "\n";
       synchronized (myDbLock) {
-        Files.write(myDb, content.getBytes(Charsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        Files.write(myDb, content.getBytes(UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
       }
     }
   }
