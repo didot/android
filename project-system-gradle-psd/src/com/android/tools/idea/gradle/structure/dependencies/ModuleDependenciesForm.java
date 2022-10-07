@@ -25,7 +25,6 @@ import com.android.tools.idea.gradle.structure.model.PsProject;
 import com.android.tools.idea.gradle.structure.model.android.PsAndroidModule;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.intellij.ui.CheckboxTree;
 import com.intellij.ui.CheckboxTreeAdapter;
 import com.intellij.ui.CheckedTreeNode;
@@ -35,6 +34,7 @@ import com.intellij.util.ui.JBUI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.swing.BorderFactory;
@@ -48,7 +48,7 @@ import org.jetbrains.annotations.NotNull;
 
 class ModuleDependenciesForm {
   @NotNull private final CheckboxTree myPossibleDependenciesTree;
-  @NotNull private final Set<PsModule> mySelectedModules = Sets.newHashSet();
+  @NotNull private final Set<PsModule> mySelectedModules = new HashSet<>();
 
   private JPanel myMainPanel;
   private JBScrollPane myModulesScrollPane;

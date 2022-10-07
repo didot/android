@@ -21,7 +21,6 @@ import com.android.sdklib.AndroidVersion;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.ui.JBColor;
@@ -35,6 +34,7 @@ import com.intellij.util.ui.tree.TreeUtil;
 import java.awt.CardLayout;
 import java.util.Comparator;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.swing.JCheckBox;
@@ -65,7 +65,7 @@ public class PlatformComponentsPanel {
   @VisibleForTesting
   UpdaterTreeNode myPlatformSummaryRootNode;
 
-  Set<PackageNodeModel> myStates = Sets.newHashSet();
+  Set<PackageNodeModel> myStates = new HashSet<>();
 
   // map of versions to current subpackages
   private final Multimap<AndroidVersion, UpdatablePackage> myCurrentPackages = TreeMultimap.create();
@@ -116,7 +116,7 @@ public class PlatformComponentsPanel {
       if (version.equals(AndroidVersion.VersionCodes.UNDEFINED)) {
         continue;
       }
-      Set<UpdaterTreeNode> versionNodes = Sets.newHashSet();
+      Set<UpdaterTreeNode> versionNodes = new HashSet<>();
       UpdaterTreeNode marker = new ParentTreeNode(version);
       for (UpdatablePackage info : myCurrentPackages.get(version)) {
         RepoPackage pkg = info.getRepresentative();

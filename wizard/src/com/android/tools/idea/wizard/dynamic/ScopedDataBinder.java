@@ -25,7 +25,6 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.util.text.StringUtil;
@@ -131,10 +130,10 @@ public class ScopedDataBinder implements ScopedStateStore.ScopedStoreListener, F
 
   // Record of keys that have already been changed or updated during a round to prevent
   // recursive derivations.
-  private final Set<Key> myGuardedKeys = Sets.newHashSet();
+  private final Set<Key> myGuardedKeys = new HashSet<>();
 
   // Record of keys that the user has manually edited
-  private final Set<Key> myUserEditedKeys = Sets.newHashSet();
+  private final Set<Key> myUserEditedKeys = new HashSet<>();
 
   // Flags to guard against cyclical updates
   private boolean myAlreadySavingState;

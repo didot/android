@@ -33,7 +33,6 @@ import com.android.tools.idea.gradle.project.model.GradleAndroidModelData;
 import com.android.tools.idea.projectsystem.FilenameConstants;
 import com.android.utils.FileUtils;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
@@ -44,6 +43,7 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -150,8 +150,8 @@ public class GradleProjectSystemUtil {
    */
   @Nullable
   public static GradleVersion getAndroidGradleModelVersionInUse(@NotNull Project project) {
-    Set<String> foundInLibraries = Sets.newHashSet();
-    Set<String> foundInApps = Sets.newHashSet();
+    Set<String> foundInLibraries = new HashSet<>();
+    Set<String> foundInApps = new HashSet<>();
     for (Module module : ModuleManager.getInstance(project).getModules()) {
 
       GradleAndroidModel androidModel = GradleAndroidModel.get(module);

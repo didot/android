@@ -18,13 +18,13 @@ package com.android.tools.idea.diagnostics.heap;
 import static com.android.tools.idea.diagnostics.heap.HeapTraverseUtil.isPrimitive;
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_FIELD_ARRAY;
 
-import com.google.common.collect.Sets;
 import it.unimi.dsi.fastutil.Hash;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
 import java.lang.reflect.Field;
 import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -65,8 +65,8 @@ public final class FieldCache {
 
     try {
       Field[] declaredFields = aClass.getDeclaredFields();
-      Set<Field> instanceFields = Sets.newHashSet();
-      Set<Field> staticFields = Sets.newHashSet();
+      Set<Field> instanceFields = new HashSet<>();
+      Set<Field> staticFields = new HashSet<>();
 
       for (Field declaredField : declaredFields) {
         declaredField.setAccessible(true);

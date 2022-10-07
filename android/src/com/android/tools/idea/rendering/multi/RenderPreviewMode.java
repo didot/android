@@ -15,8 +15,8 @@
  */
 package com.android.tools.idea.rendering.multi;
 
-import com.google.common.collect.Sets;
 import java.util.Collection;
+import java.util.HashSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -102,7 +102,7 @@ public enum RenderPreviewMode {
   public static void deleteId(@Nullable String id) {
     if (id != null) {
       if (ourDeletedIds == null) {
-        ourDeletedIds = Sets.newHashSet();
+        ourDeletedIds = new HashSet<>();
       }
       ourDeletedIds.add(id);
     }

@@ -22,7 +22,6 @@ import com.android.ddmlib.ShellCommandUnresponsiveException;
 import com.android.ddmlib.TimeoutException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
-import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.io.Files;
@@ -31,6 +30,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.text.StringUtil;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -138,7 +138,7 @@ public class InstalledApkCache implements Disposable {
     }
 
     String lastUpdateTime = "";
-    Set<Integer> users = Sets.newHashSet();
+    Set<Integer> users = new HashSet<>();
     for (String line : lines) {
       line = line.trim();
       if (line.startsWith("lastUpdateTime")) {

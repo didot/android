@@ -41,10 +41,10 @@ import com.android.tools.idea.gradle.dsl.parser.semantics.ModelEffectDescription
 import com.android.tools.idea.gradle.dsl.parser.semantics.ModelPropertyDescription;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
@@ -53,8 +53,8 @@ import org.jetbrains.annotations.Nullable;
 public class GradleBuildFile extends GradleScriptFile {
   @Nullable private GradlePropertiesFile myPropertiesFile;
   @Nullable private GradleBuildFile myParentModuleBuildFile;
-  @NotNull private final Set<GradleBuildFile> myChildModuleBuildFiles = Sets.newHashSet();
-  @NotNull private final Set<GradleVersionCatalogFile> myVersionCatalogFiles = Sets.newHashSet();
+  @NotNull private final Set<GradleBuildFile> myChildModuleBuildFiles = new HashSet<>();
+  @NotNull private final Set<GradleVersionCatalogFile> myVersionCatalogFiles = new HashSet<>();
 
   public GradleBuildFile(@NotNull VirtualFile file,
                          @NotNull Project project,

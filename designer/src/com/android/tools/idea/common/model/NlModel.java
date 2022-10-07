@@ -103,7 +103,7 @@ public class NlModel implements Disposable, ModificationTracker {
   public static final int DELAY_AFTER_TYPING_MS = 250;
 
   static final boolean CHECK_MODEL_INTEGRITY = false;
-  private final Set<String> myPendingIds = Sets.newHashSet();
+  private final Set<String> myPendingIds = new HashSet<>();
 
   @NotNull private final AndroidFacet myFacet;
   @NotNull private final VirtualFile myFile;

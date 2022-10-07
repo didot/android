@@ -32,7 +32,6 @@ import com.android.tools.idea.wizard.model.ModelWizardDialog;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.intellij.ui.ScrollPaneFactory;
 import com.intellij.ui.table.TableView;
 import com.intellij.util.containers.ContainerUtil;
@@ -44,6 +43,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,7 +66,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public class SystemImageList extends JPanel implements ListSelectionListener {
   private final TableView<SystemImageDescription> myTable = new TableView<SystemImageDescription>();
-  private final Set<SystemImageSelectionListener> myListeners = Sets.newHashSet();
+  private final Set<SystemImageSelectionListener> myListeners = new HashSet<>();
   private SystemImageListModel myModel;
   private SystemImageDescription myLastSelectedImage;
 

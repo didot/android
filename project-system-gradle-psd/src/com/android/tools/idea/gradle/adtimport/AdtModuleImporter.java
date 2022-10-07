@@ -28,7 +28,6 @@ import com.android.tools.idea.gradle.project.ModuleToImport;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.intellij.ide.util.projectWizard.ModuleWizardStep;
 import com.intellij.ide.util.projectWizard.WizardContext;
 import com.intellij.openapi.project.Project;
@@ -37,6 +36,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -120,7 +120,7 @@ public final class AdtModuleImporter extends ModuleImporter {
     final GradleImport gradleImport = getGradleImport();
     gradleImport.importProjects(Collections.singletonList(virtualToIoFile(importSource)));
     Map<String, File> adtProjects = gradleImport.getDetectedModuleLocations();
-    Set<ModuleToImport> modules = Sets.newHashSet();
+    Set<ModuleToImport> modules = new HashSet<>();
     for (final Map.Entry<String, File> entry : adtProjects.entrySet()) {
       VirtualFile location = findFileByIoFile(entry.getValue(), false);
       modules.add(new ModuleToImport(entry.getKey(), location, new Supplier<Iterable<String>>() {

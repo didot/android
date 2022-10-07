@@ -44,7 +44,6 @@ import com.android.utils.FileUtils;
 import com.android.utils.HtmlBuilder;
 import com.android.utils.PositionXmlParser;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
@@ -95,6 +94,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -357,7 +357,7 @@ public class ManifestPanel extends JPanel implements TreeSelectionListener {
 
     // make sure that the selected manifest is always the first color
     sortedFiles.add(createMetadataForFile(myFacet, new SourceFilePosition(VfsUtilCore.virtualToIoFile(selectedManifest), SourcePosition.UNKNOWN)));
-    Set<File> referenced = Sets.newHashSet();
+    Set<File> referenced = new HashSet<>();
     if (root != null) {
       recordLocationReferences(root, referenced);
     }
