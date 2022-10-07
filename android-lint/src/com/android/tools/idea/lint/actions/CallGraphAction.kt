@@ -123,7 +123,7 @@ open class ContextualCallPathBrowser(
 ) : CallHierarchyBrowserBase(project, element) {
 
   override fun createHierarchyTreeStructure(kind: String, psiElement: PsiElement): HierarchyTreeStructure {
-    val reverseEdges = kind == CallHierarchyBrowserBase.CALLER_TYPE
+    val reverseEdges = kind == getCallerType()
     return ContextualCallPathTreeStructure(myProject, graph, psiElement, reverseEdges)
   }
 
@@ -131,7 +131,7 @@ open class ContextualCallPathBrowser(
     val baseOnThisMethodAction = BaseOnThisMethodAction()
     val kinds = arrayOf(
         getCalleeType(),
-        CallHierarchyBrowserBase.CALLER_TYPE)
+        getCallerType())
     for (kind in kinds) {
       val tree = createTree(false)
       PopupHandler.installPopupMenu(tree, IdeActions.GROUP_CALL_HIERARCHY_POPUP, ActionPlaces.CALL_HIERARCHY_VIEW_POPUP)
