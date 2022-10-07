@@ -16,7 +16,6 @@
 package com.android.tools.idea.lint;
 
 import static com.android.SdkConstants.SUPPORT_LIB_GROUP_ID;
-import static com.android.tools.idea.projectsystem.ModuleSystemUtil.getMainModule;
 
 import com.android.annotations.NonNull;
 import com.android.ide.common.repository.GradleCoordinate;
@@ -31,7 +30,6 @@ import com.android.tools.idea.lint.common.LintIdeClient;
 import com.android.tools.idea.lint.common.LintIdeProject;
 import com.android.tools.idea.lint.model.LintModelFactory;
 import com.android.tools.idea.model.AndroidModel;
-import com.android.tools.idea.projectsystem.ModuleSystemUtil;
 import com.android.tools.idea.projectsystem.ProjectSyncModificationTracker;
 import com.android.tools.idea.projectsystem.ProjectSystemUtil;
 import com.android.tools.idea.projectsystem.gradle.GradleProjectPath;
@@ -63,7 +61,6 @@ import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValueProvider.Result;
 import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.util.graph.Graph;
@@ -105,7 +102,7 @@ public class AndroidLintIdeProject extends LintIdeProject {
    */
   @NonNull
   public static List<Project> create(@NonNull LintIdeClient client, @Nullable List<VirtualFile> files, @NonNull Module... modules) {
-    List<Project> projects = Lists.newArrayList();
+    List<Project> projects = new ArrayList<>();
 
     Map<Project, Module> projectMap = Maps.newHashMap();
     Map<Module, Project> moduleMap = Maps.newHashMap();
@@ -286,7 +283,7 @@ public class AndroidLintIdeProject extends LintIdeProject {
       return;
     }
 
-    List<Project> dependencies = Lists.newArrayList();
+    List<Project> dependencies = new ArrayList<>();
     // No, this shouldn't use getAllAndroidDependencies; we may have non-Android dependencies that this won't include
     // (e.g. Java-only modules)
     List<Module> dependentModules =

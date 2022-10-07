@@ -18,10 +18,10 @@ package com.android.tools.idea.diagnostics.heap;
 import static com.android.tools.idea.diagnostics.heap.HeapTraverseUtil.processMask;
 
 import com.android.tools.idea.diagnostics.hprof.util.HeapReportUtils;
-import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.jetbrains.annotations.NotNull;
@@ -35,7 +35,7 @@ public final class HeapSnapshotStatistics {
   @NotNull
   private final HeapObjectsStatistics myTotalStats = new HeapObjectsStatistics("total");
   @NotNull
-  private final List<HeapObjectsStatistics> myComponentStats = Lists.newArrayList();
+  private final List<HeapObjectsStatistics> myComponentStats = new ArrayList<>();
   @NotNull
   private final Int2ObjectMap<HeapObjectsStatistics> myMaskToSharedComponentStats = new Int2ObjectOpenHashMap<>();
   @NotNull
@@ -55,7 +55,7 @@ public final class HeapSnapshotStatistics {
 
   public void addObjectSizeToSharedComponent(int sharedMask, long size) {
     if (!myMaskToSharedComponentStats.containsKey(sharedMask)) {
-      List<String> componentNames = Lists.newArrayList();
+      List<String> componentNames = new ArrayList<>();
       processMask(sharedMask, (index) -> componentNames.add(myComponentsSet.getComponents().get(index).getComponentName()));
       myMaskToSharedComponentStats.put(sharedMask, new HeapObjectsStatistics("Shared: " + String.join(", ", componentNames)));
     }

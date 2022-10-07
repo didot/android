@@ -21,7 +21,6 @@ import com.android.sdklib.repository.meta.DetailsTypes;
 import com.android.tools.idea.sdk.AndroidSdks;
 import com.android.tools.idea.sdk.wizard.SdkQuickfixUtils;
 import com.android.tools.idea.wizard.model.ModelWizardDialog;
-import com.google.common.collect.Lists;
 import com.intellij.codeEditor.JavaEditorFileSwapper;
 import com.intellij.ide.highlighter.JavaClassFileType;
 import com.intellij.openapi.fileEditor.FileEditor;
@@ -36,6 +35,7 @@ import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.EditorNotificationPanel;
 import com.intellij.ui.EditorNotifications;
+import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.android.sdk.AndroidPlatform;
 import org.jetbrains.annotations.NotNull;
@@ -95,7 +95,7 @@ public class AttachAndroidSdkSourcesNotificationProvider extends EditorNotificat
 
       panel.setText("Sources for '" + jdkOrderEntry.getJdkName() + "' not found.");
       panel.createActionLabel("Download", () -> {
-        List<String> requested = Lists.newArrayList();
+        List<String> requested = new ArrayList<>();
         requested.add(DetailsTypes.getSourcesPath(platform.getApiVersion()));
 
         ModelWizardDialog dialog = SdkQuickfixUtils.createDialogForPaths(myProject, requested);

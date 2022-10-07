@@ -22,10 +22,10 @@ import static java.util.Collections.sort;
 
 import com.android.ide.common.repository.GradleCoordinate;
 import com.android.ide.common.repository.GradleVersion;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -76,7 +76,7 @@ public class GradleLocalCache {
     if (!gradleCacheFolder.isDirectory()) {
       return null;
     }
-    List<GradleVersion> versions = Lists.newArrayList();
+    List<GradleVersion> versions = new ArrayList<>();
     for (File moduleFolder : notNullize(gradleCacheFolder.listFiles())) {
       if (!isDirectoryWithNamePrefix(moduleFolder, "modules-")) {
         continue;

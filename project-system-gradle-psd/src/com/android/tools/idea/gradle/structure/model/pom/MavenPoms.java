@@ -20,10 +20,10 @@ import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
 import static com.intellij.openapi.util.text.StringUtil.nullize;
 
 import com.android.tools.idea.gradle.structure.model.PsArtifactDependencySpec;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.JDOMUtil;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.jdom.Element;
@@ -41,7 +41,7 @@ public class MavenPoms {
     if (pomFilePath == null || !pomFilePath.isFile()) {
       return Collections.emptyList();
     }
-    List<PsArtifactDependencySpec> dependencies = Lists.newArrayList();
+    List<PsArtifactDependencySpec> dependencies = new ArrayList<>();
     try {
       Element rootElement = JDOMUtil.load(pomFilePath);
       Element dependenciesElement = null;

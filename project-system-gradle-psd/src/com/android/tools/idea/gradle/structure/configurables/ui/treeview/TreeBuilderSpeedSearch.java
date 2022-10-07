@@ -33,7 +33,6 @@ import static java.awt.event.KeyEvent.VK_RIGHT;
 import static java.lang.Character.isLetterOrDigit;
 import static javax.swing.SwingUtilities.getAncestorOfClass;
 
-import com.google.common.collect.Lists;
 import com.intellij.ide.util.treeView.AbstractTreeUi;
 import com.intellij.ide.util.treeView.TreeVisitor;
 import com.intellij.openapi.util.ActionCallback;
@@ -56,6 +55,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JDialog;
@@ -275,7 +275,7 @@ public class TreeBuilderSpeedSearch extends SpeedSearchSupply {
 
     ActionCallback initialized = myTreeBuilder.getInitialized();
     initialized.doWhenDone(() -> {
-      List<AbstractPsModelNode> nodes = Lists.newArrayList();
+      List<AbstractPsModelNode> nodes = new ArrayList<>();
       myTreeBuilder.accept(AbstractPsModelNode.class, new TreeVisitor<AbstractPsModelNode>() {
         @Override
         public boolean visit(@NotNull AbstractPsModelNode node) {
@@ -315,7 +315,7 @@ public class TreeBuilderSpeedSearch extends SpeedSearchSupply {
   private List<AbstractPsModelNode> findNodes(@NotNull String searchQuery) {
     String pattern = searchQuery.trim();
 
-    List<AbstractPsModelNode> nodes = Lists.newArrayList();
+    List<AbstractPsModelNode> nodes = new ArrayList<>();
     ActionCallback initialized = myTreeBuilder.getInitialized();
     initialized.doWhenDone(() -> myTreeBuilder.accept(AbstractPsModelNode.class, new TreeVisitor<AbstractPsModelNode>() {
       @Override

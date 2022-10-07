@@ -41,7 +41,6 @@ import com.android.AndroidXConstants;
 import com.android.ide.common.rendering.api.ResourceValue;
 import com.android.ide.common.rendering.api.StyleResourceValue;
 import com.android.ide.common.resources.ResourceResolver;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.SmartPointerManager;
@@ -50,6 +49,7 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlFile;
 import com.intellij.psi.xml.XmlTag;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -68,7 +68,7 @@ public class AddMissingAttributesFix extends HtmlLinkManager.CommandLink {
 
   @NotNull
   public static List<SmartPsiElementPointer<XmlTag>> findViewsMissingSizes(@NotNull XmlFile file, @Nullable ResourceResolver resolver) {
-    final List<SmartPsiElementPointer<XmlTag>> missing = Lists.newArrayList();
+    final List<SmartPsiElementPointer<XmlTag>> missing = new ArrayList<>();
     ApplicationManager.getApplication().runReadAction(() -> {
       Collection<XmlTag> xmlTags = PsiTreeUtil.findChildrenOfType(file, XmlTag.class);
       for (XmlTag tag : xmlTags) {

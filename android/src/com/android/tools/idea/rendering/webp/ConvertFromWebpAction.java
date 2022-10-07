@@ -20,7 +20,6 @@ import static com.android.SdkConstants.DOT_PNG;
 import static com.android.SdkConstants.DOT_WEBP;
 import static com.android.utils.SdkUtils.endsWithIgnoreCase;
 
-import com.google.common.collect.Lists;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.command.WriteCommandAction;
@@ -37,6 +36,7 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -153,7 +153,7 @@ public class ConvertFromWebpAction extends DumbAwareAction {
 
     @NotNull
     private static List<VirtualFile> findImages(@NotNull ProgressIndicator progressIndicator, LinkedList<VirtualFile> images) {
-      List<VirtualFile> files = Lists.newArrayList();
+      List<VirtualFile> files = new ArrayList<>();
 
       while (!images.isEmpty()) {
         progressIndicator.checkCanceled();
@@ -180,7 +180,7 @@ public class ConvertFromWebpAction extends DumbAwareAction {
 
   @NotNull
   private static List<VirtualFile> computeParentFolders(@NotNull List<VirtualFile> files) {
-    List<VirtualFile> toRefresh = Lists.newArrayList();
+    List<VirtualFile> toRefresh = new ArrayList<>();
     for (VirtualFile file : files) {
       VirtualFile parent = file.getParent();
       if (parent != null && !toRefresh.contains(parent)) {

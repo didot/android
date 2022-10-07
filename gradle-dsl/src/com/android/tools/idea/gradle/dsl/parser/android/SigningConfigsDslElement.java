@@ -22,8 +22,8 @@ import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslElementMap;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleDslNamedDomainContainer;
 import com.android.tools.idea.gradle.dsl.parser.elements.GradleNameElement;
 import com.android.tools.idea.gradle.dsl.parser.semantics.PropertiesElementDescription;
-import com.google.common.collect.Lists;
 import com.intellij.util.containers.ContainerUtil;
+import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -55,7 +55,7 @@ public final class SigningConfigsDslElement extends GradleDslElementMap implemen
 
   @NotNull
   public List<SigningConfigModel> get() {
-    List<SigningConfigModel> result = Lists.newArrayList();
+    List<SigningConfigModel> result = new ArrayList<>();
     for (SigningConfigDslElement dslElement : getValues(SigningConfigDslElement.class)) {
       result.add(new SigningConfigModelImpl(dslElement));
     }

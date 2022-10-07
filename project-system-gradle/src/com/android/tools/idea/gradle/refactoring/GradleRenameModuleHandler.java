@@ -157,7 +157,7 @@ public class GradleRenameModuleHandler implements RenameHandler, TitledHandler {
       final String oldModuleGradlePath = oldModuleGradleProjectPath.getPath();
 
       // Rename all references in Gradle build files
-      final List<GradleBuildModel> modifiedBuildModels = Lists.newArrayList();
+      final List<GradleBuildModel> modifiedBuildModels = new ArrayList<>();
       for (Module module : ModuleManager.getInstance(project).getModules()) {
         GradleBuildModel buildModel = projectModel.getModuleBuildModel(module);
         if (buildModel != null) {

@@ -28,7 +28,6 @@ import com.android.tools.idea.gradle.structure.configurables.ui.treeview.Abstrac
 import com.android.tools.idea.gradle.structure.configurables.ui.treeview.NodeHyperlinkSupport;
 import com.android.tools.idea.gradle.structure.model.PsBaseDependency;
 import com.android.tools.idea.gradle.structure.model.android.PsAndroidModule;
-import com.google.common.collect.Lists;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionPopupMenu;
@@ -43,6 +42,7 @@ import com.intellij.util.ui.JBUI;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JScrollPane;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -97,7 +97,7 @@ class TargetModulesPanel extends ToolWindowPanel {
   }
 
   private void setHeaderActions() {
-    List<AnAction> additionalActions = Lists.newArrayList();
+    List<AnAction> additionalActions = new ArrayList<>();
     additionalActions.add(new AbstractBaseCollapseAllAction(myTree) {
       @Override
       public void actionPerformed(@NotNull AnActionEvent e) {

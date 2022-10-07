@@ -18,10 +18,10 @@ package com.android.tools.idea.diagnostics;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -104,7 +104,7 @@ public class ExceptionTestUtils {
       }
     }
 
-    List<StackTraceElement> frames = Lists.newArrayList();
+    List<StackTraceElement> frames = new ArrayList<>();
     Pattern outerPattern = Pattern.compile("\tat (.*)\\.([^.]*)\\((.*)\\)");
     Pattern innerPattern = Pattern.compile("(.*):(\\d*)");
     while (iterator.hasNext()) {
