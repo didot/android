@@ -192,7 +192,7 @@ public class NodeHyperlinkSupport<T extends SimpleNode> implements Disposable {
       }
     }
     if (comparator != null && issues.size() > 1) {
-      Collections.sort(issues, comparator);
+      issues.sort(comparator);
     }
     return issues;
   }

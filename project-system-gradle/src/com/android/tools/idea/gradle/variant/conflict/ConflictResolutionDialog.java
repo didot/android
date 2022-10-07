@@ -105,7 +105,7 @@ class ConflictResolutionDialog extends DialogWrapper {
         dependents.add(module);
       }
       if (dependents.size() > 1) {
-        Collections.sort(dependents, ModuleTypeComparator.INSTANCE);
+        dependents.sort(ModuleTypeComparator.INSTANCE);
       }
       for (Module dependent : dependents) {
         DefaultMutableTreeNode moduleNode = new DefaultMutableTreeNode(dependent);

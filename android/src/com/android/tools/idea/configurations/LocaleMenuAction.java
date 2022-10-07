@@ -22,7 +22,6 @@ import com.android.ide.common.resources.configuration.LocaleQualifier;
 import com.android.tools.adtui.actions.DropDownAction;
 import com.android.tools.idea.editors.strings.StringResourceEditorProvider;
 import com.android.tools.idea.layoutlib.LayoutLibrary;
-import com.android.tools.idea.rendering.FlagManager;
 import com.android.tools.idea.rendering.RenderService;
 import com.android.tools.idea.res.IdeResourcesUtil;
 import com.android.tools.idea.res.LocalResourceRepository;
@@ -74,7 +73,7 @@ public class LocaleMenuAction extends DropDownAction {
       add(new SetLocaleAction(myRenderContext, title, Locale.ANY, currentLocalLabel.equals(title)));
       addSeparator();
 
-      Collections.sort(locales, Locale.LANGUAGE_CODE_COMPARATOR);
+      locales.sort(Locale.LANGUAGE_CODE_COMPARATOR);
       for (Locale locale : locales) {
         title = Locale.getLocaleLabel(locale, false);
 

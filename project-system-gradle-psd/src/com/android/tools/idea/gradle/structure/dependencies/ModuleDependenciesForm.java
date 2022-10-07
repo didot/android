@@ -33,7 +33,6 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -77,7 +76,7 @@ class ModuleDependenciesForm {
     CheckedTreeNode root = new CheckedTreeNode(null);
 
     List<PsModule> modules = findAvailableModules(module);
-    Collections.sort(modules, new PsModelNameComparator<>());
+    modules.sort(new PsModelNameComparator<>());
 
     modules.forEach(m -> {
       CheckedTreeNode node = new CheckedTreeNode(m);
