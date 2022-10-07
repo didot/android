@@ -24,7 +24,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.io.FileUtilRt;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import com.intellij.util.containers.MultiMap;
 import com.intellij.util.execution.ParametersListUtil;
 import java.io.File;
@@ -203,7 +203,7 @@ public final class AndroidApt {
     }
     if (!extraPackages.isEmpty()) {
       args.add("--extra-packages");
-      args.add(toPackagesString(ArrayUtil.toStringArray(extraPackages)));
+      args.add(toPackagesString(ArrayUtilRt.toStringArray(extraPackages)));
     }
 
     if (customPackage != null) {
@@ -232,7 +232,7 @@ public final class AndroidApt {
       args.add("-G");
       args.add(proguardCfgOutputFileOsPath);
     }
-    final Map<AndroidCompilerMessageKind, List<String>> messages = AndroidExecutionUtil.doExecute(ArrayUtil.toStringArray(args));
+    final Map<AndroidCompilerMessageKind, List<String>> messages = AndroidExecutionUtil.doExecute(ArrayUtilRt.toStringArray(args));
     LOG.info(AndroidBuildCommonUtils.command2string(args));
 
     if (!messages.get(AndroidCompilerMessageKind.ERROR).isEmpty()) {
@@ -325,7 +325,7 @@ public final class AndroidApt {
       args.add(outputPath);
 
       LOG.info(AndroidBuildCommonUtils.command2string(args));
-      return AndroidExecutionUtil.doExecute(ArrayUtil.toStringArray(args));
+      return AndroidExecutionUtil.doExecute(ArrayUtilRt.toStringArray(args));
     }
     finally {
       if (tempDir != null) {
@@ -441,7 +441,7 @@ public final class AndroidApt {
       args.add("-F");
       args.add(outputPath);
       LOG.info(AndroidBuildCommonUtils.command2string(args));
-      return AndroidExecutionUtil.doExecute(ArrayUtil.toStringArray(args));
+      return AndroidExecutionUtil.doExecute(ArrayUtilRt.toStringArray(args));
     }
     finally {
       if (tempDir != null) {
@@ -464,7 +464,7 @@ public final class AndroidApt {
         }
       }
     }
-    return ArrayUtil.toStringArray(result);
+    return ArrayUtilRt.toStringArray(result);
   }
 
 

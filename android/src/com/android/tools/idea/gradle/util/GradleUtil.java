@@ -34,7 +34,6 @@ import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
 import static com.intellij.openapi.util.text.StringUtil.trimLeading;
 import static com.intellij.openapi.vfs.VfsUtil.findFileByIoFile;
 import static com.intellij.openapi.vfs.VfsUtilCore.virtualToIoFile;
-import static com.intellij.util.ArrayUtil.toStringArray;
 import static org.gradle.wrapper.WrapperExecutor.DISTRIBUTION_URL_PROPERTY;
 import static org.jetbrains.plugins.gradle.settings.DistributionType.BUNDLED;
 import static org.jetbrains.plugins.gradle.settings.DistributionType.LOCAL;
@@ -62,6 +61,7 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.util.ArrayUtilRt;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
@@ -259,7 +259,7 @@ public final class GradleUtil {
   @NotNull
   public static String getDefaultPhysicalPathFromGradlePath(@NotNull String gradlePath) {
     List<String> segments = getPathSegments(gradlePath);
-    return join(toStringArray(segments));
+    return join(ArrayUtilRt.toStringArray(segments));
   }
 
   /**

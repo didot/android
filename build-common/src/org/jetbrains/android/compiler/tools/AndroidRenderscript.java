@@ -19,7 +19,7 @@ import com.android.sdklib.BuildToolInfo;
 import com.android.sdklib.IAndroidTarget;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -74,6 +74,6 @@ public class AndroidRenderscript {
     command.add(FileUtil.toSystemDependentName(sourceFilePath));
 
     LOG.info(AndroidBuildCommonUtils.command2string(command));
-    return AndroidExecutionUtil.doExecute(ArrayUtil.toStringArray(command));
+    return AndroidExecutionUtil.doExecute(ArrayUtilRt.toStringArray(command));
   }
 }

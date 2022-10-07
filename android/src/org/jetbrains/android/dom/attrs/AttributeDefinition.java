@@ -21,6 +21,7 @@ import com.android.ide.common.rendering.api.ResourceReference;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -114,7 +115,7 @@ public final class AttributeDefinition implements Cloneable {
 
   @NotNull
   public String[] getValues() {
-    return myValueMappings.isEmpty() ? ArrayUtil.EMPTY_STRING_ARRAY : ArrayUtil.toStringArray(myValueMappings.keySet());
+    return myValueMappings.isEmpty() ? ArrayUtil.EMPTY_STRING_ARRAY : ArrayUtilRt.toStringArray(myValueMappings.keySet());
   }
 
   @Nullable

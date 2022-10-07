@@ -42,7 +42,7 @@ import com.android.tools.idea.uibuilder.scene.LayoutlibSceneManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import java.awt.Dimension;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -210,7 +210,7 @@ public abstract class ViewEditor {
                                          @Nullable Predicate<String> filter,
                                          @Nullable String currentValue) {
     Module module = model.getModule();
-    String[] superTypesArray = ArrayUtil.toStringArray(superTypes);
+    String[] superTypesArray = ArrayUtilRt.toStringArray(superTypes);
 
     Predicate<PsiClass> psiFilter = ChooseClassDialog.getIsPublicAndUnrestrictedFilter();
     if (filter == null) {

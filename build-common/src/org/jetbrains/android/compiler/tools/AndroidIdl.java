@@ -18,7 +18,7 @@ package org.jetbrains.android.compiler.tools;
 import com.android.sdklib.BuildToolInfo;
 import com.android.sdklib.IAndroidTarget;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.util.ArrayUtil;
+import com.intellij.util.ArrayUtilRt;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,7 +61,7 @@ public final class AndroidIdl {
     commands.add(outFile);
 
     LOG.info(AndroidBuildCommonUtils.command2string(commands));
-    return AndroidExecutionUtil.doExecute(ArrayUtil.toStringArray(commands));
+    return AndroidExecutionUtil.doExecute(ArrayUtilRt.toStringArray(commands));
   }
 
 }
