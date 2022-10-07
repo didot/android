@@ -78,6 +78,7 @@ import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.TextRange;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.io.FileUtilRt;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -86,7 +87,6 @@ import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiPackage;
-import com.intellij.util.PathUtil;
 import com.intellij.util.lang.UrlClassLoader;
 import com.intellij.util.net.HttpConfigurable;
 import java.io.File;
@@ -409,7 +409,7 @@ public class LintIdeClient extends LintClient implements Disposable {
     }
 
     if (inScope) {
-      file = new File(PathUtil.getCanonicalPath(file.getPath()));
+      file = new File(FileUtil.toCanonicalPath(file.getPath()));
 
       Map<File, List<LintProblemData>> file2ProblemList = myProblemMap.get(issue);
       if (file2ProblemList == null) {
@@ -697,7 +697,7 @@ public class LintIdeClient extends LintClient implements Disposable {
     //noinspection AssignmentToStaticFieldFromInstanceMethod
     final String path = ourSystemPath != null
                         ? ourSystemPath
-                        : (ourSystemPath = PathUtil.getCanonicalPath(PathManager.getSystemPath()));
+                        : (ourSystemPath = FileUtil.toCanonicalPath(PathManager.getSystemPath()));
     String relative = "lint";
     if (name != null) {
       relative += File.separator + name;
