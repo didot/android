@@ -437,7 +437,7 @@ public class AndroidGradleTests {
     repositories.add(TestUtils.getPrebuiltOfflineMavenRepo().toFile());
 
     if (!TestUtils.runningFromBazel()) {
-      Path repo = TestUtils.getWorkspaceRoot().resolve("out/repo");
+      Path repo = TestUtils.resolveWorkspacePath("out/repo");
       if (Files.exists(repo)) {
         repositories.add(repo.toFile());
       }
