@@ -21,9 +21,10 @@
     <orderEntry type="library" name="studio-plugin-Kotlin" level="project" />
     <orderEntry type="module" module-name="intellij.android.gradle.dsl" />
     <orderEntry type="module-library">
-      <library>
+      <library name="r8" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:r8:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../../prebuilts/r8/r8.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/r8/221.0.12.0/r8-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

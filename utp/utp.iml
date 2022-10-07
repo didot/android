@@ -12,9 +12,10 @@
     <orderEntry type="library" name="studio-plugin-gradle" level="project" />
     <orderEntry type="library" name="studio-sdk" level="project" />
     <orderEntry type="module-library">
-      <library>
+      <library name="libstudio.android-test-plugin-result-listener-gradle-proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:libstudio.android-test-plugin-result-listener-gradle-proto:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../bazel-bin/tools/base/utp/android-test-plugin-result-listener-gradle-proto/libstudio.android-test-plugin-result-listener-gradle-proto.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/libstudio.android-test-plugin-result-listener-gradle-proto/221.0.12.0/libstudio.android-test-plugin-result-listener-gradle-proto-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

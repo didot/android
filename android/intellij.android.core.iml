@@ -34,9 +34,10 @@
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library name="okio">
+      <library name="okio" type="repository">
+        <properties include-transitive-deps="false" maven-id="com.squareup.okio:okio:1.14.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../prebuilts/tools/common/m2/repository/com/squareup/okio/okio/1.14.0/okio-1.14.0.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/com/squareup/okio/okio/1.14.0/okio-1.14.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -108,9 +109,10 @@
     <orderEntry type="library" name="utp-core-proto-jarjar" level="project" />
     <orderEntry type="library" name="android-test-plugin-host-device-info-proto" level="project" />
     <orderEntry type="module-library">
-      <library name="libandroid-core-proto">
+      <library name="libandroid-core-proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:libandroid-core-proto:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../bazel-bin/tools/adt/idea/android/libandroid-core-proto.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/libandroid-core-proto/221.0.12.0/libandroid-core-proto-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -130,9 +132,10 @@
     <orderEntry type="library" name="studio-plugin-webp" level="project" />
     <orderEntry type="library" name="kotlinx-coroutines-guava" level="project" />
     <orderEntry type="module-library">
-      <library name="libstudio.android-test-plugin-host-retention-proto">
+      <library name="libstudio.android-test-plugin-host-retention-proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:libstudio.android-test-plugin-host-retention-proto:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../bazel-bin/tools/base/utp/android-test-plugin-host-retention-proto/libstudio.android-test-plugin-host-retention-proto.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/libstudio.android-test-plugin-host-retention-proto/221.0.12.0/libstudio.android-test-plugin-host-retention-proto-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

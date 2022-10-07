@@ -35,9 +35,10 @@
     <orderEntry type="library" name="studio-grpc" level="project" />
     <orderEntry type="library" name="studio-proto" level="project" />
     <orderEntry type="module-library">
-      <library name="traceprocessor-proto">
+      <library name="traceprocessor-proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:traceprocessor_protos:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../bazel-bin/tools/base/profiler/native/trace_processor_daemon/traceprocessor_protos.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/traceprocessor_protos/221.0.12.0/traceprocessor_protos-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -50,9 +51,10 @@
     <orderEntry type="module" module-name="app-inspection.ide" />
     <orderEntry type="module" module-name="codenavigation" />
     <orderEntry type="module-library">
-      <library name="trace-perfetto-library">
+      <library name="trace-perfetto-library" type="repository">
+        <properties include-transitive-deps="false" maven-id="androidx.tracing:tracing-perfetto-common:1.0.0-alpha01" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../prebuilts/tools/common/m2/repository/androidx/tracing/tracing-perfetto-common/1.0.0-alpha01/tracing-perfetto-common-1.0.0-alpha01.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/androidx/tracing/tracing-perfetto-common/1.0.0-alpha01/tracing-perfetto-common-1.0.0-alpha01.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

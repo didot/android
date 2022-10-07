@@ -14,9 +14,10 @@
     <orderEntry type="module" module-name="android.sdktools.flags" />
     <orderEntry type="library" name="studio-plugin-Kotlin" level="project" />
     <orderEntry type="module-library">
-      <library>
+      <library name="libjava_sites" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:libjava_sites:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../bazel-bin/tools/base/deploy/sites/libjava_sites.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/libjava_sites/221.0.12.0/libjava_sites-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

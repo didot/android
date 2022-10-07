@@ -10,9 +10,10 @@
     <orderEntry type="library" name="studio-proto" level="project" />
     <orderEntry type="library" name="studio-sdk" level="project" />
     <orderEntry type="module-library">
-      <library>
+      <library name="asdriver_proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:asdriver_proto:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../../bazel-bin/tools/adt/idea/as-driver/proto/asdriver_proto.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/asdriver_proto/221.0.12.0/asdriver_proto-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

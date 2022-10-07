@@ -83,18 +83,20 @@
     <orderEntry type="library" name="utp-core-proto-jarjar" level="project" />
     <orderEntry type="library" name="android-test-plugin-host-device-info-proto" level="project" />
     <orderEntry type="module-library">
-      <library name="libandroid-core-proto">
+      <library name="libandroid-core-proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:libandroid-core-proto:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../bazel-bin/tools/adt/idea/android/libandroid-core-proto.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/libandroid-core-proto/221.0.12.0/libandroid-core-proto-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module-library" scope="TEST">
-      <library name="libandroid-core-proto-test">
+      <library name="libandroid-core-proto-test" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:libandroid-core-proto-test:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../bazel-bin/tools/adt/idea/android/libandroid-core-proto-test.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/libandroid-core-proto-test/221.0.12.0/libandroid-core-proto-test-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -109,9 +111,10 @@
     <orderEntry type="library" name="studio-plugin-properties" level="project" />
     <orderEntry type="library" name="studio-plugin-platform-images" level="project" />
     <orderEntry type="module-library">
-      <library name="libstudio.android-test-plugin-host-retention-proto">
+      <library name="libstudio.android-test-plugin-host-retention-proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:libstudio.android-test-plugin-host-retention-proto:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../bazel-bin/tools/base/utp/android-test-plugin-host-retention-proto/libstudio.android-test-plugin-host-retention-proto.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/libstudio.android-test-plugin-host-retention-proto/221.0.12.0/libstudio.android-test-plugin-host-retention-proto-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

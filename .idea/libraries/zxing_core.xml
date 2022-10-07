@@ -1,7 +1,8 @@
 <component name="libraryTable">
-  <library name="zxing-core">
+  <library name="zxing-core" type="repository">
+    <properties include-transitive-deps="false" maven-id="com.google.zxing:core:3.4.0" />
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../../../prebuilts/tools/common/m2/repository/com/google/zxing/core/3.4.0/core-3.4.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/google/zxing/core/3.4.0/core-3.4.0.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>

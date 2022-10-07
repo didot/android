@@ -8,14 +8,13 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library">
-      <library>
+      <library name="junit" type="repository">
+        <properties include-transitive-deps="false" maven-id="junit:junit:4.12" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../../prebuilts/tools/common/m2/repository/junit/junit/4.12/junit-4.12.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/junit/junit/4.12/junit-4.12.jar!/" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES>
-          <root url="jar://$MODULE_DIR$/../../../../../prebuilts/tools/common/m2/repository/junit/junit/4.12/junit-4.12-sources.jar!/" />
-        </SOURCES>
+        <SOURCES />
       </library>
     </orderEntry>
     <orderEntry type="module" module-name="android.sdktools.testutils" scope="TEST" />
@@ -23,9 +22,10 @@
     <orderEntry type="library" scope="TEST" name="studio-grpc" level="project" />
     <orderEntry type="library" scope="TEST" name="studio-proto" level="project" />
     <orderEntry type="module-library">
-      <library>
+      <library name="asdriver_proto" type="repository">
+        <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:asdriver_proto:221.0.12.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../../bazel-bin/tools/adt/idea/as-driver/proto/asdriver_proto.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/intellij/deps/android/tools/base/asdriver_proto/221.0.12.0/asdriver_proto-221.0.12.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
