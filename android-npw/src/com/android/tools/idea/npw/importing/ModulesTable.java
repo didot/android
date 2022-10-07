@@ -20,7 +20,6 @@ import com.google.common.base.Objects;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.intellij.openapi.project.Project;
@@ -39,6 +38,7 @@ import java.text.Collator;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import javax.swing.BorderFactory;
@@ -120,7 +120,7 @@ public final class ModulesTable extends JBPanel implements Scrollable {
       }
 
       boolean isFirst = true;
-      Collection<ModuleImportSettingsPane> editors = Lists.newLinkedList();
+      Collection<ModuleImportSettingsPane> editors = new LinkedList<>();
 
       Set<ModuleToImport> allModules = Sets.newTreeSet(new ModuleComparator(myListModel.getCurrentPath()));
       Iterables

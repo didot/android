@@ -16,8 +16,8 @@
 package com.android.tools.idea.run.activity;
 
 import com.android.ddmlib.IDevice;
-import com.google.common.collect.Lists;
 import com.intellij.openapi.util.text.StringUtil;
+import java.util.LinkedList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
@@ -36,7 +36,7 @@ public class DefaultStartActivityFlagsProvider implements StartActivityFlagsProv
   @Override
   @NotNull
   public String getFlags(@NotNull IDevice device) {
-    List<String> flags = Lists.newLinkedList();
+    List<String> flags = new LinkedList<>();
     if (myWaitForDebugger) {
       flags.add("-D");
     }
