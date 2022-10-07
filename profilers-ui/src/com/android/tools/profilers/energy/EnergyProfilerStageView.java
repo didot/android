@@ -46,8 +46,8 @@ import com.android.tools.profilers.event.UserEventTooltip;
 import com.android.tools.profilers.event.UserEventTooltipView;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.components.JBPanel;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBEmptyBorder;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import icons.StudioIcons;
 import java.awt.BorderLayout;
@@ -72,7 +72,7 @@ public class EnergyProfilerStageView extends StageView<EnergyProfilerStage> {
     getTooltipBinder().bind(UserEventTooltip.class, (stageView, tooltip) -> new UserEventTooltipView(stageView.getComponent(), tooltip));
 
     myDetailsView = new EnergyDetailsView(this);
-    myDetailsView.setMinimumSize(new Dimension(JBUI.scale(450), (int)myDetailsView.getMinimumSize().getHeight()));
+    myDetailsView.setMinimumSize(new Dimension(JBUIScale.scale(450), (int)myDetailsView.getMinimumSize().getHeight()));
     myDetailsView.setVisible(false);
     JBSplitter splitter = new JBSplitter(false, 0.6f);
     splitter.setFirstComponent(buildMonitorUi());

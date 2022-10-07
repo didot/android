@@ -91,6 +91,7 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.xml.XmlTag;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.awt.RelativePoint;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.LafIconLookup;
 import icons.StudioIcons;
@@ -1187,12 +1188,12 @@ public class CommonActions {
 
           @Override
           public int getIconWidth() {
-            return JBUI.scale(DEFAULT_ICON_WIDTH);
+            return JBUIScale.scale(DEFAULT_ICON_WIDTH);
           }
 
           @Override
           public int getIconHeight() {
-            return JBUI.scale(DEFAULT_ICON_HEIGHT);
+            return JBUIScale.scale(DEFAULT_ICON_HEIGHT);
           }
         };
       }

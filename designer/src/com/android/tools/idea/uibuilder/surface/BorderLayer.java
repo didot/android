@@ -19,7 +19,7 @@ import com.android.tools.idea.common.surface.DesignSurface;
 import com.android.tools.idea.common.surface.Layer;
 import com.android.tools.idea.common.surface.SceneView;
 import com.intellij.ui.JBColor;
-import com.intellij.util.ui.JBUI;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.UIUtil;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -63,7 +63,7 @@ public class BorderLayer extends Layer {
 
   private static class BorderPainter {
 
-    private static final int SHADOW_SIZE = JBUI.scale(4);
+    private static final int SHADOW_SIZE = JBUIScale.scale(4);
     private static final Color COLOR_OUTSIDE = UIUtil.TRANSPARENT_COLOR;
     private static final Color COLOR_INSIDE = JBColor.namedColor("ScreenView.borderColor", new JBColor(new Color(0, 0, 0, 40), new Color(0, 0, 0, 80)));
     private static final Paint GRAD_LEFT = new GradientPaint(0, 0, COLOR_OUTSIDE, SHADOW_SIZE, 0, COLOR_INSIDE);

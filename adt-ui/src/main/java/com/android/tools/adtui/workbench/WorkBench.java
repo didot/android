@@ -36,7 +36,7 @@ import com.intellij.openapi.ui.ThreeComponentsSplitter;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.registry.Registry;
 import com.intellij.ui.components.JBLayeredPane;
-import com.intellij.util.ui.JBUI;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.accessibility.ScreenReader;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -394,7 +394,7 @@ public class WorkBench<T> extends JBLayeredPane implements Disposable {
   private int getSideWidth(@NotNull Layout layout, @NotNull Side side) {
     int width = myPropertiesComponent.getInt(getUnscaledWidthPropertyName(layout, side), -1);
     if (width != -1) {
-      return JBUI.scale(width);
+      return JBUIScale.scale(width);
     }
     int scaledWidth = myPropertiesComponent.getInt(getScaledWidthPropertyName(layout, side), -1);
     if (scaledWidth != -1) {
@@ -676,7 +676,7 @@ public class WorkBench<T> extends JBLayeredPane implements Disposable {
   }
 
   private class MyButtonDragListener implements ButtonDragListener<T> {
-    private final int BUTTON_PANEL_WIDTH = JBUI.scale(21);
+    private final int BUTTON_PANEL_WIDTH = JBUIScale.scale(21);
 
     private boolean myIsDragging;
     private MinimizedPanel<T> myPreviousButtonPanel;

@@ -42,9 +42,9 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.AbstractTableCellEditor;
 import com.intellij.util.ui.ColumnInfo;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.ListTableModel;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.UIUtil;
@@ -223,14 +223,14 @@ public class SystemImageListModel extends ListTableModel<SystemImageDescription>
         return Comparator.comparing(SystemImageDescription::getVersion);
       }
     },
-    new SystemImageColumnInfo("API Level", JBUI.scale(100)) {
+    new SystemImageColumnInfo("API Level", JBUIScale.scale(100)) {
       @NotNull
       @Override
       public String valueOf(SystemImageDescription systemImage) {
         return systemImage.getVersion().getApiString();
       }
     },
-    new SystemImageColumnInfo("ABI", JBUI.scale(100)) {
+    new SystemImageColumnInfo("ABI", JBUIScale.scale(100)) {
       @NotNull
       @Override
       public String valueOf(SystemImageDescription systemImage) {

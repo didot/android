@@ -41,8 +41,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.intellij.reference.SoftReference;
+import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.ui.ImageUtil;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.StartupUiUtil;
 import com.intellij.util.ui.update.MergingUpdateQueue;
 import com.intellij.util.ui.update.Update;
@@ -117,7 +117,7 @@ public class CanvasResizeInteraction extends Interaction {
    * Threshold used to force a resize of the surface when getting close to the border. If the mouse gets closer than
    * 2*myResizeTriggerThreshold to the border of the surface, the surface will be extended by myResizeTriggerThreshold
    */
-  private final int myResizeTriggerThreshold = JBUI.scale(200);
+  private final int myResizeTriggerThreshold = JBUIScale.scale(200);
 
   public CanvasResizeInteraction(@NotNull NlDesignSurface designSurface,
                                  @NotNull ScreenView screenView,
