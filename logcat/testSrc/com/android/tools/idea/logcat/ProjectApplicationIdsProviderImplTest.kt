@@ -91,7 +91,7 @@ class ProjectApplicationIdsProviderImplTest {
     whenever(mockProjectFacetManager.getFacets(AndroidFacet.ID)).thenReturn(listOf(facet1))
     ProjectApplicationIdsProviderImpl(project)
     var notified = false
-    project.messageBus.connect(project).subscribe(PROJECT_APPLICATION_IDS_CHANGED_TOPIC, ProjectApplicationIdsListener {
+    project.messageBus.connect().subscribe(PROJECT_APPLICATION_IDS_CHANGED_TOPIC, ProjectApplicationIdsListener {
       notified = true
     })
 
@@ -108,7 +108,7 @@ class ProjectApplicationIdsProviderImplTest {
     whenever(mockProjectFacetManager.getFacets(AndroidFacet.ID)).thenReturn(listOf(facet1))
     ProjectApplicationIdsProviderImpl(project)
     var notified = false
-    project.messageBus.connect(project).subscribe(PROJECT_APPLICATION_IDS_CHANGED_TOPIC, ProjectApplicationIdsListener {
+    project.messageBus.connect().subscribe(PROJECT_APPLICATION_IDS_CHANGED_TOPIC, ProjectApplicationIdsListener {
       notified = true
     })
 

@@ -39,7 +39,7 @@ class ProjectMetricsInitializer : ProjectManagerListener {
   override fun projectOpened(project: Project) {
     // Need to set up ToolWindowTrackerService here after project is initialized so service can be retrieved.
     val service = ToolWindowTrackerService.getInstance(project)
-    project.messageBus.connect(project).subscribe(ToolWindowManagerListener.TOPIC, service)
+    project.messageBus.connect().subscribe(ToolWindowManagerListener.TOPIC, service)
 
     // don't include current project to be consistent with projectClosed
     val projectsOpen = ProjectManager.getInstance().openProjects.size - 1

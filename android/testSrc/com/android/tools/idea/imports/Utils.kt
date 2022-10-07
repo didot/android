@@ -42,8 +42,7 @@ internal fun performAndWaitForSyncEnd(
 ) {
   val publishedResult = SettableFuture.create<ProjectSystemSyncManager.SyncResult>()
   val project = projectRule.project
-  project.messageBus
-    .connect(project)
+  project.messageBus.connect()
     .subscribe(PROJECT_SYSTEM_SYNC_TOPIC, object : ProjectSystemSyncManager.SyncResultListener {
       override fun syncEnded(result: ProjectSystemSyncManager.SyncResult) {
         publishedResult.set(result)

@@ -70,7 +70,7 @@ class ResourceExplorerToolFactory : ToolWindowFactory, DumbAware {
         toolWindow.displayWaitingForGoodSync()
       }
     )
-    project.messageBus.connect(project).subscribe(ToolWindowManagerListener.TOPIC, MyToolWindowManagerListener(project))
+    project.messageBus.connect().subscribe(ToolWindowManagerListener.TOPIC, MyToolWindowManagerListener(project))
   }
 }
 

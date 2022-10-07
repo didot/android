@@ -61,7 +61,7 @@ internal class LogcatToolWindowFactory : SplittingTabsToolWindowFactory(), DumbA
   override fun init(toolWindow: ToolWindow) {
     super.init(toolWindow)
     val project = (toolWindow as ToolWindowEx).project
-    project.messageBus.connect(project)
+    project.messageBus.connect()
       .subscribe(ShowLogcatListener.TOPIC, ShowLogcatListener { serialNumber, _ -> showLogcat(toolWindow, serialNumber) })
 
     ProcessNameMonitor.getInstance(project).start()
