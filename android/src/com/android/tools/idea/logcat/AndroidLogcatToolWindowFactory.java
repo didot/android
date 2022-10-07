@@ -73,7 +73,7 @@ public class AndroidLogcatToolWindowFactory implements ToolWindowFactory, DumbAw
   @Override
   public void init(@NotNull ToolWindow toolWindow) {
     Project project = ((ToolWindowEx)toolWindow).getProject();
-    project.getMessageBus().connect(project)
+    project.getMessageBus().connect()
       .subscribe(ShowLogcatListener.TOPIC, (serialNumber, applicationId) -> showLogcat(toolWindow, serialNumber, applicationId));
   }
 
