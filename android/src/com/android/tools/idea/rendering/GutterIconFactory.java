@@ -35,7 +35,7 @@ import com.intellij.ui.scale.ScaleContext;
 import com.intellij.util.IconUtil;
 import com.intellij.util.ui.ImageUtil;
 import com.intellij.util.ui.JBUI;
-import com.intellij.util.ui.UIUtil;
+import com.intellij.util.ui.StartupUiUtil;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Image;
@@ -233,7 +233,7 @@ public class GutterIconFactory {
           Graphics g = bg.getGraphics();
           g.setColor(Gray.TRANSPARENT);
           g.fillRect(0, 0, bg.getWidth(), bg.getHeight());
-          UIUtil.drawImage(g, image, 0, 0, null);
+          StartupUiUtil.drawImage(g, image, 0, 0, null);
           g.dispose();
           image = bg;
         }

@@ -20,7 +20,6 @@ import static com.intellij.openapi.actionSystem.ActionPlaces.UNKNOWN;
 import static com.intellij.openapi.keymap.KeymapUtil.createTooltipText;
 import static com.intellij.ui.tabs.TabsUtil.getTabsHeight;
 import static com.intellij.util.ui.UIUtil.drawHeader;
-import static com.intellij.util.ui.UIUtil.drawImage;
 
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.DataManager;
@@ -128,7 +127,7 @@ public class Header extends JPanel {
 
     Rectangle clipBounds = g2d.getClip().getBounds();
     for (int x = clipBounds.x; x < clipBounds.x + clipBounds.width; x += 150) {
-      drawImage(g, image, x, 0, null);
+      StartupUiUtil.drawImage(g, image, x, 0, null);
     }
   }
 
