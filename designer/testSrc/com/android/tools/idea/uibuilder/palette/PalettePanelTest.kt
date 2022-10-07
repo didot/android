@@ -72,10 +72,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.isNull
 import org.mockito.Mockito.any
 import org.mockito.Mockito.anyCollection
 import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.isNull
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
