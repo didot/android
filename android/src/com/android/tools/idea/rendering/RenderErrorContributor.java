@@ -53,7 +53,6 @@ import com.android.xml.AndroidManifest;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.lang.annotation.HighlightSeverity;
@@ -90,6 +89,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -1165,7 +1165,7 @@ public class RenderErrorContributor {
             String matchText = clz.getText();
             final Pattern LAYOUT_FIELD_PATTERN = Pattern.compile("R\\.layout\\.([a-z0-9_]+)");
             Matcher matcher = LAYOUT_FIELD_PATTERN.matcher(matchText);
-            Set<String> layouts = Sets.newTreeSet();
+            Set<String> layouts = new TreeSet<>();
             int index = 0;
             while (true) {
               if (matcher.find(index)) {
