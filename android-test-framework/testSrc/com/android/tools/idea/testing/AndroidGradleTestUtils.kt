@@ -1870,13 +1870,11 @@ interface GradleIntegrationTest : IntegrationTestEnvironment {
   /**
    * The base testData directory to be used in tests.
    */
-  @JvmDefault
   fun resolveTestDataPath(testDataPath: @SystemIndependent String): File {
     val testDataDirectory = TestUtils.resolveWorkspacePath(toSystemDependentName(getTestDataDirectoryWorkspaceRelativePath()))
     return testDataDirectory.resolve(toSystemDependentName(testDataPath)).toFile()
   }
 
-  @JvmDefault
   fun getAgpVersionSoftwareEnvironmentDescriptor(): AgpVersionSoftwareEnvironmentDescriptor {
     return AgpVersionSoftwareEnvironmentDescriptor.AGP_CURRENT
   }
