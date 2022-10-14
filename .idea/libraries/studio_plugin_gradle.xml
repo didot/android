@@ -1,13 +1,13 @@
 <component name="libraryTable">
   <library name="studio-plugin-gradle">
     <CLASSES>
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle.jar!/" />
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-launcher-7.4.jar!/" />
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-api-impldep-7.4.jar!/" />
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-tooling-extension-api.jar!/" />
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-api-7.4.jar!/" />
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-tooling-extension-impl.jar!/" />
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/gradle/lib/gradle-wrapper-7.4.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/gradle/lib/gradle-wrapper-7.5.1.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/gradle/lib/gradle-launcher-7.5.1.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/gradle/lib/gradle.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/gradle/lib/gradle-api-7.5.1.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/gradle/lib/gradle-tooling-extension-api.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/gradle/lib/gradle-api-impldep-7.5.1.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/gradle/lib/gradle-tooling-extension-impl.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

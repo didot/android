@@ -1,8 +1,8 @@
 <component name="libraryTable">
   <library name="studio-plugin-testng">
     <CLASSES>
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/testng/lib/testng-plugin.jar!/" />
-      <root url="jar://$IDEA-09f20f26d87844c4229d1479c0a191db583f3f93$/plugins/testng/lib/testng-rt.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/testng/lib/testng-plugin.jar!/" />
+      <root url="jar://$IDEA-134f45d43aefc3cf7a3f806e0ea1ea6f768528f4$/plugins/testng/lib/testng-rt.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
