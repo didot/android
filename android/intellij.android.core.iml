@@ -20,7 +20,7 @@
     <orderEntry type="module" module-name="intellij.android.adt.ui" />
     <orderEntry type="module" module-name="intellij.android.adt.ui.model" />
     <orderEntry type="module-library">
-      <library>
+      <library name="spantable">
         <CLASSES>
           <root url="jar://$MODULE_DIR$/lib/spantable.jar!/" />
         </CLASSES>
@@ -41,10 +41,10 @@
       </library>
     </orderEntry>
     <orderEntry type="module-library">
-      <library name="moshi">
+      <library name="moshi" type="repository">
+        <properties include-transitive-deps="false" maven-id="com.squareup.moshi:moshi:1.6.0" />
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../../../../prebuilts/tools/common/m2/repository/com/squareup/moshi/moshi/1.6.0/moshi-1.6.0.jar!/" />
-          <root url="jar://$MODULE_DIR$/../../../../prebuilts/tools/common/m2/repository/com/squareup/okio/okio/1.14.0/okio-1.14.0.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/com/squareup/moshi/moshi/1.6.0/moshi-1.6.0.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
