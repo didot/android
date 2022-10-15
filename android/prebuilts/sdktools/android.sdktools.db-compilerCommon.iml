@@ -23,7 +23,6 @@
       </library>
     </orderEntry>
     <orderEntry type="inheritedJdk" />
-    <orderEntry type="library" name="studio-sdk" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="android.sdktools.db-baseLibrary" exported="" />
     <orderEntry type="module" module-name="android.sdktools.db-baseLibrarySupport" exported="" />

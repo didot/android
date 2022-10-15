@@ -9,13 +9,13 @@
       <sourceFolder url="file://$MODULE_DIR$/testSrc" isTestSource="true" />
     </content>
     <orderEntry type="inheritedJdk" />
-    <orderEntry type="library" name="studio-sdk" level="project" />
     <orderEntry type="library" scope="TEST" name="kotlin-test" level="project" />
-    <orderEntry type="library" name="studio-plugin-gradle" level="project" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="intellij.android.core" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.adt.ui" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.adt.ui.model" scope="TEST" />
+    <orderEntry type="library" scope="TEST" name="hamcrest" level="project" />
+    <orderEntry type="library" scope="TEST" name="JUnit4" level="project" />
     <orderEntry type="library" scope="TEST" name="easymock" level="project" />
     <orderEntry type="library" scope="TEST" name="mockito" level="project" />
     <orderEntry type="library" scope="TEST" name="truth" level="project" />
@@ -103,13 +103,6 @@
       </library>
     </orderEntry>
     <orderEntry type="module" module-name="intellij.android.server-flags" />
-    <orderEntry type="library" scope="TEST" name="studio-plugin-java-ide-customization" level="project" />
-    <orderEntry type="library" scope="TEST" name="studio-plugin-java-i18n" level="project" />
-    <orderEntry type="library" name="studio-plugin-Kotlin" level="project" />
-    <orderEntry type="library" name="studio-plugin-Groovy" level="project" />
-    <orderEntry type="library" name="studio-plugin-junit" level="project" />
-    <orderEntry type="library" name="studio-plugin-properties" level="project" />
-    <orderEntry type="library" name="studio-plugin-platform-images" level="project" />
     <orderEntry type="module-library">
       <library name="libstudio.android-test-plugin-host-retention-proto" type="repository">
         <properties include-transitive-deps="false" maven-id="org.jetbrains.intellij.deps.android.tools.base:libstudio.android-test-plugin-host-retention-proto:221.0.12.0" />
@@ -131,7 +124,6 @@
     <orderEntry type="module" module-name="intellij.android.compose-common" scope="TEST" />
     <orderEntry type="module" module-name="android.sdktools.manifest-parser" />
     <orderEntry type="module" module-name="android.sdktools.common.testfixtures" scope="TEST" />
-    <orderEntry type="library" scope="TEST" name="studio-plugin-gradle-java" level="project" />
     <orderEntry type="module" module-name="android.sdktools.deployer" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.lint" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.navigator" scope="TEST" />
@@ -139,6 +131,80 @@
     <orderEntry type="module" module-name="android.sdktools.threading-agent-callback" scope="TEST" />
     <orderEntry type="module" module-name="intellij.android.compose-ide-plugin" scope="TEST" />
     <orderEntry type="module" module-name="intellij.gradle.tests" scope="TEST" />
+    <orderEntry type="library" scope="TEST" name="Guava" level="project" />
+    <orderEntry type="library" scope="TEST" name="protobuf" level="project" />
+    <orderEntry type="library" scope="TEST" name="fastutil-min" level="project" />
+    <orderEntry type="library" scope="TEST" name="kotlinx-coroutines-jdk8" level="project" />
+    <orderEntry type="library" scope="TEST" name="rd-core" level="project" />
+    <orderEntry type="library" scope="TEST" name="StreamEx" level="project" />
+    <orderEntry type="library" scope="TEST" name="javaslang" level="project" />
+    <orderEntry type="library" scope="TEST" name="commons-io" level="project" />
+    <orderEntry type="library" scope="TEST" name="NanoXML" level="project" />
+    <orderEntry type="library" scope="TEST" name="kotlinc.kotlin-compiler-common" level="project" />
+    <orderEntry type="library" scope="TEST" name="CGLIB" level="project" />
+    <orderEntry type="library" scope="TEST" name="http-client" level="project" />
+    <orderEntry type="library" scope="TEST" name="kotlinc.kotlin-compiler-ir" level="project" />
+    <orderEntry type="library" scope="TEST" name="org.codehaus.groovy:groovy" level="project" />
+    <orderEntry type="library" scope="TEST" name="kotlin-reflect" level="project" />
+    <orderEntry type="library" scope="TEST" name="Log4J" level="project" />
+    <orderEntry type="library" scope="TEST" name="ASM" level="project" />
+    <orderEntry type="library" scope="TEST" name="commons-lang3" level="project" />
+    <orderEntry type="library" scope="TEST" name="Gradle" level="project" />
+    <orderEntry type="library" scope="TEST" name="ktor-network-tls" level="project" />
+    <orderEntry type="module" module-name="intellij.platform.util.jdom" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.testFramework.common" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.testFramework.core" scope="TEST" />
+    <orderEntry type="module" module-name="kotlin.base.analysis" scope="TEST" />
+    <orderEntry type="module" module-name="kotlin.idea" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.xml.psi.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.groovy.psi" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.testFramework" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.debugger" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.psi.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.analysis" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.core.ui" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.usageView.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.execution.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.debugger" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.spellchecker" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.compiler.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.analysis.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.gradle.toolingExtension" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.debugger.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.smRunner" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.execution" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.gradle.java" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.debugger.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.xml.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.testRunner" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.ui" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.lang.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.xml.structureView" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.impl.inspections" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.xml.analysis.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.impl.refactorings" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.psi" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.xml.dom.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.util.trove" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.credentialStore" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.testFramework" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.xml.psi" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.properties.psi" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.ide.util.io" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.gradle.common" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.execution.impl" scope="TEST" />
+    <orderEntry type="module" module-name="kotlin.base.util" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.xml.dom" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.externalSystem.rt" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.util.classLoader" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.rd.community" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.externalSystem" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.externalSystem.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.images" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.properties.psi.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.objectSerializer" scope="TEST" />
   </component>
   <component name="TestModuleProperties" production-module="intellij.android.core" />
 </module>
