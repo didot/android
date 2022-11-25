@@ -7,7 +7,7 @@ public class KotlinVersionProvider {
   private final String baseVersion;
 
   public static KotlinVersionProvider getInstance() {
-    return new KotlinVersionProvider(KotlinPluginLayout.getInstance().getStandaloneCompilerVersion());
+    return new KotlinVersionProvider(KotlinPluginLayout.getInstance().getStandaloneCompilerVersion().getRawVersion());
   }
 
   public KotlinVersionProvider(String baseVersion) {
