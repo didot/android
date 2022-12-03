@@ -47,7 +47,7 @@ class JankyFrameTrackRenderer(private val vsyncEnabler: BooleanSupplier): TrackR
         trackModel.dataModel.activeSeriesIndex = it
       }
       addItemClickedListener {
-        it?.let {
+        it.let {
           trackModel.dataModel.multiSelectionModel.setSelection(it, setOf(JankAnalysisModel(it, trackModel.dataModel.capture)))
         }
       }
